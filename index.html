@@ -29,12 +29,7 @@ height: 52px; border: 1.5px solid #e2e8f0; outline: none;
 50% { opacity: 0.3; filter: drop-shadow(0 0 8px #4ade80); transform: scale(1.1); }
 100% { opacity: 1; filter: drop-shadow(0 0 2px #22c55e); transform: scale(1); }
 }
-.green-blinking-emoji {
-display: inline-block;
-animation: green-blink 1.2s infinite ease-in-out;
-color: #22c55e;
-margin-right: 4px;
-}
+.green-blinking-emoji { display: inline-block; animation: green-blink 1.2s infinite ease-in-out; color: #22c55e; margin-right: 4px; }
 
 .card { background: white; border-radius: 20px; border: 1px solid #f1f5f9; padding: 20px; margin: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
 .card-title { font-size: 1.05rem; font-weight: 800; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
@@ -201,6 +196,7 @@ document.querySelectorAll('.q-btn').forEach((btn, idx) => btn.classList.toggle('
 startRealtimeSync();
 };
 
+// ✅ 날짜 로직 교정: 1월 31일 산행 시 오늘(2/3) 기준 D-119가 나오도록 수정
 window.renderStatusTable = () => {
 const list = document.getElementById('statusList');
 const searchTerm = document.getElementById('searchInput').value.trim();
@@ -224,14 +220,21 @@ else if (idx === 1) { rTag = "🥈심마니"; rCls = "rank-2"; }
 else if (idx === 2) { rTag = "🥉나무꾼"; rCls = "rank-3"; }
 }
 
-// ✅ D-Day 계산 로직 수정
+// 1. 오늘 날짜 (시간 제거)
 const today = new Date();
-today.setHours(0,0,0,0);
-const lastDateObj = m.lastDate.toDate();
-lastDateObj.setHours(0,0,0,0);
+today.setHours(0, 0, 0, 0);
 
-const diff = Math.floor((today - lastDateObj) / 86400000);
-const dday = (m.level === 0 ? 30 : 123) - diff;
+// 2. 마지막 기록 날짜 (시간 제거)
+const lastDateObj = m.lastDate.toDate();
+lastDateObj.setHours(0, 0, 0, 0);
+
+// 3. 순수 날짜 차이 계산 (밀리초 차이를 하루 밀리초로 나눔)
+const diffTime = today.getTime() - lastDateObj.getTime();
+const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24)); 
+
+// 4. D-Day 기준 적용 (Lv 0은 30일, 나머지는 123일)
+const base = (m.level === 0 ? 30 : 123);
+const dday = base - diffDays;
 const ddayTxt = dday >= 0 ? `D-${dday}` : `+${Math.abs(dday)}일`;
 
 list.innerHTML += `<tr class="border-b border-gray-50 text-sm"><td class="text-[11px] pr-2">${rTag ? `<span class="rank-badge ${rCls}">${rTag}</span>` : ''}<span class="${rCls}">${m.name}</span></td><td><div class="badge-level"><span class="badge-icon-txt">${getLevelBadge(m.level)}</span><span class="badge-lv-txt">Lv ${m.level}</span></div></td><td>${m.qCount}회</td><td class="text-left pl-2 text-[10px] ${dday<=10?'text-red-500 font-black':'text-gray-400'}">${ddayTxt}</td></tr>`;
@@ -271,7 +274,6 @@ tempDocs.push(m);
 }
 
 const alphaSorted = [...tempDocs].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
-
 const multiList = document.getElementById('multiMemberList');
 const editSelect = document.getElementById('memberSelectEdit');
 const manageSelect = document.getElementById('memberSelectManage');
@@ -284,11 +286,7 @@ const hideCls = m.isHidden ? 'is-hidden' : '';
 const hideTag = m.isHidden ? '<span class="hidden-txt">(숨김)</span>' : '';
 const isSel = selectedMemberIds.has(m.id) ? 'selected' : '';
 
-multiList.innerHTML += `
-<div class="member-item ${hideCls} ${isSel}" onclick="toggleMemberSelection('${m.id}', this)">
-<span>${m.name}${hideTag}</span>
-</div>`;
-
+multiList.innerHTML += `<div class="member-item ${hideCls} ${isSel}" onclick="toggleMemberSelection('${m.id}', this)"><span>${m.name}${hideTag}</span></div>`;
 const optTxt = `${m.name}${m.isHidden ? ' (숨김)' : ''}`;
 editSelect.innerHTML += `<option value="${m.id}">${optTxt}</option>`;
 manageSelect.innerHTML += `<option value="${m.id}">${optTxt}</option>`;
@@ -302,16 +300,14 @@ window.addMultiActivity = async () => {
 if(!selectedMemberIds.size) return alert("기록을 추가할 회원을 선택하세요.");
 const dt = document.getElementById('activityDate').value;
 const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
-const ts = Timestamp.fromDate(dt ? new Date(dt) : new Date());
+const ts = Timestamp.fromDate(dt ? new Date(dt + "T00:00:00") : new Date());
 
 for (const mId of selectedMemberIds) {
 await updateDoc(doc(db, "sanwoori", mId), { level: increment(up), lastDate: ts });
 for(let i=0; i<up; i++) await addDoc(collection(db, `sanwoori/${mId}/logs`), { date: ts });
 }
-
 alert("기록 저장 완료");
 selectedMemberIds.clear();
-// ✅ 실시간 현황 강제 렌더링
 startRealtimeSync();
 };
 
@@ -325,25 +321,17 @@ area.innerHTML += `<div class="log-item-box"><span class="log-date-txt">${d.getM
 });
 };
 
-// ✅ 수정: 기록 삭제 시 관리날짜를 이전 로그 날짜로 자동 복구
 window.deleteLog = async (mId, logId) => {
 const dn = parseInt(document.querySelector('input[name="downAmount"]:checked').value);
 if(!confirm("기록을 삭제하시겠습니까? 관리날짜가 이전 기록일로 자동 복구됩니다.")) return;
-
 await deleteDoc(doc(db, `sanwoori/${mId}/logs`, logId));
 await updateDoc(doc(db, "sanwoori", mId), { level: increment(-dn) });
-
-// 삭제 후 남아있는 가장 최신 로그 가져오기
 const latestLogSnap = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc"), limit(1)));
-
 if (!latestLogSnap.empty) {
-const restoredDate = latestLogSnap.docs[0].data().date;
-await updateDoc(doc(db, "sanwoori", mId), { lastDate: restoredDate });
+await updateDoc(doc(db, "sanwoori", mId), { lastDate: latestLogSnap.docs[0].data().date });
 } else {
-// 로그가 하나도 없으면 가입일(오늘)로 리셋
 await updateDoc(doc(db, "sanwoori", mId), { lastDate: Timestamp.now() });
 }
-
 loadMemberLogs();
 };
 
@@ -371,9 +359,8 @@ window.addMember = async () => {
 const name = document.getElementById('newName').value;
 const date = document.getElementById('regDate').value;
 if(name) { 
-const ts = Timestamp.fromDate(date?new Date(date):new Date());
+const ts = Timestamp.fromDate(date ? new Date(date + "T00:00:00") : new Date());
 const newDoc = await addDoc(collection(db, "sanwoori"), { name, level: 0, lastDate: ts, isHidden: false }); 
-// 신규 회원 등록 시 초기 로그 생성
 await addDoc(collection(db, `sanwoori/${newDoc.id}/logs`), { date: ts });
 document.getElementById('newName').value = ""; 
 }
