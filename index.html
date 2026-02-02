@@ -243,4 +243,60 @@
         const snap = await getDocs(query(collection(db, `sanwoori/${id}/logs`), orderBy("date", "desc")));
         snap.forEach(ld => {
             const d = ld.data().date.toDate();
-            const fmt = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')
+            const fmt = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+            area.innerHTML += `
+                <div class="log-item">
+                    <span>${fmt} 기록</span>
+                    <button class="del-btn-small" onclick="deleteLog('${id}', '${ld.id}')">삭제</button>
+                </div>`;
+        });
+    };
+
+    // 기록 삭제 + 레벨 차감
+    window.deleteLog = async (mId, logId) => {
+        const downVal = parseInt(document.querySelector('input[name="downAmount"]:checked').value);
+        if(!confirm(`기록을 삭제하고 레벨 ${downVal}을 차감할까요?`)) return;
+        await deleteDoc(doc(db, `sanwoori/${mId}/logs`, logId));
+        await updateDoc(doc(db, "sanwoori", mId), { level: increment(-downVal) });
+        loadMemberLogs(); loadData();
+    };
+
+    // [기능 추가] 오직 레벨만 차감하는 버튼 로직
+    window.onlyDownLevel = async () => {
+        const id = document.getElementById('memberSelectEdit').value;
+        if(!id) return alert("회원을 먼저 선택하세요.");
+        const downVal = parseInt(document.querySelector('input[name="downAmount"]:checked').value);
+        if(!confirm(`기록은 그대로 두고 레벨만 ${downVal} 차감하시겠습니까?`)) return;
+        
+        await updateDoc(doc(db, "sanwoori", id), { level: increment(-downVal) });
+        alert("레벨 차감이 완료되었습니다.");
+        loadData();
+    };
+
+    window.deleteMember = async () => {
+        const id = document.getElementById('memberSelectManage').value;
+        if(id && confirm("영구 삭제하시겠습니까?")) { await deleteDoc(doc(db, "sanwoori", id)); loadData(); }
+    };
+
+    window.toggleHideMember = async () => {
+        const id = document.getElementById('memberSelectManage').value;
+        if(!id) return;
+        const m = currentData.find(x => x.id === id);
+        await updateDoc(doc(db, "sanwoori", id), { isHidden: !m.isHidden });
+        loadData();
+    };
+
+    window.addMember = async () => {
+        const name = document.getElementById('newName').value;
+        const date = document.getElementById('regDate').value;
+        if(!name) return alert("이름 필수");
+        await addDoc(collection(db, "sanwoori"), { name, level: 0, lastDate: Timestamp.fromDate(date?new Date(date):new Date()), isHidden: false });
+        document.getElementById('newName').value = ""; loadData();
+    };
+
+    document.getElementById('regDate').valueAsDate = new Date();
+    document.getElementById('activityDate').valueAsDate = new Date();
+    loadData();
+</script>
+</body>
+</html>
