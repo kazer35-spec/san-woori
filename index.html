@@ -38,8 +38,18 @@
         .badge-icon-txt { font-size: 0.85rem; font-weight: 800; color: #166534; }
         .badge-lv-txt { font-size: 0.65rem; color: #22c55e; }
 
-        .log-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: white; border: 1px solid #e2e8f0; border-radius: 10px; margin-bottom: 8px; font-size: 0.9rem; font-weight: 600; }
-        .del-btn-small { background: #fee2e2; color: #ef4444; padding: 6px 12px; border-radius: 8px; font-size: 0.75rem; font-weight: 800; }
+        /* 기록 리스트: 3개씩 배치되도록 수정 */
+        .log-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+        .log-item-box { 
+            flex: 0 0 calc(33.33% - 6px); /* 정확히 한 줄에 3개 */
+            background: white; border: 1px solid #e2e8f0; border-radius: 10px; 
+            padding: 8px 4px; display: flex; flex-direction: column; align-items: center; gap: 5px;
+        }
+        .log-date-txt { font-size: 0.7rem; font-weight: 700; color: #64748b; }
+        .del-btn-mini { 
+            background: #fee2e2; color: #ef4444; width: 90%; padding: 4px 0; 
+            border-radius: 6px; font-size: 0.65rem; font-weight: 800; text-align: center;
+        }
         
         .q-tab-container { display: flex; gap: 5px; margin-bottom: 15px; }
         .q-tab { flex: 1; padding: 10px; border-radius: 10px; font-size: 0.8rem; font-weight: 700; border: 1px solid #e2e8f0; background: white; color: #94a3b8; }
@@ -93,11 +103,11 @@
         
         <div class="card">
             <div class="card-title text-blue-600">📅 등산 기록 추가</div>
-            <div id="multiMemberList" class="max-h-40 overflow-y-auto border rounded-xl p-3 bg-gray-50 mb-4 space-y-2"></div>
+            <div id="multiMemberList" class="max-h-40 overflow-y-auto border rounded-xl p-3 bg-gray-50 mb-4 space-y-2 text-xs"></div>
             <div class="flex justify-around bg-blue-50 p-3 rounded-xl mb-4 border border-blue-100">
-                <label class="flex items-center gap-2 font-bold text-blue-800"><input type="radio" name="upAmount" value="1" checked class="small-check"> 1up</label>
-                <label class="flex items-center gap-2 font-bold text-blue-800"><input type="radio" name="upAmount" value="2" class="small-check"> 2up</label>
-                <label class="flex items-center gap-2 font-bold text-blue-800"><input type="radio" name="upAmount" value="3" class="small-check"> 3up</label>
+                <label class="flex items-center gap-1 font-bold text-blue-800"><input type="radio" name="upAmount" value="1" checked class="small-check"> 1up</label>
+                <label class="flex items-center gap-1 font-bold text-blue-800"><input type="radio" name="upAmount" value="2" class="small-check"> 2up</label>
+                <label class="flex items-center gap-1 font-bold text-blue-800"><input type="radio" name="upAmount" value="3" class="small-check"> 3up</label>
             </div>
             <input type="date" id="activityDate">
             <button onclick="addMultiActivity()" class="btn-submit bg-blue-500">기록 저장하기</button>
@@ -107,28 +117,28 @@
             <div class="card-title text-yellow-700">✏️ 레벨 차감 및 기록 삭제</div>
             <select id="memberSelectEdit" onchange="loadMemberLogs()"><option value="">대상 회원 선택</option></select>
             
-            <div class="flex flex-col bg-orange-50 p-4 rounded-xl border border-orange-100 mb-4">
-                <span class="text-xs font-black text-orange-700 mb-2">차감 설정 (수치 선택 후 버튼 클릭)</span>
-                <div class="flex justify-around mb-3">
-                    <label class="flex items-center gap-2 font-bold text-red-600"><input type="radio" name="downAmount" value="1" checked class="small-check"> -1</label>
-                    <label class="flex items-center gap-2 font-bold text-red-600"><input type="radio" name="downAmount" value="2" class="small-check"> -2</label>
-                    <label class="flex items-center gap-2 font-bold text-red-600"><input type="radio" name="downAmount" value="3" class="small-check"> -3</label>
+            <div class="flex flex-col bg-orange-50 p-3 rounded-xl border border-orange-100 mb-4">
+                <span class="text-[11px] font-black text-orange-700 mb-2">차감 설정 (수치 선택 후 버튼 클릭)</span>
+                <div class="flex justify-around mb-2">
+                    <label class="flex items-center gap-1 font-bold text-red-600 text-sm"><input type="radio" name="downAmount" value="1" checked class="small-check"> -1</label>
+                    <label class="flex items-center gap-1 font-bold text-red-600 text-sm"><input type="radio" name="downAmount" value="2" class="small-check"> -2</label>
+                    <label class="flex items-center gap-1 font-bold text-red-600 text-sm"><input type="radio" name="downAmount" value="3" class="small-check"> -3</label>
                 </div>
-                <button onclick="onlyDownLevel()" class="w-full bg-orange-500 text-white py-3 rounded-lg font-black text-sm shadow-sm">기록 삭제 없이 '레벨만' 차감</button>
+                <button onclick="onlyDownLevel()" class="w-full bg-orange-500 text-white py-2 rounded-lg font-black text-xs shadow-sm">기록 삭제 없이 '레벨만' 차감</button>
             </div>
             
-            <div id="logListArea" class="space-y-2"></div>
-            <p class="text-[10px] text-gray-400 mt-2 text-center">* 아래 개별 [삭제] 버튼 클릭 시 기록 제거 + 레벨 차감 동시 진행</p>
+            <div id="logListArea" class="log-grid"></div>
+            <p class="text-[9px] text-gray-400 mt-4 text-center">* 위 삭제 버튼은 [기록 제거 + 레벨 차감] 동시 진행</p>
         </div>
 
         <div class="card" style="background-color: #fff5f5; border-color: #fee2e2;">
             <div class="card-title text-red-600">🗑️ 회원 상태 관리</div>
             <select id="memberSelectManage"><option value="">대상 회원 선택</option></select>
-            <button onclick="toggleHideMember()" class="btn-submit bg-gray-600" style="margin-bottom: 8px;">현황판 숨기기/보이기</button>
-            <button onclick="deleteMember()" class="btn-submit bg-red-500">데이터 영구 삭제</button>
+            <button onclick="toggleHideMember()" class="btn-submit bg-gray-600 mb-2" style="height: 48px;">숨기기/보이기 토글</button>
+            <button onclick="deleteMember()" class="btn-submit bg-red-500" style="height: 48px;">회원 영구 삭제</button>
         </div>
 
-        <div class="p-8 text-center"><button onclick="logoutAdmin()" class="text-gray-400 underline font-bold">관리자 로그아웃</button></div>
+        <div class="p-8 text-center"><button onclick="logoutAdmin()" class="text-gray-400 underline font-bold">로그아웃</button></div>
     </div>
 </div>
 
@@ -159,7 +169,7 @@
     };
 
     window.handleAdminTab = () => isAdminLoggedIn ? showView('admin') : showView('login');
-    window.loginAdmin = () => { if(document.getElementById('adminPassword').value === "1221") { isAdminLoggedIn = true; showView('admin'); loadData(); } else alert("비밀번호 불일치"); };
+    window.loginAdmin = () => { if(document.getElementById('adminPassword').value === "1221") { isAdminLoggedIn = true; showView('admin'); loadData(); } else alert("비밀번호 오류"); };
     window.logoutAdmin = () => { isAdminLoggedIn = false; document.getElementById('adminPassword').value=""; showView('status'); };
     window.changeQuarter = (q) => {
         selectedQuarter = q;
@@ -204,29 +214,27 @@
                 const ddayClass = dday <= 10 ? "text-red-500 font-black" : "text-gray-400";
 
                 list.innerHTML += `
-                    <tr class="border-b border-gray-50">
-                        <td class="td-name">
+                    <tr class="border-b border-gray-50 text-sm">
+                        <td class="td-name text-xs">
                             ${rankTag ? `<span class="rank-badge ${rankClass}">${rankTag}</span>` : ''}
                             <span class="${rankClass}">${m.name}</span>
                         </td>
                         <td><div class="badge-level"><span class="badge-icon-txt">${getLevelBadge(m.level)}</span><span class="badge-lv-txt">Lv ${m.level}</span></div></td>
                         <td>${m.qCount}회</td>
-                        <td class="text-left pl-2 text-xs ${ddayClass}">${ddayTxt}</td>
+                        <td class="text-left pl-2 text-[10px] ${ddayClass}">${ddayTxt}</td>
                     </tr>`;
             }
-            
-            multiList.innerHTML += `<div class="p-1 flex items-center gap-2"><input type="checkbox" name="mCheck" value="${m.id}" class="small-check"> <span class="text-sm font-bold">${m.name}${m.isHidden?' (정지)':''}</span></div>`;
+            multiList.innerHTML += `<div class="p-1 flex items-center gap-2"><input type="checkbox" name="mCheck" value="${m.id}" class="small-check"> <span>${m.name}${m.isHidden?' (정지)':''}</span></div>`;
             editSelect.innerHTML += `<option value="${m.id}">${m.name}${m.isHidden?' (정지)':''}</option>`;
             manageSelect.innerHTML += `<option value="${m.id}">${m.name}${m.isHidden?' (정지)':''}</option>`;
         });
     }
 
-    // 기록 추가
     window.addMultiActivity = async () => {
         const selected = document.querySelectorAll('input[name="mCheck"]:checked');
         const dateVal = document.getElementById('activityDate').value;
         const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
-        if(!selected.length) return alert("회원 선택 필수");
+        if(!selected.length) return alert("회원 선택");
         const ts = Timestamp.fromDate(dateVal ? new Date(dateVal) : new Date());
         for (const cb of selected) {
             await updateDoc(doc(db, "sanwoori", cb.value), { level: increment(up), lastDate: ts });
@@ -235,7 +243,6 @@
         alert("기록 저장 완료"); loadData();
     };
 
-    // 기록 리스트 불러오기
     window.loadMemberLogs = async () => {
         const id = document.getElementById('memberSelectEdit').value;
         const area = document.getElementById('logListArea');
@@ -243,34 +250,31 @@
         const snap = await getDocs(query(collection(db, `sanwoori/${id}/logs`), orderBy("date", "desc")));
         snap.forEach(ld => {
             const d = ld.data().date.toDate();
-            const fmt = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+            const fmt = `${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
             area.innerHTML += `
-                <div class="log-item">
-                    <span>${fmt} 기록</span>
-                    <button class="del-btn-small" onclick="deleteLog('${id}', '${ld.id}')">삭제</button>
+                <div class="log-item-box">
+                    <span class="log-date-txt">${fmt}</span>
+                    <button class="del-btn-mini" onclick="deleteLog('${id}', '${ld.id}')">삭제</button>
                 </div>`;
         });
     };
 
-    // 기록 삭제 + 레벨 차감
     window.deleteLog = async (mId, logId) => {
         const downVal = parseInt(document.querySelector('input[name="downAmount"]:checked').value);
-        if(!confirm(`기록을 삭제하고 레벨 ${downVal}을 차감할까요?`)) return;
+        if(!confirm(`기록 삭제 및 레벨 ${downVal} 차감?`)) return;
         await deleteDoc(doc(db, `sanwoori/${mId}/logs`, logId));
         await updateDoc(doc(db, "sanwoori", mId), { level: increment(-downVal) });
         loadMemberLogs(); loadData();
     };
 
-    // [기능 추가] 오직 레벨만 차감하는 버튼 로직
     window.onlyDownLevel = async () => {
         const id = document.getElementById('memberSelectEdit').value;
-        if(!id) return alert("회원을 먼저 선택하세요.");
         const downVal = parseInt(document.querySelector('input[name="downAmount"]:checked').value);
-        if(!confirm(`기록은 그대로 두고 레벨만 ${downVal} 차감하시겠습니까?`)) return;
-        
-        await updateDoc(doc(db, "sanwoori", id), { level: increment(-downVal) });
-        alert("레벨 차감이 완료되었습니다.");
-        loadData();
+        if(!id) return alert("회원 선택");
+        if(confirm(`레벨만 ${downVal} 차감할까요?`)) {
+            await updateDoc(doc(db, "sanwoori", id), { level: increment(-downVal) });
+            alert("차감 완료"); loadData();
+        }
     };
 
     window.deleteMember = async () => {
@@ -289,7 +293,7 @@
     window.addMember = async () => {
         const name = document.getElementById('newName').value;
         const date = document.getElementById('regDate').value;
-        if(!name) return alert("이름 필수");
+        if(!name) return;
         await addDoc(collection(db, "sanwoori"), { name, level: 0, lastDate: Timestamp.fromDate(date?new Date(date):new Date()), isHidden: false });
         document.getElementById('newName').value = ""; loadData();
     };
