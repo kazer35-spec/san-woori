@@ -90,16 +90,16 @@ window.loginAdmin = () => { if(document.getElementById('adminPassword').value ==
 window.logoutAdmin = () => { isAdminLoggedIn = false; document.getElementById('adminPassword').value=""; showView('status'); };
 window.changeQuarter = (q) => { selectedQuarter = q; document.querySelectorAll('.q-btn').forEach((btn, idx) => btn.classList.toggle('active-q', idx + 1 === q)); startRealtimeSync(); };
 
-// ✅ 날짜 계산 로직: 24시 자정 기준 자동 갱신 엔진
+// ⭐ 날짜 계산 엔진 전면 개편 (정확한 날짜 차이 추출)
 window.renderStatusTable = () => {
     const list = document.getElementById('statusList');
     const searchTerm = document.getElementById('searchInput').value.trim();
     const sortKey = document.getElementById('statusSortOrder').value;
     list.innerHTML = "";
     
-    // 현재 한국 시간 기준 '날짜'만 추출 (시간/분/초 제거)
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    // 1. 현재 날짜 (시, 분, 초 제거한 순수 날짜 객체)
+    const n = new Date();
+    const today = new Date(n.getFullYear(), n.getMonth(), n.getDate());
 
     const displayData = [...currentData].sort((a, b) => { 
         if (sortKey === 'qCount') return b.qCount - a.qCount || b.level - a.level; 
@@ -107,17 +107,18 @@ window.renderStatusTable = () => {
     });
 
     displayData.filter(m => !m.isHidden && m.name.includes(searchTerm)).forEach((m) => {
-        // DB에 저장된 날짜도 '날짜' 정보만 추출 (00:00:00로 리셋)
+        // 2. 기록 날짜 (시, 분, 초 제거한 순수 날짜 객체)
         const d = m.lastDate.toDate();
         const recordDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
         
-        // 날짜 차이 계산 (밀리초 차이를 하루치 밀리초로 나눔)
-        const diffMs = today.getTime() - recordDay.getTime();
-        const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+        // 3. 두 날짜의 밀리초 차이를 하루 단위(86400000ms)로 나누고 반올림
+        // 1/31 과 2/3 비교 시 정확하게 '3'이 나오도록 설계됨
+        const diffDays = Math.round((today - recordDay) / 86400000);
         
-        // 기준값 적용 (신입 30일, 일반 122일)
+        // 4. 레벨에 따른 기준값 설정 및 D-Day 도출
         const base = (m.level === 0 ? 30 : 122);
         const dday = base - diffDays;
+        
         const ddayTxt = dday >= 0 ? `D-${dday}` : `+${Math.abs(dday)}일`;
 
         list.innerHTML += `<tr class="border-b border-gray-50 text-sm"><td class="text-[11px] pr-2"><span>${m.name}</span></td><td><div class="badge-level"><span class="badge-icon-txt">${getLevelBadge(m.level)}</span><span class="badge-lv-txt">Lv ${m.level}</span></div></td><td>${m.qCount}회</td><td class="text-left pl-2 text-[10px] ${dday<=10?'text-red-500 font-black':'text-gray-400'}">${ddayTxt}</td></tr>`;
@@ -129,8 +130,10 @@ function startRealtimeSync() {
 if (unsubscribe) unsubscribe();
 unsubscribe = onSnapshot(collection(db, "sanwoori"), async (snapshot) => {
 const tempDocs = [];
+// 분기 계산용 (2026년 기준)
 const startDate = Timestamp.fromDate(new Date(2026, (selectedQuarter - 1) * 3, 1));
 const endDate = Timestamp.fromDate(new Date(2026, selectedQuarter * 3, 1));
+
 for (const d of snapshot.docs) {
 const m = { id: d.id, ...d.data() };
 const logsSnap = await getDocs(query(collection(db, `sanwoori/${m.id}/logs`), where("date", ">=", startDate), where("date", "<", endDate)));
@@ -153,8 +156,10 @@ currentData = tempDocs; renderStatusTable();
 
 window.addMultiActivity = async () => {
 if(!selectedMemberIds.size) return alert("회원 선택");
-const dt = document.getElementById('activityDate').value; const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
-const ts = Timestamp.fromDate(dt ? new Date(dt + "T00:00:00") : new Date());
+const dt = document.getElementById('activityDate').value; 
+const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
+// 입력된 날짜를 00:00:00으로 설정하여 저장
+const ts = Timestamp.fromDate(dt ? new Date(dt + "T00:00:00") : new Date(new Date().setHours(0,0,0,0)));
 for (const mId of selectedMemberIds) {
 await updateDoc(doc(db, "sanwoori", mId), { level: increment(up), lastDate: ts });
 for(let i=0; i<up; i++) await addDoc(collection(db, `sanwoori/${mId}/logs`), { date: ts });
@@ -173,9 +178,10 @@ loadMemberLogs();
 };
 
 window.addMember = async () => {
-const name = document.getElementById('newName').value; const date = document.getElementById('regDate').value;
+const name = document.getElementById('newName').value; 
+const date = document.getElementById('regDate').value;
 if(name) { 
-const ts = Timestamp.fromDate(date ? new Date(date + "T00:00:00") : new Date());
+const ts = Timestamp.fromDate(date ? new Date(date + "T00:00:00") : new Date(new Date().setHours(0,0,0,0)));
 const newDoc = await addDoc(collection(db, "sanwoori"), { name, level: 0, lastDate: ts, isHidden: false }); 
 await addDoc(collection(db, `sanwoori/${newDoc.id}/logs`), { date: ts });
 document.getElementById('newName').value = ""; 
