@@ -10,17 +10,16 @@
         body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: #333; }
         .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
         .tab-menu { display: flex; background: #f8fafc; padding: 10px; gap: 10px; border-bottom: 1px solid #e2e8f0; }
-        .tab-btn { flex: 1; padding: 12px; border-radius: 8px; font-weight: 700; font-size: 0.95rem; display: flex; align-items: center; justify-content: center; gap: 6px; transition: 0.2s; }
+        .tab-btn { flex: 1; padding: 12px; border-radius: 8px; font-weight: 700; font-size: 0.95rem; display: flex; align-items: center; justify-content: center; gap: 6px; }
         .active-tab { background: #3b82f6; color: white; box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3); }
         .inactive-tab { background: white; color: #64748b; border: 1px solid #e2e8f0; }
         .card { background: white; border-radius: 16px; border: 1px solid #f1f5f9; padding: 20px; margin: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
-        .section-title { font-size: 1.1rem; font-weight: 800; display: flex; align-items: center; gap: 8px; margin-bottom: 15px; }
-        input, select { width: 100%; padding: 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; margin-bottom: 12px; font-size: 0.9rem; outline: none; transition: 0.3s; }
-        input:focus { border-color: #3b82f6; }
-        .btn-submit { width: 100%; padding: 14px; border-radius: 10px; font-weight: 800; font-size: 1rem; color: white; transition: 0.2s; }
-        .badge-level { display: inline-flex; flex-direction: column; align-items: center; background: #eff6ff; border: 1px solid #dbeafe; padding: 4px 10px; border-radius: 12px; }
-        .badge-icon { font-size: 0.8rem; font-weight: 700; color: #1e40af; }
-        .badge-text { font-size: 0.65rem; color: #60a5fa; font-weight: 600; }
+        input, select { width: 100%; padding: 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; margin-bottom: 12px; font-size: 0.9rem; }
+        .btn-submit { width: 100%; padding: 14px; border-radius: 10px; font-weight: 800; font-size: 1rem; color: white; }
+        /* 등급 배지 스타일 */
+        .badge-level { display: inline-flex; flex-direction: column; align-items: center; background: #f0fdf4; border: 1px solid #dcfce7; padding: 6px 12px; border-radius: 12px; min-width: 80px; }
+        .badge-icon { font-size: 0.9rem; font-weight: 800; color: #166534; }
+        .badge-text { font-size: 0.7rem; color: #22c55e; font-weight: 600; }
     </style>
 </head>
 <body>
@@ -34,26 +33,17 @@
     <div id="viewStatus" class="view-content">
         <div class="p-6">
             <h1 class="text-xl font-extrabold flex items-center gap-2 mb-6">🏔️ 회원 등산 등급표</h1>
-            
-            <div class="flex items-center justify-end mb-4 gap-2">
-                <span class="text-sm font-bold text-gray-500">분기 선택:</span>
-                <select class="text-sm w-32 mb-0 p-1 border rounded" style="padding: 4px 8px;">
-                    <option>2026년 1분기</option>
-                </select>
-            </div>
-
             <div class="overflow-x-auto">
                 <table class="w-full">
                     <thead class="border-b-2 border-gray-100">
-                        <tr class="text-sm text-gray-400 font-bold">
+                        <tr class="text-xs text-gray-400 font-bold text-center">
                             <th class="pb-3 text-left">회원명</th>
-                            <th class="pb-3 text-center">레벨(Lv)</th>
-                            <th class="pb-3 text-center">분기 횟수</th>
-                            <th class="pb-3 text-right">남은 날짜</th>
+                            <th class="pb-3">등급</th>
+                            <th class="pb-3">횟수</th>
+                            <th class="pb-3 text-right">상태</th>
                         </tr>
                     </thead>
-                    <tbody id="statusList" class="divide-y divide-gray-50">
-                        </tbody>
+                    <tbody id="statusList" class="divide-y divide-gray-50"></tbody>
                 </table>
             </div>
         </div>
@@ -61,23 +51,16 @@
 
     <div id="viewAdmin" class="view-content hidden">
         <div class="card">
-            <div class="section-title text-gray-700">🆕 신규 회원 등록</div>
-            <input type="text" id="newName" placeholder="회원 이름 입력">
+            <h2 class="font-bold mb-4 text-gray-700">🆕 신규 회원 등록 (신입 Lv.0)</h2>
+            <input type="text" id="newName" placeholder="이름 입력">
             <input type="date" id="regDate">
-            <button onclick="addMember()" class="btn-submit bg-green-500 hover:bg-green-600">회원 추가 완료</button>
+            <button onclick="addMember()" class="btn-submit bg-green-500">회원 추가</button>
         </div>
-
         <div class="card">
-            <div class="section-title text-gray-700">📅 등산 기록 추가</div>
-            <div id="multiSelectArea" class="max-h-40 overflow-y-auto border border-gray-100 rounded-lg p-3 bg-gray-50 mb-3 space-y-2">
-                </div>
+            <h2 class="font-bold mb-4 text-gray-700">📅 등산 기록 추가</h2>
+            <div id="multiSelectArea" class="max-h-48 overflow-y-auto border rounded-lg p-3 bg-gray-50 mb-3 space-y-2"></div>
             <input type="date" id="activityDate">
-            <button onclick="addMultiActivity()" class="btn-submit bg-blue-500 hover:bg-blue-600">기록 저장</button>
-        </div>
-
-        <div class="card bg-yellow-50">
-            <div class="section-title text-yellow-700">✏️ 등산 기록 수정/삭제</div>
-            <p class="text-xs text-yellow-600">등록된 회원의 정보를 관리할 수 있습니다.</p>
+            <button onclick="addMultiActivity()" class="btn-submit bg-blue-500">기록 저장</button>
         </div>
     </div>
 </div>
@@ -99,12 +82,18 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // 날짜 초기값
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('regDate').value = today;
     document.getElementById('activityDate').value = today;
 
-    // 탭 전환 시스템
+    // 등급 결정 로직
+    const getLevelBadge = (lv) => {
+        if (lv >= 5) return { name: "🌳 나무", icon: "🌳", color: "text-green-700" };
+        if (lv >= 3) return { name: "🌿 새싹", icon: "🌿", color: "text-green-600" };
+        if (lv >= 1) return { name: "🌱 풀잎", icon: "🌱", color: "text-green-500" };
+        return { name: "🐣 신입", icon: "🐣", color: "text-gray-400" };
+    };
+
     window.showView = (type) => {
         document.getElementById('viewStatus').classList.toggle('hidden', type !== 'status');
         document.getElementById('viewAdmin').classList.toggle('hidden', type !== 'admin');
@@ -113,65 +102,60 @@
     };
 
     window.checkAdmin = () => {
-        const pw = prompt("관리자 암호를 입력하세요.");
-        if(pw === "1234") showView('admin');
-        else alert("권한이 없습니다.");
+        if(prompt("관리자 암호") === "1234") showView('admin');
+        else alert("오답입니다.");
     };
 
-    // 등급 아이콘 결정 함수
-    const getLevelInfo = (lv) => {
-        if (lv >= 20) return { icon: "🌋 화산", text: `Lv ${lv}` };
-        if (lv >= 10) return { icon: "⛰️ 산", text: `Lv ${lv}` };
-        return { icon: "🌱 풀잎", text: `Lv ${lv}` };
-    };
-
-    // D-Day 계산 (분기 말 기준 예시)
-    const getDday = (lastDate) => {
-        if(!lastDate) return "D-0";
-        const target = new Date("2026-06-30"); // 분기 마감 예시일
-        const diff = target - new Date();
-        return `D-${Math.floor(diff / (1000 * 60 * 60 * 24))}`;
-    };
-
-    // 데이터 로드
     async function loadData() {
         const q = query(collection(db, "sanwoori"), orderBy("level", "desc"));
         const snap = await getDocs(q);
         const statusList = document.getElementById('statusList');
         const multiArea = document.getElementById('multiSelectArea');
-        
         statusList.innerHTML = ""; multiArea.innerHTML = "";
 
         snap.forEach((doc) => {
             const data = doc.data();
-            const info = getLevelInfo(data.level);
+            const badge = getLevelBadge(data.level);
 
-            // 일반인 뷰 테이블
             statusList.innerHTML += `
                 <tr class="text-center font-bold">
                     <td class="py-5 text-left text-gray-800">${data.name}</td>
-                    <td class="py-5">
+                    <td>
                         <div class="badge-level">
-                            <span class="badge-icon">${info.icon}</span>
-                            <span class="badge-text">${info.text}</span>
+                            <span class="badge-icon">${badge.name}</span>
+                            <span class="badge-text">Lv.${data.level}</span>
                         </div>
                     </td>
-                    <td class="py-5 text-gray-800">${data.count}회</td>
-                    <td class="py-5 text-right text-gray-500 font-medium">${getDday(data.lastDate)}</td>
+                    <td class="text-gray-500">${data.count}회</td>
+                    <td class="text-right text-xs text-blue-500">활동중</td>
                 </tr>`;
 
-            // 관리자 다중 선택 리스트
             multiArea.innerHTML += `
                 <div class="flex items-center gap-3 p-1">
                     <input type="checkbox" name="memberCheck" value="${doc.id}" id="chk-${doc.id}" class="w-4 h-4 mb-0">
-                    <label for="chk-${doc.id}" class="text-sm font-bold text-gray-600 cursor-pointer">${data.name} (Lv.${data.level})</label>
+                    <label for="chk-${doc.id}" class="text-sm font-bold text-gray-600 cursor-pointer">${data.name} (${badge.icon})</label>
                 </div>`;
         });
     }
 
-    // 신규 등록 및 업데이트 함수 (이전 로직 동일 유지)
-    window.addMember = async () => { /* 등록 로직 */ };
-    window.addMultiActivity = async () => { /* 다중 업데이트 로직 */ };
+    window.addMember = async () => {
+        const name = document.getElementById('newName').value;
+        if (!name) return alert("이름!");
+        await addDoc(collection(db, "sanwoori"), { name, count: 0, level: 0, lastDate: Timestamp.fromDate(new Date(document.getElementById('regDate').value)) });
+        location.reload();
+    };
+
+    window.addMultiActivity = async () => {
+        const cbs = document.querySelectorAll('input[name="memberCheck"]:checked');
+        if (cbs.length === 0) return alert("선택!");
+        const batch = writeBatch(db);
+        const date = Timestamp.fromDate(new Date(document.getElementById('activityDate').value));
+        cbs.forEach(cb => {
+            batch.update(doc(db, "sanwoori", cb.value), { count: increment(1), level: increment(1), lastDate: date });
+        });
+        await batch.commit();
+        location.reload();
+    };
 
     loadData();
 </script>
