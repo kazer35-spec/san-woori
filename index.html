@@ -16,13 +16,20 @@
         .card { background: white; border-radius: 16px; border: 1px solid #f1f5f9; padding: 20px; margin: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
         input, select { width: 100%; padding: 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; margin-bottom: 12px; font-size: 0.9rem; }
         .btn-submit { width: 100%; padding: 14px; border-radius: 10px; font-weight: 800; font-size: 1rem; color: white; }
-        .badge-level { display: inline-flex; flex-direction: column; align-items: center; background: #f0fdf4; border: 1px solid #dcfce7; padding: 6px 12px; border-radius: 12px; min-width: 90px; }
-        .badge-icon { font-size: 0.9rem; font-weight: 800; color: #166534; }
-        .badge-text { font-size: 0.7rem; color: #22c55e; font-weight: 600; }
-        /* 순위 칭호 스타일 */
-        .rank-1 { color: #facc15; font-size: 0.75rem; display: block; } /* 노란색 산신령 */
-        .rank-2 { color: #94a3b8; font-size: 0.75rem; display: block; } /* 은색 심마니 */
-        .rank-3 { color: #78350f; font-size: 0.75rem; display: block; } /* 고동색 나무꾼 */
+        
+        /* 레벨 배지 - 녹색 스타일 고정 */
+        .badge-level { display: inline-flex; flex-direction: column; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 6px 4px; border-radius: 12px; min-width: 75px; }
+        .badge-icon { font-size: 0.85rem; font-weight: 800; color: #166534; }
+        .badge-text { font-size: 0.65rem; color: #22c55e; font-weight: 600; }
+        
+        /* 순위 칭호 색상 */
+        .rank-1 { color: #d97706; font-weight: 800; } /* 산신령 (노란빛 고동색) */
+        .rank-2 { color: #64748b; font-weight: 800; } /* 심마니 (은색/회색) */
+        .rank-3 { color: #78350f; font-weight: 800; } /* 나무꾼 (고동색) */
+
+        /* 표 간격 동일 정렬을 위한 스타일 */
+        table { table-layout: fixed; width: 100%; }
+        th, td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     </style>
 </head>
 <body>
@@ -40,17 +47,17 @@
             <div class="flex items-center justify-end mb-4 gap-2">
                 <span class="text-sm font-bold text-gray-500">분기 선택:</span>
                 <select id="quarterSelect" class="text-sm w-36 mb-0 p-1 border rounded" onchange="loadData()">
-                    </select>
+                </select>
             </div>
 
             <div class="overflow-x-auto">
                 <table class="w-full">
-                    <thead class="border-b-2 border-gray-100">
-                        <tr class="text-xs text-gray-400 font-bold text-center">
-                            <th class="pb-3 text-left">회원명</th>
-                            <th class="pb-3">레벨(Lv)</th>
-                            <th class="pb-3">분기 횟수</th>
-                            <th class="pb-3 text-right">남은 날짜</th>
+                    <thead>
+                        <tr class="text-[11px] text-gray-400 font-bold text-center border-b-2 border-gray-100">
+                            <th class="pb-3 text-left w-[25%]">회원명</th>
+                            <th class="pb-3 w-[25%]">레벨(Lv)</th>
+                            <th class="pb-3 w-[25%]">분기 횟수</th>
+                            <th class="pb-3 text-right w-[25%]">남은 날짜</th>
                         </tr>
                     </thead>
                     <tbody id="statusList" class="divide-y divide-gray-50"></tbody>
@@ -63,7 +70,7 @@
         <div class="card">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="font-bold text-gray-700">🆕 신규 회원 등록</h2>
-                <button onclick="logoutAdmin()" class="text-xs text-red-400 underline">관리자 로그아웃</button>
+                <button onclick="logoutAdmin()" class="text-xs text-red-400 underline">로그아웃</button>
             </div>
             <input type="text" id="newName" placeholder="이름 입력">
             <input type="date" id="regDate">
@@ -72,155 +79,4 @@
         <div class="card">
             <h2 class="font-bold mb-4 text-gray-700">📅 등산 기록 추가</h2>
             <div id="multiSelectArea" class="max-h-48 overflow-y-auto border rounded-lg p-3 bg-gray-50 mb-3 space-y-2"></div>
-            <input type="date" id="activityDate">
-            <button onclick="addMultiActivity()" class="btn-submit bg-blue-500">기록 저장</button>
-        </div>
-    </div>
-</div>
-
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, addDoc, getDocs, updateDoc, doc, increment, query, orderBy, Timestamp, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-    const firebaseConfig = {
-        apiKey: "AIzaSyBoAh3V3WrHg_wo53g1LHM0UW3-y6w2deg",
-        authDomain: "san-woori-db.firebaseapp.com",
-        projectId: "san-woori-db",
-        storageBucket: "san-woori-db.firebasestorage.app",
-        messagingSenderId: "387585514110",
-        appId: "1:387585514110:web:44749e6d92769fff6ad62f",
-        measurementId: "G-DMCHPYC5LS"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-
-    let isAdminLoggedIn = false;
-
-    // 분기 선택창 자동 설정 (현재 월 기준)
-    function setupQuarterSelect() {
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = now.getMonth() + 1;
-        const currentQuarter = Math.ceil(month / 3);
-        const select = document.getElementById('quarterSelect');
-        
-        select.innerHTML = "";
-        for (let q = 1; q <= currentQuarter; q++) {
-            const option = document.createElement('option');
-            option.value = q;
-            option.text = `${year}년 ${q}분기`;
-            if (q === currentQuarter) option.selected = true;
-            select.appendChild(option);
-        }
-    }
-
-    // D-Day 계산 로직
-    function calculateDday(lastDate) {
-        if (!lastDate) return "D-123";
-        const last = lastDate.toDate();
-        const now = new Date();
-        const diffTime = now - last;
-        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-        
-        const remaining = 123 - diffDays;
-        return remaining >= 0 ? `D-${remaining}` : `+${Math.abs(remaining)}일`;
-    }
-
-    const getLevelBadge = (lv) => {
-        if (lv >= 100) return { name: "🌌 은하수", icon: "🌌" };
-        if (lv >= 50) return { name: "☀️ 해", icon: "☀️" };
-        if (lv >= 10) return { name: "⛰️ 산", icon: "⛰️" };
-        if (lv >= 1) return { name: "🌱 풀잎", icon: "🌱" };
-        return { name: "🐣 신입", icon: "🐣" };
-    };
-
-    window.showView = (type) => {
-        document.getElementById('viewStatus').classList.toggle('hidden', type !== 'status');
-        document.getElementById('viewAdmin').classList.toggle('hidden', type !== 'admin');
-        document.getElementById('tabStatus').className = `tab-btn ${type === 'status' ? 'active-tab' : 'inactive-tab'}`;
-        document.getElementById('tabAdmin').className = `tab-btn ${type === 'admin' ? 'active-tab' : 'inactive-tab'}`;
-    };
-
-    window.handleAdminTab = () => {
-        if (isAdminLoggedIn || prompt("관리자 암호") === "1234") {
-            isAdminLoggedIn = true;
-            showView('admin');
-        } else alert("비밀번호 오류");
-    };
-
-    window.logoutAdmin = () => { isAdminLoggedIn = false; showView('status'); };
-
-    async function loadData() {
-        const q = query(collection(db, "sanwoori"), orderBy("count", "desc"));
-        const snap = await getDocs(q);
-        const statusList = document.getElementById('statusList');
-        const multiArea = document.getElementById('multiSelectArea');
-        statusList.innerHTML = ""; multiArea.innerHTML = "";
-
-        let rank = 1;
-        snap.forEach((doc) => {
-            const data = doc.data();
-            const badge = getLevelBadge(data.level);
-            let rankTitle = "";
-            let rankClass = "";
-
-            if (rank === 1) { rankTitle = "🥇산신령"; rankClass = "rank-1"; }
-            else if (rank === 2) { rankTitle = "🥈심마니"; rankClass = "rank-2"; }
-            else if (rank === 3) { rankTitle = "🥉나무꾼"; rankClass = "rank-3"; }
-
-            statusList.innerHTML += `
-                <tr class="text-center font-bold">
-                    <td class="py-5 text-left">
-                        <span class="${rankClass}">${rankTitle}</span>
-                        <span class="text-gray-800">${data.name}</span>
-                    </td>
-                    <td>
-                        <div class="badge-level">
-                            <span class="badge-icon">${badge.name}</span>
-                            <span class="badge-text">Lv.${data.level}</span>
-                        </div>
-                    </td>
-                    <td class="text-gray-500">${data.count}회</td>
-                    <td class="text-right text-xs font-medium text-gray-400">${calculateDday(data.lastDate)}</td>
-                </tr>`;
-
-            multiArea.innerHTML += `
-                <div class="flex items-center gap-3 p-1">
-                    <input type="checkbox" name="memberCheck" value="${doc.id}" id="chk-${doc.id}" class="w-4 h-4 mb-0">
-                    <label for="chk-${doc.id}" class="text-sm font-bold text-gray-600">${data.name} (Lv.${data.level})</label>
-                </div>`;
-            rank++;
-        });
-    }
-
-    window.addMember = async () => {
-        const name = document.getElementById('newName').value;
-        if (!name) return;
-        await addDoc(collection(db, "sanwoori"), { 
-            name, count: 0, level: 0, 
-            lastDate: Timestamp.fromDate(new Date()) 
-        });
-        location.reload();
-    };
-
-    window.addMultiActivity = async () => {
-        const cbs = document.querySelectorAll('input[name="memberCheck"]:checked');
-        const batch = writeBatch(db);
-        const now = Timestamp.fromDate(new Date());
-        cbs.forEach(cb => {
-            batch.update(doc(db, "sanwoori", cb.value), { 
-                count: increment(1), 
-                level: increment(1), 
-                lastDate: now // 레벨업 시 오늘 날짜로 갱신 (D-123 초기화)
-            });
-        });
-        await batch.commit();
-        location.reload();
-    };
-
-    setupQuarterSelect();
-    loadData();
-</script>
-</body>
-</html>
+            <input type="date" id="activityDate
