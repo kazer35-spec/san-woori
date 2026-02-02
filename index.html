@@ -27,12 +27,13 @@
         th { color: #94a3b8; font-size: 0.75rem; padding-bottom: 12px; border-bottom: 2px solid #f8fafc; }
         td { padding: 14px 0; text-align: center; font-weight: 700; vertical-align: middle; }
         .td-name { text-align: right; padding-right: 15px; font-weight: 800; color: #1e293b; }
-        
-        /* [요청] 칭호 스타일 및 색상 */
-        .rank-badge { font-size: 0.65rem; display: block; margin-bottom: -3px; font-weight: 900; }
-        .rank-1 { color: #facc15 !important; } /* 산신령 - 금색/노랑 */
-        .rank-2 { color: #94a3b8 !important; } /* 심마니 - 은색/회색 */
-        .rank-3 { color: #a36a00 !important; } /* 나무꾼 - 고동색/동색 */
+        .dday-left { text-align: left; padding-left: 10px; color: #64748b; font-weight: 400 !important; }
+
+        /* 칭호 스타일 */
+        .rank-badge { font-size: 0.65rem; display: block; margin-bottom: -2px; }
+        .rank-1 { color: #facc15 !important; } /* 산신령 - 노랑 */
+        .rank-2 { color: #94a3b8 !important; } /* 심마니 - 은색 */
+        .rank-3 { color: #78350f !important; } /* 나무꾼 - 고동 */
 
         .badge-level { display: inline-flex; flex-direction: column; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 6px 10px; border-radius: 12px; min-width: 95px; }
         .badge-icon-txt { font-size: 0.8rem; font-weight: 800; color: #166534; }
@@ -121,7 +122,6 @@
             </div>
             <div id="logListArea" class="log-container"></div>
         </div>
-
         <div class="p-6 text-center"><button onclick="logoutAdmin()" class="text-gray-400 underline font-bold">로그아웃</button></div>
     </div>
 </div>
@@ -138,7 +138,6 @@
     let currentData = [];
     let selectedQuarter = Math.floor((new Date().getMonth() + 3) / 3);
 
-    // [요청] 17단계 등급 체계
     const getLevelBadge = (lv) => {
         if (lv >= 100) return "🌌 은하수"; if (lv >= 90) return "🌠 별똥별"; if (lv >= 80) return "💫 타원별";
         if (lv >= 70) return "🌟 황금별"; if (lv >= 60) return "⭐️ 별"; if (lv >= 50) return "☀️ 해";
@@ -188,16 +187,19 @@
 
         for (const d of snap.docs) {
             const m = { id: d.id, ...d.data() };
+            // [수정] 오즈 제외 로직
+            if (m.name === "오즈") continue; 
+
             const logsSnap = await getDocs(query(collection(db, `sanwoori/${m.id}/logs`), where("date", ">=", startDate), where("date", "<", endDate)));
             m.qCount = logsSnap.size; 
             currentData.push(m);
         }
 
-        // 분기 횟수 기준으로 정렬 (순위 계산용)
+        // 분기 횟수순 정렬
         currentData.sort((a,b) => b.qCount - a.qCount || b.level - a.level).forEach((m, index) => {
             if(m.isHidden) return;
             
-            // [요청] 분기 횟수 칭호 시스템
+            // [칭호 부여 로직]
             let rankTag = ""; let rankClass = "";
             if (m.qCount > 0) {
                 if (index === 0) { rankTag = "🥇산신령"; rankClass = "rank-1"; }
@@ -224,6 +226,7 @@
         });
     }
 
+    // 이하 기존 관리자 함수(저장, 로그로드, 삭제 등) 동일 유지
     window.addMultiActivity = async () => {
         const selected = document.querySelectorAll('input[name="mCheck"]:checked');
         const dateVal = document.getElementById('activityDate').value;
@@ -250,7 +253,7 @@
     };
 
     window.deleteLog = async (mId, logId) => {
-        if(!confirm("기록을 삭제하시겠습니까? (Lv -1)")) return;
+        if(!confirm("해당 기록을 삭제하시겠습니까? (Lv -1)")) return;
         await deleteDoc(doc(db, `sanwoori/${mId}/logs`, logId));
         await updateDoc(doc(db, "sanwoori", mId), { level: increment(-1) });
         loadMemberLogs(); loadData();
