@@ -79,4 +79,142 @@
         <div class="card">
             <h2 class="font-bold mb-4 text-gray-700">📅 등산 기록 추가</h2>
             <div id="multiSelectArea" class="max-h-48 overflow-y-auto border rounded-lg p-3 bg-gray-50 mb-3 space-y-2"></div>
-            <input type="date" id="activityDate
+            <input type="date" id="activityDate">
+            <button onclick="addMultiActivity()" class="btn-submit bg-blue-500">기록 저장</button>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, updateDoc, doc, increment, query, orderBy, Timestamp, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyBoAh3V3WrHg_wo53g1LHM0UW3-y6w2deg",
+        authDomain: "san-woori-db.firebaseapp.com",
+        projectId: "san-woori-db",
+        storageBucket: "san-woori-db.firebasestorage.app",
+        messagingSenderId: "387585514110",
+        appId: "1:387585514110:web:44749e6d92769fff6ad62f",
+        measurementId: "G-DMCHPYC5LS"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    let isAdminLoggedIn = false;
+
+    function setupQuarterSelect() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth() + 1;
+        const currentQuarter = Math.ceil(month / 3);
+        const select = document.getElementById('quarterSelect');
+        for (let q = 1; q <= currentQuarter; q++) {
+            const option = document.createElement('option');
+            option.value = q;
+            option.text = `${year}년 ${q}분기`;
+            if (q === currentQuarter) option.selected = true;
+            select.appendChild(option);
+        }
+    }
+
+    function calculateDday(lastDate) {
+        if (!lastDate) return "D-123";
+        const last = lastDate.toDate();
+        const now = new Date();
+        const diffDays = Math.floor((now - last) / (1000 * 60 * 60 * 24));
+        const remaining = 123 - diffDays;
+        return remaining >= 0 ? `D-${remaining}` : `+${Math.abs(remaining)}일`;
+    }
+
+    const getLevelBadge = (lv) => {
+        if (lv >= 100) return { name: "🌌 은하수" };
+        if (lv >= 50) return { name: "☀️ 해" };
+        if (lv >= 10) return { name: "⛰️ 산" };
+        if (lv >= 5) return { name: "🌳 나무" };
+        if (lv >= 3) return { name: "🌿 새싹" };
+        if (lv >= 1) return { name: "🌱 풀잎" };
+        return { name: "🐣 신입" };
+    };
+
+    window.showView = (type) => {
+        document.getElementById('viewStatus').classList.toggle('hidden', type !== 'status');
+        document.getElementById('viewAdmin').classList.toggle('hidden', type !== 'admin');
+        document.getElementById('tabStatus').className = `tab-btn ${type === 'status' ? 'active-tab' : 'inactive-tab'}`;
+        document.getElementById('tabAdmin').className = `tab-btn ${type === 'admin' ? 'active-tab' : 'inactive-tab'}`;
+    };
+
+    window.handleAdminTab = () => {
+        if (isAdminLoggedIn || prompt("암호: 1234") === "1234") {
+            isAdminLoggedIn = true; showView('admin');
+        }
+    };
+
+    window.logoutAdmin = () => { isAdminLoggedIn = false; showView('status'); };
+
+    async function loadData() {
+        const q = query(collection(db, "sanwoori"), orderBy("count", "desc"));
+        const snap = await getDocs(q);
+        const statusList = document.getElementById('statusList');
+        const multiArea = document.getElementById('multiSelectArea');
+        statusList.innerHTML = ""; multiArea.innerHTML = "";
+
+        let rank = 1;
+        snap.forEach((doc) => {
+            const data = doc.data();
+            const badge = getLevelBadge(data.level);
+            
+            let rankInfo = { title: "", class: "" };
+            if (rank === 1) rankInfo = { title: "🥇산신령", class: "rank-1" };
+            else if (rank === 2) rankInfo = { title: "🥈심마니", class: "rank-2" };
+            else if (rank === 3) rankInfo = { title: "🥉나무꾼", class: "rank-3" };
+
+            statusList.innerHTML += `
+                <tr class="text-center font-bold text-[13px]">
+                    <td class="py-5 text-left text-gray-800">${data.name}</td>
+                    <td>
+                        <div class="badge-level">
+                            <span class="badge-icon">${badge.name}</span>
+                            <span class="badge-text">Lv.${data.level}</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="flex flex-col items-center">
+                            <span class="${rankInfo.class} text-[10px] leading-tight">${rankInfo.title}</span>
+                            <span class="text-gray-500">${data.count}회</span>
+                        </div>
+                    </td>
+                    <td class="text-right text-gray-400 font-medium">${calculateDday(data.lastDate)}</td>
+                </tr>`;
+
+            multiArea.innerHTML += `<div class="flex items-center gap-3 p-1">
+                <input type="checkbox" name="memberCheck" value="${doc.id}" class="w-4 h-4 mb-0">
+                <label class="text-sm font-bold text-gray-600">${data.name} (Lv.${data.level})</label>
+            </div>`;
+            rank++;
+        });
+    }
+
+    window.addMember = async () => {
+        const name = document.getElementById('newName').value;
+        if (!name) return;
+        await addDoc(collection(db, "sanwoori"), { name, count: 0, level: 0, lastDate: Timestamp.fromDate(new Date()) });
+        location.reload();
+    };
+
+    window.addMultiActivity = async () => {
+        const cbs = document.querySelectorAll('input[name="memberCheck"]:checked');
+        const batch = writeBatch(db);
+        const now = Timestamp.fromDate(new Date());
+        cbs.forEach(cb => {
+            batch.update(doc(db, "sanwoori", cb.value), { count: increment(1), level: increment(1), lastDate: now });
+        });
+        await batch.commit();
+        location.reload();
+    };
+
+    setupQuarterSelect();
+    loadData();
+</script>
+</body>
+</html>
