@@ -16,8 +16,7 @@
         .card { background: white; border-radius: 16px; border: 1px solid #f1f5f9; padding: 20px; margin: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
         input, select { width: 100%; padding: 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; margin-bottom: 12px; font-size: 0.9rem; }
         .btn-submit { width: 100%; padding: 14px; border-radius: 10px; font-weight: 800; font-size: 1rem; color: white; }
-        /* 등급 배지 스타일 */
-        .badge-level { display: inline-flex; flex-direction: column; align-items: center; background: #f0fdf4; border: 1px solid #dcfce7; padding: 6px 12px; border-radius: 12px; min-width: 80px; }
+        .badge-level { display: inline-flex; flex-direction: column; align-items: center; background: #f0fdf4; border: 1px solid #dcfce7; padding: 6px 12px; border-radius: 12px; min-width: 90px; }
         .badge-icon { font-size: 0.9rem; font-weight: 800; color: #166534; }
         .badge-text { font-size: 0.7rem; color: #22c55e; font-weight: 600; }
     </style>
@@ -27,7 +26,7 @@
 <div class="main-container">
     <div class="tab-menu">
         <button id="tabStatus" class="tab-btn active-tab" onclick="showView('status')">📊 실시간 현황</button>
-        <button id="tabAdmin" class="tab-btn inactive-tab" onclick="checkAdmin()">🔐 관리자 설정</button>
+        <button id="tabAdmin" class="tab-btn inactive-tab" onclick="handleAdminTab()">🔐 관리자 설정</button>
     </div>
 
     <div id="viewStatus" class="view-content">
@@ -51,7 +50,10 @@
 
     <div id="viewAdmin" class="view-content hidden">
         <div class="card">
-            <h2 class="font-bold mb-4 text-gray-700">🆕 신규 회원 등록 (신입 Lv.0)</h2>
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="font-bold text-gray-700">🆕 신규 회원 등록</h2>
+                <button onclick="logoutAdmin()" class="text-xs text-red-400 underline">관리자 로그아웃</button>
+            </div>
             <input type="text" id="newName" placeholder="이름 입력">
             <input type="date" id="regDate">
             <button onclick="addMember()" class="btn-submit bg-green-500">회원 추가</button>
@@ -82,16 +84,28 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('regDate').value = today;
-    document.getElementById('activityDate').value = today;
+    let isAdminLoggedIn = false; // 로그인 상태 변수
 
-    // 등급 결정 로직
+    // 상세 등급 로직
     const getLevelBadge = (lv) => {
-        if (lv >= 5) return { name: "🌳 나무", icon: "🌳", color: "text-green-700" };
-        if (lv >= 3) return { name: "🌿 새싹", icon: "🌿", color: "text-green-600" };
-        if (lv >= 1) return { name: "🌱 풀잎", icon: "🌱", color: "text-green-500" };
-        return { name: "🐣 신입", icon: "🐣", color: "text-gray-400" };
+        if (lv >= 100) return { name: "🌌 은하수", icon: "🌌" };
+        if (lv >= 90) return { name: "🌠 별똥별", icon: "🌠" };
+        if (lv >= 80) return { name: "💫 타원별", icon: "💫" };
+        if (lv >= 70) return { name: "🌟 황금별", icon: "🌟" };
+        if (lv >= 60) return { name: "⭐️ 별", icon: "⭐️" };
+        if (lv >= 50) return { name: "☀️ 해", icon: "☀️" };
+        if (lv >= 45) return { name: "🌕 달", icon: "🌕" };
+        if (lv >= 40) return { name: "🌙 초승달", icon: "🌙" };
+        if (lv >= 35) return { name: "☄️ 운석", icon: "☄️" };
+        if (lv >= 30) return { name: "🌈 무지개", icon: "🌈" };
+        if (lv >= 25) return { name: "🌀 태풍", icon: "🌀" };
+        if (lv >= 20) return { name: "🌋 화산", icon: "🌋" };
+        if (lv >= 15) return { name: "🏔️ 설산", icon: "🏔️" };
+        if (lv >= 10) return { name: "⛰️ 산", icon: "⛰️" };
+        if (lv >= 5) return { name: "🌳 나무", icon: "🌳" };
+        if (lv >= 3) return { name: "🌿 새싹", icon: "🌿" };
+        if (lv >= 1) return { name: "🌱 풀잎", icon: "🌱" };
+        return { name: "🐣 신입", icon: "🐣" };
     };
 
     window.showView = (type) => {
@@ -101,9 +115,25 @@
         document.getElementById('tabAdmin').className = `tab-btn ${type === 'admin' ? 'active-tab' : 'inactive-tab'}`;
     };
 
-    window.checkAdmin = () => {
-        if(prompt("관리자 암호") === "1234") showView('admin');
-        else alert("오답입니다.");
+    // 관리자 탭 클릭 핸들러
+    window.handleAdminTab = () => {
+        if (isAdminLoggedIn) {
+            showView('admin');
+        } else {
+            const pw = prompt("관리자 암호를 입력하세요.");
+            if (pw === "1234") {
+                isAdminLoggedIn = true;
+                showView('admin');
+            } else {
+                alert("비밀번호가 틀렸습니다.");
+            }
+        }
+    };
+
+    window.logoutAdmin = () => {
+        isAdminLoggedIn = false;
+        showView('status');
+        alert("로그아웃 되었습니다.");
     };
 
     async function loadData() {
@@ -138,16 +168,17 @@
         });
     }
 
+    // 신규 회원 등록 및 다중 레벨업 로직은 이전과 동일하게 유지
     window.addMember = async () => {
         const name = document.getElementById('newName').value;
-        if (!name) return alert("이름!");
+        if (!name) return alert("이름을 입력하세요!");
         await addDoc(collection(db, "sanwoori"), { name, count: 0, level: 0, lastDate: Timestamp.fromDate(new Date(document.getElementById('regDate').value)) });
         location.reload();
     };
 
     window.addMultiActivity = async () => {
         const cbs = document.querySelectorAll('input[name="memberCheck"]:checked');
-        if (cbs.length === 0) return alert("선택!");
+        if (cbs.length === 0) return alert("멤버를 선택하세요!");
         const batch = writeBatch(db);
         const date = Timestamp.fromDate(new Date(document.getElementById('activityDate').value));
         cbs.forEach(cb => {
