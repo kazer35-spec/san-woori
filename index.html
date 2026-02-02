@@ -14,8 +14,8 @@
 <body>
 <div class="max-w-md mx-auto min-h-screen bg-white shadow-lg">
     <header class="bg-green-600 p-6 text-white text-center">
-        <h1 class="text-2xl font-bold">🏔️ 산:우리 [같이 걷는 즐거움]</h1>
-        <p class="opacity-80 text-sm mt-1">1회 등반 시 레벨이 1단계 상승합니다!</p>
+        <h1 class="text-2xl font-bold">⛰️ 산:우리 동호회</h1>
+        <p class="opacity-80 text-sm mt-1">같이 걷는 즐거움</p>
     </header>
     <main class="p-4">
         <div class="flex justify-between items-center mb-4">
@@ -33,6 +33,21 @@
             </table>
         </div>
     </main>
+    <section id="adminPanel" class="hidden p-4 bg-gray-50 border-t mt-10">
+        <h2 class="text-red-500 font-bold mb-4">🛠️ 관리 도구</h2>
+        <div class="bg-white p-3 rounded border mb-4">
+            <label class="text-xs font-bold text-gray-500">신규 멤버 등록</label>
+            <div class="flex gap-2 mt-1">
+                <input type="text" id="newName" placeholder="이름" class="border p-2 rounded w-full text-sm">
+                <button onclick="addMember()" class="bg-blue-500 text-white px-4 rounded text-sm shrink-0">등록</button>
+            </div>
+        </div>
+        <div class="bg-white p-3 rounded border">
+            <label class="text-xs font-bold text-gray-500">등산 기록 추가</label>
+            <select id="memberSelect" class="border p-2 rounded w-full text-sm mt-1 mb-2"><option value="">멤버를 선택하세요</option></select>
+            <button onclick="addActivity()" class="w-full bg-green-500 text-white py-2 rounded font-bold text-sm">등반 완료 (Lv +1)</button>
+        </div>
+    </section>
 </div>
 
 <script type="module">
@@ -52,14 +67,41 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
+    window.addMember = async () => {
+        const name = document.getElementById('newName').value;
+        if (!name) return alert("이름을 적어주세요.");
+        try {
+            await addDoc(collection(db, "sanwoori"), { name: name, count: 0, level: 0 });
+            alert("등록 완료!");
+            location.reload();
+        } catch (e) { alert("오류: " + e.message); }
+    };
+
+    window.addActivity = async () => {
+        const id = document.getElementById('memberSelect').value;
+        if (!id) return alert("멤버를 선택하세요.");
+        const memberRef = doc(db, "sanwoori", id);
+        await updateDoc(memberRef, { count: increment(1), level: increment(1) });
+        alert("레벨업 성공! 🏔️");
+        location.reload();
+    };
+
+    window.toggleAdmin = () => {
+        const pw = prompt("관리자 암호를 입력하세요.");
+        if(pw === "1234") document.getElementById('adminPanel').classList.remove('hidden');
+    };
+
     async function loadData() {
         const q = query(collection(db, "sanwoori"), orderBy("level", "desc"));
         const querySnapshot = await getDocs(q);
         const table = document.getElementById('memberTable');
+        const select = document.getElementById('memberSelect');
         table.innerHTML = ""; 
         querySnapshot.forEach((doc) => {
             const data = doc.data();
             table.innerHTML += `<tr class="hover:bg-gray-50"><td class="py-4 text-sm font-medium text-gray-900">${data.name}</td><td class="py-4"><span class="lv-badge">Lv.${data.level}</span></td><td class="py-4 text-sm text-gray-500">${data.count}회</td></tr>`;
+            const opt = document.createElement('option');
+            opt.value = doc.id; opt.innerText = data.name; select.appendChild(opt);
         });
     }
     loadData();
