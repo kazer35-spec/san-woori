@@ -40,15 +40,23 @@
         .badge-icon-txt { font-size: 0.8rem; font-weight: 800; color: #166534; }
         .badge-lv-txt { font-size: 0.6rem; color: #22c55e; }
 
-        /* ✅ 수정: 회원 명단 가로 2열 및 체크박스 간격 최소화 */
-        .member-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
-        .member-item { display: flex; align-items: center; gap: 4px; font-size: 0.85rem; font-weight: 700; padding: 8px 6px; border-radius: 10px; background: white; border: 1px solid #e2e8f0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .member-item input { width: 14px; height: 14px; flex-shrink: 0; }
-        .hidden-label { color: #94a3b8; font-size: 0.7rem; font-weight: 500; }
+        /* ✅ 수정: 한 명씩 가로 모드로 배치 */
+        .member-grid-single { display: flex; flex-direction: column; gap: 6px; }
+        .member-item-horizontal { 
+            display: flex; align-items: center; gap: 10px; font-size: 0.95rem; font-weight: 700; 
+            padding: 12px 16px; border-radius: 12px; background: white; border: 1px solid #e2e8f0; 
+            cursor: pointer; transition: background 0.2s;
+        }
+        .member-item-horizontal:active { background: #f1f5f9; }
+        .member-item-horizontal input { width: 18px; height: 18px; flex-shrink: 0; accent-color: #3b82f6; }
+        .hidden-text { color: #cbd5e1; font-size: 0.75rem; margin-left: 4px; }
+        .is-hidden-bg { background: #fcfcfc; color: #94a3b8; }
 
+        /* 조절 버튼 디자인 */
         .small-selector { display: flex; justify-content: space-around; background: #f8fafc; padding: 6px; border-radius: 10px; border: 1px solid #e2e8f0; margin-bottom: 12px; }
         .small-selector label { font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; gap: 3px; cursor: pointer; }
         
+        /* 삭제 그리드 5열 유지 */
         .log-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin-top: 10px; }
         .log-item-box { background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
         .log-date-txt { font-size: 0.55rem; font-weight: 800; color: #64748b; }
@@ -61,91 +69,83 @@
 
 <div class="main-container">
     <div class="tab-menu">
-        <button id="tabStatus" class="tab-btn active-tab" onclick="showView('status')">📡 실시간 현황</button>
-        <button id="tabAdmin" class="tab-btn" onclick="handleAdminTab()">🔐 관리자</button>
+        <button id="tabStatus" class="tab-btn active-tab" onclick="showView('status')">📡 현황판</button>
+        <button id="tabAdmin" class="tab-btn" onclick="handleAdminTab()">🔐 관리</button>
     </div>
 
     <div id="viewStatus" class="view-content p-6">
-        <h1 class="text-xl font-extrabold mb-4 text-slate-800 flex items-center gap-2">
-            <span class="relative flex h-3 w-3"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span><span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span></span>
-            실시간 등급표
-        </h1>
+        <h1 class="text-xl font-extrabold mb-4 text-slate-800 flex items-center gap-2">등급 실시간 현황</h1>
         <div class="flex gap-2 mb-4">
-            <input type="text" id="searchInput" onkeyup="renderStatusTable()" placeholder="🔍 이름 검색..." class="bg-gray-50 border-gray-200 h-10 px-4 rounded-xl flex-1 text-sm outline-none">
-            <select id="statusSortOrder" onchange="renderStatusTable()" class="sort-select bg-white">
-                <option value="qCount">분기 횟수순</option>
-                <option value="level">레벨 높은순</option>
+            <input type="text" id="searchInput" onkeyup="renderStatusTable()" placeholder="🔍 검색" class="h-10 px-4 rounded-xl flex-1 text-sm bg-gray-50 border-gray-200 outline-none">
+            <select id="statusSortOrder" onchange="renderStatusTable()" class="sort-select">
+                <option value="qCount">분기순</option>
+                <option value="level">레벨순</option>
             </select>
         </div>
-        <div id="quarterTabs" class="flex gap-2 mb-6">
-            <button id="qBtn1" class="q-btn py-2" onclick="changeQuarter(1)">1분기</button>
-            <button id="qBtn2" class="q-btn py-2" onclick="changeQuarter(2)">2분기</button>
-            <button id="qBtn3" class="q-btn py-2" onclick="changeQuarter(3)">3분기</button>
-            <button id="qBtn4" class="q-btn py-2" onclick="changeQuarter(4)">4분기</button>
+        <div id="quarterTabs" class="flex gap-1 mb-6">
+            <button id="qBtn1" class="q-btn" onclick="changeQuarter(1)">1분기</button>
+            <button id="qBtn2" class="q-btn" onclick="changeQuarter(2)">2분기</button>
+            <button id="qBtn3" class="q-btn" onclick="changeQuarter(3)">3분기</button>
+            <button id="qBtn4" class="q-btn" onclick="changeQuarter(4)">4분기</button>
         </div>
         <table>
             <thead>
                 <tr>
-                    <th class="text-right w-[25%] pr-[15px]">회원명</th>
-                    <th class="w-[30%]">레벨(Lv)</th>
-                    <th class="w-[20%]">분기횟수</th>
-                    <th class="text-left w-[25%] pl-[10px]">남은날짜</th>
+                    <th class="w-[25%] pr-[15px] text-right">이름</th>
+                    <th class="w-[30%]">등급</th>
+                    <th class="w-[20%]">기록</th>
+                    <th class="w-[25%] pl-[10px] text-left">관리일</th>
                 </tr>
             </thead>
             <tbody id="statusList"></tbody>
         </table>
     </div>
 
-    <div id="viewLogin" class="view-content hidden p-6 text-center">
-        <div class="card border-dashed border-2 py-12">
-            <h2 class="text-lg font-bold mb-6">관리자 인증</h2>
-            <input type="password" id="adminPassword" placeholder="비밀번호 입력" class="text-center input-gap">
-            <button onclick="loginAdmin()" class="btn-submit bg-blue-500">인증하기</button>
-        </div>
-    </div>
+    <div id="viewLogin" class="view-content hidden p-6"><div class="card text-center"><h2 class="font-bold mb-4">관리자 인증</h2><input type="password" id="adminPassword" placeholder="비밀번호" class="input-gap text-center"><button onclick="loginAdmin()" class="btn-submit bg-blue-500">인증</button></div></div>
 
     <div id="viewAdmin" class="view-content hidden">
         <div class="card">
-            <div class="card-title text-green-600">🆕 신규 회원 등록</div>
-            <input type="text" id="newName" placeholder="회원 이름" class="input-gap">
+            <div class="card-title text-green-600">🆕 신규 회원</div>
+            <input type="text" id="newName" placeholder="이름 입력" class="input-gap">
             <input type="date" id="regDate" class="input-gap">
-            <button onclick="addMember()" class="btn-submit bg-green-500">등록 완료</button>
+            <button onclick="addMember()" class="btn-submit bg-green-500">회원 추가</button>
         </div>
         
         <div class="card">
-            <div class="card-title text-blue-600">📅 등산 기록 추가 (가로 명단)</div>
-            <input type="text" id="adminSearchInput" onkeyup="filterAdminMemberList()" placeholder="🔍 회원 검색..." class="h-10 px-4 rounded-xl w-full mb-3 text-xs bg-blue-50 border-blue-100 outline-none">
-            <div id="multiMemberList" class="max-h-64 overflow-y-auto border rounded-xl p-3 bg-gray-50 mb-4 member-grid"></div>
+            <div class="card-title text-blue-600">📅 기록 추가 (가로 모드)</div>
+            <input type="text" id="adminSearchInput" onkeyup="filterAdminMemberList()" placeholder="🔍 회원 검색" class="h-10 px-4 rounded-xl w-full mb-3 text-sm bg-blue-50 border-blue-100 outline-none">
+            
+            <div id="multiMemberList" class="max-h-80 overflow-y-auto border rounded-xl p-3 bg-gray-50 mb-4 member-grid-single">
+                </div>
+            
             <div class="small-selector text-blue-800">
                 <label><input type="radio" name="upAmount" value="1" checked> 1up</label>
                 <label><input type="radio" name="upAmount" value="2"> 2up</label>
                 <label><input type="radio" name="upAmount" value="3"> 3up</label>
             </div>
             <input type="date" id="activityDate" class="input-gap">
-            <button onclick="addMultiActivity()" class="btn-submit bg-blue-500">기록 저장하기</button>
+            <button onclick="addMultiActivity()" class="btn-submit bg-blue-500">선택 회원 기록 저장</button>
         </div>
 
-        <div class="card" style="background-color: #fffdf0; border-color: #fef3c7;">
-            <div class="card-title text-yellow-700">✏️ 레벨 차감 및 기록 삭제</div>
+        <div class="card" style="background-color: #fffdf0;">
+            <div class="card-title text-yellow-700">✏️ 기록 및 레벨 수정</div>
             <select id="memberSelectEdit" onchange="loadMemberLogs()" class="input-gap"><option value="">대상 회원 선택</option></select>
-            <div class="flex flex-col mb-4">
-                <div class="small-selector text-red-600">
-                    <label><input type="radio" name="downAmount" value="1" checked> -1</label>
-                    <label><input type="radio" name="downAmount" value="2"> -2</label>
-                    <label><input type="radio" name="downAmount" value="3"> -3</label>
-                </div>
-                <button onclick="onlyDownLevel()" class="w-full bg-orange-500 text-white py-2 rounded-lg font-black text-xs">레벨만 차감</button>
+            <div class="small-selector text-red-600">
+                <label><input type="radio" name="downAmount" value="1" checked> -1</label>
+                <label><input type="radio" name="downAmount" value="2"> -2</label>
+                <label><input type="radio" name="downAmount" value="3"> -3</label>
             </div>
+            <button onclick="onlyDownLevel()" class="w-full bg-orange-500 text-white py-2 rounded-lg font-black text-xs mb-3">레벨만 차감</button>
             <div id="logListArea" class="log-grid"></div>
         </div>
 
-        <div class="card" style="background-color: #fff5f5; border-color: #fee2e2;">
-            <div class="card-title text-red-600">🗑️ 회원 상태 관리</div>
+        <div class="card" style="background-color: #fff5f5;">
+            <div class="card-title text-red-600">⚙️ 회원 상태 관리</div>
             <select id="memberSelectManage" class="input-gap"><option value="">대상 회원 선택</option></select>
-            <button onclick="toggleHideMember()" class="btn-submit bg-gray-600 mb-2 h-10 py-0 text-sm">숨기기/보이기 토글</button>
-            <button onclick="deleteMember()" class="btn-submit bg-red-500 h-10 py-0 text-sm">회원 영구 삭제</button>
+            <button onclick="toggleHideMember()" class="btn-submit bg-gray-600 mb-2 h-10 py-0 text-sm">숨기기 토글 (현황판 제외)</button>
+            <button onclick="deleteMember()" class="btn-submit bg-red-500 h-10 py-0 text-sm">회원 데이터 영구 삭제</button>
         </div>
-        <div class="p-8 text-center"><button onclick="logoutAdmin()" class="text-gray-400 underline font-bold text-sm">로그아웃</button></div>
+        <div class="p-8 text-center"><button onclick="logoutAdmin()" class="text-gray-400 underline text-sm">로그아웃</button></div>
     </div>
 </div>
 
@@ -174,11 +174,9 @@
         document.querySelectorAll('.view-content').forEach(e => e.classList.add('hidden'));
         document.getElementById('view'+v.charAt(0).toUpperCase()+v.slice(1)).classList.remove('hidden');
     };
-
     window.handleAdminTab = () => isAdminLoggedIn ? showView('admin') : showView('login');
     window.loginAdmin = () => { if(document.getElementById('adminPassword').value === "1221") { isAdminLoggedIn = true; showView('admin'); } else alert("비밀번호 오류"); };
     window.logoutAdmin = () => { isAdminLoggedIn = false; document.getElementById('adminPassword').value=""; showView('status'); };
-    
     window.changeQuarter = (q) => {
         selectedQuarter = q;
         document.querySelectorAll('.q-btn').forEach((btn, idx) => btn.classList.toggle('active-q', idx + 1 === q));
@@ -197,31 +195,23 @@
             return b.level - a.level || b.qCount - a.qCount;
         });
         displayData.filter(m => !m.isHidden && m.name.includes(searchTerm)).forEach((m) => {
-            let rankTag = ""; let rankClass = "";
+            let rTag = ""; let rCls = "";
             if (m.name !== "오즈" && m.qCount > 0) {
                 const idx = topNames.indexOf(m.name);
-                if (idx === 0) { rankTag = "🥇산신령"; rankClass = "rank-1"; }
-                else if (idx === 1) { rankTag = "🥈심마니"; rankClass = "rank-2"; }
-                else if (idx === 2) { rankTag = "🥉나무꾼"; rankClass = "rank-3"; }
+                if (idx === 0) { rTag = "🥇산신령"; rCls = "rank-1"; }
+                else if (idx === 1) { rTag = "🥈심마니"; rCls = "rank-2"; }
+                else if (idx === 2) { rTag = "🥉나무꾼"; rCls = "rank-3"; }
             }
             const diff = Math.floor((new Date() - m.lastDate.toDate()) / 86400000);
-            const limitDays = (m.level === 0) ? 30 : 123;
-            const dday = limitDays - diff;
-            const ddayTxt = dday >= 0 ? `D-${dday}` : `+${Math.abs(dday)}일`;
-            const ddayClass = dday <= (m.level === 0 ? 5 : 10) ? "text-red-500 font-black" : "text-gray-400";
-            list.innerHTML += `
-                <tr class="border-b border-gray-50 text-sm">
-                    <td class="td-name text-[11px]">${rankTag ? `<span class="rank-badge ${rankClass}">${rankTag}</span>` : ''}<span class="${rankClass}">${m.name}</span></td>
-                    <td><div class="badge-level"><span class="badge-icon-txt">${getLevelBadge(m.level)}</span><span class="badge-lv-txt">Lv ${m.level}</span></div></td>
-                    <td>${m.qCount}회</td>
-                    <td class="text-left pl-2 text-[10px] ${ddayClass}">${ddayTxt}</td>
-                </tr>`;
+            const dday = (m.level === 0 ? 30 : 123) - diff;
+            const ddayTxt = dday >= 0 ? `D-${dday}` : `+${Math.abs(dday)}`;
+            list.innerHTML += `<tr class="border-b border-gray-50 text-sm"><td class="text-[11px] pr-2">${rTag ? `<span class="rank-badge ${rCls}">${rTag}</span>` : ''}<span class="${rCls}">${m.name}</span></td><td><div class="badge-level"><span class="badge-icon-txt">${getLevelBadge(m.level)}</span><span class="badge-lv-txt">Lv ${m.level}</span></div></td><td>${m.qCount}회</td><td class="text-left pl-2 text-[10px] ${dday<=10?'text-red-500 font-bold':'text-gray-400'}">${ddayTxt}</td></tr>`;
         });
     };
 
     window.filterAdminMemberList = () => {
         const q = document.getElementById('adminSearchInput').value.toLowerCase();
-        document.querySelectorAll('#multiMemberList > div').forEach(item => {
+        document.querySelectorAll('.member-item-horizontal').forEach(item => {
             item.style.display = item.innerText.toLowerCase().includes(q) ? "flex" : "none";
         });
     };
@@ -233,29 +223,29 @@
             const dataBatch = [];
             const startDate = Timestamp.fromDate(new Date(2026, (selectedQuarter - 1) * 3, 1));
             const endDate = Timestamp.fromDate(new Date(2026, selectedQuarter * 3, 1));
-            const alphaSortedDocs = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+            const alphaDocs = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.name.localeCompare(b.name, 'ko'));
             
             const multiList = document.getElementById('multiMemberList');
             const editSelect = document.getElementById('memberSelectEdit');
             const manageSelect = document.getElementById('memberSelectManage');
-            
-            multiList.innerHTML = ""; 
-            editSelect.innerHTML = '<option value="">대상 회원 선택</option>';
-            manageSelect.innerHTML = '<option value="">대상 회원 선택</option>';
+            multiList.innerHTML = ""; editSelect.innerHTML = manageSelect.innerHTML = '<option value="">대상 회원 선택</option>';
 
-            for (const m of alphaSortedDocs) {
+            for (const m of alphaDocs) {
                 const logsSnap = await getDocs(query(collection(db, `sanwoori/${m.id}/logs`), where("date", ">=", startDate), where("date", "<", endDate)));
                 m.qCount = logsSnap.size;
                 dataBatch.push(m);
                 
-                // ✅ 기록 추가 명단 가로형 및 숨김 표시
-                const hiddenLabel = m.isHidden ? '<span class="hidden-label"> (숨김)</span>' : '';
-                multiList.innerHTML += `<div class="member-item"><input type="checkbox" name="mCheck" value="${m.id}"> <span>${m.name}${hiddenLabel}</span></div>`;
+                // ✅ 한줄 가로 모드 (이름 한명씩)
+                const hiddenTag = m.isHidden ? '<span class="hidden-text">(숨김)</span>' : '';
+                multiList.innerHTML += `
+                    <label class="member-item-horizontal ${m.isHidden ? 'is-hidden-bg' : ''}">
+                        <input type="checkbox" name="mCheck" value="${m.id}">
+                        <span>${m.name}${hiddenTag}</span>
+                    </label>`;
                 
-                // ✅ 셀렉트 박스에도 숨김 상태 표시
-                const optionTxt = m.name + (m.isHidden ? ' (숨김)' : '');
-                editSelect.innerHTML += `<option value="${m.id}">${optionTxt}</option>`;
-                manageSelect.innerHTML += `<option value="${m.id}">${optionTxt}</option>`;
+                const optTxt = m.name + (m.isHidden ? ' (숨김)' : '');
+                editSelect.innerHTML += `<option value="${m.id}">${optTxt}</option>`;
+                manageSelect.innerHTML += `<option value="${m.id}">${optTxt}</option>`;
             }
             currentData = dataBatch;
             renderStatusTable();
@@ -263,12 +253,12 @@
     }
 
     window.addMultiActivity = async () => {
-        const selected = document.querySelectorAll('input[name="mCheck"]:checked');
-        const dateVal = document.getElementById('activityDate').value;
+        const sel = document.querySelectorAll('input[name="mCheck"]:checked');
+        const dt = document.getElementById('activityDate').value;
         const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
-        if(!selected.length) return alert("회원을 선택하세요.");
-        const ts = Timestamp.fromDate(dateVal ? new Date(dateVal) : new Date());
-        for (const cb of selected) {
+        if(!sel.length) return alert("회원을 선택하세요.");
+        const ts = Timestamp.fromDate(dt ? new Date(dt) : new Date());
+        for (const cb of sel) {
             await updateDoc(doc(db, "sanwoori", cb.value), { level: increment(up), lastDate: ts });
             for(let i=0; i<up; i++) await addDoc(collection(db, `sanwoori/${cb.value}/logs`), { date: ts });
         }
@@ -277,51 +267,47 @@
 
     window.loadMemberLogs = async () => {
         const id = document.getElementById('memberSelectEdit').value;
-        const area = document.getElementById('logListArea');
-        area.innerHTML = ""; if(!id) return;
+        const area = document.getElementById('logListArea'); area.innerHTML = ""; if(!id) return;
         const snap = await getDocs(query(collection(db, `sanwoori/${id}/logs`), orderBy("date", "desc")));
         snap.forEach(ld => {
             const d = ld.data().date.toDate();
-            const fmt = `${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+            const fmt = `${d.getMonth()+1}.${d.getDate()}`;
             area.innerHTML += `<div class="log-item-box"><span class="log-date-txt">${fmt}</span><button class="del-btn-mini" onclick="deleteLog('${id}', '${ld.id}')">삭제</button></div>`;
         });
     };
 
     window.deleteLog = async (mId, logId) => {
-        const downVal = parseInt(document.querySelector('input[name="downAmount"]:checked').value);
-        if(!confirm(`기록 삭제 및 레벨 ${downVal} 차감?`)) return;
+        const dn = parseInt(document.querySelector('input[name="downAmount"]:checked').value);
+        if(!confirm("기록 삭제 및 레벨 차감?")) return;
         await deleteDoc(doc(db, `sanwoori/${mId}/logs`, logId));
-        await updateDoc(doc(db, "sanwoori", mId), { level: increment(-downVal) });
+        await updateDoc(doc(db, "sanwoori", mId), { level: increment(-dn) });
         loadMemberLogs();
     };
 
     window.onlyDownLevel = async () => {
         const id = document.getElementById('memberSelectEdit').value;
-        const downVal = parseInt(document.querySelector('input[name="downAmount"]:checked').value);
-        if(!id) return alert("회원 선택");
-        await updateDoc(doc(db, "sanwoori", id), { level: increment(-downVal) });
-        alert("레벨 차감 완료");
+        const dn = parseInt(document.querySelector('input[name="downAmount"]:checked').value);
+        if(id) { await updateDoc(doc(db, "sanwoori", id), { level: increment(-dn) }); alert("차감 완료"); }
     };
 
     window.toggleHideMember = async () => {
         const id = document.getElementById('memberSelectManage').value;
-        if(!id) return;
-        const m = currentData.find(x => x.id === id);
-        await updateDoc(doc(db, "sanwoori", id), { isHidden: !m.isHidden });
-        alert(`${m.name} 회원의 숨김 상태가 변경되었습니다.`);
+        if(id) {
+            const m = currentData.find(x => x.id === id);
+            await updateDoc(doc(db, "sanwoori", id), { isHidden: !m.isHidden });
+            alert("상태가 변경되었습니다.");
+        }
     };
 
     window.deleteMember = async () => {
         const id = document.getElementById('memberSelectManage').value;
-        if(id && confirm("데이터가 영구 삭제됩니다. 계속하시겠습니까?")) await deleteDoc(doc(db, "sanwoori", id));
+        if(id && confirm("영구 삭제하시겠습니까?")) await deleteDoc(doc(db, "sanwoori", id));
     };
 
     window.addMember = async () => {
         const name = document.getElementById('newName').value;
         const date = document.getElementById('regDate').value;
-        if(!name) return alert("이름을 입력하세요.");
-        await addDoc(collection(db, "sanwoori"), { name, level: 0, lastDate: Timestamp.fromDate(date?new Date(date):new Date()), isHidden: false });
-        document.getElementById('newName').value = "";
+        if(name) { await addDoc(collection(db, "sanwoori"), { name, level: 0, lastDate: Timestamp.fromDate(date?new Date(date):new Date()), isHidden: false }); document.getElementById('newName').value = ""; }
     };
 
     document.getElementById('regDate').valueAsDate = new Date();
