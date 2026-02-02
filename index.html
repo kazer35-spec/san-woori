@@ -82,6 +82,7 @@ const firebaseConfig = { apiKey: "AIzaSyBoAh3V3WrHg_wo53g1LHM0UW3-y6w2deg", auth
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 let isAdminLoggedIn = false; let currentData = []; let selectedQuarter = Math.ceil((new Date().getMonth() + 1) / 3); let selectedMemberIds = new Set();
+
 const getLevelBadge = (lv) => { if (lv >= 100) return "🌌 은하수"; if (lv >= 90) return "🌠 별똥별"; if (lv >= 80) return "💫 타원별"; if (lv >= 70) return "🌟 황금별"; if (lv >= 60) return "⭐️ 별"; if (lv >= 50) return "☀️ 해"; if (lv >= 45) return "🌕 달"; if (lv >= 40) return "🌙 초승달"; if (lv >= 35) return "☄️ 운석"; if (lv >= 30) return "🌈 무지개"; if (lv >= 25) return "🌀 태풍"; if (lv >= 20) return "🌋 화산"; if (lv >= 15) return "🏔️ 설산"; if (lv >= 10) return "⛰️ 산"; if (lv >= 5) return "🌳 나무"; if (lv >= 3) return "🌿 풀잎"; if (lv >= 1) return "🌱 새싹"; return "🐣 신입"; };
 window.showView = (v) => { document.querySelectorAll('.view-content').forEach(e => e.classList.add('hidden')); document.getElementById('view'+v.charAt(0).toUpperCase()+v.slice(1)).classList.remove('hidden'); };
 window.handleAdminTab = () => isAdminLoggedIn ? showView('admin') : showView('login');
@@ -89,26 +90,37 @@ window.loginAdmin = () => { if(document.getElementById('adminPassword').value ==
 window.logoutAdmin = () => { isAdminLoggedIn = false; document.getElementById('adminPassword').value=""; showView('status'); };
 window.changeQuarter = (q) => { selectedQuarter = q; document.querySelectorAll('.q-btn').forEach((btn, idx) => btn.classList.toggle('active-q', idx + 1 === q)); startRealtimeSync(); };
 
+// ✅ 날짜 계산 로직: 24시 자정 기준 자동 갱신 엔진
 window.renderStatusTable = () => {
     const list = document.getElementById('statusList');
     const searchTerm = document.getElementById('searchInput').value.trim();
     const sortKey = document.getElementById('statusSortOrder').value;
     list.innerHTML = "";
-    const rankSortedData = [...currentData].filter(m => !m.isHidden && m.name !== "오즈").sort((a, b) => b.qCount - a.qCount || b.level - a.level);
-    const topNames = rankSortedData.slice(0, 3).map(m => m.name);
-    const displayData = [...currentData].sort((a, b) => { if (sortKey === 'qCount') return b.qCount - a.qCount || b.level - a.level; return b.level - a.level || b.qCount - a.qCount; });
+    
+    // 현재 한국 시간 기준 '날짜'만 추출 (시간/분/초 제거)
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    const displayData = [...currentData].sort((a, b) => { 
+        if (sortKey === 'qCount') return b.qCount - a.qCount || b.level - a.level; 
+        return b.level - a.level || b.qCount - a.qCount; 
+    });
+
     displayData.filter(m => !m.isHidden && m.name.includes(searchTerm)).forEach((m) => {
-        let rTag = ""; let rCls = "";
-        if (m.name !== "오즈" && m.qCount > 0) { const idx = topNames.indexOf(m.name); if (idx === 0) { rTag = "🥇산신령"; rCls = "rank-1"; } else if (idx === 1) { rTag = "🥈심마니"; rCls = "rank-2"; } else if (idx === 2) { rTag = "🥉나무꾼"; rCls = "rank-3"; } }
+        // DB에 저장된 날짜도 '날짜' 정보만 추출 (00:00:00로 리셋)
+        const d = m.lastDate.toDate();
+        const recordDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
         
-        // 정밀 날짜 계산 (오늘 0시 vs 기록 0시 비교)
-        const n = new Date(); const today = new Date(n.getFullYear(), n.getMonth(), n.getDate());
-        const d = m.lastDate.toDate(); const recordDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-        const diffDays = Math.floor((today - recordDay) / 86400000);
-        const dday = (m.level === 0 ? 30 : 122) - diffDays;
+        // 날짜 차이 계산 (밀리초 차이를 하루치 밀리초로 나눔)
+        const diffMs = today.getTime() - recordDay.getTime();
+        const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+        
+        // 기준값 적용 (신입 30일, 일반 122일)
+        const base = (m.level === 0 ? 30 : 122);
+        const dday = base - diffDays;
         const ddayTxt = dday >= 0 ? `D-${dday}` : `+${Math.abs(dday)}일`;
-        
-        list.innerHTML += `<tr class="border-b border-gray-50 text-sm"><td class="text-[11px] pr-2">${rTag ? `<span class="rank-badge ${rCls}">${rTag}</span>` : ''}<span class="${rCls}">${m.name}</span></td><td><div class="badge-level"><span class="badge-icon-txt">${getLevelBadge(m.level)}</span><span class="badge-lv-txt">Lv ${m.level}</span></div></td><td>${m.qCount}회</td><td class="text-left pl-2 text-[10px] ${dday<=10?'text-red-500 font-black':'text-gray-400'}">${ddayTxt}</td></tr>`;
+
+        list.innerHTML += `<tr class="border-b border-gray-50 text-sm"><td class="text-[11px] pr-2"><span>${m.name}</span></td><td><div class="badge-level"><span class="badge-icon-txt">${getLevelBadge(m.level)}</span><span class="badge-lv-txt">Lv ${m.level}</span></div></td><td>${m.qCount}회</td><td class="text-left pl-2 text-[10px] ${dday<=10?'text-red-500 font-black':'text-gray-400'}">${ddayTxt}</td></tr>`;
     });
 };
 
