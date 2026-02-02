@@ -24,8 +24,6 @@ input, select, .btn-submit { width: 100% !important; display: block; padding: 12
 table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 th { color: #94a3b8; font-size: 0.75rem; padding-bottom: 12px; border-bottom: 2px solid #f8fafc; }
 td { padding: 14px 0; text-align: center; font-weight: 700; vertical-align: middle; }
-.rank-badge { font-size: 0.65rem; display: block; margin-bottom: -3px; font-weight: 900; }
-.rank-1 { color: #facc15 !important; } .rank-2 { color: #94a3b8 !important; } .rank-3 { color: #a36a00 !important; }
 .badge-level { display: inline-flex; flex-direction: column; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 4px 8px; border-radius: 10px; min-width: 80px; }
 .badge-icon-txt { font-size: 0.8rem; font-weight: 800; color: #166534; }
 .badge-lv-txt { font-size: 0.6rem; color: #22c55e; }
@@ -90,35 +88,31 @@ window.loginAdmin = () => { if(document.getElementById('adminPassword').value ==
 window.logoutAdmin = () => { isAdminLoggedIn = false; document.getElementById('adminPassword').value=""; showView('status'); };
 window.changeQuarter = (q) => { selectedQuarter = q; document.querySelectorAll('.q-btn').forEach((btn, idx) => btn.classList.toggle('active-q', idx + 1 === q)); startRealtimeSync(); };
 
-// ⭐ 날짜 계산 엔진 전면 개편 (정확한 날짜 차이 추출)
+// ⭐ [완전 보정] 날짜 계산 함수
+const getCleanDiff = (lastDateTs) => {
+    const now = new Date();
+    const record = lastDateTs.toDate();
+    // UTC 기준으로 연, 월, 일을 추출하여 순수하게 날짜 차이만 계산 (시,분,초 무시)
+    const d1 = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+    const d2 = Date.UTC(record.getFullYear(), record.getMonth(), record.getDate());
+    return Math.floor((d1 - d2) / 86400000);
+};
+
 window.renderStatusTable = () => {
     const list = document.getElementById('statusList');
     const searchTerm = document.getElementById('searchInput').value.trim();
     const sortKey = document.getElementById('statusSortOrder').value;
     list.innerHTML = "";
     
-    // 1. 현재 날짜 (시, 분, 초 제거한 순수 날짜 객체)
-    const n = new Date();
-    const today = new Date(n.getFullYear(), n.getMonth(), n.getDate());
-
     const displayData = [...currentData].sort((a, b) => { 
         if (sortKey === 'qCount') return b.qCount - a.qCount || b.level - a.level; 
         return b.level - a.level || b.qCount - a.qCount; 
     });
 
     displayData.filter(m => !m.isHidden && m.name.includes(searchTerm)).forEach((m) => {
-        // 2. 기록 날짜 (시, 분, 초 제거한 순수 날짜 객체)
-        const d = m.lastDate.toDate();
-        const recordDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-        
-        // 3. 두 날짜의 밀리초 차이를 하루 단위(86400000ms)로 나누고 반올림
-        // 1/31 과 2/3 비교 시 정확하게 '3'이 나오도록 설계됨
-        const diffDays = Math.round((today - recordDay) / 86400000);
-        
-        // 4. 레벨에 따른 기준값 설정 및 D-Day 도출
+        const diffDays = getCleanDiff(m.lastDate);
         const base = (m.level === 0 ? 30 : 122);
         const dday = base - diffDays;
-        
         const ddayTxt = dday >= 0 ? `D-${dday}` : `+${Math.abs(dday)}일`;
 
         list.innerHTML += `<tr class="border-b border-gray-50 text-sm"><td class="text-[11px] pr-2"><span>${m.name}</span></td><td><div class="badge-level"><span class="badge-icon-txt">${getLevelBadge(m.level)}</span><span class="badge-lv-txt">Lv ${m.level}</span></div></td><td>${m.qCount}회</td><td class="text-left pl-2 text-[10px] ${dday<=10?'text-red-500 font-black':'text-gray-400'}">${ddayTxt}</td></tr>`;
@@ -130,7 +124,6 @@ function startRealtimeSync() {
 if (unsubscribe) unsubscribe();
 unsubscribe = onSnapshot(collection(db, "sanwoori"), async (snapshot) => {
 const tempDocs = [];
-// 분기 계산용 (2026년 기준)
 const startDate = Timestamp.fromDate(new Date(2026, (selectedQuarter - 1) * 3, 1));
 const endDate = Timestamp.fromDate(new Date(2026, selectedQuarter * 3, 1));
 
@@ -158,7 +151,7 @@ window.addMultiActivity = async () => {
 if(!selectedMemberIds.size) return alert("회원 선택");
 const dt = document.getElementById('activityDate').value; 
 const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
-// 입력된 날짜를 00:00:00으로 설정하여 저장
+// 저장 시에도 시간을 자정(00:00:00)으로 강제 고정
 const ts = Timestamp.fromDate(dt ? new Date(dt + "T00:00:00") : new Date(new Date().setHours(0,0,0,0)));
 for (const mId of selectedMemberIds) {
 await updateDoc(doc(db, "sanwoori", mId), { level: increment(up), lastDate: ts });
