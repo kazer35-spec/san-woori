@@ -25,7 +25,7 @@
         .active-tab { background: #3b82f6; color: white; border: none; }
 
         .card { background: white; border-radius: 20px; border: 1px solid #f1f5f9; padding: 20px; margin: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
-        .card-title { font-size: 1.05rem; font-weight: 800; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
+        .card-title { font-size: 1.05rem; font-weight: 800; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
         
         table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         th { color: #94a3b8; font-size: 0.75rem; padding-bottom: 12px; border-bottom: 2px solid #f8fafc; }
@@ -40,11 +40,16 @@
         .badge-icon-txt { font-size: 0.8rem; font-weight: 800; color: #166534; }
         .badge-lv-txt { font-size: 0.6rem; color: #22c55e; }
 
-        /* ✅ 수정된 부분: 등산 기록 추가 (회원 명단 가로 3열) */
-        .member-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-        .member-item { display: flex; align-items: center; gap: 4px; font-size: 0.75rem; font-weight: 700; padding: 6px; border-radius: 8px; background: white; border: 1px solid #e2e8f0; }
+        /* ✅ 수정: 회원 명단 가로 2열 */
+        .member-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+        .member-item { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 700; padding: 10px; border-radius: 10px; background: white; border: 1px solid #e2e8f0; }
 
-        /* ✅ 수정된 부분: 기록 삭제 (날짜 칸 가로 5열) */
+        /* ✅ 수정: 업/다운 선택 칸 작게 */
+        .small-selector { display: flex; justify-content: space-around; background: #f8fafc; padding: 6px; border-radius: 10px; border: 1px solid #e2e8f0; margin-bottom: 12px; }
+        .small-selector label { font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; gap: 3px; cursor: pointer; }
+        .small-selector input[type="radio"] { width: 14px; height: 14px; }
+
+        /* 기록 삭제 (날짜 칸 가로 5열) */
         .log-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin-top: 10px; }
         .log-item-box { background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
         .log-date-txt { font-size: 0.55rem; font-weight: 800; color: #64748b; }
@@ -109,26 +114,29 @@
         </div>
         
         <div class="card">
-            <div class="card-title text-blue-600">📅 등산 기록 추가 (이름 가로 3열)</div>
+            <div class="card-title text-blue-600">📅 등산 기록 추가 (가로 2열)</div>
             <input type="text" id="adminSearchInput" onkeyup="filterAdminMemberList()" placeholder="🔍 회원 검색..." class="h-10 px-4 rounded-xl w-full mb-3 text-xs bg-blue-50 border-blue-100 outline-none">
-            <div id="multiMemberList" class="max-h-48 overflow-y-auto border rounded-xl p-3 bg-gray-50 mb-4 member-grid"></div>
-            <div class="flex justify-around bg-blue-50 p-3 rounded-xl mb-4 border border-blue-100 font-bold text-blue-800 text-sm">
+            <div id="multiMemberList" class="max-h-60 overflow-y-auto border rounded-xl p-3 bg-gray-50 mb-4 member-grid"></div>
+            
+            <div class="small-selector text-blue-800">
                 <label><input type="radio" name="upAmount" value="1" checked> 1up</label>
                 <label><input type="radio" name="upAmount" value="2"> 2up</label>
                 <label><input type="radio" name="upAmount" value="3"> 3up</label>
             </div>
+            
             <input type="date" id="activityDate" class="input-gap">
             <button onclick="addMultiActivity()" class="btn-submit bg-blue-500">기록 저장하기</button>
         </div>
 
         <div class="card" style="background-color: #fffdf0; border-color: #fef3c7;">
-            <div class="card-title text-yellow-700">✏️ 레벨 차감 및 기록 삭제 (가로 5칸)</div>
+            <div class="card-title text-yellow-700">✏️ 레벨 차감 및 기록 삭제</div>
             <select id="memberSelectEdit" onchange="loadMemberLogs()" class="input-gap"><option value="">대상 회원 선택</option></select>
-            <div class="flex flex-col bg-orange-50 p-3 rounded-xl border border-orange-100 mb-4">
-                <div class="flex justify-around mb-2">
-                    <label class="font-bold text-red-600 text-sm"><input type="radio" name="downAmount" value="1" checked> -1</label>
-                    <label class="font-bold text-red-600 text-sm"><input type="radio" name="downAmount" value="2"> -2</label>
-                    <label class="font-bold text-red-600 text-sm"><input type="radio" name="downAmount" value="3"> -3</label>
+            
+            <div class="flex flex-col mb-4">
+                <div class="small-selector text-red-600">
+                    <label><input type="radio" name="downAmount" value="1" checked> -1</label>
+                    <label><input type="radio" name="downAmount" value="2"> -2</label>
+                    <label><input type="radio" name="downAmount" value="3"> -3</label>
                 </div>
                 <button onclick="onlyDownLevel()" class="w-full bg-orange-500 text-white py-2 rounded-lg font-black text-xs">레벨만 차감</button>
             </div>
@@ -186,15 +194,12 @@
         const searchTerm = document.getElementById('searchInput').value.trim();
         const sortKey = document.getElementById('statusSortOrder').value;
         list.innerHTML = "";
-
         const rankSortedData = [...currentData].filter(m => !m.isHidden && m.name !== "오즈").sort((a, b) => b.qCount - a.qCount || b.level - a.level);
         const topNames = rankSortedData.slice(0, 3).map(m => m.name);
-
         const displayData = [...currentData].sort((a, b) => {
             if (sortKey === 'qCount') return b.qCount - a.qCount || b.level - a.level;
             return b.level - a.level || b.qCount - a.qCount;
         });
-
         displayData.filter(m => !m.isHidden && m.name.includes(searchTerm)).forEach((m) => {
             let rankTag = ""; let rankClass = "";
             if (m.name !== "오즈" && m.qCount > 0) {
@@ -208,7 +213,6 @@
             const dday = limitDays - diff;
             const ddayTxt = dday >= 0 ? `D-${dday}` : `+${Math.abs(dday)}일`;
             const ddayClass = dday <= (m.level === 0 ? 5 : 10) ? "text-red-500 font-black" : "text-gray-400";
-
             list.innerHTML += `
                 <tr class="border-b border-gray-50 text-sm">
                     <td class="td-name text-[11px]">${rankTag ? `<span class="rank-badge ${rankClass}">${rankTag}</span>` : ''}<span class="${rankClass}">${m.name}</span></td>
@@ -220,9 +224,9 @@
     };
 
     window.filterAdminMemberList = () => {
-        const queryVal = document.getElementById('adminSearchInput').value.toLowerCase();
+        const q = document.getElementById('adminSearchInput').value.toLowerCase();
         document.querySelectorAll('#multiMemberList > div').forEach(item => {
-            item.style.display = item.innerText.toLowerCase().includes(queryVal) ? "flex" : "none";
+            item.style.display = item.innerText.toLowerCase().includes(q) ? "flex" : "none";
         });
     };
 
@@ -246,8 +250,8 @@
                 const logsSnap = await getDocs(query(collection(db, `sanwoori/${m.id}/logs`), where("date", ">=", startDate), where("date", "<", endDate)));
                 m.qCount = logsSnap.size;
                 dataBatch.push(m);
-                // ✅ 가로 3열로 들어가는 회원 아이템
-                multiList.innerHTML += `<div class="member-item"><input type="checkbox" name="mCheck" value="${m.id}" class="w-3 h-3"> <span>${m.name}</span></div>`;
+                // ✅ 2열 배치
+                multiList.innerHTML += `<div class="member-item"><input type="checkbox" name="mCheck" value="${m.id}" class="w-4 h-4"> <span>${m.name}</span></div>`;
                 editSelect.innerHTML += `<option value="${m.id}">${m.name}</option>`;
                 manageSelect.innerHTML += `<option value="${m.id}">${m.name}</option>`;
             }
@@ -277,7 +281,6 @@
         snap.forEach(ld => {
             const d = ld.data().date.toDate();
             const fmt = `${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
-            // ✅ 가로 5열로 들어가는 기록 아이템
             area.innerHTML += `<div class="log-item-box"><span class="log-date-txt">${fmt}</span><button class="del-btn-mini" onclick="deleteLog('${id}', '${ld.id}')">삭제</button></div>`;
         });
     };
