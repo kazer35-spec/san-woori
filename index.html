@@ -52,7 +52,7 @@
 
 <div class="main-container">
     <div class="tab-menu">
-        <button id="tabStatus" class="tab-btn active-tab" onclick="showView('status')">📊실시간 현황</button>
+        <button id="tabStatus" class="tab-btn active-tab" onclick="showView('status')">📊 현황</button>
         <button id="tabAdmin" class="tab-btn" onclick="handleAdminTab()">🔐 관리자</button>
     </div>
 
@@ -121,4 +121,170 @@
         </div>
 
         <div class="card" style="background-color: #fff5f5; border-color: #fee2e2;">
-            <div class="card-
+            <div class="card-title text-red-600">🗑️ 회원 상태 관리</div>
+            <select id="memberSelectManage"><option value="">관리할 회원 선택</option></select>
+            <button onclick="toggleHideMember()" class="btn-submit bg-gray-600 mb-3">회원 숨기기 / 보이기 전환</button>
+            <button onclick="deleteMember()" class="btn-submit bg-red-500">선택 회원 영구 삭제</button>
+        </div>
+
+        <div class="p-8 text-center"><button onclick="logoutAdmin()" class="text-gray-400 underline font-bold">로그아웃하고 나가기</button></div>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, updateDoc, doc, deleteDoc, increment, query, orderBy, Timestamp, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = { apiKey: "AIzaSyBoAh3V3WrHg_wo53g1LHM0UW3-y6w2deg", authDomain: "san-woori-db.firebaseapp.com", projectId: "san-woori-db", storageBucket: "san-woori-db.firebasestorage.app", messagingSenderId: "387585514110", appId: "1:387585514110:web:44749e6d92769fff6ad62f" };
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    
+    let isAdminLoggedIn = false;
+    let currentData = [];
+    let selectedQuarter = Math.floor((new Date().getMonth() + 3) / 3);
+
+    const getLevelBadge = (lv) => {
+        if (lv >= 100) return "🌌 은하수"; if (lv >= 90) return "🌠 별똥별"; if (lv >= 80) return "💫 타원별";
+        if (lv >= 70) return "🌟 황금별"; if (lv >= 60) return "⭐️ 별"; if (lv >= 50) return "☀️ 해";
+        if (lv >= 45) return "🌕 달"; if (lv >= 40) return "🌙 초승달"; if (lv >= 35) return "☄️ 운석";
+        if (lv >= 30) return "🌈 무지개"; if (lv >= 25) return "🌀 태풍"; if (lv >= 20) return "🌋 화산";
+        if (lv >= 15) return "🏔️ 설산"; if (lv >= 10) return "⛰️ 산"; if (lv >= 5) return "🌳 나무";
+        if (lv >= 3) return "🌿 풀잎"; if (lv >= 1) return "🌱 새싹"; return "🐣 신입";
+    };
+
+    window.showView = (v) => {
+        document.querySelectorAll('.view-content').forEach(e => e.classList.add('hidden'));
+        document.getElementById('view'+v.charAt(0).toUpperCase()+v.slice(1)).classList.remove('hidden');
+    };
+
+    window.handleAdminTab = () => isAdminLoggedIn ? showView('admin') : showView('login');
+    window.loginAdmin = () => { if(document.getElementById('adminPassword').value === "1221") { isAdminLoggedIn = true; showView('admin'); loadData(); } else alert("비밀번호가 틀렸습니다."); };
+    window.logoutAdmin = () => { isAdminLoggedIn = false; showView('status'); };
+    window.changeQuarter = (q) => {
+        selectedQuarter = q;
+        document.querySelectorAll('.q-tab').forEach((btn, idx) => btn.classList.toggle('active', idx + 1 === q));
+        loadData();
+    };
+
+    async function loadData() {
+        const snap = await getDocs(collection(db, "sanwoori"));
+        const list = document.getElementById('statusList');
+        const multiList = document.getElementById('multiMemberList');
+        const editSelect = document.getElementById('memberSelectEdit');
+        const manageSelect = document.getElementById('memberSelectManage');
+        
+        list.innerHTML = ""; multiList.innerHTML = ""; 
+        editSelect.innerHTML = '<option value="">대상 회원 선택</option>';
+        manageSelect.innerHTML = '<option value="">관리할 회원 선택</option>';
+        currentData = [];
+
+        const startDate = Timestamp.fromDate(new Date(2026, (selectedQuarter - 1) * 3, 1));
+        const endDate = Timestamp.fromDate(new Date(2026, selectedQuarter * 3, 1));
+
+        for (const d of snap.docs) {
+            const m = { id: d.id, ...d.data() };
+            const logsSnap = await getDocs(query(collection(db, `sanwoori/${m.id}/logs`), where("date", ">=", startDate), where("date", "<", endDate)));
+            m.qCount = logsSnap.size; 
+            currentData.push(m);
+        }
+
+        currentData.sort((a,b) => b.qCount - a.qCount || b.level - a.level).forEach((m, index) => {
+            if(!m.isHidden) {
+                let rankTag = ""; let rankClass = "";
+                if (m.qCount > 0 && m.name !== "오즈") {
+                    if (index === 0) { rankTag = "🥇산신령"; rankClass = "rank-1"; }
+                    else if (index === 1) { rankTag = "🥈심마니"; rankClass = "rank-2"; }
+                    else if (index === 2) { rankTag = "🥉나무꾼"; rankClass = "rank-3"; }
+                }
+
+                const diff = Math.floor((new Date() - m.lastDate.toDate()) / 86400000);
+                const dday = 123 - diff;
+
+                list.innerHTML += `
+                    <tr class="border-b border-gray-50">
+                        <td class="td-name">
+                            ${rankTag ? `<span class="rank-badge ${rankClass}">${rankTag}</span>` : ''}
+                            <span class="${rankClass}">${m.name}</span>
+                        </td>
+                        <td><div class="badge-level"><span class="badge-icon-txt">${getLevelBadge(m.level)}</span><span class="badge-lv-txt">Lv ${m.level}</span></div></td>
+                        <td>${m.qCount}회</td>
+                        <td class="text-left pl-2 text-xs text-gray-400">${dday>=0?'D-'+dday:'+'+Math.abs(dday)+'일'}</td>
+                    </tr>`;
+            }
+            
+            const statusLabel = m.isHidden ? " (정지)" : "";
+            multiList.innerHTML += `<div class="p-1 flex items-center gap-2"><input type="checkbox" name="mCheck" value="${m.id}" class="small-check"> <span class="text-sm font-bold">${m.name}${statusLabel}</span></div>`;
+            editSelect.innerHTML += `<option value="${m.id}">${m.name}${statusLabel}</option>`;
+            manageSelect.innerHTML += `<option value="${m.id}">${m.name}${statusLabel}</option>`;
+        });
+    }
+
+    window.addMultiActivity = async () => {
+        const selected = document.querySelectorAll('input[name="mCheck"]:checked');
+        const dateVal = document.getElementById('activityDate').value;
+        const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
+        if(!selected.length) return alert("회원을 선택해주세요.");
+        const ts = Timestamp.fromDate(dateVal ? new Date(dateVal) : new Date());
+        for (const cb of selected) {
+            await updateDoc(doc(db, "sanwoori", cb.value), { level: increment(up), lastDate: ts });
+            for(let i=0; i<up; i++) { await addDoc(collection(db, `sanwoori/${cb.value}/logs`), { date: ts }); }
+        }
+        alert("기록이 저장되었습니다."); loadData();
+    };
+
+    window.loadMemberLogs = async () => {
+        const id = document.getElementById('memberSelectEdit').value;
+        const area = document.getElementById('logListArea');
+        area.innerHTML = ""; if(!id) return;
+        const snap = await getDocs(query(collection(db, `sanwoori/${id}/logs`), orderBy("date", "desc")));
+        snap.forEach(ld => {
+            const d = ld.data().date.toDate();
+            const fmt = `${String(d.getFullYear()).slice(2)}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+            area.innerHTML += `<div class="date-badge" onclick="deleteLog('${id}', '${ld.id}')">${fmt}</div>`;
+        });
+    };
+
+    // [기능 추가] 레벨 임의 차감 로직 반영
+    window.deleteLog = async (mId, logId) => {
+        const downVal = parseInt(document.querySelector('input[name="downAmount"]:checked').value);
+        if(!confirm(`해당 기록을 삭제하고 레벨을 ${downVal} 차감하시겠습니까?`)) return;
+        
+        await deleteDoc(doc(db, `sanwoori/${mId}/logs`, logId));
+        await updateDoc(doc(db, "sanwoori", mId), { level: increment(-downVal) });
+        
+        alert("기록 삭제 및 레벨 차감이 완료되었습니다.");
+        loadMemberLogs(); loadData();
+    };
+
+    window.deleteMember = async () => {
+        const id = document.getElementById('memberSelectManage').value;
+        if(!id || !confirm("해당 회원의 모든 데이터가 영구 삭제됩니다. 계속하시겠습니까?")) return;
+        await deleteDoc(doc(db, "sanwoori", id));
+        alert("삭제 완료."); loadData();
+    };
+
+    window.toggleHideMember = async () => {
+        const id = document.getElementById('memberSelectManage').value;
+        if(!id) return;
+        const m = currentData.find(x => x.id === id);
+        await updateDoc(doc(db, "sanwoori", id), { isHidden: !m.isHidden });
+        alert(m.isHidden ? "현황판 표시 모드로 변경되었습니다." : "회원이 현황판에서 숨겨졌습니다.");
+        loadData();
+    };
+
+    window.addMember = async () => {
+        const name = document.getElementById('newName').value;
+        const date = document.getElementById('regDate').value;
+        if(!name) return alert("이름을 입력해주세요.");
+        await addDoc(collection(db, "sanwoori"), { name, level: 0, lastDate: Timestamp.fromDate(date ? new Date(date) : new Date()), isHidden: false });
+        document.getElementById('newName').value = "";
+        alert("신규 회원이 등록되었습니다.");
+        loadData();
+    };
+
+    document.getElementById('regDate').valueAsDate = new Date();
+    document.getElementById('activityDate').valueAsDate = new Date();
+    loadData();
+</script>
+</body>
+</html>
