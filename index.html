@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>산우리 - 활동 관리 시스템</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        body { font-family: 'Pretendard', sans-serif; background-color: #f9fafb; }
+        .lv-badge { background: linear-gradient(135deg, #6EE7B7 0%, #3B82F6 100%); color: white; border-radius: 12px; padding: 2px 8px; font-size: 0.8rem; }
+    </style>
+</head>
+<body>
+<div class="max-w-md mx-auto min-h-screen bg-white shadow-lg">
+    <header class="bg-green-600 p-6 text-white text-center">
+        <h1 class="text-2xl font-bold">🏔️ 산우리 동호회</h1>
+        <p class="opacity-80 text-sm mt-1">1회 등반 시 레벨이 1단계 상승합니다!</p>
+    </header>
+    <main class="p-4">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-bold text-gray-700">📊 멤버 레벨 현황</h2>
+            <button onclick="toggleAdmin()" class="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded">관리자 인증</button>
+        </div>
+        <div class="bg-white border rounded-lg overflow-hidden">
+            <table class="w-full text-center">
+                <thead class="bg-gray-50 border-b">
+                    <tr><th class="py-3 text-sm text-gray-600">이름</th><th class="py-3 text-sm text-gray-600">현재 레벨</th><th class="py-3 text-sm text-gray-600">총 횟수</th></tr>
+                </thead>
+                <tbody id="memberTable" class="divide-y">
+                    <tr><td colspan="3" class="py-10 text-gray-400 text-sm">데이터를 불러오는 중...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, updateDoc, doc, increment, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyBoAh3V3WrHg_wo53g1LHM0UW3-y6w2deg",
+        authDomain: "san-woori-db.firebaseapp.com",
+        projectId: "san-woori-db",
+        storageBucket: "san-woori-db.firebasestorage.app",
+        messagingSenderId: "387585514110",
+        appId: "1:387585514110:web:44749e6d92769fff6ad62f",
+        measurementId: "G-DMCHPYC5LS"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    async function loadData() {
+        const q = query(collection(db, "sanwoori"), orderBy("level", "desc"));
+        const querySnapshot = await getDocs(q);
+        const table = document.getElementById('memberTable');
+        table.innerHTML = ""; 
+        querySnapshot.forEach((doc) => {
+            const data = doc.data();
+            table.innerHTML += `<tr class="hover:bg-gray-50"><td class="py-4 text-sm font-medium text-gray-900">${data.name}</td><td class="py-4"><span class="lv-badge">Lv.${data.level}</span></td><td class="py-4 text-sm text-gray-500">${data.count}회</td></tr>`;
+        });
+    }
+    loadData();
+</script>
+</body>
+</html>
