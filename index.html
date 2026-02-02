@@ -92,12 +92,18 @@ window.loginAdmin = () => { if(document.getElementById('adminPassword').value ==
 window.logoutAdmin = () => { isAdminLoggedIn = false; document.getElementById('adminPassword').value=""; showView('status'); };
 window.changeQuarter = (q) => { selectedQuarter = q; document.querySelectorAll('.q-btn').forEach((btn, idx) => btn.classList.toggle('active-q', idx + 1 === q)); startRealtimeSync(); };
 
+// ⭐ 자정 기준 날짜 차이 계산 함수 (24시간 로직)
 const getPureDateDiff = (timestamp) => {
     const now = new Date();
     const record = timestamp.toDate();
-    const d1 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const d2 = new Date(record.getFullYear(), record.getMonth(), record.getDate());
-    return Math.round((d1 - d2) / (1000 * 60 * 60 * 24));
+    
+    // 두 날짜 모두 시/분/초를 0으로 맞춘 순수 날짜 객체 생성
+    const d1 = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // 오늘 00:00:00
+    const d2 = new Date(record.getFullYear(), record.getMonth(), record.getDate()); // 산행일 00:00:00
+    
+    // 밀리초 차이를 하루(ms)로 나누어 날짜 차이 구함
+    const diffTime = d1 - d2;
+    return Math.floor(diffTime / (1000 * 60 * 60 * 24));
 };
 
 window.renderStatusTable = () => {
@@ -112,11 +118,15 @@ window.renderStatusTable = () => {
     });
 
     displayData.filter(m => !m.isHidden && m.name.includes(searchTerm)).forEach((m) => {
-        const diffDays = getPureDateDiff(m.lastDate);
-        // ⭐ 아래 줄의 122를 120으로 변경 완료!
-        const base = (m.level === 0 ? 30 : 120);
+        const diffDays = getPureDateDiff(m.lastDate); // 자정 지나면 1씩 증가
+        const base = (m.level === 0 ? 30 : 120); // ⭐ 120일 기준
         const dday = base - diffDays;
-        const ddayTxt = dday >= 0 ? `D-${dday}` : `+${Math.abs(dday)}일`;
+        
+        // D-Day 텍스트 로직
+        let ddayTxt = "";
+        if (dday > 0) ddayTxt = `D-${dday}`;
+        else if (dday === 0) ddayTxt = `D-Day`;
+        else ddayTxt = `+${Math.abs(dday)}일`;
 
         list.innerHTML += `<tr class="border-b border-gray-50 text-sm">
             <td class="text-[11px] pr-2"><span>${m.name}</span></td>
@@ -160,6 +170,7 @@ window.addMultiActivity = async () => {
     if(!selectedMemberIds.size) return alert("회원 선택");
     const dt = document.getElementById('activityDate').value; 
     const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
+    // 시간 정보를 제거한 순수 날짜로 저장
     const ts = Timestamp.fromDate(dt ? new Date(dt + "T00:00:00") : new Date(new Date().setHours(0,0,0,0)));
     for (const mId of selectedMemberIds) {
         await updateDoc(doc(db, "sanwoori", mId), { level: increment(up), lastDate: ts });
