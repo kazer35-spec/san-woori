@@ -24,7 +24,7 @@
         .tab-btn { flex: 1; padding: 14px; border-radius: 12px; font-weight: 700; font-size: 0.95rem; border: 1px solid #e2e8f0; background: white; color: #64748b; }
         .active-tab { background: #3b82f6; color: white; border: none; }
 
-        /* 녹색 점멸 효과 */
+        /* ✅ 수정: 녹색 점멸(Blink) 효과 */
         @keyframes green-blink {
             0% { opacity: 1; filter: drop-shadow(0 0 2px #22c55e); transform: scale(1); }
             50% { opacity: 0.3; filter: drop-shadow(0 0 8px #4ade80); transform: scale(1.1); }
@@ -38,13 +38,11 @@
         }
 
         .card { background: white; border-radius: 20px; border: 1px solid #f1f5f9; padding: 20px; margin: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+        .card-title { font-size: 1.05rem; font-weight: 800; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
         
         table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         th { color: #94a3b8; font-size: 0.75rem; padding-bottom: 12px; border-bottom: 2px solid #f8fafc; }
         td { padding: 14px 0; text-align: center; font-weight: 700; vertical-align: middle; }
-        
-        /* 회원명과 분기횟수 폰트 크기 동일 */
-        .txt-main { font-size: 0.85rem; font-weight: 800; }
         
         .rank-badge { font-size: 0.65rem; display: block; margin-bottom: -3px; font-weight: 900; }
         .rank-1 { color: #facc15 !important; } .rank-2 { color: #94a3b8 !important; } .rank-3 { color: #a36a00 !important; }
@@ -62,15 +60,23 @@
             user-select: none; min-height: 48px;
         }
         .member-item.selected { background: #3b82f6 !important; border-color: #1d4ed8 !important; color: white !important; }
+        .member-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.2; }
 
         .is-hidden { background: #f8fafc; border-color: #cbd5e1; opacity: 0.6; }
         .hidden-txt { color: #ef4444; font-size: 0.55rem; font-weight: 800; display: block; }
-        
+
         .small-selector { display: flex; justify-content: space-around; background: #f8fafc; padding: 8px; border-radius: 10px; border: 1px solid #e2e8f0; margin-bottom: 12px; }
+        .small-selector label { font-size: 0.8rem; font-weight: 800; display: flex; align-items: center; gap: 4px; cursor: pointer; }
+        
         .log-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 10px; }
         .log-item-box { background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+        .log-date-txt { font-size: 0.6rem; font-weight: 800; color: #64748b; }
         .del-btn-mini { background: #fee2e2; color: #ef4444; width: 85%; padding: 2px 0; border-radius: 4px; font-size: 0.55rem; font-weight: 800; }
+        
         .sort-select { height: 40px; padding: 0 10px; font-size: 0.75rem; border-radius: 10px; border-color: #cbd5e1; width: auto !important; }
+
+        /* ✅ 분기횟수 텍스트 크기 미세 조정 */
+        .q-count-txt { font-size: 0.85rem; font-weight: 800; color: #475569; }
     </style>
 </head>
 <body>
@@ -101,10 +107,10 @@
         <table>
             <thead>
                 <tr>
-                    <th class="w-[30%] text-left pl-2">회원명</th>
-                    <th class="w-[30%] text-center">레벨(Lv)</th>
-                    <th class="w-[20%] text-center">분기횟수</th>
-                    <th class="w-[20%] text-center">상태</th>
+                    <th class="w-[25%] pr-[15px] text-right">회원명</th>
+                    <th class="w-[30%]">레벨(Lv)</th>
+                    <th class="w-[20%]">분기횟수</th>
+                    <th class="w-[25%] pl-[10px] text-left">관리날짜</th>
                 </tr>
             </thead>
             <tbody id="statusList"></tbody>
@@ -121,16 +127,18 @@
 
     <div id="viewAdmin" class="view-content hidden">
         <div class="card">
-            <div class="font-bold text-green-600 mb-4">🆕 신규 회원 등록</div>
+            <div class="card-title text-green-600">🆕 신규 회원 등록</div>
             <input type="text" id="newName" placeholder="이름 입력" class="input-gap">
             <input type="date" id="regDate" class="input-gap">
             <button onclick="addMember()" class="btn-submit bg-green-500">등록 완료</button>
         </div>
         
         <div class="card">
-            <div class="font-bold text-blue-600 mb-4">📅 등산 기록 추가</div>
+            <div class="card-title text-blue-600">📅 등산 기록 추가</div>
             <input type="text" id="adminSearchInput" onkeyup="filterAdminMemberList()" placeholder="🔍 회원 검색..." class="h-9 px-4 rounded-xl w-full mb-3 text-xs bg-blue-50 border-blue-100 outline-none">
+            
             <div id="multiMemberList" class="max-h-80 overflow-y-auto border-0 p-1 mb-4 member-grid"></div>
+            
             <div class="small-selector text-blue-800">
                 <label><input type="radio" name="upAmount" value="1" checked> 1up</label>
                 <label><input type="radio" name="upAmount" value="2"> 2up</label>
@@ -140,21 +148,22 @@
             <button onclick="addMultiActivity()" class="btn-submit bg-blue-500">기록 저장하기</button>
         </div>
 
-        <div class="card" style="background-color: #fffdf0;">
-            <div class="font-bold text-yellow-700 mb-4">✏️ 레벨 차감 및 기록 삭제</div>
+        <div class="card" style="background-color: #fffdf0; border-color: #fef3c7;">
+            <div class="card-title text-yellow-700">✏️ 레벨 차감 및 기록 삭제</div>
             <select id="memberSelectEdit" onchange="loadMemberLogs()" class="input-gap"><option value="">대상 회원 선택</option></select>
             <div class="small-selector text-red-600">
                 <label><input type="radio" name="downAmount" value="1" checked> -1</label>
                 <label><input type="radio" name="downAmount" value="2"> -2</label>
+                <label><input type="radio" name="downAmount" value="3"> -3</label>
             </div>
             <button onclick="onlyDownLevel()" class="w-full bg-orange-500 text-white py-2 rounded-lg font-black text-xs mb-3">레벨만 차감</button>
             <div id="logListArea" class="log-grid"></div>
         </div>
 
-        <div class="card" style="background-color: #fff5f5;">
-            <div class="font-bold text-red-600 mb-4">🗑️ 회원 상태 관리</div>
+        <div class="card" style="background-color: #fff5f5; border-color: #fee2e2;">
+            <div class="card-title text-red-600">🗑️ 회원 상태 관리</div>
             <select id="memberSelectManage" class="input-gap"><option value="">대상 회원 선택</option></select>
-            <button onclick="toggleHideMember()" class="btn-submit bg-gray-600 mb-2 h-10 py-0 text-sm">숨기기 / 보이기</button>
+            <button onclick="toggleHideMember()" class="btn-submit bg-gray-600 mb-2 h-10 py-0 text-sm">숨기기/보이기</button>
             <button onclick="deleteMember()" class="btn-submit bg-red-500 h-10 py-0 text-sm">회원 영구 삭제</button>
         </div>
         <div class="p-8 text-center"><button onclick="logoutAdmin()" class="text-gray-400 underline font-bold text-sm">로그아웃</button></div>
@@ -222,23 +231,8 @@
             const diff = Math.floor((new Date() - m.lastDate.toDate()) / 86400000);
             const dday = (m.level === 0 ? 30 : 123) - diff;
             const ddayTxt = dday >= 0 ? `D-${dday}` : `+${Math.abs(dday)}일`;
-            
-            // ✅ td 클래스에서 text-left와 pl-2를 적용하여 회원명 좌측 정렬
-            list.innerHTML += `
-                <tr class="border-b border-gray-50">
-                    <td class="text-left pl-2">
-                        ${rTag ? `<span class="rank-badge ${rCls}">${rTag}</span>` : ''}
-                        <span class="${rCls} txt-main">${m.name}</span>
-                    </td>
-                    <td>
-                        <div class="badge-level">
-                            <span class="badge-icon-txt">${getLevelBadge(m.level)}</span>
-                            <span class="badge-lv-txt">Lv ${m.level}</span>
-                        </div>
-                    </td>
-                    <td class="txt-main text-center">${m.qCount}회</td>
-                    <td class="text-center text-[10px] ${dday<=10?'text-red-500 font-black':'text-gray-400'}">${ddayTxt}</td>
-                </tr>`;
+            /* ✅ 분기횟수 숫자에 q-count-txt 클래스 적용 */
+            list.innerHTML += `<tr class="border-b border-gray-50 text-sm"><td class="text-[11px] pr-2">${rTag ? `<span class="rank-badge ${rCls}">${rTag}</span>` : ''}<span class="${rCls}">${m.name}</span></td><td><div class="badge-level"><span class="badge-icon-txt">${getLevelBadge(m.level)}</span><span class="badge-lv-txt">Lv ${m.level}</span></div></td><td><span class="q-count-txt">${m.qCount}회</span></td><td class="text-left pl-2 text-[10px] ${dday<=10?'text-red-500 font-black':'text-gray-400'}">${ddayTxt}</td></tr>`;
         });
     };
 
@@ -307,10 +301,12 @@
         const dt = document.getElementById('activityDate').value;
         const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
         const ts = Timestamp.fromDate(dt ? new Date(dt) : new Date());
+        
         for (const mId of selectedMemberIds) {
             await updateDoc(doc(db, "sanwoori", mId), { level: increment(up), lastDate: ts });
             for(let i=0; i<up; i++) await addDoc(collection(db, `sanwoori/${mId}/logs`), { date: ts });
         }
+        
         alert("기록 저장 완료");
         selectedMemberIds.clear(); 
         startRealtimeSync(); 
@@ -322,7 +318,7 @@
         const snap = await getDocs(query(collection(db, `sanwoori/${id}/logs`), orderBy("date", "desc")));
         snap.forEach(ld => {
             const d = ld.data().date.toDate();
-            area.innerHTML += `<div class="log-item-box"><span class="text-[0.6rem] font-bold">${d.getMonth()+1}.${d.getDate()}</span><button class="del-btn-mini" onclick="deleteLog('${id}', '${ld.id}')">삭제</button></div>`;
+            area.innerHTML += `<div class="log-item-box"><span class="log-date-txt">${d.getMonth()+1}.${d.getDate()}</span><button class="del-btn-mini" onclick="deleteLog('${id}', '${ld.id}')">삭제</button></div>`;
         });
     };
 
