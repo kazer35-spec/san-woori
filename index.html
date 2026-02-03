@@ -28,8 +28,11 @@ table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 th { color: #94a3b8; font-size: 0.75rem; padding-bottom: 12px; border-bottom: 2px solid #f8fafc; }
 td { padding: 14px 0; text-align: center; font-weight: 700; vertical-align: middle; }
 
+/* 칭호 전용 색상 */
 .rank-badge { font-size: 0.65rem; display: block; margin-bottom: -3px; font-weight: 900; }
-.rank-1 { color: #facc15 !important; } .rank-2 { color: #94a3b8 !important; } .rank-3 { color: #a36a00 !important; }
+.rank-1 { color: #facc15 !important; } 
+.rank-2 { color: #94a3b8 !important; } 
+.rank-3 { color: #a36a00 !important; } 
 
 .badge-level { display: inline-flex; flex-direction: column; align-items: center; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 4px 8px; border-radius: 10px; min-width: 80px; }
 .badge-icon-txt { font-size: 0.8rem; font-weight: 800; color: #166534; }
@@ -43,7 +46,10 @@ td { padding: 14px 0; text-align: center; font-weight: 700; vertical-align: midd
 .log-item-box { flex: 0 0 calc(33.33% - 4px); background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 6px 2px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .log-date-txt { font-size: 0.65rem; font-weight: 700; color: #64748b; }
 .del-btn-mini { background: #fee2e2; color: #ef4444; width: 85%; padding: 3px 0; border-radius: 5px; font-size: 0.6rem; font-weight: 800; }
-.sort-select { height: 40px; padding: 0 10px; font-size: 0.75rem; border-radius: 10px; margin-bottom: 0; width: auto !important; display: inline-block; border-color: #cbd5e1; }
+
+/* 정렬 셀렉트 박스 스타일 수정 */
+.sort-select { height: 40px !important; padding: 0 8px !important; font-size: 0.75rem !important; border-radius: 10px !important; width: 110px !important; border-color: #cbd5e1 !important; }
+.search-input { height: 40px !important; font-size: 0.75rem !important; border-radius: 10px !important; }
 
 /* D-Day 강조 애니메이션 */
 @keyframes blink-warning {
@@ -67,21 +73,24 @@ td { padding: 14px 0; text-align: center; font-weight: 700; vertical-align: midd
             <span class="relative flex h-3 w-3"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span><span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span></span>
             실시간 등급표
         </h1>
-        <div class="flex flex-col gap-2 mb-4">
-            <input type="text" id="searchInput" onkeyup="renderStatusTable()" placeholder="🔍 이름 검색..." class="bg-gray-50 border-gray-200 h-10 px-4 rounded-xl text-sm outline-none focus:border-blue-400">
-            <select id="statusSortOrder" onchange="renderStatusTable()" class="sort-select bg-white w-full">
-                <option value="qCount">분기 횟수순 (기본)</option>
+        
+        <div class="flex gap-2 mb-4">
+            <input type="text" id="searchInput" onkeyup="renderStatusTable()" placeholder="🔍 이름 검색..." class="search-input bg-gray-50 border-gray-200 flex-1 outline-none focus:border-blue-400">
+            <select id="statusSortOrder" onchange="renderStatusTable()" class="sort-select bg-white">
+                <option value="qCount">분기 횟수순</option>
                 <option value="level">레벨 높은순</option>
                 <option value="name">가나다라순</option>
                 <option value="dday">남은 날짜순</option>
             </select>
         </div>
+
         <div id="quarterTabs" class="flex gap-1.5 mb-6 bg-gray-50 p-1.5 rounded-xl border border-gray-100">
             <button id="qBtn1" class="q-btn" onclick="changeQuarter(1)">1분기</button>
             <button id="qBtn2" class="q-btn" onclick="changeQuarter(2)">2분기</button>
             <button id="qBtn3" class="q-btn" onclick="changeQuarter(3)">3분기</button>
             <button id="qBtn4" class="q-btn" onclick="changeQuarter(4)">4분기</button>
         </div>
+
         <table>
             <thead>
                 <tr>
@@ -201,7 +210,6 @@ window.renderStatusTable = () => {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
 
-    // 데이터 가공 (D-Day 미리 계산)
     let processedData = currentData.map(m => {
         const last = m.lastDate.toDate();
         const lastDay = new Date(last.getFullYear(), last.getMonth(), last.getDate()).getTime();
@@ -211,7 +219,6 @@ window.renderStatusTable = () => {
         return { ...m, ddayVal: limitDays - diffDays };
     });
 
-    // 정렬 로직
     processedData.sort((a, b) => {
         if (sortKey === 'qCount') return b.qCount - a.qCount || b.level - a.level;
         if (sortKey === 'level') return b.level - a.level || b.qCount - a.qCount;
@@ -235,28 +242,29 @@ window.renderStatusTable = () => {
         const dday = m.ddayVal;
         const ddayTxt = dday >= 0 ? `D-${dday}` : `+${Math.abs(dday)}일`;
         
-        // 날짜별 색상/효과 조건 (기존 회원 122일 기준 대응)
-        let ddayClass = "text-gray-400";
-        if (m.level > 0) { // 기존 회원(레벨 있음)인 경우
-            if (dday <= 10) ddayClass = "dday-blink"; // 10일 이하 깜빡임
-            else if (dday <= 20) ddayClass = "text-red-500 font-black"; // 20일 이하 빨강
-            else if (dday <= 30) ddayClass = "text-orange-500 font-bold"; // 30일 이하 주황
-        } else { // 신입(레벨 0)인 경우
-            if (dday <= 5) ddayClass = "dday-blink";
-            else if (dday <= 10) ddayClass = "text-red-500 font-bold";
+        let ddayColorClass = "text-gray-400";
+        if (m.level > 0) {
+            if (dday <= 10) ddayColorClass = "dday-blink";
+            else if (dday <= 20) ddayColorClass = "text-red-500 font-black";
+            else if (dday <= 30) ddayColorClass = "text-orange-500 font-bold";
+        } else {
+            if (dday <= 5) ddayColorClass = "dday-blink";
+            else if (dday <= 10) ddayColorClass = "text-red-500 font-bold";
         }
 
         list.innerHTML += `<tr class="border-b border-gray-50 text-sm">
-            <td class="td-name text-xs">${rankTag ? `<span class="rank-badge ${rankClass}">${rankTag}</span>` : ''}<span class="${rankClass}">${m.name}</span></td>
+            <td class="td-name text-xs">
+                ${rankTag ? `<span class="rank-badge ${rankClass}">${rankTag}</span>` : ''}
+                <span>${m.name}</span>
+            </td>
             <td><div class="badge-level"><span class="badge-icon-txt">${getLevelBadge(m.level)}</span><span class="badge-lv-txt">Lv ${m.level}</span></div></td>
             <td>${m.qCount}회</td>
-            <td class="text-left pl-2 text-[11px] ${ddayClass}">${ddayTxt}</td>
+            <td class="text-left pl-2 text-[11px] ${ddayColorClass}">${ddayTxt}</td>
         </tr>`;
     });
 };
 
-// --- 이하 관리자 기능 스크립트 (기존 유지) ---
-
+// --- 관리자 기능 스크립트 (기존 유지) ---
 window.toggleSelectMember = (id, el) => {
     if (selectedMemberIds.has(id)) {
         selectedMemberIds.delete(id);
