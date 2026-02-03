@@ -44,6 +44,14 @@ td { padding: 14px 0; text-align: center; font-weight: 700; vertical-align: midd
 .log-date-txt { font-size: 0.65rem; font-weight: 700; color: #64748b; }
 .del-btn-mini { background: #fee2e2; color: #ef4444; width: 85%; padding: 3px 0; border-radius: 5px; font-size: 0.6rem; font-weight: 800; }
 .sort-select { height: 40px; padding: 0 10px; font-size: 0.75rem; border-radius: 10px; margin-bottom: 0; width: auto !important; display: inline-block; border-color: #cbd5e1; }
+
+/* D-Day 강조 애니메이션 */
+@keyframes blink-warning {
+    0% { color: #f97316; opacity: 1; }
+    50% { color: #ef4444; opacity: 0.7; }
+    100% { color: #f97316; opacity: 1; }
+}
+.dday-blink { animation: blink-warning 0.8s infinite; font-weight: 900; }
 </style>
 </head>
 <body>
@@ -59,11 +67,13 @@ td { padding: 14px 0; text-align: center; font-weight: 700; vertical-align: midd
             <span class="relative flex h-3 w-3"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span><span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span></span>
             실시간 등급표
         </h1>
-        <div class="flex gap-2 mb-4">
-            <input type="text" id="searchInput" onkeyup="renderStatusTable()" placeholder="🔍 이름 검색..." class="bg-gray-50 border-gray-200 h-10 px-4 rounded-xl flex-1 text-sm outline-none focus:border-blue-400">
-            <select id="statusSortOrder" onchange="renderStatusTable()" class="sort-select bg-white">
-                <option value="qCount">분기 횟수순</option>
+        <div class="flex flex-col gap-2 mb-4">
+            <input type="text" id="searchInput" onkeyup="renderStatusTable()" placeholder="🔍 이름 검색..." class="bg-gray-50 border-gray-200 h-10 px-4 rounded-xl text-sm outline-none focus:border-blue-400">
+            <select id="statusSortOrder" onchange="renderStatusTable()" class="sort-select bg-white w-full">
+                <option value="qCount">분기 횟수순 (기본)</option>
                 <option value="level">레벨 높은순</option>
+                <option value="name">가나다라순</option>
+                <option value="dday">남은 날짜순</option>
             </select>
         </div>
         <div id="quarterTabs" class="flex gap-1.5 mb-6 bg-gray-50 p-1.5 rounded-xl border border-gray-100">
@@ -131,15 +141,13 @@ td { padding: 14px 0; text-align: center; font-weight: 700; vertical-align: midd
         <div class="card" style="background-color: #fff5f5; border-color: #fee2e2;">
             <div class="card-title text-red-600">🗑️ 회원 상태 및 보너스 관리</div>
             <select id="memberSelectManage" class="input-gap"><option value="">대상 회원 선택</option></select>
-            
             <div class="bg-white p-3 rounded-xl border border-red-100 mb-4">
-                <p class="text-[10px] text-gray-500 mb-2">🎁 특정 회원 D-Day 보너스 일수 (0이면 기본값)</p>
+                <p class="text-[10px] text-gray-500 mb-2">🎁 D-Day 보너스 일수 (추가 기간)</p>
                 <div class="flex gap-2">
                     <input type="number" id="bonusDaysInput" placeholder="일수 입력" class="h-10 text-sm" style="height:40px!important">
                     <button onclick="updateBonusDays()" class="bg-red-400 text-white px-4 rounded-xl text-xs font-bold whitespace-nowrap">보너스 적용</button>
                 </div>
             </div>
-
             <button onclick="toggleHideMember()" class="btn-submit bg-gray-600 mb-2 h-10 py-0">숨기기/보이기</button>
             <button onclick="deleteMember()" class="btn-submit bg-red-500 h-10 py-0">회원 영구 삭제</button>
         </div>
@@ -190,18 +198,32 @@ window.renderStatusTable = () => {
     const sortKey = document.getElementById('statusSortOrder').value;
     list.innerHTML = "";
 
-    const rankSortedData = [...currentData].filter(m => !m.isHidden && m.name !== "오즈").sort((a, b) => b.qCount - a.qCount || b.level - a.level);
-    const topNames = rankSortedData.slice(0, 3).map(m => m.name);
-
-    const displayData = [...currentData].sort((a, b) => {
-        if (sortKey === 'qCount') return b.qCount - a.qCount || b.level - a.level;
-        return b.level - a.level || b.qCount - a.qCount;
-    });
-
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
 
-    displayData.filter(m => !m.isHidden && m.name.includes(searchTerm)).forEach((m) => {
+    // 데이터 가공 (D-Day 미리 계산)
+    let processedData = currentData.map(m => {
+        const last = m.lastDate.toDate();
+        const lastDay = new Date(last.getFullYear(), last.getMonth(), last.getDate()).getTime();
+        const diffDays = Math.floor((today - lastDay) / (1000 * 60 * 60 * 24));
+        const bonus = m.bonusDays || 0;
+        const limitDays = ((m.level === 0) ? 30 : 122) + bonus;
+        return { ...m, ddayVal: limitDays - diffDays };
+    });
+
+    // 정렬 로직
+    processedData.sort((a, b) => {
+        if (sortKey === 'qCount') return b.qCount - a.qCount || b.level - a.level;
+        if (sortKey === 'level') return b.level - a.level || b.qCount - a.qCount;
+        if (sortKey === 'name') return a.name.localeCompare(b.name, 'ko');
+        if (sortKey === 'dday') return a.ddayVal - b.ddayVal;
+        return 0;
+    });
+
+    const rankSortedData = [...processedData].filter(m => !m.isHidden && m.name !== "오즈").sort((a, b) => b.qCount - a.qCount || b.level - a.level);
+    const topNames = rankSortedData.slice(0, 3).map(m => m.name);
+
+    processedData.filter(m => !m.isHidden && m.name.includes(searchTerm)).forEach((m) => {
         let rankTag = ""; let rankClass = "";
         if (m.name !== "오즈" && m.qCount > 0) {
             const idx = topNames.indexOf(m.name);
@@ -210,26 +232,30 @@ window.renderStatusTable = () => {
             else if (idx === 2) { rankTag = "🥉나무꾼"; rankClass = "rank-3"; }
         }
 
-        const last = m.lastDate.toDate();
-        const lastDay = new Date(last.getFullYear(), last.getMonth(), last.getDate()).getTime();
-        const diffDays = Math.floor((today - lastDay) / (1000 * 60 * 60 * 24));
-        
-        // 보너스 일수 포함 계산
-        const bonus = m.bonusDays || 0;
-        const limitDays = ((m.level === 0) ? 30 : 122) + bonus;
-        const dday = limitDays - diffDays;
-        
+        const dday = m.ddayVal;
         const ddayTxt = dday >= 0 ? `D-${dday}` : `+${Math.abs(dday)}일`;
-        const ddayClass = dday <= 10 ? "text-red-500 font-black" : "text-gray-400";
+        
+        // 날짜별 색상/효과 조건 (기존 회원 122일 기준 대응)
+        let ddayClass = "text-gray-400";
+        if (m.level > 0) { // 기존 회원(레벨 있음)인 경우
+            if (dday <= 10) ddayClass = "dday-blink"; // 10일 이하 깜빡임
+            else if (dday <= 20) ddayClass = "text-red-500 font-black"; // 20일 이하 빨강
+            else if (dday <= 30) ddayClass = "text-orange-500 font-bold"; // 30일 이하 주황
+        } else { // 신입(레벨 0)인 경우
+            if (dday <= 5) ddayClass = "dday-blink";
+            else if (dday <= 10) ddayClass = "text-red-500 font-bold";
+        }
 
         list.innerHTML += `<tr class="border-b border-gray-50 text-sm">
             <td class="td-name text-xs">${rankTag ? `<span class="rank-badge ${rankClass}">${rankTag}</span>` : ''}<span class="${rankClass}">${m.name}</span></td>
             <td><div class="badge-level"><span class="badge-icon-txt">${getLevelBadge(m.level)}</span><span class="badge-lv-txt">Lv ${m.level}</span></div></td>
             <td>${m.qCount}회</td>
-            <td class="text-left pl-2 text-[10px] ${ddayClass}">${ddayTxt}</td>
+            <td class="text-left pl-2 text-[11px] ${ddayClass}">${ddayTxt}</td>
         </tr>`;
     });
 };
+
+// --- 이하 관리자 기능 스크립트 (기존 유지) ---
 
 window.toggleSelectMember = (id, el) => {
     if (selectedMemberIds.has(id)) {
@@ -324,13 +350,13 @@ window.onlyDownLevel = async () => {
     alert("레벨 차감 완료");
 };
 
-// 보너스 일수 업데이트 함수 추가
 window.updateBonusDays = async () => {
     const id = document.getElementById('memberSelectManage').value;
     const bonus = parseInt(document.getElementById('bonusDaysInput').value) || 0;
     if(!id) return alert("회원을 선택해주세요.");
     await updateDoc(doc(db, "sanwoori", id), { bonusDays: bonus });
     alert("보너스 일수가 적용되었습니다.");
+    document.getElementById('bonusDaysInput').value = "";
 };
 
 window.deleteMember = async () => {
