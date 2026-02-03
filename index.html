@@ -423,3 +423,28 @@ window.deleteMember = async () => {
 
 window.toggleHideMember = async () => {
     const id = document.getElementById('memberSelectManage').value;
+    if(!id) return alert("회원을 선택해주세요.");
+    const m = currentData.find(x => x.id === id);
+    const newStatus = !m.isHidden;
+    await updateDoc(doc(db, "sanwoori", id), { isHidden: newStatus });
+    alert(newStatus ? "회원이 숨김 처리되었습니다." : "회원이 다시 표시됩니다.");
+};
+
+window.addMember = async () => {
+    const name = document.getElementById('newName').value;
+    const date = document.getElementById('regDate').value;
+    if(!name) return;
+    const d = date ? new Date(date + "T00:00:00") : new Date();
+    await addDoc(collection(db, "sanwoori"), { name, level: 0, lastDate: Timestamp.fromDate(d), isHidden: false, bonusDays: 0 });
+    document.getElementById('newName').value = "";
+    alert("회원 등록 완료");
+};
+
+// 앱 구동 초기화
+document.getElementById('regDate').valueAsDate = new Date();
+document.getElementById('activityDate').valueAsDate = new Date();
+changeQuarter(selectedQuarter);
+
+</script>
+</body>
+</html>
