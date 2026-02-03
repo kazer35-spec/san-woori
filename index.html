@@ -129,8 +129,17 @@ td { padding: 14px 0; text-align: center; font-weight: 700; vertical-align: midd
         </div>
 
         <div class="card" style="background-color: #fff5f5; border-color: #fee2e2;">
-            <div class="card-title text-red-600">🗑️ 회원 상태 관리</div>
+            <div class="card-title text-red-600">🗑️ 회원 상태 및 보너스 관리</div>
             <select id="memberSelectManage" class="input-gap"><option value="">대상 회원 선택</option></select>
+            
+            <div class="bg-white p-3 rounded-xl border border-red-100 mb-4">
+                <p class="text-[10px] text-gray-500 mb-2">🎁 특정 회원 D-Day 보너스 일수 (0이면 기본값)</p>
+                <div class="flex gap-2">
+                    <input type="number" id="bonusDaysInput" placeholder="일수 입력" class="h-10 text-sm" style="height:40px!important">
+                    <button onclick="updateBonusDays()" class="bg-red-400 text-white px-4 rounded-xl text-xs font-bold whitespace-nowrap">보너스 적용</button>
+                </div>
+            </div>
+
             <button onclick="toggleHideMember()" class="btn-submit bg-gray-600 mb-2 h-10 py-0">숨기기/보이기</button>
             <button onclick="deleteMember()" class="btn-submit bg-red-500 h-10 py-0">회원 영구 삭제</button>
         </div>
@@ -204,12 +213,13 @@ window.renderStatusTable = () => {
         const last = m.lastDate.toDate();
         const lastDay = new Date(last.getFullYear(), last.getMonth(), last.getDate()).getTime();
         const diffDays = Math.floor((today - lastDay) / (1000 * 60 * 60 * 24));
-        const limitDays = (m.level === 0) ? 30 : 122;
+        
+        // 보너스 일수 포함 계산
+        const bonus = m.bonusDays || 0;
+        const limitDays = ((m.level === 0) ? 30 : 122) + bonus;
         const dday = limitDays - diffDays;
         
         const ddayTxt = dday >= 0 ? `D-${dday}` : `+${Math.abs(dday)}일`;
-        
-        // 10일 이하로 남았을 때 빨간색 + 볼드 처리
         const ddayClass = dday <= 10 ? "text-red-500 font-black" : "text-gray-400";
 
         list.innerHTML += `<tr class="border-b border-gray-50 text-sm">
@@ -314,6 +324,15 @@ window.onlyDownLevel = async () => {
     alert("레벨 차감 완료");
 };
 
+// 보너스 일수 업데이트 함수 추가
+window.updateBonusDays = async () => {
+    const id = document.getElementById('memberSelectManage').value;
+    const bonus = parseInt(document.getElementById('bonusDaysInput').value) || 0;
+    if(!id) return alert("회원을 선택해주세요.");
+    await updateDoc(doc(db, "sanwoori", id), { bonusDays: bonus });
+    alert("보너스 일수가 적용되었습니다.");
+};
+
 window.deleteMember = async () => {
     const id = document.getElementById('memberSelectManage').value;
     if(id && confirm("데이터를 영구 삭제하시겠습니까?")) await deleteDoc(doc(db, "sanwoori", id));
@@ -331,7 +350,7 @@ window.addMember = async () => {
     const date = document.getElementById('regDate').value;
     if(!name) return;
     const d = date ? new Date(date + "T00:00:00") : new Date();
-    await addDoc(collection(db, "sanwoori"), { name, level: 0, lastDate: Timestamp.fromDate(d), isHidden: false });
+    await addDoc(collection(db, "sanwoori"), { name, level: 0, lastDate: Timestamp.fromDate(d), isHidden: false, bonusDays: 0 });
     document.getElementById('newName').value = "";
     alert("회원 등록 완료");
 };
