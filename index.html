@@ -63,7 +63,7 @@
             실시간 등급표 (<span id="yearDisplay"></span>)
         </h1>
         <div class="flex gap-2 mb-4">
-            <input type="text" id="searchInput" onkeyup="renderStatusTable()" placeholder="🔍 이름 검색..." class="search-input bg-gray-50 border-gray-200 flex-1 outline-none focus:border-blue-400">
+            <input type="text" id="searchInput" onkeyup="renderStatusTable()" placeholder="🔍 이름 검색..." class="search-input bg-gray-50 border-gray-200 flex-1 outline-none">
             <select id="statusSortOrder" onchange="renderStatusTable()" class="sort-select bg-white">
                 <option value="qCount">분기 횟수순</option>
                 <option value="level">레벨 높은순</option>
@@ -105,6 +105,7 @@
             <input type="date" id="regDate" class="input-gap">
             <button onclick="addMember()" class="btn-submit bg-green-500">등록 완료</button>
         </div>
+
         <div class="card">
             <div class="card-title text-blue-600">📅 등산 기록 추가</div>
             <input type="text" id="adminSearchInput" onkeyup="filterAdminMemberList()" placeholder="🔍 회원 검색..." class="h-10 px-4 rounded-xl w-full mb-3 text-xs bg-blue-50 border-blue-100 outline-none">
@@ -117,6 +118,7 @@
             <input type="date" id="activityDate" class="input-gap">
             <button onclick="addMultiActivity()" class="btn-submit bg-blue-500">기록 저장하기</button>
         </div>
+
         <div class="card" style="background-color: #fffdf0; border-color: #fef3c7;">
             <div class="card-title text-yellow-700">✏️ 레벨 차감 및 기록 삭제</div>
             <select id="memberSelectEdit" onchange="loadMemberLogs()" class="input-gap"><option value="">대상 회원 선택</option></select>
@@ -130,6 +132,7 @@
             </div>
             <div id="logListArea" class="log-grid"></div>
         </div>
+
         <div class="card" style="background-color: #fff5f5; border-color: #fee2e2;">
             <div class="card-title text-red-600">🗑️ 회원 상태 및 보너스 관리</div>
             <select id="memberSelectManage" class="input-gap"><option value="">대상 회원 선택</option></select>
@@ -143,6 +146,7 @@
             <button id="hideBtnTxt" onclick="toggleHideMember()" class="btn-submit bg-gray-600 mb-2 h-10 py-0">숨기기/보이기</button>
             <button onclick="deleteMember()" class="btn-submit bg-red-500 h-10 py-0">회원 영구 삭제</button>
         </div>
+
         <div class="p-8 text-center"><button onclick="logoutAdmin()" class="text-gray-400 underline font-bold text-sm">로그아웃</button></div>
     </div>
 </div>
@@ -171,30 +175,19 @@
 
     document.getElementById('yearDisplay').innerText = currentYear + '년';
 
-    // --- 비밀번호 암호화 비교 로직 (SHA-256) ---
-    window.loginAdmin = async () => {
-        const password = document.getElementById('adminPassword').value;
-        
-        // 입력받은 비밀번호를 해싱하는 함수
-        const encodePassword = async (text) => {
-            const msgUint8 = new TextEncoder().encode(text);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-        };
-
-        const hashedPassword = await encodePassword(password);
-        
-        // "1221"의 SHA-256 해시값과 비교
-        if(hashedPassword === "40b246a3666d66922d483ef3c706d8717904071f496d66e58046b0a99657f2a7") { 
+    // --- [3번 방식 적용] Base64 눈속임 로그인 로직 ---
+    window.loginAdmin = () => {
+        const passwordInput = document.getElementById('adminPassword').value;
+        // "1221"을 Base64로 인코딩한 값: "MTIyMQ=="
+        if(btoa(passwordInput) === "MTIyMQ==") { 
             isAdminLoggedIn = true; 
             showView('admin'); 
             alert("관리자 인증 성공");
         } else {
-            alert("비밀번호가 일치하지 않습니다.");
+            alert("비밀번호 오류");
         }
     };
-    // ----------------------------------------
+    // ----------------------------------------------
 
     const getLevelBadge = (lv) => {
         if (lv >= 100) return "🌌 은하수"; if (lv >= 90) return "🌠 별똥별"; if (lv >= 80) return "💫 타원별";
@@ -393,7 +386,7 @@
         const id = document.getElementById('memberSelectManage').value;
         const bonus = parseInt(document.getElementById('bonusDaysInput').value) || 0;
         if(!id) return alert("회원을 선택해주세요.");
-        await updateDoc(doc(doc(db, "sanwoori", id)), { bonusDays: bonus });
+        await updateDoc(doc(db, "sanwoori", id), { bonusDays: bonus });
         alert("보너스 일수가 적용되었습니다.");
         document.getElementById('bonusDaysInput').value = "";
     };
