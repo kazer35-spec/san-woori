@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>산:우리 - 레벨 시스템</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 <style>
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
 body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: #333; }
@@ -167,7 +166,7 @@ const firebaseConfig = { apiKey: "AIzaSyBoAh3V3WrHg_wo53g1LHM0UW3-y6w2deg", auth
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// 전역 변수
+// 전역 상태
 let isAdminLoggedIn = false;
 let currentData = [];
 let selectedMemberIds = new Set();
@@ -175,11 +174,44 @@ const now = new Date();
 const currentYear = now.getFullYear();
 let selectedQuarter = Math.ceil((now.getMonth() + 1) / 3);
 
-// 1221에 대한 SHA-256 해시값
+// 비밀번호 1221에 대한 SHA-256 해시 (변조 방지)
 const SECRET_HASH = "6f42a690e668c1c4f55331f24d9c72957b98d363b90050868a25c345376c703e";
 
-document.getElementById('yearDisplay').innerText = currentYear + '년';
+// [로그인 로직] 브라우저 내장 암호화 API 사용 (가장 안전하고 확실함)
+window.loginAdmin = async () => {
+    const inputEl = document.getElementById('adminPassword');
+    const inputPw = inputEl.value.trim();
 
+    if (!inputPw) return alert("비밀번호를 입력하세요.");
+
+    // 브라우저 내장 Crypto API로 SHA-256 생성
+    const msgUint8 = new TextEncoder().encode(inputPw);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const inputHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+    if (inputHash === SECRET_HASH) {
+        isAdminLoggedIn = true;
+        showView('admin');
+        inputEl.value = "";
+    } else {
+        alert("비밀번호가 일치하지 않습니다.");
+        inputEl.value = "";
+        inputEl.focus();
+    }
+};
+
+window.showView = (v) => {
+    document.querySelectorAll('.view-content').forEach(e => e.classList.add('hidden'));
+    const target = document.getElementById('view' + v.charAt(0).toUpperCase() + v.slice(1));
+    if(target) target.classList.remove('hidden');
+    renderStatusTable();
+};
+
+window.handleAdminTab = () => isAdminLoggedIn ? showView('admin') : showView('login');
+window.logoutAdmin = () => { isAdminLoggedIn = false; showView('status'); };
+
+// 등급 배지 설정
 const getLevelBadge = (lv) => {
     if (lv >= 100) return "🌌 은하수"; if (lv >= 90) return "🌠 별똥별"; if (lv >= 80) return "💫 타원별";
     if (lv >= 70) return "🌟 황금별"; if (lv >= 60) return "⭐️ 별"; if (lv >= 50) return "☀️ 해";
@@ -189,54 +221,13 @@ const getLevelBadge = (lv) => {
     if (lv >= 3) return "🌿 풀잎"; if (lv >= 1) return "🌱 새싹"; return "🫘 신입";
 };
 
-// 화면 전환
-window.showView = (v) => {
-    document.querySelectorAll('.view-content').forEach(e => e.classList.add('hidden'));
-    const target = document.getElementById('view' + v.charAt(0).toUpperCase() + v.slice(1));
-    if(target) target.classList.remove('hidden');
-    renderStatusTable();
-};
-
-window.handleAdminTab = () => isAdminLoggedIn ? showView('admin') : showView('login');
-
-// 로그인 로직 (강력 보완)
-window.loginAdmin = () => {
-    const inputEl = document.getElementById('adminPassword');
-    const inputPw = inputEl.value.trim(); // 공백 제거
-
-    if (!window.CryptoJS) {
-        alert("보안 모듈을 불러오는 중입니다. 잠시 후 다시 시도해주세요.");
-        return;
-    }
-
-    const inputHash = CryptoJS.SHA256(inputPw).toString(CryptoJS.enc.Hex);
-    
-    if(inputHash === SECRET_HASH) { 
-        isAdminLoggedIn = true; 
-        showView('admin'); 
-        inputEl.value = "";
-    } else { 
-        alert("비밀번호가 일치하지 않습니다."); 
-        inputEl.value = "";
-        inputEl.focus();
-    }
-};
-
-window.logoutAdmin = () => { isAdminLoggedIn = false; showView('status'); };
-
-window.changeQuarter = (q) => {
-    selectedQuarter = q;
-    document.querySelectorAll('.q-btn').forEach((btn, idx) => btn.classList.toggle('active-q', idx + 1 === q));
-    startRealtimeSync();
-};
-
+// 테이블 렌더링
 window.renderStatusTable = () => {
     const list = document.getElementById('statusList');
     if(!list) return;
     const searchTerm = document.getElementById('searchInput').value.trim();
     const sortKey = document.getElementById('statusSortOrder').value;
     list.innerHTML = "";
-
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
 
     let processedData = currentData.map(m => {
@@ -261,7 +252,7 @@ window.renderStatusTable = () => {
 
     processedData.forEach((m) => {
         if (!isAdminLoggedIn && m.isHidden) return;
-        if (!m.name.includes(searchTerm)) return;
+        if (searchTerm && !m.name.includes(searchTerm)) return;
 
         let rankTag = ""; let rankClass = "";
         if (m.name !== "오즈" && m.qCount > 0 && !m.isHidden) {
@@ -283,9 +274,7 @@ window.renderStatusTable = () => {
             else if (dday <= 10) ddayColorClass = "text-red-500 font-bold";
         }
 
-        const rowOpacity = m.isHidden ? "opacity-40" : "";
-
-        list.innerHTML += `<tr class="border-b border-gray-50 text-sm ${rowOpacity}">
+        list.innerHTML += `<tr class="border-b border-gray-50 text-sm ${m.isHidden ? 'opacity-40' : ''}">
         <td class="td-name text-xs">
             ${rankTag ? `<span class="rank-badge ${rankClass}">${rankTag}</span>` : ''}
             <span>${m.name}${m.isHidden ? '<span class="admin-only-badge">숨김</span>' : ''}</span>
@@ -302,39 +291,28 @@ window.renderStatusTable = () => {
     });
 };
 
-window.toggleSelectMember = (id, el) => {
-    if (selectedMemberIds.has(id)) { selectedMemberIds.delete(id); el.classList.remove('selected'); }
-    else { selectedMemberIds.add(id); el.classList.add('selected'); }
-};
-
-window.filterAdminMemberList = () => {
-    const q = document.getElementById('adminSearchInput').value.toLowerCase();
-    document.querySelectorAll('.member-chip').forEach(chip => {
-        chip.style.display = chip.innerText.toLowerCase().includes(q) ? "block" : "none";
-    });
-};
-
+// 실시간 동기화
 let unsubscribe = null;
-function startRealtimeSync() {
+window.changeQuarter = (q) => {
+    selectedQuarter = q;
+    document.querySelectorAll('.q-btn').forEach((btn, idx) => btn.classList.toggle('active-q', idx + 1 === q));
     if (unsubscribe) unsubscribe();
     unsubscribe = onSnapshot(collection(db, "sanwoori"), async (snapshot) => {
         const startDate = Timestamp.fromDate(new Date(currentYear, (selectedQuarter - 1) * 3, 1));
         const endDate = Timestamp.fromDate(new Date(currentYear, selectedQuarter * 3, 1));
-
         const dataPromises = snapshot.docs.map(async (docSnap) => {
             const m = { id: docSnap.id, ...docSnap.data() };
             const logsSnap = await getDocs(query(collection(db, `sanwoori/${m.id}/logs`), where("date", ">=", startDate), where("date", "<", endDate)));
             m.qCount = logsSnap.size;
             return m;
         });
-
-        const dataBatch = await Promise.all(dataPromises);
-        currentData = dataBatch;
+        currentData = await Promise.all(dataPromises);
         updateAdminMemberLists();
         renderStatusTable();
     });
-}
+};
 
+// 관리자 리스트 업데이트
 function updateAdminMemberLists() {
     const alphaSorted = [...currentData].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
     const multiList = document.getElementById('multiMemberList');
@@ -354,6 +332,17 @@ function updateAdminMemberLists() {
         if(manageSelect) manageSelect.innerHTML += `<option value="${m.id}">${m.name} ${hiddenTxt}</option>`;
     });
 }
+
+// 회원 기록 및 관리 함수들
+window.toggleSelectMember = (id, el) => {
+    if (selectedMemberIds.has(id)) { selectedMemberIds.delete(id); el.classList.remove('selected'); }
+    else { selectedMemberIds.add(id); el.classList.add('selected'); }
+};
+
+window.filterAdminMemberList = () => {
+    const q = document.getElementById('adminSearchInput').value.toLowerCase();
+    document.querySelectorAll('.member-chip').forEach(chip => { chip.style.display = chip.innerText.toLowerCase().includes(q) ? "block" : "none"; });
+};
 
 window.addMultiActivity = async () => {
     if(!selectedMemberIds.size) return alert("회원을 선택해주세요.");
@@ -381,8 +370,7 @@ window.addMultiActivity = async () => {
 window.loadMemberLogs = async () => {
     const id = document.getElementById('memberSelectEdit').value;
     const area = document.getElementById('logListArea');
-    if(!area) return;
-    area.innerHTML = ""; if(!id) return;
+    if(!area) return; area.innerHTML = ""; if(!id) return;
     const snap = await getDocs(query(collection(db, `sanwoori/${id}/logs`), orderBy("date", "desc")));
     snap.forEach(ld => {
         const d = ld.data().date.toDate();
@@ -442,10 +430,9 @@ window.addMember = async () => {
 
 // 초기화
 document.addEventListener('DOMContentLoaded', () => {
-    const regDate = document.getElementById('regDate');
-    const actDate = document.getElementById('activityDate');
-    if(regDate) regDate.valueAsDate = new Date();
-    if(actDate) actDate.valueAsDate = new Date();
+    document.getElementById('yearDisplay').innerText = currentYear + '년';
+    document.getElementById('regDate').valueAsDate = new Date();
+    document.getElementById('activityDate').valueAsDate = new Date();
     changeQuarter(selectedQuarter);
 });
 </script>
