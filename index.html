@@ -182,20 +182,26 @@ window.showView = (v) => {
     renderStatusTable();
 };
 
-window.handleAdminTab = () => isAdminLoggedIn ? showView('admin') : showView('login');
-
 window.loginAdmin = () => {
-    const inputPw = document.getElementById('adminPassword').value;
-    // 입력값을 SHA-256으로 해싱하여 저장된 해시값과 비교
+    // 1. 입력값 가져오기 (trim()으로 앞뒤 공백 제거)
+    const inputPw = document.getElementById('adminPassword').value.trim();
+    
+    // 2. 입력값을 SHA-256으로 해싱 후 문자열화
     const inputHash = CryptoJS.SHA256(inputPw).toString();
     
-    if(inputHash === ADMIN_HASH) { 
+    // 3. 디버깅용 (로그인 안 될 때 F12 눌러서 콘솔 확인용 - 배포 시 삭제 가능)
+    console.log("Input Hash:", inputHash);
+
+    // 4. 저장된 해시(ADMIN_HASH)와 비교 (둘 다 소문자로 강제 변환하여 비교)
+    if(inputHash.toLowerCase() === ADMIN_HASH.toLowerCase()) { 
         isAdminLoggedIn = true; 
         showView('admin'); 
     } else { 
-        alert("비밀번호 오류"); 
+        alert("비밀번호 오류입니다."); 
+        document.getElementById('adminPassword').value = ""; // 틀렸을 시 입력창 비우기
     }
 };
+
 
 window.logoutAdmin = () => { isAdminLoggedIn = false; document.getElementById('adminPassword').value=""; showView('status'); };
 
