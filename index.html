@@ -14,7 +14,8 @@ input, select, .btn-submit { width: 100% !important; display: block; padding: 12
 .input-gap { margin-bottom: 16px; }
 .btn-submit { font-weight: 800; color: white; border: none; cursor: pointer; transition: 0.2s; margin-top: 10px; }
 
-.q-btn { flex: 1; py: 8px; border-radius: 8px; font-size: 0.75rem; font-weight: 700; border: 1px solid #e2e8f0; background: white; color: #64748b; }
+/* 분기 버튼 크기 축소 */
+.q-btn { flex: 1; padding: 6px 0; border-radius: 8px; font-size: 0.7rem; font-weight: 700; border: 1px solid #e2e8f0; background: white; color: #64748b; }
 .active-q { background: #1d4ed8 !important; color: white !important; border-color: #1d4ed8 !important; }
 
 .tab-menu { display: flex; background: #f8fafc; padding: 12px; gap: 10px; border-bottom: 1px solid #e2e8f0; }
@@ -35,7 +36,6 @@ td { padding: 14px 0; text-align: center; font-weight: 700; vertical-align: midd
 .badge-icon-txt { font-size: 0.8rem; font-weight: 800; color: #166534; }
 .badge-lv-txt { font-size: 0.6rem; color: #22c55e; }
 
-/* 활동 기록용 3열 그리드 스타일 */
 .member-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .member-chip { padding: 10px 4px; border: 1px solid #e2e8f0; border-radius: 10px; text-align: center; font-size: 0.75rem; font-weight: 700; cursor: pointer; background: white; transition: 0.2s; color: #64748b; }
 .member-chip.selected { background: #3b82f6; color: white; border-color: #3b82f6; }
@@ -64,11 +64,11 @@ td { padding: 14px 0; text-align: center; font-weight: 700; vertical-align: midd
             <input type="text" id="searchInput" onkeyup="renderStatusTable()" placeholder="🔍 이름 검색..." class="bg-gray-50 border-gray-200 h-10 px-4 rounded-xl flex-1 text-sm outline-none focus:border-blue-400">
             <select id="statusSortOrder" onchange="renderStatusTable()" class="sort-select bg-white"><option value="qCount">분기 횟수순</option><option value="level">레벨 높은순</option></select>
         </div>
-        <div id="quarterTabs" class="flex gap-2 mb-6">
-            <button id="qBtn1" class="q-btn py-2" onclick="changeQuarter(1)">1분기</button>
-            <button id="qBtn2" class="q-btn py-2" onclick="changeQuarter(2)">2분기</button>
-            <button id="qBtn3" class="q-btn py-2" onclick="changeQuarter(3)">3분기</button>
-            <button id="qBtn4" class="q-btn py-2" onclick="changeQuarter(4)">4분기</button>
+        <div id="quarterTabs" class="flex gap-1.5 mb-6 bg-gray-50 p-1.5 rounded-xl border border-gray-100">
+            <button id="qBtn1" class="q-btn" onclick="changeQuarter(1)">1분기</button>
+            <button id="qBtn2" class="q-btn" onclick="changeQuarter(2)">2분기</button>
+            <button id="qBtn3" class="q-btn" onclick="changeQuarter(3)">3분기</button>
+            <button id="qBtn4" class="q-btn" onclick="changeQuarter(4)">4분기</button>
         </div>
         <table>
             <thead><tr><th class="text-right w-[25%] pr-[15px]">회원명</th><th class="w-[30%]">레벨(Lv)</th><th class="w-[20%]">분기횟수</th><th class="text-left w-[25%] pl-[10px]">남은날짜</th></tr></thead>
@@ -95,7 +95,7 @@ td { padding: 14px 0; text-align: center; font-weight: 700; vertical-align: midd
         <div class="card">
             <div class="card-title text-blue-600">📅 등산 기록 추가 (가나다순)</div>
             <input type="text" id="adminSearchInput" onkeyup="filterAdminMemberList()" placeholder="🔍 회원 검색..." class="h-10 px-4 rounded-xl w-full mb-3 text-xs bg-blue-50 border-blue-100 outline-none">
-            <div id="multiMemberList" class="member-grid max-h-64 overflow-y-auto mb-4"></div>
+            <div id="multiMemberList" class="member-grid max-h-64 overflow-y-auto mb-4 p-1"></div>
             <div class="flex justify-around bg-blue-50 p-3 rounded-xl mb-4 border border-blue-100 font-bold text-blue-800 text-sm">
                 <label class="flex items-center gap-1"><input type="radio" name="upAmount" value="1" checked> 1up</label>
                 <label class="flex items-center gap-1"><input type="radio" name="upAmount" value="2"> 2up</label>
@@ -195,7 +195,7 @@ window.renderStatusTable = () => {
         const last = m.lastDate.toDate();
         const lastDay = new Date(last.getFullYear(), last.getMonth(), last.getDate()).getTime();
         const diffDays = Math.floor((today - lastDay) / (1000 * 60 * 60 * 24));
-        const limitDays = (m.level === 0) ? 30 : 122; // ⭐ 122일 기준
+        const limitDays = (m.level === 0) ? 30 : 122; // 122일 기준
         const dday = limitDays - diffDays;
         const ddayTxt = dday >= 0 ? `D-${dday}` : `+${Math.abs(dday)}일`;
         const ddayClass = dday <= (m.level === 0 ? 5 : 10) ? "text-red-500 font-black" : "text-gray-400";
@@ -209,7 +209,6 @@ window.renderStatusTable = () => {
     });
 };
 
-// 회원 버튼 클릭 처리 (다중 선택)
 window.toggleSelectMember = (id, el) => {
     if (selectedMemberIds.has(id)) {
         selectedMemberIds.delete(id);
@@ -236,7 +235,6 @@ function startRealtimeSync() {
         const endDate = Timestamp.fromDate(new Date(2026, selectedQuarter * 3, 1));
 
         const alphaSorted = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.name.localeCompare(b.name, 'ko'));
-        
         const multiList = document.getElementById('multiMemberList');
         const editSelect = document.getElementById('memberSelectEdit');
         const manageSelect = document.getElementById('memberSelectManage');
@@ -250,7 +248,6 @@ function startRealtimeSync() {
             m.qCount = logsSnap.size;
             dataBatch.push(m);
 
-            // 3열 그리드 버튼 생성
             const isSelected = selectedMemberIds.has(m.id);
             multiList.innerHTML += `<div class="member-chip ${isSelected?'selected':''}" onclick="toggleSelectMember('${m.id}', this)">${m.name}${m.isHidden?'(숨)':''}</div>`;
             editSelect.innerHTML += `<option value="${m.id}">${m.name}</option>`;
