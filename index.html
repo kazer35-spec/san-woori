@@ -15,7 +15,7 @@ input, select, .btn-submit, .up-amount-group { width: 100% !important; display: 
 .input-gap { margin-bottom: 16px; }
 .btn-submit { font-weight: 800; color: white; border: none; cursor: pointer; transition: 0.2s; margin-top: 10px; }
 
-/* 1up 2up 3up 선택 영역 스타일 수정 */
+/* 1up 2up 3up 선택 영역 */
 .up-amount-group { display: flex; padding: 4px; background: #f8fafc; gap: 4px; align-items: stretch; margin-bottom: 16px; }
 .up-amount-group label { flex: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 8px; font-weight: 800; font-size: 0.9rem; color: #64748b; transition: 0.2s; }
 .up-amount-group input[type="radio"] { display: none; }
@@ -40,10 +40,11 @@ td { padding: 14px 0; text-align: center; font-weight: 700; vertical-align: midd
 .rank-2 { color: #94a3b8 !important; }
 .rank-3 { color: #a36a00 !important; }
 
+/* 레벨 뱃지 공통 디자인 */
 .badge-level { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; }
-.badge-icon-box { background: #f0fdf4; border: 1.5px solid #bbf7d0; padding: 4px 10px; border-radius: 10px; line-height: 1; display: flex; align-items: center; justify-content: center; }
+.badge-icon-box { padding: 4px 10px; border-radius: 10px; line-height: 1; display: flex; align-items: center; justify-content: center; border-width: 1.5px; }
 .badge-icon-txt { font-size: 0.85rem; }
-.badge-lv-txt { font-size: 0.65rem; color: #22c55e; font-weight: 800; }
+.badge-lv-txt { font-size: 0.65rem; font-weight: 800; }
 
 .member-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .member-chip { padding: 10px 4px; border: 1px solid #e2e8f0; border-radius: 10px; text-align: center; font-size: 0.7rem; font-weight: 700; cursor: pointer; background: white; transition: 0.2s; color: #64748b; }
@@ -128,13 +129,11 @@ td { padding: 14px 0; text-align: center; font-weight: 700; vertical-align: midd
 <div class="card-title text-blue-600">📅 등산 기록 추가</div>
 <input type="text" id="adminSearchInput" onkeyup="filterAdminMemberList()" placeholder="🔍 회원 검색..." class="h-10 px-4 rounded-xl w-full mb-3 text-xs bg-blue-50 border-blue-100 outline-none">
 <div id="multiMemberList" class="member-grid max-h-64 overflow-y-auto mb-4 p-1"></div>
-
 <div class="up-amount-group">
 <label><input type="radio" name="upAmount" value="1" checked> 1up</label>
 <label><input type="radio" name="upAmount" value="2"> 2up</label>
 <label><input type="radio" name="upAmount" value="3"> 3up</label>
 </div>
-
 <input type="date" id="activityDate" class="input-gap">
 <button onclick="addMultiActivity()" class="btn-submit bg-blue-500">기록 저장하기</button>
 </div>
@@ -194,6 +193,7 @@ let selectedQuarter = Math.ceil((now.getMonth() + 1) / 3);
 
 document.getElementById('yearDisplay').innerText = currentYear + '년';
 
+// --- [관리자 로그인] 팝업 제거 버전 ---
 window.loginAdmin = async () => {
 const passwordInput = document.getElementById('adminPassword').value;
 try {
@@ -201,20 +201,14 @@ const adminRef = doc(db, "admin_settings", "config");
 const adminSnap = await getDoc(adminRef);
 if (adminSnap.exists()) {
 const dbData = adminSnap.data();
-const correctPassword = String(dbData.admin_pw);
-if (passwordInput === correctPassword) {
+if (passwordInput === String(dbData.admin_pw)) {
 isAdminLoggedIn = true;
-showView('admin');
-alert("성공! 관리자 모드로 전환합니다.");
+showView('admin'); // 팝업 없이 바로 이동
 } else {
 alert("비밀번호가 틀립니다.");
 }
-} else {
-alert("에러: 'admin_settings/config' 문서를 찾을 수 없습니다.");
 }
-} catch (e) {
-alert("시스템 에러 발생: " + e.message);
-}
+} catch (e) { alert("로그인 오류: " + e.message); }
 };
 
 const getLevelBadge = (lv) => {
@@ -224,6 +218,26 @@ if (lv >= 45) return "🌕 달"; if (lv >= 40) return "🌙 초승달"; if (lv >
 if (lv >= 30) return "🌈 무지개"; if (lv >= 25) return "🌀 태풍"; if (lv >= 20) return "🌋 화산";
 if (lv >= 15) return "🏔️ 설산"; if (lv >= 10) return "⛰️ 산"; if (lv >= 5) return "🌳 나무";
 if (lv >= 3) return "🌿 풀잎"; if (lv >= 1) return "🌱 새싹"; return "🫘 신입";
+};
+
+// --- [레벨별 동적 색상 생성] ---
+const getLevelStyle = (lv) => {
+    // 90-100: 옅은 빨강 / 진한 빨강
+    if (lv >= 90) return { bg: '#fef2f2', border: '#ef4444', text: '#b91c1c' };
+    // 75-85: 옅은 주황 / 진한 주황
+    if (lv >= 75) return { bg: '#fff7ed', border: '#f97316', text: '#c2410c' };
+    // 60-70: 옅은 노랑 / 진한 노랑
+    if (lv >= 60) return { bg: '#fefce8', border: '#eab308', text: '#a16207' };
+    // 45-55: 옅은 초록 / 진한 초록
+    if (lv >= 45) return { bg: '#f0fdf4', border: '#22c55e', text: '#15803d' };
+    // 30-40: 옅은 파랑 / 진한 파랑
+    if (lv >= 30) return { bg: '#eff6ff', border: '#3b82f6', text: '#1d4ed8' };
+    // 15-25: 옅은 남색 / 진한 남색
+    if (lv >= 15) return { bg: '#eef2ff', border: '#6366f1', text: '#4338ca' };
+    // 1-10: 옅은 보라 / 진한 보라
+    if (lv >= 1) return { bg: '#faf5ff', border: '#a855f7', text: '#7e22ce' };
+    // 신입(0): 회색
+    return { bg: '#f8fafc', border: '#e2e8f0', text: '#64748b' };
 };
 
 window.showView = (v) => {
@@ -292,7 +306,10 @@ if (dday <= 5) ddayColorClass = "dday-blink";
 else if (dday <= 10) ddayColorClass = "text-red-500 font-bold";
 }
 
+// 레벨 스타일 가져오기
+const lvStyle = getLevelStyle(m.level);
 const rowOpacity = m.isHidden ? "opacity-40" : "";
+
 list.innerHTML += `<tr class="border-b border-gray-50 text-sm ${rowOpacity}">
 <td class="td-name text-xs">
 ${rankTag ? `<span class="rank-badge ${rankClass}">${rankTag}</span>` : ''}
@@ -300,8 +317,10 @@ ${rankTag ? `<span class="rank-badge ${rankClass}">${rankTag}</span>` : ''}
 </td>
 <td class="flex justify-center">
 <div class="badge-level">
-<div class="badge-icon-box"><span class="badge-icon-txt">${getLevelBadge(m.level)}</span></div>
-<span class="badge-lv-txt">Lv ${m.level}</span>
+<div class="badge-icon-box" style="background-color: ${lvStyle.bg}; border-color: ${lvStyle.border};">
+    <span class="badge-icon-txt">${getLevelBadge(m.level)}</span>
+</div>
+<span class="badge-lv-txt" style="color: ${lvStyle.text};">Lv ${m.level}</span>
 </div>
 </td>
 <td>${m.qCount}회</td>
