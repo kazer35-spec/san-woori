@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>산:우리 - 레벨 시스템</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 <style>
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
 body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: #333; }
@@ -34,7 +33,7 @@ td { padding: 14px 0; text-align: center; font-weight: 700; vertical-align: midd
 .rank-2 { color: #94a3b8 !important; }
 .rank-3 { color: #a36a00 !important; }
 
-/* 레벨 뱃지 디자인: 연한 녹색 테두리 */
+/* 레벨 뱃지 디자인: 연한 녹색 테두리 적용 */
 .badge-level { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; }
 .badge-icon-box { background: #f0fdf4; border: 1.5px solid #bbf7d0; padding: 4px 10px; border-radius: 10px; line-height: 1; display: flex; align-items: center; justify-content: center; }
 .badge-icon-txt { font-size: 0.85rem; }
@@ -42,10 +41,9 @@ td { padding: 14px 0; text-align: center; font-weight: 700; vertical-align: midd
 
 .member-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .member-chip { padding: 10px 4px; border: 1px solid #e2e8f0; border-radius: 10px; text-align: center; font-size: 0.7rem; font-weight: 700; cursor: pointer; background: white; transition: 0.2s; color: #64748b; }
-.member-chip.selected { background: #3b82f6 !important; color: white !important; border-color: #3b82f6 !important; }
+.member-chip.selected { background: #3b82f6 !important; color: white !important; border-color: #3b82f6 !important; opacity: 1 !important; }
 .member-hidden { opacity: 0.4; background: #f1f5f9; border-style: dashed; }
 
-/* 로그 리스트 5열 */
 .log-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 10px; }
 .log-item-box { background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 4px 2px; display: flex; flex-direction: column; align-items: center; gap: 3px; }
 .log-date-txt { font-size: 0.6rem; font-weight: 700; color: #64748b; }
@@ -77,7 +75,7 @@ td { padding: 14px 0; text-align: center; font-weight: 700; vertical-align: midd
             실시간 등급표 (<span id="yearDisplay"></span>)
         </h1>
         <div class="flex gap-2 mb-4">
-            <input type="text" id="searchInput" onkeyup="renderStatusTable()" placeholder="🔍 이름 검색..." class="search-input bg-gray-50 border-gray-200 flex-1 outline-none">
+            <input type="text" id="searchInput" onkeyup="renderStatusTable()" placeholder="🔍 이름 검색..." class="search-input bg-gray-50 border-gray-200 flex-1 outline-none focus:border-blue-400">
             <select id="statusSortOrder" onchange="renderStatusTable()" class="sort-select bg-white">
                 <option value="qCount">분기 횟수순</option>
                 <option value="level">레벨 높은순</option>
@@ -127,7 +125,6 @@ td { padding: 14px 0; text-align: center; font-weight: 700; vertical-align: midd
             <div class="flex justify-around bg-blue-50 p-3 rounded-xl mb-4 border border-blue-100 font-bold text-blue-800 text-sm">
                 <label class="flex items-center gap-1"><input type="radio" name="upAmount" value="1" checked> 1up</label>
                 <label class="flex items-center gap-1"><input type="radio" name="upAmount" value="2"> 2up</label>
-                <label class="flex items-center gap-1"><input type="radio" name="upAmount" value="3"> 3up</label>
             </div>
             <input type="date" id="activityDate" class="input-gap">
             <button onclick="addMultiActivity()" class="btn-submit bg-blue-500">기록 저장하기</button>
@@ -140,7 +137,6 @@ td { padding: 14px 0; text-align: center; font-weight: 700; vertical-align: midd
                 <div class="flex justify-around mb-2">
                     <label class="flex items-center gap-1 font-bold text-red-600 text-sm"><input type="radio" name="downAmount" value="1" checked> -1</label>
                     <label class="flex items-center gap-1 font-bold text-red-600 text-sm"><input type="radio" name="downAmount" value="2"> -2</label>
-                    <label class="flex items-center gap-1 font-bold text-red-600 text-sm"><input type="radio" name="downAmount" value="3"> -3</label>
                 </div>
                 <button onclick="onlyDownLevel()" class="w-full bg-orange-500 text-white py-2 rounded-lg font-black text-xs">레벨만 차감</button>
             </div>
@@ -150,15 +146,8 @@ td { padding: 14px 0; text-align: center; font-weight: 700; vertical-align: midd
         <div class="card" style="background-color: #fff5f5; border-color: #fee2e2;">
             <div class="card-title text-red-600">🗑️ 상태 관리</div>
             <select id="memberSelectManage" class="input-gap"><option value="">대상 회원 선택</option></select>
-            <div class="bg-white p-3 rounded-xl border border-red-100 mb-4">
-                <p class="text-[10px] text-gray-500 mb-2">🎁 D-Day 보너스 일수</p>
-                <div class="flex gap-2">
-                    <input type="number" id="bonusDaysInput" placeholder="일수" class="h-10 text-sm" style="height:40px!important">
-                    <button onclick="updateBonusDays()" class="bg-red-400 text-white px-4 rounded-xl text-xs font-bold">적용</button>
-                </div>
-            </div>
-            <button onclick="toggleHideMember()" class="btn-submit bg-gray-600 mb-2 h-10 py-0">숨기기/보이기</button>
-            <button onclick="deleteMember()" class="btn-submit bg-red-500 h-10 py-0">회원 영구 삭제</button>
+            <button id="hideBtnTxt" onclick="toggleHideMember()" class="btn-submit bg-gray-600 mb-2 h-10 py-0">숨기기/보이기</button>
+            <button onclick="deleteMember()" class="btn-submit bg-red-500 h-10 py-0 text-xs">회원 영구 삭제</button>
         </div>
         <div class="p-8 text-center"><button onclick="logoutAdmin()" class="text-gray-400 underline font-bold text-sm">로그아웃</button></div>
     </div>
@@ -168,14 +157,7 @@ td { padding: 14px 0; text-align: center; font-weight: 700; vertical-align: midd
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc, increment, query, orderBy, Timestamp, where, getDocs, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-const firebaseConfig = { 
-    apiKey: "AIzaSyBoAh3V3WrHg_wo53g1LHM0UW3-y6w2deg", 
-    authDomain: "san-woori-db.firebaseapp.com", 
-    projectId: "san-woori-db", 
-    storageBucket: "san-woori-db.firebasestorage.app", 
-    messagingSenderId: "387585514110", 
-    appId: "1:387585514110:web:44749e6d92769fff6ad62f" 
-};
+const firebaseConfig = { apiKey: "AIzaSyBoAh3V3WrHg_wo53g1LHM0UW3-y6w2deg", authDomain: "san-woori-db.firebaseapp.com", projectId: "san-woori-db", storageBucket: "san-woori-db.firebasestorage.app", messagingSenderId: "387585514110", appId: "1:387585514110:web:44749e6d92769fff6ad62f" };
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
@@ -186,6 +168,27 @@ const now = new Date();
 const currentYear = now.getFullYear();
 let selectedQuarter = Math.ceil((now.getMonth() + 1) / 3);
 
+// [핵심: 암호화 엔진] 1221 숫자를 직접 쓰지 않고 해시 비교
+async function checkAuth(input) {
+    const msgBuffer = new TextEncoder().encode(input);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    // 1221의 SHA-256 해시값
+    return hashHex === "eb1964f4f3469857973056086780c7d5c95782163351f0449557a5525547847c";
+}
+
+window.loginAdmin = async () => {
+    const input = document.getElementById('adminPassword').value;
+    const isMatched = await checkAuth(input);
+    if(isMatched) {
+        isAdminLoggedIn = true;
+        showView('admin');
+    } else {
+        alert("비밀번호 오류");
+    }
+};
+
 document.getElementById('yearDisplay').innerText = currentYear + '년';
 
 const getLevelBadge = (lv) => {
@@ -194,7 +197,7 @@ const getLevelBadge = (lv) => {
     if (lv >= 45) return "🌕 달"; if (lv >= 40) return "🌙 초승달"; if (lv >= 35) return "☄️ 운석";
     if (lv >= 30) return "🌈 무지개"; if (lv >= 25) return "🌀 태풍"; if (lv >= 20) return "🌋 화산";
     if (lv >= 15) return "🏔️ 설산"; if (lv >= 10) return "⛰️ 산"; if (lv >= 5) return "🌳 나무";
-    if (lv >= 3) return "🌿 풀잎"; if (lv >= 1) return "🌱 새싹"; return "🐣 신입";
+    if (lv >= 3) return "🌿 풀잎"; if (lv >= 1) return "🌱 새싹"; return "🫘 신입";
 };
 
 window.showView = (v) => {
@@ -204,24 +207,6 @@ window.showView = (v) => {
 };
 
 window.handleAdminTab = () => isAdminLoggedIn ? showView('admin') : showView('login');
-
-// [관리자 로그인] 1221 비밀번호 암호화 비교
-window.loginAdmin = () => {
-    const inputPw = document.getElementById('adminPassword').value;
-    if(!inputPw) return;
-    
-    // CryptoJS를 이용한 SHA256 해싱 (1221 -> eb1964...)
-    const hashed = CryptoJS.SHA256(inputPw).toString(CryptoJS.enc.Hex);
-    const secret = "eb1964f4f3469857973056086780c7d5c95782163351f0449557a5525547847c";
-
-    if(hashed === secret) {
-        isAdminLoggedIn = true;
-        showView('admin');
-    } else {
-        alert("비밀번호가 올바르지 않습니다.");
-    }
-};
-
 window.logoutAdmin = () => { isAdminLoggedIn = false; document.getElementById('adminPassword').value=""; showView('status'); };
 
 window.changeQuarter = (q) => {
@@ -301,11 +286,11 @@ let unsubscribe = null;
 function startRealtimeSync() {
     if (unsubscribe) unsubscribe();
     unsubscribe = onSnapshot(collection(db, "sanwoori"), async (snapshot) => {
-        const start = Timestamp.fromDate(new Date(currentYear, (selectedQuarter - 1) * 3, 1));
-        const end = Timestamp.fromDate(new Date(currentYear, selectedQuarter * 3, 1));
+        const startDate = Timestamp.fromDate(new Date(currentYear, (selectedQuarter - 1) * 3, 1));
+        const endDate = Timestamp.fromDate(new Date(currentYear, selectedQuarter * 3, 1));
         const dataPromises = snapshot.docs.map(async (docSnap) => {
             const m = { id: docSnap.id, ...docSnap.data() };
-            const logsSnap = await getDocs(query(collection(db, `sanwoori/${m.id}/logs`), where("date", ">=", start), where("date", "<", end)));
+            const logsSnap = await getDocs(query(collection(db, `sanwoori/${m.id}/logs`), where("date", ">=", startDate), where("date", "<", endDate)));
             m.qCount = logsSnap.size;
             return m;
         });
@@ -316,30 +301,25 @@ function startRealtimeSync() {
 }
 
 function updateAdminMemberLists() {
-    const alpha = [...currentData].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+    const alphaSorted = [...currentData].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
     const multiList = document.getElementById('multiMemberList');
     const editSelect = document.getElementById('memberSelectEdit');
     const manageSelect = document.getElementById('memberSelectManage');
     multiList.innerHTML = "";
     editSelect.innerHTML = manageSelect.innerHTML = '<option value="">대상 회원 선택</option>';
-    alpha.forEach(m => {
-        const isSelected = selectedMemberIds.has(m.id);
-        multiList.innerHTML += `<div class="member-chip ${isSelected?'selected':''} ${m.isHidden?'member-hidden':''}" onclick="toggleSelectMember('${m.id}', this)">${m.name}</div>`;
+    alphaSorted.forEach(m => {
+        multiList.innerHTML += `<div class="member-chip ${selectedMemberIds.has(m.id)?'selected':''} ${m.isHidden?'member-hidden':''}" onclick="toggleSelectMember('${m.id}', this)">${m.name}</div>`;
         editSelect.innerHTML += `<option value="${m.id}">${m.name}</option>`;
         manageSelect.innerHTML += `<option value="${m.id}">${m.name}</option>`;
     });
 }
 
 window.addMultiActivity = async () => {
-    if(!selectedMemberIds.size || !document.getElementById('activityDate').value) return alert("회원과 날짜를 확인하세요.");
+    if(!selectedMemberIds.size || !document.getElementById('activityDate').value) return alert("데이터 확인");
     const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
     const ts = Timestamp.fromDate(new Date(document.getElementById('activityDate').value + "T00:00:00"));
     for (const id of selectedMemberIds) {
-        const mRef = doc(db, "sanwoori", id);
-        const mSnap = await getDoc(mRef);
-        let updateObj = { level: increment(up) };
-        if (ts.toDate() > mSnap.data().lastDate.toDate()) updateObj.lastDate = ts;
-        await updateDoc(mRef, updateObj);
+        await updateDoc(doc(db, "sanwoori", id), { level: increment(up), lastDate: ts });
         for(let i=0; i<up; i++) await addDoc(collection(db, `sanwoori/${id}/logs`), { date: ts });
     }
     alert("저장 완료");
@@ -348,21 +328,18 @@ window.addMultiActivity = async () => {
 
 window.loadMemberLogs = async () => {
     const id = document.getElementById('memberSelectEdit').value;
-    const area = document.getElementById('logListArea');
-    area.innerHTML = ""; if(!id) return;
+    const area = document.getElementById('logListArea'); area.innerHTML = ""; if(!id) return;
     const snap = await getDocs(query(collection(db, `sanwoori/${id}/logs`), orderBy("date", "desc")));
     snap.forEach(ld => {
         const d = ld.data().date.toDate();
-        const fmt = `${d.getMonth()+1}.${d.getDate()}`;
-        area.innerHTML += `<div class="log-item-box"><span class="log-date-txt">${fmt}</span><button class="del-btn-mini" onclick="deleteLog('${id}', '${ld.id}')">삭제</button></div>`;
+        area.innerHTML += `<div class="log-item-box"><span class="log-date-txt">${d.getMonth()+1}.${d.getDate()}</span><button class="del-btn-mini" onclick="deleteLog('${id}', '${ld.id}')">삭제</button></div>`;
     });
 };
 
 window.deleteLog = async (mId, logId) => {
-    const downVal = parseInt(document.querySelector('input[name="downAmount"]:checked').value);
-    if(!confirm("기록을 삭제하시겠습니까?")) return;
+    if(!confirm("기록 삭제?")) return;
     await deleteDoc(doc(db, `sanwoori/${mId}/logs`, logId));
-    await updateDoc(doc(db, "sanwoori", mId), { level: increment(-downVal) });
+    await updateDoc(doc(db, "sanwoori", mId), { level: increment(-1) });
     loadMemberLogs();
 };
 
@@ -372,31 +349,24 @@ window.onlyDownLevel = async () => {
     if(id) { await updateDoc(doc(db, "sanwoori", id), { level: increment(-down) }); alert("차감 완료"); }
 };
 
-window.updateBonusDays = async () => {
-    const id = document.getElementById('memberSelectManage').value;
-    const bonus = parseInt(document.getElementById('bonusDaysInput').value) || 0;
-    if(id) { await updateDoc(doc(db, "sanwoori", id), { bonusDays: bonus }); alert("보너스 적용 완료"); }
-};
-
-window.deleteMember = async () => {
-    const id = document.getElementById('memberSelectManage').value;
-    if(id && confirm("영구 삭제하시겠습니까?")) await deleteDoc(doc(db, "sanwoori", id));
-};
-
 window.toggleHideMember = async () => {
     const id = document.getElementById('memberSelectManage').value;
     if(!id) return;
     const m = currentData.find(x => x.id === id);
     await updateDoc(doc(db, "sanwoori", id), { isHidden: !m.isHidden });
-    alert("상태가 변경되었습니다.");
+    alert("상태 변경 완료");
+};
+
+window.deleteMember = async () => {
+    const id = document.getElementById('memberSelectManage').value;
+    if(id && confirm("영구 삭제?")) await deleteDoc(doc(db, "sanwoori", id));
 };
 
 window.addMember = async () => {
     const name = document.getElementById('newName').value;
     const date = document.getElementById('regDate').value;
     if(!name) return;
-    const d = date ? new Date(date + "T00:00:00") : new Date();
-    await addDoc(collection(db, "sanwoori"), { name, level: 0, lastDate: Timestamp.fromDate(d), isHidden: false, bonusDays: 0 });
+    await addDoc(collection(db, "sanwoori"), { name, level: 0, lastDate: Timestamp.fromDate(new Date(date)), isHidden: false, bonusDays: 0 });
     document.getElementById('newName').value = ""; alert("등록 완료");
 };
 
