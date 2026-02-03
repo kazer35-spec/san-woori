@@ -46,6 +46,14 @@ td { padding: 14px 0; text-align: center; font-weight: 700; vertical-align: midd
 .badge-icon-txt { font-size: 0.85rem; }
 .badge-lv-txt { font-size: 0.65rem; font-weight: 800; }
 
+/* --- 고레벨 반짝임 효과 --- */
+@keyframes border-glow {
+    0% { border-color: #ef4444; box-shadow: 0 0 2px rgba(239, 68, 68, 0.3); }
+    50% { border-color: #f87171; box-shadow: 0 0 8px rgba(239, 68, 68, 0.6); }
+    100% { border-color: #ef4444; box-shadow: 0 0 2px rgba(239, 68, 68, 0.3); }
+}
+.level-blink { animation: border-glow 1.5s infinite ease-in-out; border-width: 2px !important; }
+
 .member-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .member-chip { padding: 10px 4px; border: 1px solid #e2e8f0; border-radius: 10px; text-align: center; font-size: 0.7rem; font-weight: 700; cursor: pointer; background: white; transition: 0.2s; color: #64748b; }
 .member-chip.selected { background: #3b82f6 !important; color: white !important; border-color: #3b82f6 !important; opacity: 1 !important; }
@@ -174,24 +182,16 @@ if (lv >= 15) return "🏔️ 설산"; if (lv >= 10) return "⛰️ 산"; if (lv
 if (lv >= 3) return "🌿 풀잎"; if (lv >= 1) return "🌱 새싹"; return "🫘 신입";
 };
 
-// --- [레벨별 스타일 조정: 1~3레벨 0레벨화, 5~10레벨 보라색] ---
 const getLevelStyle = (lv) => {
-    // 90-100: 옅은 빨강
-    if (lv >= 90) return { bg: '#fef2f2', border: '#fecaca', text: '#ef4444' };
-    // 75-85: 옅은 주황
-    if (lv >= 75) return { bg: '#fff7ed', border: '#fed7aa', text: '#f97316' };
-    // 60-70: 옅은 노랑
-    if (lv >= 60) return { bg: '#fefce8', border: '#fef08a', text: '#eab308' };
-    // 45-55: 옅은 분홍
-    if (lv >= 45) return { bg: '#fff1f2', border: '#fecdd3', text: '#f43f5e' };
-    // 30-40: 옅은 초록
-    if (lv >= 30) return { bg: '#f0fdf4', border: '#bbf7d0', text: '#16a34a' };
-    // 15-25: 옅은 파랑
-    if (lv >= 15) return { bg: '#eff6ff', border: '#bfdbfe', text: '#2563eb' };
-    // 5-10: 옅은 보라 (요청 사항)
-    if (lv >= 5) return { bg: '#faf5ff', border: '#e9d5ff', text: '#9333ea' };
-    // 0-3: 회색 (요청 사항: 1~3레벨도 0레벨 색상으로)
-    return { bg: '#f8fafc', border: '#e2e8f0', text: '#94a3b8' };
+// 90-100: 고레벨 (테두리 애니메이션 적용 예정)
+if (lv >= 90) return { bg: '#fff1f2', border: '#f43f5e', text: '#e11d48', blink: true };
+if (lv >= 75) return { bg: '#fff7ed', border: '#fed7aa', text: '#f97316', blink: false };
+if (lv >= 60) return { bg: '#fefce8', border: '#fef08a', text: '#eab308', blink: false };
+if (lv >= 45) return { bg: '#fff1f2', border: '#fecdd3', text: '#f43f5e', blink: false };
+if (lv >= 30) return { bg: '#f0fdf4', border: '#bbf7d0', text: '#16a34a', blink: false };
+if (lv >= 15) return { bg: '#eff6ff', border: '#bfdbfe', text: '#2563eb', blink: false };
+if (lv >= 1) return { bg: '#faf5ff', border: '#e9d5ff', text: '#9333ea', blink: false };
+return { bg: '#f8fafc', border: '#e2e8f0', text: '#94a3b8', blink: false };
 };
 
 window.showView = (v) => {
@@ -262,6 +262,7 @@ else if (dday <= 10) ddayColorClass = "text-red-500 font-bold";
 
 const lvStyle = getLevelStyle(m.level);
 const rowOpacity = m.isHidden ? "opacity-40" : "";
+const blinkClass = lvStyle.blink ? "level-blink" : ""; // 반짝임 클래스 추가
 
 list.innerHTML += `<tr class="border-b border-gray-50 text-sm ${rowOpacity}">
 <td class="td-name text-xs">
@@ -270,8 +271,8 @@ ${rankTag ? `<span class="rank-badge ${rankClass}">${rankTag}</span>` : ''}
 </td>
 <td class="flex justify-center">
 <div class="badge-level">
-<div class="badge-icon-box" style="background-color: ${lvStyle.bg}; border-color: ${lvStyle.border};">
-    <span class="badge-icon-txt">${getLevelBadge(m.level)}</span>
+<div class="badge-icon-box ${blinkClass}" style="background-color: ${lvStyle.bg}; border-color: ${lvStyle.border};">
+<span class="badge-icon-txt">${getLevelBadge(m.level)}</span>
 </div>
 <span class="badge-lv-txt" style="color: ${lvStyle.text};">Lv ${m.level}</span>
 </div>
