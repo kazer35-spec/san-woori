@@ -188,33 +188,38 @@ document.getElementById('yearDisplay').innerText = currentYear + '년';
 // --- [2번 방식 적용] Firestore 연동 로그인 ---
 window.loginAdmin = async () => {
     const passwordInput = document.getElementById('adminPassword').value;
-    console.log("입력된 비번:", passwordInput); // 로그 확인용
-
+    
     try {
+        // 1. DB 연결 시도
         const adminRef = doc(db, "admin_settings", "config");
-        console.log("DB 경로 접근 시도 중...");
         const adminSnap = await getDoc(adminRef);
 
+        // 2. 데이터 존재 여부 확인
         if (adminSnap.exists()) {
-            const correctPassword = adminSnap.data().admin_pw;
-            console.log("DB에서 가져온 값 존재함");
+            const dbData = adminSnap.data();
+            console.log("DB에서 가져온 데이터:", dbData);
             
-            if (passwordInput === String(correctPassword)) {
+            // 필드 이름 admin_pw가 맞는지 확인
+            const correctPassword = String(dbData.admin_pw); 
+
+            if (passwordInput === correctPassword) {
                 isAdminLoggedIn = true; 
                 showView('admin');
-                alert("관리자 인증 성공");
+                alert("성공! 관리자 모드로 전환합니다.");
             } else {
-                alert("비밀번호가 일치하지 않습니다.");
+                alert("비밀번호가 틀립니다. (입력값: " + passwordInput + ")");
             }
         } else {
-            console.error("문서가 존재하지 않음: admin_settings/config");
-            alert("관리자 설정 데이터를 찾을 수 없습니다. (DB 구조를 확인하세요)");
+            // 3. 문서가 없을 때 에러 메시지
+            alert("에러: 'admin_settings' 컬렉션 안에 'config'라는 이름의 문서를 찾을 수 없습니다. 경로를 확인해주세요.");
         }
     } catch (e) {
-        console.error("상세 에러 내용:", e); // 보안 규칙 위반 시 여기에 에러가 뜹니다.
-        alert("인증 오류: " + e.message);
+        // 4. 보안 규칙이나 네트워크 에러 상세 출력
+        console.error(e);
+        alert("시스템 에러 발생: " + e.code + "\n사유: " + e.message);
     }
 };
+
 
 // ------------------------------------------
 
