@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>산:우리 - 레벨 시스템</title>
+<title>산:우리 - 레벨 시스템 (v2.0)</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
@@ -166,7 +166,6 @@ const firebaseConfig = { apiKey: "AIzaSyBoAh3V3WrHg_wo53g1LHM0UW3-y6w2deg", auth
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// 전역 상태
 let isAdminLoggedIn = false;
 let currentData = [];
 let selectedMemberIds = new Set();
@@ -174,30 +173,20 @@ const now = new Date();
 const currentYear = now.getFullYear();
 let selectedQuarter = Math.ceil((now.getMonth() + 1) / 3);
 
-// 비밀번호 1221에 대한 SHA-256 해시 (변조 방지)
-const SECRET_HASH = "6f42a690e668c1c4f55331f24d9c72957b98d363b90050868a25c345376c703e";
+// 비밀번호 직접 비교 방식 (캐시 오류 방지 위해 버전 문구 추가)
+const VERSION = "2.0.1";
 
-// [로그인 로직] 브라우저 내장 암호화 API 사용 (가장 안전하고 확실함)
-window.loginAdmin = async () => {
-    const inputEl = document.getElementById('adminPassword');
-    const inputPw = inputEl.value.trim();
-
-    if (!inputPw) return alert("비밀번호를 입력하세요.");
-
-    // 브라우저 내장 Crypto API로 SHA-256 생성
-    const msgUint8 = new TextEncoder().encode(inputPw);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const inputHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-
-    if (inputHash === SECRET_HASH) {
+window.loginAdmin = function() {
+    const inputPw = document.getElementById('adminPassword').value.trim();
+    
+    // 단순 직접 비교 (오동작 가능성 차단)
+    if(inputPw === "1221") {
         isAdminLoggedIn = true;
         showView('admin');
-        inputEl.value = "";
+        document.getElementById('adminPassword').value = "";
     } else {
-        alert("비밀번호가 일치하지 않습니다.");
-        inputEl.value = "";
-        inputEl.focus();
+        alert("비밀번호가 일치하지 않습니다. (입력값: " + inputPw + ")");
+        document.getElementById('adminPassword').value = "";
     }
 };
 
@@ -211,7 +200,6 @@ window.showView = (v) => {
 window.handleAdminTab = () => isAdminLoggedIn ? showView('admin') : showView('login');
 window.logoutAdmin = () => { isAdminLoggedIn = false; showView('status'); };
 
-// 등급 배지 설정
 const getLevelBadge = (lv) => {
     if (lv >= 100) return "🌌 은하수"; if (lv >= 90) return "🌠 별똥별"; if (lv >= 80) return "💫 타원별";
     if (lv >= 70) return "🌟 황금별"; if (lv >= 60) return "⭐️ 별"; if (lv >= 50) return "☀️ 해";
@@ -221,7 +209,6 @@ const getLevelBadge = (lv) => {
     if (lv >= 3) return "🌿 풀잎"; if (lv >= 1) return "🌱 새싹"; return "🫘 신입";
 };
 
-// 테이블 렌더링
 window.renderStatusTable = () => {
     const list = document.getElementById('statusList');
     if(!list) return;
@@ -291,7 +278,6 @@ window.renderStatusTable = () => {
     });
 };
 
-// 실시간 동기화
 let unsubscribe = null;
 window.changeQuarter = (q) => {
     selectedQuarter = q;
@@ -312,7 +298,6 @@ window.changeQuarter = (q) => {
     });
 };
 
-// 관리자 리스트 업데이트
 function updateAdminMemberLists() {
     const alphaSorted = [...currentData].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
     const multiList = document.getElementById('multiMemberList');
@@ -333,7 +318,6 @@ function updateAdminMemberLists() {
     });
 }
 
-// 회원 기록 및 관리 함수들
 window.toggleSelectMember = (id, el) => {
     if (selectedMemberIds.has(id)) { selectedMemberIds.delete(id); el.classList.remove('selected'); }
     else { selectedMemberIds.add(id); el.classList.add('selected'); }
@@ -428,7 +412,6 @@ window.addMember = async () => {
     alert("회원 등록 완료");
 };
 
-// 초기화
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('yearDisplay').innerText = currentYear + '년';
     document.getElementById('regDate').valueAsDate = new Date();
