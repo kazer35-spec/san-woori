@@ -52,7 +52,7 @@
         .badge-icon-txt { font-size: 0.75rem; font-weight: 800; }
         .badge-lv-txt { font-size: 0.6rem; font-weight: 800; opacity: 0.9; }
 
-        /* 애니메이션 및 D-Day 강조 */
+        /* 애니메이션 */
         @keyframes glow-orange { 0% { border-color: #f97316; box-shadow: 0 0 2px rgba(249, 115, 22, 0.3); } 50% { border-color: #ea580c; box-shadow: 0 0 8px rgba(234, 88, 12, 0.5); } 100% { border-color: #f97316; box-shadow: 0 0 2px rgba(249, 115, 22, 0.3); } }
         @keyframes glow-red { 0% { border-color: #ef4444; box-shadow: 0 0 2px rgba(239, 68, 68, 0.3); } 50% { border-color: #b91c1c; box-shadow: 0 0 10px rgba(185, 28, 28, 0.6); } 100% { border-color: #ef4444; box-shadow: 0 0 2px rgba(239, 68, 68, 0.3); } }
         @keyframes glow-yellow { 0% { border-color: #facc15; box-shadow: 0 0 2px rgba(250, 204, 21, 0.3); } 50% { border-color: #eab308; box-shadow: 0 0 8px rgba(234, 179, 8, 0.5); } 100% { border-color: #facc15; box-shadow: 0 0 2px rgba(250, 204, 21, 0.3); } }
@@ -60,6 +60,7 @@
         .level-blink-red { animation: glow-red 1.2s infinite ease-in-out; border-width: 1.8px !important; }
         .level-blink-yellow { animation: glow-yellow 1.8s infinite ease-in-out; border-width: 1.8px !important; }
 
+        /* D-Day 굵게 강조 */
         @keyframes blink-warning { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.7; transform: scale(1.05); } 100% { opacity: 1; transform: scale(1); } }
         .dday-critical { animation: blink-warning 0.8s infinite; color: #ef4444 !important; font-weight: 900 !important; }
         .dday-bold { font-weight: 900 !important; }
@@ -185,7 +186,7 @@
                     <button onclick="updateBonusDays()" class="bg-red-400 text-white px-4 rounded-xl text-xs font-bold whitespace-nowrap">보너스 적용</button>
                 </div>
             </div>
-            <button id="hideBtnTxt" onclick="toggleHideMember()" class="btn-submit bg-gray-600 mb-2 h-10 py-0">숨기기/보이기</button>
+            <button onclick="toggleHideMember()" class="btn-submit bg-gray-600 mb-2 h-10 py-0">숨기기/보이기</button>
             <button onclick="deleteMember()" class="btn-submit bg-red-500 h-10 py-0">회원 영구 삭제</button>
         </div>
 
@@ -244,7 +245,8 @@ const getLevelStyle = (lv) => {
     if (lv >= 30) return { bg: '#f0fdfa', border: '#2dd4bf', text: '#0d9488', blink: '' };
     if (lv >= 20) return { bg: '#eff6ff', border: '#60a5fa', text: '#1d4ed8', blink: '' };
     if (lv >= 10) return { bg: '#f5f3ff', border: '#ddd6fe', text: '#7c3aed', blink: '' };
-    if (lv >= 3) return { bg: '#fffcf0', border: '#f3e8c4', text: '#b45309', blink: '' };
+    // [Lv 3~9 풀잎] 배경: 연회색, 테두리: 진회색
+    if (lv >= 3) return { bg: '#f1f5f9', border: '#475569', text: '#334155', blink: '' };
     return { bg: '#f8fafc', border: '#e2e8f0', text: '#64748b', blink: '' };
 };
 
@@ -315,7 +317,6 @@ window.renderStatusTable = () => {
         const style = getLevelStyle(m.level);
         const dday = m.ddayVal;
         
-        // 남은 날짜 스타일: 임박시 애니메이션, 평상시 굵게
         let ddayClass = "dday-bold";
         if ((m.level > 0 && dday <= 10) || (m.level === 0 && dday <= 5)) {
             ddayClass = "dday-critical";
@@ -384,8 +385,7 @@ window.addMultiActivity = async () => {
         await updateDoc(doc(db, "sanwoori", id), upObj); 
         for(let i=0; i < up; i++) { await addDoc(collection(db, `sanwoori/${id}/logs`), { date: ts }); }
     }
-    alert(`${up}up 기록이 완료되었습니다.`); 
-    selectedMemberIds.clear();
+    alert(`${up}up 기록 완료.`); selectedMemberIds.clear();
 };
 
 window.loadMemberLogs = async () => {
@@ -394,12 +394,12 @@ window.loadMemberLogs = async () => {
     snap.forEach(ld => { area.innerHTML += `<div class="log-item-box"><span class="log-date-txt">${ld.data().date.toDate().getMonth()+1}.${ld.data().date.toDate().getDate()}</span><button class="del-btn-mini" onclick="deleteLog('${id}', '${ld.id}')">삭제</button></div>`; });
 };
 
-window.deleteLog = async (mId, logId) => { if(confirm("기록을 삭제하시겠습니까? (레벨은 선택 수치만큼 차감됩니다)")){ await deleteDoc(doc(db, `sanwoori/${mId}/logs`, logId)); await updateDoc(doc(db, "sanwoori", mId), { level: increment(-parseInt(document.querySelector('input[name="downAmount"]:checked').value)) }); loadMemberLogs(); } };
-window.onlyDownLevel = async () => { const id = document.getElementById('memberSelectEdit').value; if(id){ await updateDoc(doc(db, "sanwoori", id), { level: increment(-parseInt(document.querySelector('input[name="downAmount"]:checked').value)) }); alert("레벨만 차감되었습니다."); } };
-window.updateBonusDays = async () => { const id = document.getElementById('memberSelectManage').value; const bonus = parseInt(document.getElementById('bonusDaysInput').value) || 0; if(id){ await updateDoc(doc(db, "sanwoori", id), { bonusDays: bonus }); alert("보너스 기간이 적용되었습니다."); } };
+window.deleteLog = async (mId, logId) => { if(confirm("삭제하시겠습니까? (선택 수치만큼 레벨 차감)")) { await deleteDoc(doc(db, `sanwoori/${mId}/logs`, logId)); await updateDoc(doc(db, "sanwoori", mId), { level: increment(-parseInt(document.querySelector('input[name="downAmount"]:checked').value)) }); loadMemberLogs(); } };
+window.onlyDownLevel = async () => { const id = document.getElementById('memberSelectEdit').value; if(id){ await updateDoc(doc(db, "sanwoori", id), { level: increment(-parseInt(document.querySelector('input[name="downAmount"]:checked').value)) }); alert("레벨 차감 완료."); } };
+window.updateBonusDays = async () => { const id = document.getElementById('memberSelectManage').value; const bonus = parseInt(document.getElementById('bonusDaysInput').value) || 0; if(id){ await updateDoc(doc(db, "sanwoori", id), { bonusDays: bonus }); alert("보너스 적용 완료."); } };
 window.deleteMember = async () => { const id = document.getElementById('memberSelectManage').value; if(id && confirm("영구 삭제하시겠습니까?")) await deleteDoc(doc(db, "sanwoori", id)); };
 window.toggleHideMember = async () => { const id = document.getElementById('memberSelectManage').value; if(id){ const m = currentData.find(x => x.id === id); await updateDoc(doc(db, "sanwoori", id), { isHidden: !m.isHidden }); alert("상태 변경 완료."); } };
-window.addMember = async () => { const name = document.getElementById('newName').value; const date = document.getElementById('regDate').value; if(name){ await addDoc(collection(db, "sanwoori"), { name, level: 0, lastDate: Timestamp.fromDate(new Date(date + "T00:00:00")), isHidden: false, bonusDays: 0 }); document.getElementById('newName').value = ""; alert("신규 회원 등록 완료."); } };
+window.addMember = async () => { const name = document.getElementById('newName').value; const date = document.getElementById('regDate').value; if(name){ await addDoc(collection(db, "sanwoori"), { name, level: 0, lastDate: Timestamp.fromDate(new Date(date + "T00:00:00")), isHidden: false, bonusDays: 0 }); document.getElementById('newName').value = ""; alert("회원 등록 완료."); } };
 
 document.getElementById('regDate').valueAsDate = document.getElementById('activityDate').valueAsDate = new Date();
 changeQuarter(selectedQuarter);
