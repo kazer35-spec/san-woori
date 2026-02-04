@@ -60,10 +60,14 @@ td { padding: 14px 0; text-align: center; vertical-align: middle; }
 .level-blink-red { animation: glow-red 1.2s infinite ease-in-out; border-width: 1.8px !important; }
 .level-blink-yellow { animation: glow-yellow 1.8s infinite ease-in-out; border-width: 1.8px !important; }
 
-/* D-Day 효과 */
-@keyframes blink-warning { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.7; transform: scale(1.05); } 100% { opacity: 1; transform: scale(1); } }
-.dday-critical { animation: blink-warning 0.8s infinite; color: #ef4444 !important; font-weight: 900 !important; }
-.dday-bold { font-weight: 900 !important; }
+/* D-Day 효과 애니메이션 */
+@keyframes blink-warning-red { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+@keyframes blink-warning-yellow { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+
+.dday-critical { animation: blink-warning-red 0.8s infinite; color: #ef4444 !important; font-weight: 900 !important; }
+.dday-orange { color: #f97316 !important; font-weight: 900 !important; }
+.dday-yellow-blink { animation: blink-warning-yellow 1.5s infinite; color: #eab308 !important; font-weight: 800 !important; }
+.dday-bold { font-weight: 800 !important; }
 
 .control-bar { display: flex; gap: 8px; margin-bottom: 12px; height: 44px; align-items: center; }
 .search-input { height: 100% !important; font-size: 0.8rem !important; flex: 2; border-radius: 10px !important; }
@@ -249,8 +253,6 @@ const getLevelStyle = (lv) => {
     return { bg: '#ffffff', border: '#e2e8f0', text: '#94a3b8', blink: '' };
 };
 
-// ---------------- 기능 함수 ----------------
-
 window.toggleModal = (show) => {
     const modal = document.getElementById('levelModal');
     modal.style.display = show ? 'flex' : 'none';
@@ -318,10 +320,15 @@ window.renderStatusTable = () => {
         const style = getLevelStyle(m.level);
         const dday = m.ddayVal;
 
-        let ddayClass = "dday-bold";
-        if ((m.level > 0 && dday <= 10) || (m.level === 0 && dday <= 5)) ddayClass = "dday-critical";
-        else if (m.level > 0 && dday <= 20) ddayClass = "text-red-500 dday-bold";
-        else ddayClass = "text-slate-500 dday-bold";
+        // D-Day 스타일 로직 업데이트
+        let ddayClass = "text-slate-500 dday-bold";
+        if (m.level > 0) { // 기존 회원
+            if (dday <= 10) ddayClass = "dday-critical";
+            else if (dday <= 20) ddayClass = "dday-orange";
+            else if (dday <= 30) ddayClass = "dday-yellow-blink";
+        } else { // 신입 회원 (Lv.0)
+            if (dday <= 10) ddayClass = "dday-critical";
+        }
 
         list.innerHTML += `<tr class="border-b border-gray-50 ${m.isHidden ? 'opacity-40' : ''}">
             <td class="text-xs text-center">${rT ? `<span class="rank-badge ${rC}">${rT}</span>` : ''}
@@ -335,8 +342,6 @@ window.renderStatusTable = () => {
 
 window.toggleSelectMember = (id, el) => { if(selectedMemberIds.has(id)){selectedMemberIds.delete(id); el.classList.remove('selected');} else {selectedMemberIds.add(id); el.classList.add('selected');}};
 window.filterAdminMemberList = () => { const q = document.getElementById('adminSearchInput').value.toLowerCase(); document.querySelectorAll('.member-chip').forEach(c => c.style.display = c.innerText.toLowerCase().includes(q) ? "block" : "none"); };
-
-// ---------------- 실시간 동기화 ----------------
 
 let unsubscribe = null;
 function startRealtimeSync() {
@@ -369,9 +374,6 @@ function updateAdminMemberLists() {
     });
 }
 
-// ---------------- 기록 관리 핵심 로직 ----------------
-
-// [기능 1] 기록 추가 시 날짜 업데이트 (더 최신일 경우만)
 window.addMultiActivity = async () => {
     if(!selectedMemberIds.size) { alert("회원을 선택해주세요."); return; }
     const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
@@ -382,47 +384,26 @@ window.addMultiActivity = async () => {
     for(const id of selectedMemberIds){
         const mS = await getDoc(doc(db, "sanwoori", id));
         let upData = { level: increment(up) };
-        // 입력한 날짜가 기존 저장된 lastDate보다 최신이면 날짜 갱신
-        if(ts.toMillis() > mS.data().lastDate.toMillis()) {
-            upData.lastDate = ts;
-        }
+        if(ts.toMillis() > mS.data().lastDate.toMillis()) { upData.lastDate = ts; }
         await updateDoc(doc(db, "sanwoori", id), upData);
         for(let i=0; i < up; i++) { await addDoc(collection(db, `sanwoori/${id}/logs`), { date: ts }); }
     }
     alert(`${up}up 기록 완료.`); selectedMemberIds.clear();
 };
 
-// [기능 2] 기록 삭제 시 날짜 자동 역추적 (가장 핵심)
 window.deleteLog = async (mId, logId) => {
     if(!confirm("삭제하시겠습니까? (선택 수치만큼 레벨 차감)")) return;
-
     try {
-        // 1. 로그 삭제
         await deleteDoc(doc(db, `sanwoori/${mId}/logs`, logId));
-        
-        // 2. 레벨 차감
         const downVal = parseInt(document.querySelector('input[name="downAmount"]:checked').value);
-        
-        // 3. 가장 최신 로그 다시 찾기
         const logsRef = collection(db, `sanwoori/${mId}/logs`);
         const latestQuery = query(logsRef, orderBy("date", "desc"), limit(1));
         const latestSnap = await getDocs(latestQuery);
-        
         let updateObj = { level: increment(-downVal) };
-        
-        // 4. 만약 로그가 남아있다면, 그중 가장 최근 날짜로 lastDate 갱신
-        if (!latestSnap.empty) {
-            updateObj.lastDate = latestSnap.docs[0].data().date;
-        } 
-        // 로그가 하나도 없다면? 회원 등록 시점으로 날짜를 돌려야 하지만, 
-        // 일단은 삭제하지 않은 가장 최신 기록 유지.
-
+        if (!latestSnap.empty) { updateObj.lastDate = latestSnap.docs[0].data().date; } 
         await updateDoc(doc(db, "sanwoori", mId), updateObj);
         loadMemberLogs();
-    } catch (e) {
-        console.error(e);
-        alert("기록 삭제 중 오류 발생");
-    }
+    } catch (e) { alert("기록 삭제 중 오류 발생"); }
 };
 
 window.loadMemberLogs = async () => {
