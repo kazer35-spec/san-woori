@@ -299,7 +299,9 @@ window.renderStatusTable = () => {
     let processedData = currentData.map(m => {
         const last = m.lastDate.toDate();
         const diff = Math.floor((todayZero - new Date(last.getFullYear(), last.getMonth(), last.getDate()).getTime()) / 86400000);
-        return { ...m, ddayVal: ((m.level === 0 ? 30 : 122) + (m.bonusDays || 0)) - diff };
+        // 신입(Lv.0)은 30일 기준, 나머지는 122일 기준
+        const baseDays = m.level === 0 ? 30 : 122;
+        return { ...m, ddayVal: (baseDays + (m.bonusDays || 0)) - diff };
     });
 
     processedData.sort((a, b) => {
@@ -327,14 +329,18 @@ window.renderStatusTable = () => {
         const style = getLevelStyle(m.level);
         const dday = m.ddayVal;
 
-        // D-Day 깜빡임 조건 로직
+        // D-Day 깜빡임 조건 로직 업데이트
         let ddayClass = "dday-bold text-slate-500";
-        if (dday <= 10) {
-            ddayClass = "dday-critical"; // 빨간색 고속 깜빡임
-        } else if (dday <= 20) {
-            ddayClass = "dday-orange-blink"; // 주황색 중간 깜빡임
-        } else if (dday <= 30) {
-            ddayClass = "dday-yellow-blink"; // 노란색 저속 깜빡임
+        
+        if (m.level === 0) {
+            // 신입 회원(Lv.0): 10일 남았을 때 빨간색 깜빡임 알림
+            if (dday <= 10) ddayClass = "dday-critical";
+            else if (dday <= 15) ddayClass = "dday-orange-blink";
+        } else {
+            // 일반 회원: 10일 이하 빨강, 20일 이하 주황색 깜빡임
+            if (dday <= 10) ddayClass = "dday-critical";
+            else if (dday <= 20) ddayClass = "dday-orange-blink";
+            else if (dday <= 30) ddayClass = "dday-yellow-blink";
         }
 
         list.innerHTML += `<tr class="border-b border-gray-50 ${m.isHidden ? 'opacity-40' : ''}">
