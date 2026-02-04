@@ -1,147 +1,188 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>산:우리 - 레벨 시스템</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
-        body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: #333; }
-        .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>산:우리 - 레벨 시스템</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: #333; }
+.main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 
-        /* 입력창 공통 스타일 */
-        input, select, .btn-submit, .up-amount-group { width: 100% !important; display: block; padding: 12px 16px; border-radius: 12px; font-size: 0.95rem; height: 52px; border: 1.5px solid #e2e8f0; outline: none; box-sizing: border-box; }
-        .input-gap { margin-bottom: 16px; }
-        .btn-submit { font-weight: 800; color: white; border: none; cursor: pointer; transition: 0.2s; margin-top: 10px; }
+/* 입력창 공통 스타일 */
+input, select, .btn-submit, .up-amount-group { width: 100% !important; display: block; padding: 12px 16px; border-radius: 12px; font-size: 0.95rem; height: 52px; border: 1.5px solid #e2e8f0; outline: none; box-sizing: border-box; }
+.input-gap { margin-bottom: 16px; }
+.btn-submit { font-weight: 800; color: white; border: none; cursor: pointer; transition: 0.2s; margin-top: 10px; }
 
-        /* 관리자 활동 업다운 버튼 */
-        .up-amount-group { display: flex; padding: 4px; background: #f8fafc; gap: 4px; align-items: stretch; margin-bottom: 16px; }
-        .up-amount-group label { flex: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 8px; font-weight: 800; font-size: 0.9rem; color: #64748b; transition: 0.2s; }
-        .up-amount-group input[type="radio"] { display: none; }
-        .up-amount-group label:has(input:checked) { background: #3b82f6; color: white; }
+/* 관리자 활동 업다운 버튼 */
+.up-amount-group { display: flex; padding: 4px; background: #f8fafc; gap: 4px; align-items: stretch; margin-bottom: 16px; }
+.up-amount-group label { flex: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 8px; font-weight: 800; font-size: 0.9rem; color: #64748b; transition: 0.2s; }
+.up-amount-group input[type="radio"] { display: none; }
+.up-amount-group label:has(input:checked) { background: #3b82f6; color: white; }
 
-        /* 분기 선택 탭 */
-        #quarterTabs { display: flex; gap: 4px; margin-bottom: 24px; background: #f1f5f9; padding: 4px; border-radius: 10px; border: 1px solid #e2e8f0; }
-        .q-btn { flex: 1; padding: 4px 0; border-radius: 6px; font-size: 0.75rem; font-weight: 700; border: none; background: transparent; color: #94a3b8; transition: 0.2s; cursor: pointer; }
-        .active-q { background: white !important; color: #1d4ed8 !important; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+/* 분기 선택 탭 */
+#quarterTabs { display: flex; gap: 4px; margin-bottom: 24px; background: #f1f5f9; padding: 4px; border-radius: 10px; border: 1px solid #e2e8f0; }
+.q-btn { flex: 1; padding: 4px 0; border-radius: 6px; font-size: 0.75rem; font-weight: 700; border: none; background: transparent; color: #94a3b8; transition: 0.2s; cursor: pointer; }
+.active-q { background: white !important; color: #1d4ed8 !important; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
 
-        /* 메인 탭 메뉴 */
-        .tab-menu { display: flex; background: #f8fafc; padding: 12px; gap: 10px; border-bottom: 1px solid #e2e8f0; }
-        .tab-btn { flex: 1; padding: 14px; border-radius: 12px; font-weight: 700; font-size: 0.95rem; border: 1px solid #e2e8f0; background: white; color: #64748b; }
-        .active-tab { background: #3b82f6; color: white; border: none; }
+/* 메인 탭 메뉴 */
+.tab-menu { display: flex; background: #f8fafc; padding: 12px; gap: 10px; border-bottom: 1px solid #e2e8f0; }
+.tab-btn { flex: 1; padding: 14px; border-radius: 12px; font-weight: 700; font-size: 0.95rem; border: 1px solid #e2e8f0; background: white; color: #64748b; }
+.active-tab { background: #3b82f6; color: white; border: none; }
 
-        /* 카드 디자인 */
-        .card { background: white; border-radius: 20px; border: 1px solid #f1f5f9; padding: 20px; margin-bottom: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
-        .card-title { font-size: 1.05rem; font-weight: 800; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
+/* 카드 디자인 */
+.card { background: white; border-radius: 20px; border: 1px solid #f1f5f9; padding: 20px; margin-bottom: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+.card-title { font-size: 1.05rem; font-weight: 800; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
 
-        /* 테이블 스타일 */
-        table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-        th { color: #94a3b8; font-size: 0.75rem; padding-bottom: 12px; border-bottom: 2px solid #f8fafc; text-align: center; }
-        td { padding: 14px 0; text-align: center; vertical-align: middle; }
+/* 테이블 스타일 */
+table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+th { color: #94a3b8; font-size: 0.75rem; padding-bottom: 12px; border-bottom: 2px solid #f8fafc; text-align: center; }
+td { padding: 14px 0; text-align: center; vertical-align: middle; }
 
-        /* 레벨 뱃지 */
-        .badge-level { display: inline-flex; flex-direction: column; align-items: center; gap: 1px; }
-        .badge-icon-box { padding: 2px 8px; border-radius: 14px; line-height: 1.2; display: flex; align-items: center; justify-content: center; border-width: 1.5px; min-width: 50px; }
-        .badge-icon-txt { font-size: 0.75rem; font-weight: 800; }
-        .badge-lv-txt { font-size: 0.6rem; font-weight: 800; opacity: 0.9; }
+/* D-Day 애니메이션 알림 */
+@keyframes blink-yellow { 0%, 100% { background: #facc15; } 50% { background: #fef08a; } }
+@keyframes blink-orange { 0%, 100% { background: #f97316; } 50% { background: #fdba74; } }
+@keyframes blink-red { 0%, 100% { background: #ef4444; transform: scale(1); } 50% { background: #fca5a5; transform: scale(1.05); } }
 
-        /* D-Day 애니메이션 효과 */
-        @keyframes blink-yellow { 0%, 100% { background-color: #fef08a; } 50% { background-color: #fde047; } }
-        @keyframes blink-red { 0%, 100% { background-color: #ef4444; transform: scale(1); } 50% { background-color: #b91c1c; transform: scale(1.05); } }
-        
-        .dday-box { padding: 4px 8px; border-radius: 8px; font-weight: 900; font-size: 11px; display: inline-block; min-width: 45px; }
-        .dday-30 { animation: blink-yellow 1.5s infinite; color: #854d0e; }
-        .dday-20 { background-color: #f97316; color: white; }
-        .dday-10 { animation: blink-red 0.8s infinite; color: white; }
-        .dday-normal { color: #64748b; }
+.dday-badge { padding: 4px 8px; border-radius: 8px; font-weight: 900; font-size: 0.7rem; display: inline-block; min-width: 48px; text-align: center; }
+.dday-30 { animation: blink-yellow 2s infinite linear; color: #422006; }
+.dday-20 { animation: blink-orange 1.2s infinite linear; color: white; }
+.dday-10 { animation: blink-red 0.7s infinite linear; color: white; }
+.dday-normal { background: #f1f5f9; color: #64748b; }
 
-        .control-bar { display: flex; gap: 8px; margin-bottom: 12px; height: 44px; align-items: center; }
-        .search-input { height: 100% !important; font-size: 0.8rem !important; flex: 2; border-radius: 10px !important; }
-        .level-info-btn, .sort-select { height: 100% !important; flex: 1; border-radius: 10px !important; font-size: 0.75rem !important; font-weight: 800; border: 1px solid #e2e8f0 !important; cursor: pointer; text-align: center; }
-        .level-info-btn { background: #f1f5f9; color: #475569; }
+/* 레벨 뱃지 */
+.badge-level { display: inline-flex; flex-direction: column; align-items: center; gap: 1px; }
+.badge-icon-box { padding: 2px 8px; border-radius: 14px; line-height: 1.2; display: flex; align-items: center; justify-content: center; border-width: 1.5px; min-width: 50px; }
+.badge-icon-txt { font-size: 0.75rem; font-weight: 800; }
+.badge-lv-txt { font-size: 0.6rem; font-weight: 800; opacity: 0.9; }
 
-        /* 모달 & 리스트 스타일 */
-        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 100; padding: 15px; }
-        .modal-content { background: white; border-radius: 24px; width: 100%; max-width: 440px; max-height: 90vh; overflow-y: auto; padding: 20px; }
-        .member-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-        .member-chip { padding: 10px 4px; border: 1px solid #e2e8f0; border-radius: 10px; text-align: center; font-size: 0.7rem; font-weight: 700; cursor: pointer; background: white; }
-        .member-chip.selected { background: #3b82f6 !important; color: white !important; }
-        .log-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 10px; }
-        .log-item-box { background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px; text-align: center; }
-    </style>
+.control-bar { display: flex; gap: 8px; margin-bottom: 12px; height: 44px; align-items: center; }
+.search-input { height: 100% !important; font-size: 0.8rem !important; flex: 2; border-radius: 10px !important; }
+.level-info-btn, .sort-select { height: 100% !important; flex: 1; border-radius: 10px !important; font-size: 0.75rem !important; font-weight: 800; border: 1px solid #e2e8f0 !important; cursor: pointer; text-align: center; }
+.level-info-btn { background: #f1f5f9; color: #475569; }
+
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 100; padding: 15px; }
+.modal-content { background: white; border-radius: 24px; width: 100%; max-width: 440px; max-height: 90vh; overflow-y: auto; padding: 20px; }
+
+.member-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.member-chip { padding: 10px 4px; border: 1px solid #e2e8f0; border-radius: 10px; text-align: center; font-size: 0.7rem; font-weight: 700; cursor: pointer; background: white; color: #64748b; }
+.member-chip.selected { background: #3b82f6 !important; color: white !important; }
+
+.log-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 10px; }
+.log-item-box { background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px 2px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+</style>
 </head>
 <body>
 
 <div class="main-container">
-    <div class="tab-menu">
-        <button id="tabStatus" class="tab-btn active-tab" onclick="showView('status')">📡 실시간 현황</button>
-        <button id="tabAdmin" class="tab-btn" onclick="handleAdminTab()">🔐 관리자</button>
-    </div>
+<div class="tab-menu">
+<button id="tabStatus" class="tab-btn active-tab" onclick="showView('status')">📡 실시간 현황</button>
+<button id="tabAdmin" class="tab-btn" onclick="handleAdminTab()">🔐 관리자</button>
+</div>
 
-    <div id="viewStatus" class="view-content p-6">
-        <h1 class="text-xl font-extrabold mb-4 text-slate-800 flex items-center gap-2">산:우리 레벨 (<span id="yearDisplay"></span>)</h1>
-        <div class="control-bar">
-            <input type="text" id="searchInput" onkeyup="renderStatusTable()" placeholder="🔍 검색..." class="search-input bg-gray-50 border-gray-200">
-            <button onclick="toggleModal(true)" class="level-info-btn">📊 등급표</button>
-            <select id="statusSortOrder" onchange="renderStatusTable()" class="sort-select">
-                <option value="qCount">분기순 ▼</option>
-                <option value="level">레벨순 ▼</option>
-                <option value="name">이름순▼</option>
-                <option value="dday">날짜순▼</option>
-            </select>
-        </div>
-        <div id="quarterTabs">
-            <button id="qBtn1" class="q-btn" onclick="changeQuarter(1)">1분기</button>
-            <button id="qBtn2" class="q-btn" onclick="changeQuarter(2)">2분기</button>
-            <button id="qBtn3" class="q-btn" onclick="changeQuarter(3)">3분기</button>
-            <button id="qBtn4" class="q-btn" onclick="changeQuarter(4)">4분기</button>
-        </div>
-        <table>
-            <thead><tr><th class="w-[28%]">회원명</th><th class="w-[30%]">레벨(Lv)</th><th class="w-[20%]">분기횟수</th><th class="w-[22%]">남은날짜</th></tr></thead>
-            <tbody id="statusList"></tbody>
-        </table>
-    </div>
+<div id="viewStatus" class="view-content p-6">
+<h1 class="text-xl font-extrabold mb-4 text-slate-800">산:우리 레벨 (<span id="yearDisplay"></span>)</h1>
 
-    <div id="viewLogin" class="view-content hidden p-6 text-center">
-        <div class="card border-dashed border-2 py-12">
-            <h2 class="text-lg font-bold mb-6">관리자 인증</h2>
-            <input type="password" id="adminPassword" placeholder="비밀번호 입력" class="text-center input-gap">
-            <button onclick="loginAdmin()" class="btn-submit bg-blue-500">인증하기</button>
-        </div>
-    </div>
+<div class="control-bar">
+<input type="text" id="searchInput" onkeyup="renderStatusTable()" placeholder="🔍 검색..." class="search-input bg-gray-50">
+<button onclick="toggleModal(true)" class="level-info-btn">📊 등급표</button>
+<select id="statusSortOrder" onchange="renderStatusTable()" class="sort-select bg-white">
+<option value="qCount">분기순 ▼</option>
+<option value="level">레벨순 ▼</option>
+<option value="name">이름순▼</option>
+<option value="dday">날짜순▼</option>
+</select>
+</div>
 
-    <div id="viewAdmin" class="view-content hidden p-6">
-        <div class="card"><div class="card-title text-green-600">🆕 신규 회원 등록</div>
-            <input type="text" id="newName" placeholder="회원 이름" class="input-gap"><input type="date" id="regDate" class="input-gap">
-            <button onclick="addMember()" class="btn-submit bg-green-500">등록 완료</button>
-        </div>
-        <div class="card"><div class="card-title text-blue-600">📅 등산 기록 추가</div>
-            <div id="multiMemberList" class="member-grid max-h-60 overflow-y-auto mb-4"></div>
-            <div class="up-amount-group"><label><input type="radio" name="upAmount" value="1" checked> 1up</label><label><input type="radio" name="upAmount" value="2"> 2up</label><label><input type="radio" name="upAmount" value="3"> 3up</label></div>
-            <input type="date" id="activityDate" class="input-gap"><button onclick="addMultiActivity()" class="btn-submit bg-blue-500">기록 저장</button>
-        </div>
-        <div class="card" style="background-color: #fffdf0;"><div class="card-title text-yellow-700">✏️ 기록 삭제 (D-Day 자동복구)</div>
-            <select id="memberSelectEdit" onchange="loadMemberLogs()" class="input-gap"><option value="">대상 회원 선택</option></select>
-            <div class="flex gap-2 mb-4"><label class="text-xs font-bold">차감 레벨:</label><input type="radio" name="downAmount" value="1" checked> 1 <input type="radio" name="downAmount" value="2"> 2 <input type="radio" name="downAmount" value="3"> 3</div>
-            <div id="logListArea" class="log-grid"></div>
-        </div>
-        <div class="card" style="background-color: #fff5f5;"><div class="card-title text-red-600">🗑️ 관리</div>
-            <select id="memberSelectManage" class="input-gap"><option value="">회원 선택</option></select>
-            <button onclick="deleteMember()" class="btn-submit bg-red-500">회원 영구 삭제</button>
-        </div>
-    </div>
+<div id="quarterTabs">
+<button id="qBtn1" class="q-btn" onclick="changeQuarter(1)">1분기</button>
+<button id="qBtn2" class="q-btn" onclick="changeQuarter(2)">2분기</button>
+<button id="qBtn3" class="q-btn" onclick="changeQuarter(3)">3분기</button>
+<button id="qBtn4" class="q-btn" onclick="changeQuarter(4)">4분기</button>
+</div>
+
+<table>
+<thead>
+<tr>
+<th class="w-[28%]">회원명</th>
+<th class="w-[30%]">레벨(Lv)</th>
+<th class="w-[20%]">분기횟수</th>
+<th class="w-[22%]">남은날짜</th>
+</tr>
+</thead>
+<tbody id="statusList"></tbody>
+</table>
+</div>
+
+<div id="viewLogin" class="view-content hidden p-6 text-center">
+<div class="card border-dashed border-2 py-12">
+<h2 class="text-lg font-bold mb-6">관리자 인증</h2>
+<input type="password" id="adminPassword" placeholder="비밀번호 입력" class="text-center input-gap">
+<button onclick="loginAdmin()" class="btn-submit bg-blue-500">인증하기</button>
+</div>
+</div>
+
+<div id="viewAdmin" class="view-content hidden p-6">
+<div class="card">
+<div class="card-title text-green-600">🆕 신규 회원 등록</div>
+<input type="text" id="newName" placeholder="회원 이름" class="input-gap">
+<input type="date" id="regDate" class="input-gap">
+<button onclick="addMember()" class="btn-submit bg-green-500">등록 완료</button>
+</div>
+
+<div class="card">
+<div class="card-title text-blue-600">📅 등산 기록 추가</div>
+<div id="multiMemberList" class="member-grid max-h-64 overflow-y-auto mb-4"></div>
+<div class="up-amount-group">
+<label><input type="radio" name="upAmount" value="1" checked> 1up</label>
+<label><input type="radio" name="upAmount" value="2"> 2up</label>
+<label><input type="radio" name="upAmount" value="3"> 3up</label>
+</div>
+<input type="date" id="activityDate" class="input-gap">
+<button onclick="addMultiActivity()" class="btn-submit bg-blue-500">기록 저장하기</button>
+</div>
+
+<div class="card" style="background-color: #fffdf0; border-color: #fef3c7;">
+<div class="card-title text-yellow-700">✏️ 기록 삭제 (D-Day 자동복구)</div>
+<select id="memberSelectEdit" onchange="loadMemberLogs()" class="input-gap"><option value="">대상 회원 선택</option></select>
+<div class="flex gap-4 items-center mb-4 px-2">
+<span class="text-xs font-bold text-gray-500">차감 레벨:</span>
+<label class="flex items-center gap-1 font-bold text-red-600 text-sm"><input type="radio" name="downAmount" value="1" checked> 1</label>
+<label class="flex items-center gap-1 font-bold text-red-600 text-sm"><input type="radio" name="downAmount" value="2"> 2</label>
+<label class="flex items-center gap-1 font-bold text-red-600 text-sm"><input type="radio" name="downAmount" value="3"> 3</label>
+</div>
+<div id="logListArea" class="log-grid"></div>
+</div>
+
+<div class="card" style="background-color: #fff5f5; border-color: #fee2e2;">
+<div class="card-title text-red-600">🗑️ 회원 관리</div>
+<select id="memberSelectManage" class="input-gap"><option value="">대상 회원 선택</option></select>
+<button onclick="deleteMember()" class="btn-submit bg-red-500">회원 영구 삭제</button>
+</div>
+</div>
 </div>
 
 <div id="levelModal" class="modal-overlay" onclick="toggleModal(false)">
-    <div class="modal-content" onclick="event.stopPropagation()"><div id="levelGuideGrid" class="grid grid-cols-3 gap-2"></div><button onclick="toggleModal(false)" class="w-full mt-4 py-2 bg-gray-800 text-white rounded-lg">닫기</button></div>
+<div class="modal-content" onclick="event.stopPropagation()">
+<h2 class="text-lg font-black mb-5 text-center text-slate-800">📊 산:우리 등급 체계</h2>
+<div id="levelGuideGrid" class="grid grid-cols-3 gap-2"></div>
+<button onclick="toggleModal(false)" class="w-full mt-6 py-3 bg-slate-800 text-white rounded-xl font-bold">닫기</button>
+</div>
 </div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc, increment, query, orderBy, Timestamp, where, getDocs, getDoc, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-const firebaseConfig = { apiKey: "AIzaSyBoAh3V3WrHg_wo53g1LHM0UW3-y6w2deg", authDomain: "san-woori-db.firebaseapp.com", projectId: "san-woori-db", storageBucket: "san-woori-db.firebasestorage.app", messagingSenderId: "387585514110", appId: "1:387585514110:web:44749e6d92769fff6ad62f" };
+const firebaseConfig = {
+apiKey: "AIzaSyBoAh3V3WrHg_wo53g1LHM0UW3-y6w2deg",
+authDomain: "san-woori-db.firebaseapp.com",
+projectId: "san-woori-db",
+storageBucket: "san-woori-db.firebasestorage.app",
+messagingSenderId: "387585514110",
+appId: "1:387585514110:web:44749e6d92769fff6ad62f"
+};
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
@@ -153,126 +194,165 @@ const currentYear = now.getFullYear();
 let selectedQuarter = Math.ceil((now.getMonth() + 1) / 3);
 document.getElementById('yearDisplay').innerText = currentYear + '년';
 
-const levelThresholds = [{ lv: 10, name: "⛰️ 산" }, { lv: 5, name: "🌳 나무" }, { lv: 3, name: "🌿 풀잎" }, { lv: 1, name: "🌱 새싹" }, { lv: 0, name: "🫘 신입" }];
+const levelThresholds = [
+{ lv: 10, name: "⛰️ 산" }, { lv: 5, name: "🌳 나무" }, { lv: 3, name: "🌿 풀잎" }, { lv: 1, name: "🌱 새싹" }, { lv: 0, name: "🫘 신입" }
+];
+
 const getLevelBadge = (lv) => { for (const t of levelThresholds) { if (lv >= t.lv) return t.name; } return "🫘 신입"; };
-const getLevelStyle = (lv) => { if (lv >= 10) return { bg: '#f5f3ff', border: '#ddd6fe', text: '#7c3aed' }; if (lv >= 3) return { bg: '#f8fafc', border: '#94a3b8', text: '#475569' }; return { bg: '#ffffff', border: '#e2e8f0', text: '#94a3b8' }; };
-
-window.showView = (v) => { document.querySelectorAll('.view-content').forEach(e => e.classList.add('hidden')); document.getElementById('view'+v.charAt(0).toUpperCase()+v.slice(1)).classList.remove('hidden'); renderStatusTable(); };
-window.handleAdminTab = () => isAdminLoggedIn ? showView('admin') : showView('login');
-window.loginAdmin = async () => { const pw = document.getElementById('adminPassword').value; const snap = await getDoc(doc(db, "admin_settings", "config")); if (snap.exists() && pw === String(snap.data().admin_pw)) { isAdminLoggedIn = true; showView('admin'); } else { alert("실패"); } };
-
-// 실시간 동기화
-let unsubscribe = null;
-function startRealtimeSync() {
-    if (unsubscribe) unsubscribe();
-    unsubscribe = onSnapshot(collection(db, "sanwoori"), async (snapshot) => {
-        const start = Timestamp.fromDate(new Date(currentYear, (selectedQuarter - 1) * 3, 1));
-        const end = Timestamp.fromDate(new Date(currentYear, selectedQuarter * 3, 1));
-        currentData = await Promise.all(snapshot.docs.map(async (docSnap) => {
-            const m = { id: docSnap.id, ...docSnap.data() };
-            const lSnap = await getDocs(query(collection(db, `sanwoori/${m.id}/logs`), where("date", ">=", start), where("date", "<", end)));
-            m.qCount = lSnap.size; return m;
-        }));
-        updateAdminMemberLists(); renderStatusTable();
-    });
-}
-
-window.renderStatusTable = () => {
-    const list = document.getElementById('statusList');
-    list.innerHTML = "";
-    const todayNum = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-
-    currentData.forEach(m => {
-        const last = m.lastDate.toDate();
-        const diff = Math.floor((todayNum - new Date(last.getFullYear(), last.getMonth(), last.getDate()).getTime()) / 86400000);
-        const dday = ((m.level === 0 ? 30 : 122) + (m.bonusDays || 0)) - diff;
-        
-        let dStyle = "dday-normal";
-        if (dday <= 10) dStyle = "dday-10";
-        else if (dday <= 20) dStyle = "dday-20";
-        else if (dday <= 30) dStyle = "dday-30";
-
-        const style = getLevelStyle(m.level);
-        list.innerHTML += `<tr class="border-b border-gray-50">
-            <td class="text-xs font-bold">${m.name}</td>
-            <td class="flex justify-center py-2"><div class="badge-level"><div class="badge-icon-box" style="background:${style.bg}; border-color:${style.border};"><span class="badge-icon-txt">${getLevelBadge(m.level)}</span></div><span class="badge-lv-txt" style="color:${style.text}">Lv ${m.level}</span></div></td>
-            <td class="text-xs font-bold">${m.qCount}회</td>
-            <td><span class="dday-box ${dStyle}">${dday >= 0 ? 'D-'+dday : '+'+Math.abs(dday)}</span></td>
-        </tr>`;
-    });
+const getLevelStyle = (lv) => {
+if (lv >= 10) return { bg: '#f5f3ff', border: '#ddd6fe', text: '#7c3aed' };
+if (lv >= 3) return { bg: '#f8fafc', border: '#94a3b8', text: '#475569' };
+return { bg: '#ffffff', border: '#e2e8f0', text: '#94a3b8' };
 };
 
-// 기록 삭제 및 날짜 동기화 핵심 함수
+window.showView = (v) => {
+document.querySelectorAll('.view-content').forEach(e => e.classList.add('hidden'));
+document.getElementById('view'+v.charAt(0).toUpperCase()+v.slice(1)).classList.remove('hidden');
+renderStatusTable();
+};
+
+window.handleAdminTab = () => isAdminLoggedIn ? showView('admin') : showView('login');
+window.loginAdmin = async () => {
+const passwordInput = document.getElementById('adminPassword').value;
+const adminSnap = await getDoc(doc(db, "admin_settings", "config"));
+if (adminSnap.exists() && passwordInput === String(adminSnap.data().admin_pw)) { isAdminLoggedIn = true; showView('admin'); } else { alert("비밀번호 불일치"); }
+};
+
+window.changeQuarter = (q) => { selectedQuarter = q; document.querySelectorAll('.q-btn').forEach((btn, idx) => btn.classList.toggle('active-q', idx + 1 === q)); startRealtimeSync(); };
+
+window.renderStatusTable = () => {
+const list = document.getElementById('statusList');
+const search = document.getElementById('searchInput').value.trim();
+const sort = document.getElementById('statusSortOrder').value;
+list.innerHTML = "";
+const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+
+let processedData = currentData.map(m => {
+const last = m.lastDate.toDate();
+const diff = Math.floor((today - new Date(last.getFullYear(), last.getMonth(), last.getDate()).getTime()) / 86400000);
+return { ...m, ddayVal: ((m.level === 0 ? 30 : 122) + (m.bonusDays || 0)) - diff };
+});
+
+processedData.sort((a, b) => {
+if (sort === 'qCount') return b.qCount - a.qCount || b.level - a.level;
+if (sort === 'level') return b.level - a.level || b.qCount - a.qCount;
+if (sort === 'name') return a.name.localeCompare(b.name, 'ko');
+if (sort === 'dday') return a.ddayVal - b.ddayVal;
+return 0;
+});
+
+processedData.forEach((m) => {
+if (!m.name.includes(search)) return;
+const style = getLevelStyle(m.level);
+const dday = m.ddayVal;
+let ddayClass = "dday-normal";
+
+// 알림 조건 설정
+if (dday <= 10) ddayClass = "dday-10";
+else if (m.level > 0 && dday <= 20) ddayClass = "dday-20";
+else if (m.level > 0 && dday <= 30) ddayClass = "dday-30";
+
+list.innerHTML += `<tr class="border-b border-gray-50">
+<td class="text-xs text-center font-bold">${m.name}</td>
+<td class="flex justify-center py-2"><div class="badge-level"><div class="badge-icon-box" style="background:${style.bg}; border-color:${style.border};"><span class="badge-icon-txt">${getLevelBadge(m.level)}</span></div><span class="badge-lv-txt" style="color:${style.text}">Lv ${m.level}</span></div></td>
+<td class="text-xs font-bold text-slate-600">${m.qCount}회</td>
+<td class="text-center"><span class="dday-badge ${ddayClass}">${dday >= 0 ? `D-${dday}` : `+${Math.abs(dday)}일`}</span></td></tr>`;
+});
+};
+
+let unsubscribe = null;
+function startRealtimeSync() {
+if (unsubscribe) unsubscribe();
+unsubscribe = onSnapshot(collection(db, "sanwoori"), async (snapshot) => {
+const start = Timestamp.fromDate(new Date(currentYear, (selectedQuarter - 1) * 3, 1));
+const end = Timestamp.fromDate(new Date(currentYear, selectedQuarter * 3, 1));
+const results = await Promise.all(snapshot.docs.map(async (docSnap) => {
+const m = { id: docSnap.id, ...docSnap.data() };
+const lSnap = await getDocs(query(collection(db, `sanwoori/${m.id}/logs`), where("date", ">=", start), where("date", "<", end)));
+m.qCount = lSnap.size; return m;
+}));
+currentData = results;
+updateAdminMemberLists(); renderStatusTable();
+});
+}
+
+// 기록 삭제 시 이전 날짜 복구 핵심 로직
 window.deleteLog = async (mId, logId) => {
-    if (!confirm("이 기록을 삭제하시겠습니까? (레벨 차감 및 날짜 자동 계산)")) return;
-    const downAmount = parseInt(document.querySelector('input[name="downAmount"]:checked').value);
-    
-    // 1. 로그 삭제
-    await deleteDoc(doc(db, `sanwoori/${mId}/logs`, logId));
+if(confirm("이 기록을 삭제하시겠습니까? (레벨 차감 및 날짜가 이전 기록으로 복구됩니다)")) {
+// 1. 로그 삭제
+await deleteDoc(doc(db, `sanwoori/${mId}/logs`, logId));
 
-    // 2. 가장 최신 로그 다시 가져오기
-    const lastLogQuery = query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc"), limit(1));
-    const lastLogSnap = await getDocs(lastLogQuery);
-    
-    let newLastDate;
-    if (!lastLogSnap.empty) {
-        newLastDate = lastLogSnap.docs[0].data().date;
-    } else {
-        // 기록이 하나도 없으면 초기 가입일(또는 현재)로 설정 (이 부분은 필요에 따라 가입일 필드를 따로 써도 됨)
-        newLastDate = Timestamp.now();
-    }
+// 2. 남은 로그 중 가장 최근 기록 찾기
+const lastLogQuery = query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc"), limit(1));
+const lastLogSnap = await getDocs(lastLogQuery);
 
-    // 3. 회원 정보 업데이트 (레벨 차감 및 날짜 갱신)
-    await updateDoc(doc(db, "sanwoori", mId), {
-        level: increment(-downAmount),
-        lastDate: newLastDate
-    });
+let newLastDate;
+if (!lastLogSnap.empty) {
+newLastDate = lastLogSnap.docs[0].data().date;
+} else {
+// 로그가 하나도 없을 경우 회원 등록일(또는 현재 기준 아주 먼 과거)로 초기화
+const mDoc = await getDoc(doc(db, "sanwoori", mId));
+newLastDate = mDoc.data().regDate || Timestamp.now();
+}
 
-    alert("삭제 및 날짜 복구가 완료되었습니다.");
-    loadMemberLogs();
+// 3. 회원 레벨 차감 및 날짜 업데이트
+const downVal = parseInt(document.querySelector('input[name="downAmount"]:checked').value);
+await updateDoc(doc(db, "sanwoori", mId), { 
+level: increment(-downVal),
+lastDate: newLastDate 
+});
+
+alert("기록 삭제 및 날짜 복구 완료");
+loadMemberLogs();
+}
 };
 
 window.addMultiActivity = async () => {
-    const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
-    const dateVal = document.getElementById('activityDate').value;
-    const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
-    for(const id of selectedMemberIds){
-        const mRef = doc(db, "sanwoori", id);
-        const mSnap = await getDoc(mRef);
-        let updateObj = { level: increment(up) };
-        if(ts.toDate() > mSnap.data().lastDate.toDate()) updateObj.lastDate = ts;
-        await updateDoc(mRef, updateObj);
-        for(let i=0; i<up; i++) await addDoc(collection(db, `sanwoori/${id}/logs`), { date: ts });
-    }
-    selectedMemberIds.clear(); alert("저장 완료");
+if(!selectedMemberIds.size) { alert("회원을 선택해주세요."); return; }
+const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
+const dateVal = document.getElementById('activityDate').value;
+const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
+
+for(const id of selectedMemberIds){
+const mS = await getDoc(doc(db, "sanwoori", id));
+let upObj = { level: increment(up) };
+if(ts.toDate() > mS.data().lastDate.toDate()) upObj.lastDate = ts;
+await updateDoc(doc(db, "sanwoori", id), upObj);
+for(let i=0; i < up; i++) { await addDoc(collection(db, `sanwoori/${id}/logs`), { date: ts }); }
+}
+selectedMemberIds.clear(); alert("기록 저장 완료");
 };
 
 window.loadMemberLogs = async () => {
-    const id = document.getElementById('memberSelectEdit').value;
-    const area = document.getElementById('logListArea');
-    area.innerHTML = ""; if(!id) return;
-    const snap = await getDocs(query(collection(db, `sanwoori/${id}/logs`), orderBy("date", "desc")));
-    snap.forEach(ld => { 
-        const d = ld.data().date.toDate();
-        area.innerHTML += `<div class="log-item-box"><div class="text-[10px] font-bold mb-1">${d.getMonth()+1}/${d.getDate()}</div><button onclick="deleteLog('${id}','${ld.id}')" class="text-[10px] text-red-500 font-black">삭제</button></div>`; 
-    });
+const id = document.getElementById('memberSelectEdit').value; const area = document.getElementById('logListArea'); area.innerHTML = ""; if(!id) return;
+const snap = await getDocs(query(collection(db, `sanwoori/${id}/logs`), orderBy("date", "desc")));
+snap.forEach(ld => { 
+const d = ld.data().date.toDate();
+area.innerHTML += `<div class="log-item-box"><span class="text-[0.65rem] font-bold text-gray-500">${d.getMonth()+1}/${d.getDate()}</span><button class="bg-red-50 text-red-500 text-[0.6rem] px-2 py-1 rounded font-bold" onclick="deleteLog('${id}', '${ld.id}')">삭제</button></div>`; 
+});
 };
 
 window.updateAdminMemberLists = () => {
-    const multi = document.getElementById('multiMemberList');
-    const edit = document.getElementById('memberSelectEdit');
-    const manage = document.getElementById('memberSelectManage');
-    multi.innerHTML = ""; edit.innerHTML = manage.innerHTML = '<option value="">회원 선택</option>';
-    currentData.sort((a,b)=>a.name.localeCompare(b.name)).forEach(m => {
-        multi.innerHTML += `<div class="member-chip ${selectedMemberIds.has(m.id)?'selected':''}" onclick="toggleSelectMember('${m.id}', this)">${m.name}</div>`;
-        edit.innerHTML += `<option value="${m.id}">${m.name}</option>`;
-        manage.innerHTML += `<option value="${m.id}">${m.name}</option>`;
-    });
+const multi = document.getElementById('multiMemberList');
+const edit = document.getElementById('memberSelectEdit');
+const manage = document.getElementById('memberSelectManage');
+multi.innerHTML = ""; edit.innerHTML = manage.innerHTML = '<option value="">대상 회원 선택</option>';
+[...currentData].sort((a,b)=>a.name.localeCompare(b.name, 'ko')).forEach(m => {
+multi.innerHTML += `<div class="member-chip ${selectedMemberIds.has(m.id)?'selected':''}" onclick="toggleSelectMember('${m.id}', this)">${m.name}</div>`;
+edit.innerHTML += `<option value="${m.id}">${m.name}</option>`;
+manage.innerHTML += `<option value="${m.id}">${m.name}</option>`;
+});
 };
 
-window.toggleSelectMember = (id, el) => { if(selectedMemberIds.has(id)) { selectedMemberIds.delete(id); el.classList.remove('selected'); } else { selectedMemberIds.add(id); el.classList.add('selected'); } };
-window.changeQuarter = (q) => { selectedQuarter = q; document.querySelectorAll('.q-btn').forEach((b,i)=>b.classList.toggle('active-q', i+1===q)); startRealtimeSync(); };
-window.addMember = async () => { const name = document.getElementById('newName').value; const date = document.getElementById('regDate').value; await addDoc(collection(db, "sanwoori"), { name, level: 0, lastDate: Timestamp.fromDate(new Date(date + "T00:00:00")), bonusDays: 0 }); alert("완료"); };
+window.toggleSelectMember = (id, el) => { if(selectedMemberIds.has(id)){selectedMemberIds.delete(id); el.classList.remove('selected');} else {selectedMemberIds.add(id); el.classList.add('selected');}};
+window.addMember = async () => { 
+const name = document.getElementById('newName').value; 
+const date = document.getElementById('regDate').value; 
+const ts = Timestamp.fromDate(new Date(date + "T00:00:00"));
+await addDoc(collection(db, "sanwoori"), { name, level: 0, lastDate: ts, regDate: ts, bonusDays: 0 }); 
+alert("등록 완료"); 
+};
+window.deleteMember = async () => { const id = document.getElementById('memberSelectManage').value; if(id && confirm("삭제하시겠습니까?")) await deleteDoc(doc(db, "sanwoori", id)); };
 window.toggleModal = (s) => document.getElementById('levelModal').style.display = s ? 'flex' : 'none';
 
 document.getElementById('regDate').valueAsDate = document.getElementById('activityDate').valueAsDate = new Date();
