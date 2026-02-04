@@ -3,76 +3,77 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>산우리 - 스마트 활동 관리</title>
+<title>산:우리 - 레벨 시스템</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
 body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: #333; }
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 
-input, select, .btn-submit {
-width: 100% !important; display: block; padding: 12px 16px; border-radius: 12px; font-size: 0.95rem;
-height: 52px; border: 1.5px solid #e2e8f0; outline: none;
-}
+/* 입력창 및 버튼 통일 스타일 */
+input, select, .btn-submit, .up-amount-group { width: 100% !important; display: block; padding: 12px 16px; border-radius: 12px; font-size: 0.95rem; height: 52px; border: 1.5px solid #e2e8f0; outline: none; box-sizing: border-box; }
 .input-gap { margin-bottom: 16px; }
 .btn-submit { font-weight: 800; color: white; border: none; cursor: pointer; transition: 0.2s; margin-top: 10px; }
 
-.q-btn { flex: 1; padding: 8px 0; border-radius: 8px; font-size: 0.75rem; font-weight: 700; border: 1px solid #e2e8f0; background: white; color: #64748b; }
+/* 1up 2up 3up 선택 영역 */
+.up-amount-group { display: flex; padding: 4px; background: #f8fafc; gap: 4px; align-items: stretch; margin-bottom: 16px; }
+.up-amount-group label { flex: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 8px; font-weight: 800; font-size: 0.9rem; color: #64748b; transition: 0.2s; }
+.up-amount-group input[type="radio"] { display: none; }
+.up-amount-group label:has(input:checked) { background: #3b82f6; color: white; }
+
+.q-btn { flex: 1; padding: 6px 0; border-radius: 8px; font-size: 0.7rem; font-weight: 700; border: 1px solid #e2e8f0; background: white; color: #64748b; }
 .active-q { background: #1d4ed8 !important; color: white !important; border-color: #1d4ed8 !important; }
 
 .tab-menu { display: flex; background: #f8fafc; padding: 12px; gap: 10px; border-bottom: 1px solid #e2e8f0; }
 .tab-btn { flex: 1; padding: 14px; border-radius: 12px; font-weight: 700; font-size: 0.95rem; border: 1px solid #e2e8f0; background: white; color: #64748b; }
 .active-tab { background: #3b82f6; color: white; border: none; }
 
-@keyframes green-blink {
-0% { opacity: 1; filter: drop-shadow(0 0 2px #22c55e); transform: scale(1); }
-50% { opacity: 0.3; filter: drop-shadow(0 0 8px #4ade80); transform: scale(1.1); }
-100% { opacity: 1; filter: drop-shadow(0 0 2px #22c55e); transform: scale(1); }
-}
-.green-blinking-emoji {
-display: inline-block;
-animation: green-blink 1.2s infinite ease-in-out;
-color: #22c55e;
-margin-right: 4px;
-}
-
 .card { background: white; border-radius: 20px; border: 1px solid #f1f5f9; padding: 20px; margin: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
-.card-title { font-size: 1.05rem; font-weight: 800; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+.card-title { font-size: 1.05rem; font-weight: 800; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
 
 table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 th { color: #94a3b8; font-size: 0.75rem; padding-bottom: 12px; border-bottom: 2px solid #f8fafc; }
 td { padding: 14px 0; text-align: center; font-weight: 700; vertical-align: middle; }
 
 .rank-badge { font-size: 0.65rem; display: block; margin-bottom: -3px; font-weight: 900; }
-.rank-1 { color: #facc15 !important; } .rank-2 { color: #94a3b8 !important; } .rank-3 { color: #a36a00 !important; }
+.rank-1 { color: #facc15 !important; }
+.rank-2 { color: #94a3b8 !important; }
+.rank-3 { color: #a36a00 !important; }
 
-/* 레벨 뱃지 스타일 */
-.badge-level { display: inline-flex; flex-direction: column; align-items: center; padding: 4px 8px; border-radius: 10px; min-width: 80px; border: 1.5px solid; }
-.badge-icon-txt { font-size: 0.8rem; font-weight: 800; }
-.badge-lv-txt { font-size: 0.6rem; font-weight: 700; }
+/* 레벨 뱃지 공통 디자인 */
+.badge-level { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; }
+.badge-icon-box { padding: 4px 10px; border-radius: 10px; line-height: 1; display: flex; align-items: center; justify-content: center; border-width: 1.5px; }
+.badge-icon-txt { font-size: 0.85rem; }
+.badge-lv-txt { font-size: 0.65rem; font-weight: 800; }
 
-.member-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-.member-item {
-display: flex; justify-content: center; align-items: center; text-align: center;
-font-size: 0.75rem; font-weight: 700; padding: 10px 4px; border-radius: 10px;
-background: white; border: 1.5px solid #e2e8f0; cursor: pointer; transition: 0.15s;
-user-select: none; min-height: 48px;
+/* --- 고레벨 반짝임 효과 --- */
+@keyframes border-glow {
+0% { border-color: #ef4444; box-shadow: 0 0 2px rgba(239, 68, 68, 0.3); }
+50% { border-color: #f87171; box-shadow: 0 0 8px rgba(239, 68, 68, 0.6); }
+100% { border-color: #ef4444; box-shadow: 0 0 2px rgba(239, 68, 68, 0.3); }
 }
-.member-item.selected { background: #3b82f6 !important; border-color: #1d4ed8 !important; color: white !important; }
-.member-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.2; }
+.level-blink { animation: border-glow 1.5s infinite ease-in-out; border-width: 2px !important; }
 
-.is-hidden { background: #f8fafc; border-color: #cbd5e1; opacity: 0.6; }
-.hidden-txt { color: #ef4444; font-size: 0.55rem; font-weight: 800; display: block; }
+.member-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.member-chip { padding: 10px 4px; border: 1px solid #e2e8f0; border-radius: 10px; text-align: center; font-size: 0.7rem; font-weight: 700; cursor: pointer; background: white; transition: 0.2s; color: #64748b; }
+.member-chip.selected { background: #3b82f6 !important; color: white !important; border-color: #3b82f6 !important; opacity: 1 !important; }
+.member-hidden { opacity: 0.4; background: #f1f5f9; border-style: dashed; }
 
-.small-selector { display: flex; justify-content: space-around; background: #f8fafc; padding: 8px; border-radius: 10px; border: 1px solid #e2e8f0; margin-bottom: 12px; }
-.small-selector label { font-size: 0.8rem; font-weight: 800; display: flex; align-items: center; gap: 4px; cursor: pointer; }
+.log-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 10px; }
+.log-item-box { background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 4px 2px; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.log-date-txt { font-size: 0.6rem; font-weight: 700; color: #64748b; }
+.del-btn-mini { background: #fee2e2; color: #ef4444; width: 90%; padding: 2px 0; border-radius: 4px; font-size: 0.55rem; font-weight: 800; }
 
-.log-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 10px; }
-.log-item-box { background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.log-date-txt { font-size: 0.6rem; font-weight: 800; color: #64748b; }
-.del-btn-mini { background: #fee2e2; color: #ef4444; width: 85%; padding: 2px 0; border-radius: 4px; font-size: 0.55rem; font-weight: 800; }
+.sort-select { height: 40px !important; padding: 0 8px !important; font-size: 0.75rem !important; border-radius: 10px !important; width: 110px !important; border-color: #cbd5e1 !important; }
+.search-input { height: 40px !important; font-size: 0.75rem !important; border-radius: 10px !important; }
 
-.sort-select { height: 40px; padding: 0 10px; font-size: 0.75rem; border-radius: 10px; border-color: #cbd5e1; width: auto !important; }
+@keyframes blink-warning {
+0% { color: #f97316; opacity: 1; }
+50% { color: #ef4444; opacity: 0.7; }
+100% { color: #f97316; opacity: 1; }
+}
+.dday-blink { animation: blink-warning 0.8s infinite; font-weight: 900; }
+.admin-only-badge { font-size: 0.55rem; color: #94a3b8; border: 1px solid #e2e8f0; padding: 1px 3px; border-radius: 4px; margin-left: 2px; }
 </style>
 </head>
 <body>
@@ -84,17 +85,20 @@ user-select: none; min-height: 48px;
 </div>
 
 <div id="viewStatus" class="view-content p-6">
-<h1 class="text-xl font-extrabold mb-4 text-slate-800 flex items-center">
-<span class="green-blinking-emoji">●</span> 실시간 등급표 (<span id="yearDisplay"></span>)
+<h1 class="text-xl font-extrabold mb-4 text-slate-800 flex items-center gap-2">
+<span class="relative flex h-3 w-3"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span><span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span></span>
+산:우리 등급표 (<span id="yearDisplay"></span>)
 </h1>
 <div class="flex gap-2 mb-4">
-<input type="text" id="searchInput" onkeyup="renderStatusTable()" placeholder="🔍 이름 검색..." class="h-10 px-4 rounded-xl flex-1 text-sm bg-gray-50 border-gray-200 outline-none">
-<select id="statusSortOrder" onchange="renderStatusTable()" class="sort-select">
+<input type="text" id="searchInput" onkeyup="renderStatusTable()" placeholder="🔍 이름 검색..." class="search-input bg-gray-50 border-gray-200 flex-1 outline-none focus:border-blue-400">
+<select id="statusSortOrder" onchange="renderStatusTable()" class="sort-select bg-white">
 <option value="qCount">분기 횟수순</option>
 <option value="level">레벨 높은순</option>
+<option value="name">가나다라순</option>
+<option value="dday">남은 날짜순</option>
 </select>
 </div>
-<div id="quarterTabs" class="flex gap-1 mb-6">
+<div id="quarterTabs" class="flex gap-1.5 mb-6 bg-gray-50 p-1.5 rounded-xl border border-gray-100">
 <button id="qBtn1" class="q-btn" onclick="changeQuarter(1)">1분기</button>
 <button id="qBtn2" class="q-btn" onclick="changeQuarter(2)">2분기</button>
 <button id="qBtn3" class="q-btn" onclick="changeQuarter(3)">3분기</button>
@@ -103,10 +107,10 @@ user-select: none; min-height: 48px;
 <table>
 <thead>
 <tr>
-<th class="w-[25%] pr-[15px] text-right">회원명</th>
-<th class="w-[30%]">레벨(Lv)</th>
+<th class="text-right w-[25%] pr-[15px]">회원명</th>
+<th class="w-[30%] text-center">레벨(Lv)</th>
 <th class="w-[20%]">분기횟수</th>
-<th class="w-[25%] pl-[10px] text-left">관리날짜</th>
+<th class="text-left w-[25%] pl-[10px]">남은날짜</th>
 </tr>
 </thead>
 <tbody id="statusList"></tbody>
@@ -114,38 +118,60 @@ user-select: none; min-height: 48px;
 </div>
 
 <div id="viewLogin" class="view-content hidden p-6 text-center">
-<div class="card py-12">
-<h2 class="font-bold mb-6">관리자 인증</h2>
-<input type="password" id="adminPassword" placeholder="비밀번호" class="input-gap text-center">
+<div class="card border-dashed border-2 py-12">
+<h2 class="text-lg font-bold mb-6">관리자 인증</h2>
+<input type="password" id="adminPassword" placeholder="비밀번호 입력" class="text-center input-gap">
 <button onclick="loginAdmin()" class="btn-submit bg-blue-500">인증하기</button>
 </div>
 </div>
 
 <div id="viewAdmin" class="view-content hidden">
-<div class="card"><div class="card-title text-green-600">🆕 신규 회원 등록</div><input type="text" id="newName" placeholder="이름 입력" class="input-gap"><input type="date" id="regDate" class="input-gap"><button onclick="addMember()" class="btn-submit bg-green-500">등록 완료</button></div>
-<div class="card"><div class="card-title text-blue-600">📅 등산 기록 추가</div><input type="text" id="adminSearchInput" onkeyup="filterAdminMemberList()" placeholder="🔍 회원 검색..." class="h-9 px-4 rounded-xl w-full mb-3 text-xs bg-blue-50 border-blue-100 outline-none"><div id="multiMemberList" class="max-h-80 overflow-y-auto border-0 p-1 mb-4 member-grid"></div><div class="small-selector text-blue-800"><label><input type="radio" name="upAmount" value="1" checked> 1up</label><label><input type="radio" name="upAmount" value="2"> 2up</label><label><input type="radio" name="upAmount" value="3"> 3up</label></div><input type="date" id="activityDate" class="input-gap"><button onclick="addMultiActivity()" class="btn-submit bg-blue-500">기록 저장하기</button></div>
-<div class="card" style="background-color: #fffdf0; border-color: #fef3c7;"><div class="card-title text-yellow-700">✏️ 레벨 차감 및 기록 삭제</div><select id="memberSelectEdit" onchange="loadMemberLogs()" class="input-gap"><option value="">대상 회원 선택</option></select><div class="small-selector text-red-600"><label><input type="radio" name="downAmount" value="1" checked> -1</label><label><input type="radio" name="downAmount" value="2"> -2</label><label><input type="radio" name="downAmount" value="3"> -3</label></div><button onclick="onlyDownLevel()" class="w-full bg-orange-500 text-white py-2 rounded-lg font-black text-xs mb-3">레벨만 차감</button><div id="logListArea" class="log-grid"></div></div>
-<div class="card" style="background-color: #fff5f5; border-color: #fee2e2;"><div class="card-title text-red-600">🗑️ 회원 상태 관리</div><select id="memberSelectManage" class="input-gap"><option value="">대상 회원 선택</option></select><button onclick="toggleHideMember()" class="btn-submit bg-gray-600 mb-2 h-10 py-0 text-sm">숨기기/보이기</button><button onclick="deleteMember()" class="btn-submit bg-red-500 h-10 py-0 text-sm">회원 영구 삭제</button></div>
+<div class="card"><div class="card-title text-green-600">🆕 신규 회원 등록</div><input type="text" id="newName" placeholder="회원 이름" class="input-gap"><input type="date" id="regDate" class="input-gap"><button onclick="addMember()" class="btn-submit bg-green-500">등록 완료</button></div>
+<div class="card"><div class="card-title text-blue-600">📅 등산 기록 추가</div><input type="text" id="adminSearchInput" onkeyup="filterAdminMemberList()" placeholder="🔍 회원 검색..." class="h-10 px-4 rounded-xl w-full mb-3 text-xs bg-blue-50 border-blue-100 outline-none"><div id="multiMemberList" class="member-grid max-h-64 overflow-y-auto mb-4 p-1"></div><div class="up-amount-group"><label><input type="radio" name="upAmount" value="1" checked> 1up</label><label><input type="radio" name="upAmount" value="2"> 2up</label><label><input type="radio" name="upAmount" value="3"> 3up</label></div><input type="date" id="activityDate" class="input-gap"><button onclick="addMultiActivity()" class="btn-submit bg-blue-500">기록 저장하기</button></div>
+<div class="card" style="background-color: #fffdf0; border-color: #fef3c7;"><div class="card-title text-yellow-700">✏️ 레벨 차감 및 기록 삭제</div><select id="memberSelectEdit" onchange="loadMemberLogs()" class="input-gap"><option value="">대상 회원 선택</option></select><div class="flex flex-col bg-orange-50 p-3 rounded-xl border border-orange-100 mb-4"><div class="flex justify-around mb-2"><label class="flex items-center gap-1 font-bold text-red-600 text-sm"><input type="radio" name="downAmount" value="1" checked> -1</label><label class="flex items-center gap-1 font-bold text-red-600 text-sm"><input type="radio" name="downAmount" value="2"> -2</label><label class="flex items-center gap-1 font-bold text-red-600 text-sm"><input type="radio" name="downAmount" value="3"> -3</label></div><button onclick="onlyDownLevel()" class="w-full bg-orange-500 text-white py-2 rounded-lg font-black text-xs">기록 삭제 없이 '레벨만' 차감</button></div><div id="logListArea" class="log-grid"></div></div>
+<div class="card" style="background-color: #fff5f5; border-color: #fee2e2;"><div class="card-title text-red-600">🗑️ 회원 상태 및 보너스 관리</div><select id="memberSelectManage" class="input-gap"><option value="">대상 회원 선택</option></select><div class="bg-white p-3 rounded-xl border border-red-100 mb-4"><p class="text-[10px] text-gray-500 mb-2">🎁 D-Day 보너스 일수 (추가 기간)</p><div class="flex gap-2"><input type="number" id="bonusDaysInput" placeholder="일수 입력" class="h-10 text-sm" style="height:40px!important"><button onclick="updateBonusDays()" class="bg-red-400 text-white px-4 rounded-xl text-xs font-bold whitespace-nowrap">보너스 적용</button></div></div><button id="hideBtnTxt" onclick="toggleHideMember()" class="btn-submit bg-gray-600 mb-2 h-10 py-0">숨기기/보이기</button><button onclick="deleteMember()" class="btn-submit bg-red-500 h-10 py-0">회원 영구 삭제</button></div>
 <div class="p-8 text-center"><button onclick="logoutAdmin()" class="text-gray-400 underline font-bold text-sm">로그아웃</button></div>
 </div>
 </div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc, increment, query, orderBy, Timestamp, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc, increment, query, orderBy, Timestamp, where, getDocs, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-const firebaseConfig = { apiKey: "AIzaSyBoAh3V3WrHg_wo53g1LHM0UW3-y6w2deg", authDomain: "san-woori-db.firebaseapp.com", projectId: "san-woori-db", storageBucket: "san-woori-db.firebasestorage.app", messagingSenderId: "387585514110", appId: "1:387585514110:web:44749e6d92769fff6ad62f" };
+const firebaseConfig = {
+apiKey: "AIzaSyBoAh3V3WrHg_wo53g1LHM0UW3-y6w2deg",
+authDomain: "san-woori-db.firebaseapp.com",
+projectId: "san-woori-db",
+storageBucket: "san-woori-db.firebasestorage.app",
+messagingSenderId: "387585514110",
+appId: "1:387585514110:web:44749e6d92769fff6ad62f"
+};
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 let isAdminLoggedIn = false;
 let currentData = [];
-const now = new Date();
-const currentYear = now.getFullYear(); 
-let selectedQuarter = Math.ceil((now.getMonth() + 1) / 3);
 let selectedMemberIds = new Set();
+const now = new Date();
+const currentYear = now.getFullYear();
+let selectedQuarter = Math.ceil((now.getMonth() + 1) / 3);
 
 document.getElementById('yearDisplay').innerText = currentYear + '년';
+
+window.loginAdmin = async () => {
+const passwordInput = document.getElementById('adminPassword').value;
+try {
+const adminRef = doc(db, "admin_settings", "config");
+const adminSnap = await getDoc(adminRef);
+if (adminSnap.exists()) {
+const dbData = adminSnap.data();
+if (passwordInput === String(dbData.admin_pw)) {
+isAdminLoggedIn = true;
+showView('admin');
+} else { alert("비밀번호가 틀립니다."); }
+}
+} catch (e) { alert("로그인 오류: " + e.message); }
+};
 
 const getLevelBadge = (lv) => {
 if (lv >= 100) return "🌌 은하수"; if (lv >= 90) return "🌠 별똥별"; if (lv >= 80) return "💫 타원별";
@@ -156,19 +182,25 @@ if (lv >= 15) return "🏔️ 설산"; if (lv >= 10) return "⛰️ 산"; if (lv
 if (lv >= 3) return "🌿 풀잎"; if (lv >= 1) return "🌱 새싹"; return "🫘 신입";
 };
 
-// 레벨 스타일 지정 (1~3레벨을 0레벨 색상으로 통일)
 const getLevelStyle = (lv) => {
-if (lv >= 15) return { bg: '#f0fdf4', border: '#bbf7d0', text: '#166534', sub: '#22c55e' }; // 15 이상 (녹색계열)
-if (lv >= 4) return { bg: '#faf5ff', border: '#e9d5ff', text: '#6b21a8', sub: '#a855f7' }; // 4~14 (보라계열)
-return { bg: '#f8fafc', border: '#e2e8f0', text: '#475569', sub: '#94a3b8' }; // 0~3 (회색계열)
+// 90-100: 고레벨 (테두리 애니메이션 적용 예정)
+if (lv >= 90) return { bg: '#fff1f2', border: '#f43f5e', text: '#e11d48', blink: true };
+if (lv >= 75) return { bg: '#fff7ed', border: '#fed7aa', text: '#f97316', blink: false };
+if (lv >= 60) return { bg: '#fefce8', border: '#fef08a', text: '#eab308', blink: false };
+if (lv >= 45) return { bg: '#fff1f2', border: '#fecdd3', text: '#f43f5e', blink: false };
+if (lv >= 30) return { bg: '#f0fdf4', border: '#bbf7d0', text: '#16a34a', blink: false };
+if (lv >= 15) return { bg: '#eff6ff', border: '#bfdbfe', text: '#2563eb', blink: false };
+if (lv >= 1) return { bg: '#faf5ff', border: '#e9d5ff', text: '#9333ea', blink: false };
+return { bg: '#f8fafc', border: '#e2e8f0', text: '#94a3b8', blink: false };
 };
 
 window.showView = (v) => {
 document.querySelectorAll('.view-content').forEach(e => e.classList.add('hidden'));
 document.getElementById('view'+v.charAt(0).toUpperCase()+v.slice(1)).classList.remove('hidden');
+renderStatusTable();
 };
+
 window.handleAdminTab = () => isAdminLoggedIn ? showView('admin') : showView('login');
-window.loginAdmin = () => { if(document.getElementById('adminPassword').value === "1221") { isAdminLoggedIn = true; showView('admin'); } else alert("비밀번호 오류"); };
 window.logoutAdmin = () => { isAdminLoggedIn = false; document.getElementById('adminPassword').value=""; showView('status'); };
 
 window.changeQuarter = (q) => {
@@ -182,152 +214,253 @@ const list = document.getElementById('statusList');
 const searchTerm = document.getElementById('searchInput').value.trim();
 const sortKey = document.getElementById('statusSortOrder').value;
 list.innerHTML = "";
+const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
 
-const rankSortedData = [...currentData].filter(m => !m.isHidden && m.name !== "오즈").sort((a, b) => b.qCount - a.qCount || b.level - a.level);
-const topNames = rankSortedData.slice(0, 3).map(m => m.name);
-
-const displayData = [...currentData].sort((a, b) => {
-if (sortKey === 'qCount') return b.qCount - a.qCount || b.level - a.level;
-return b.level - a.level || b.qCount - a.qCount;
+let processedData = currentData.map(m => {
+const last = m.lastDate.toDate();
+const lastDay = new Date(last.getFullYear(), last.getMonth(), last.getDate()).getTime();
+const diffDays = Math.floor((today - lastDay) / (1000 * 60 * 60 * 24));
+const bonus = m.bonusDays || 0;
+const limitDays = ((m.level === 0) ? 30 : 122) + bonus;
+return { ...m, ddayVal: limitDays - diffDays };
 });
 
-displayData.filter(m => !m.isHidden && m.name.includes(searchTerm)).forEach((m) => {
-let rTag = ""; let rCls = "";
-if (m.name !== "오즈" && m.qCount > 0) {
-const idx = topNames.indexOf(m.name);
-if (idx === 0) { rTag = "🥇산신령"; rCls = "rank-1"; }
-else if (idx === 1) { rTag = "🥈심마니"; rCls = "rank-2"; }
-else if (idx === 2) { rTag = "🥉나무꾼"; rCls = "rank-3"; }
-}
-const diff = Math.floor((new Date() - m.lastDate.toDate()) / 86400000);
-const dday = (m.level === 0 ? 30 : 123) - diff;
-const ddayTxt = dday >= 0 ? `D-${dday}` : `+${Math.abs(dday)}일`;
-const st = getLevelStyle(m.level);
+processedData.sort((a, b) => {
+if (sortKey === 'qCount') return b.qCount - a.qCount || b.level - a.level;
+if (sortKey === 'level') return b.level - a.level || b.qCount - a.qCount;
+if (sortKey === 'name') return a.name.localeCompare(b.name, 'ko');
+if (sortKey === 'dday') return a.ddayVal - b.ddayVal;
+return 0;
+});
 
-list.innerHTML += `<tr class="border-b border-gray-50 text-sm">
-<td class="text-[11px] pr-2">${rTag ? `<span class="rank-badge ${rCls}">${rTag}</span>` : ''}<span class="${rCls}">${m.name}</span></td>
-<td>
-    <div class="badge-level" style="background:${st.bg}; border-color:${st.border};">
-        <span class="badge-icon-txt" style="color:${st.text}">${getLevelBadge(m.level)}</span>
-        <span class="badge-lv-txt" style="color:${st.sub}">Lv ${m.level}</span>
-    </div>
+const rankSortedData = [...processedData].filter(m => !m.isHidden && m.name !== "오즈").sort((a, b) => b.qCount - a.qCount || b.level - a.level);
+const topNames = rankSortedData.slice(0, 3).map(m => m.name);
+
+processedData.forEach((m) => {
+if (!isAdminLoggedIn && m.isHidden) return;
+if (!m.name.includes(searchTerm)) return;
+
+let rankTag = ""; let rankClass = "";
+if (m.name !== "오즈" && m.qCount > 0 && !m.isHidden) {
+const idx = topNames.indexOf(m.name);
+if (idx === 0) { rankTag = "🥇산신령"; rankClass = "rank-1"; }
+else if (idx === 1) { rankTag = "🥈심마니"; rankClass = "rank-2"; }
+else if (idx === 2) { rankTag = "🥉나무꾼"; rankClass = "rank-3"; }
+}
+
+const dday = m.ddayVal;
+const ddayTxt = dday >= 0 ? `D-${dday}` : `+${Math.abs(dday)}일`;
+let ddayColorClass = "text-gray-400";
+if (m.level > 0) {
+if (dday <= 10) ddayColorClass = "dday-blink";
+else if (dday <= 20) ddayColorClass = "text-red-500 font-black";
+else if (dday <= 30) ddayColorClass = "text-orange-500 font-bold";
+} else {
+if (dday <= 5) ddayColorClass = "dday-blink";
+else if (dday <= 10) ddayColorClass = "text-red-500 font-bold";
+}
+
+const lvStyle = getLevelStyle(m.level);
+const rowOpacity = m.isHidden ? "opacity-40" : "";
+const blinkClass = lvStyle.blink ? "level-blink" : ""; // 반짝임 클래스 추가
+
+list.innerHTML += `<tr class="border-b border-gray-50 text-sm ${rowOpacity}">
+<td class="td-name text-xs">
+${rankTag ? `<span class="rank-badge ${rankClass}">${rankTag}</span>` : ''}
+<span>${m.name}${m.isHidden ? '<span class="admin-only-badge">숨김</span>' : ''}</span>
+</td>
+<td class="flex justify-center">
+<div class="badge-level">
+<div class="badge-icon-box ${blinkClass}" style="background-color: ${lvStyle.bg}; border-color: ${lvStyle.border};">
+<span class="badge-icon-txt">${getLevelBadge(m.level)}</span>
+</div>
+<span class="badge-lv-txt" style="color: ${lvStyle.text};">Lv ${m.level}</span>
+</div>
 </td>
 <td>${m.qCount}회</td>
-<td class="text-left pl-2 text-[10px] ${dday<=10?'text-red-500 font-black':'text-gray-400'}">${ddayTxt}</td>
+<td class="text-left pl-2 text-[11px] ${ddayColorClass}">${ddayTxt}</td>
 </tr>`;
 });
 };
 
-window.filterAdminMemberList = () => {
-const q = document.getElementById('adminSearchInput').value.toLowerCase();
-document.querySelectorAll('.member-item').forEach(item => {
-item.style.display = item.innerText.toLowerCase().includes(q) ? "flex" : "none";
-});
+window.toggleSelectMember = (id, el) => {
+if (selectedMemberIds.has(id)) { selectedMemberIds.delete(id); el.classList.remove('selected'); }
+else { selectedMemberIds.add(id); el.classList.add('selected'); }
 };
 
-window.toggleMemberSelection = (id, element) => {
-if (selectedMemberIds.has(id)) { selectedMemberIds.delete(id); element.classList.remove('selected'); }
-else { selectedMemberIds.add(id); element.classList.add('selected'); }
+window.filterAdminMemberList = () => {
+const q = document.getElementById('adminSearchInput').value.toLowerCase();
+document.querySelectorAll('.member-chip').forEach(chip => {
+chip.style.display = chip.innerText.toLowerCase().includes(q) ? "block" : "none";
+});
 };
 
 let unsubscribe = null;
 function startRealtimeSync() {
 if (unsubscribe) unsubscribe();
 unsubscribe = onSnapshot(collection(db, "sanwoori"), async (snapshot) => {
+/* ... 기존 스타일 및 HTML 구조는 유지 ... */
+
+<script type="module">
+// ... Firebase import 생략 (기존과 동일) ...
+
+let isAdminLoggedIn = false;
+let currentData = [];
+// 연도와 분기를 모두 현재 날짜 기준으로 설정
+const now = new Date();
+const currentYear = now.getFullYear();
+let selectedQuarter = Math.ceil((now.getMonth() + 1) / 3);
+let selectedMemberIds = new Set();
+
+// ... 중략 (getLevelBadge, showView 등 기존 함수) ...
+
+let unsubscribe = null;
+function startRealtimeSync() {
+if (unsubscribe) unsubscribe();
+unsubscribe = onSnapshot(collection(db, "sanwoori"), async (snapshot) => {
 const tempDocs = [];
-// 2026 고정이 아닌 현재 연도(currentYear) 기준으로 자동 설정
+
+// ✅ 수정된 부분: 2026 대신 currentYear를 사용하여 매년 자동으로 갱신됨
 const startDate = Timestamp.fromDate(new Date(currentYear, (selectedQuarter - 1) * 3, 1));
 const endDate = Timestamp.fromDate(new Date(currentYear, selectedQuarter * 3, 1));
 
 for (const d of snapshot.docs) {
 const m = { id: d.id, ...d.data() };
+// 해당 연도/분기의 로그만 필터링하여 카운트
 const logsSnap = await getDocs(query(collection(db, `sanwoori/${m.id}/logs`), where("date", ">=", startDate), where("date", "<", endDate)));
 m.qCount = logsSnap.size;
 tempDocs.push(m);
 }
 
+// ... 이후 렌더링 로직 (기존과 동일) ...
 const alphaSorted = [...tempDocs].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
-const multiList = document.getElementById('multiMemberList');
-const editSelect = document.getElementById('memberSelectEdit');
-const manageSelect = document.getElementById('memberSelectManage');
-
-multiList.innerHTML = "";
-editSelect.innerHTML = manageSelect.innerHTML = '<option value="">대상 회원 선택</option>';
-
-for (const m of alphaSorted) {
-const hideCls = m.isHidden ? 'is-hidden' : '';
-const hideTag = m.isHidden ? '<span class="hidden-txt">(숨김)</span>' : '';
-const isSel = selectedMemberIds.has(m.id) ? 'selected' : '';
-multiList.innerHTML += `<div class="member-item ${hideCls} ${isSel}" onclick="toggleMemberSelection('${m.id}', this)"><span>${m.name}${hideTag}</span></div>`;
-const optTxt = `${m.name}${m.isHidden ? ' (숨김)' : ''}`;
-editSelect.innerHTML += `<option value="${m.id}">${optTxt}</option>`;
-manageSelect.innerHTML += `<option value="${m.id}">${optTxt}</option>`;
-}
+// ... (생략된 multiList, editSelect 업데이트 로직) ...
 currentData = tempDocs;
 renderStatusTable();
 });
 }
 
+// ... 나머지 함수들 유지 ...
+</script>
+
+const dataPromises = snapshot.docs.map(async (docSnap) => {
+const m = { id: docSnap.id, ...docSnap.data() };
+const logsSnap = await getDocs(query(collection(db, `sanwoori/${m.id}/logs`), where("date", ">=", startDate), where("date", "<", endDate)));
+m.qCount = logsSnap.size;
+return m;
+});
+const dataBatch = await Promise.all(dataPromises);
+currentData = dataBatch;
+updateAdminMemberLists();
+renderStatusTable();
+});
+}
+
+function updateAdminMemberLists() {
+const alphaSorted = [...currentData].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+const multiList = document.getElementById('multiMemberList');
+const editSelect = document.getElementById('memberSelectEdit');
+const manageSelect = document.getElementById('memberSelectManage');
+multiList.innerHTML = "";
+editSelect.innerHTML = '<option value="">대상 회원 선택</option>';
+manageSelect.innerHTML = '<option value="">대상 회원 선택</option>';
+alphaSorted.forEach(m => {
+const isSelected = selectedMemberIds.has(m.id);
+const hiddenClass = m.isHidden ? 'member-hidden' : '';
+const hiddenTxt = m.isHidden ? '(숨김)' : '';
+multiList.innerHTML += `<div class="member-chip ${isSelected?'selected':''} ${hiddenClass}" onclick="toggleSelectMember('${m.id}', this)">${m.name} ${hiddenTxt}</div>`;
+editSelect.innerHTML += `<option value="${m.id}">${m.name} ${hiddenTxt}</option>`;
+manageSelect.innerHTML += `<option value="${m.id}">${m.name} ${hiddenTxt}</option>`;
+});
+}
+
 window.addMultiActivity = async () => {
-if(!selectedMemberIds.size) return alert("회원을 선택하세요.");
-const dt = document.getElementById('activityDate').value;
+if(!selectedMemberIds.size) return alert("회원을 선택해주세요.");
+const dateVal = document.getElementById('activityDate').value;
+if(!dateVal) return alert("날짜를 선택해주세요.");
 const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
-const ts = Timestamp.fromDate(dt ? new Date(dt) : new Date());
-for (const mId of selectedMemberIds) {
-await updateDoc(doc(db, "sanwoori", mId), { level: increment(up), lastDate: ts });
-for(let i=0; i<up; i++) await addDoc(collection(db, `sanwoori/${mId}/logs`), { date: ts });
+const d = new Date(dateVal + "T00:00:00");
+const ts = Timestamp.fromDate(d);
+try {
+for (const id of selectedMemberIds) {
+const mRef = doc(db, "sanwoori", id);
+const mSnap = await getDoc(mRef);
+const currentLastDate = mSnap.data().lastDate.toDate();
+let updateObj = { level: increment(up) };
+if (d > currentLastDate) updateObj.lastDate = ts;
+await updateDoc(mRef, updateObj);
+for(let i=0; i<up; i++) await addDoc(collection(db, `sanwoori/${id}/logs`), { date: ts });
 }
 alert("기록 저장 완료");
 selectedMemberIds.clear();
+} catch (e) { alert("오류 발생: " + e.message); }
 };
 
 window.loadMemberLogs = async () => {
 const id = document.getElementById('memberSelectEdit').value;
-const area = document.getElementById('logListArea'); area.innerHTML = ""; if(!id) return;
+const area = document.getElementById('logListArea');
+area.innerHTML = ""; if(!id) return;
 const snap = await getDocs(query(collection(db, `sanwoori/${id}/logs`), orderBy("date", "desc")));
 snap.forEach(ld => {
 const d = ld.data().date.toDate();
-area.innerHTML += `<div class="log-item-box"><span class="log-date-txt">${d.getMonth()+1}.${d.getDate()}</span><button class="del-btn-mini" onclick="deleteLog('${id}', '${ld.id}')">삭제</button></div>`;
+const fmt = `${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+area.innerHTML += `<div class="log-item-box"><span class="log-date-txt">${fmt}</span><button class="del-btn-mini" onclick="deleteLog('${id}', '${ld.id}')">삭제</button></div>`;
 });
 };
 
 window.deleteLog = async (mId, logId) => {
-const dn = parseInt(document.querySelector('input[name="downAmount"]:checked').value);
-if(!confirm("삭제하시겠습니까?")) return;
+const downVal = parseInt(document.querySelector('input[name="downAmount"]:checked').value);
+if(!confirm(`기록 삭제 및 레벨 ${downVal} 차감?`)) return;
 await deleteDoc(doc(db, `sanwoori/${mId}/logs`, logId));
-await updateDoc(doc(db, "sanwoori", mId), { level: increment(-dn) });
+await updateDoc(doc(db, "sanwoori", mId), { level: increment(-downVal) });
 loadMemberLogs();
 };
 
 window.onlyDownLevel = async () => {
 const id = document.getElementById('memberSelectEdit').value;
-const dn = parseInt(document.querySelector('input[name="downAmount"]:checked').value);
+const downVal = parseInt(document.querySelector('input[name="downAmount"]:checked').value);
 if(!id) return alert("회원 선택");
-await updateDoc(doc(db, "sanwoori", id), { level: increment(-dn) });
+await updateDoc(doc(db, "sanwoori", id), { level: increment(-downVal) });
 alert("레벨 차감 완료");
 };
 
-window.toggleHideMember = async () => {
+window.updateBonusDays = async () => {
 const id = document.getElementById('memberSelectManage').value;
-if(!id) return alert("회원 선택");
-const m = currentData.find(x => x.id === id);
-await updateDoc(doc(db, "sanwoori", id), { isHidden: !m.isHidden });
+const bonus = parseInt(document.getElementById('bonusDaysInput').value) || 0;
+if(!id) return alert("회원을 선택해주세요.");
+await updateDoc(doc(db, "sanwoori", id), { bonusDays: bonus });
+alert("보너스 일수가 적용되었습니다.");
+document.getElementById('bonusDaysInput').value = "";
 };
 
 window.deleteMember = async () => {
 const id = document.getElementById('memberSelectManage').value;
-if(id && confirm("영구 삭제하시겠습니까?")) await deleteDoc(doc(db, "sanwoori", id));
+if(id && confirm("데이터를 영구 삭제하시겠습니까?")) await deleteDoc(doc(db, "sanwoori", id));
+};
+
+window.toggleHideMember = async () => {
+const id = document.getElementById('memberSelectManage').value;
+if(!id) return alert("회원을 선택해주세요.");
+const m = currentData.find(x => x.id === id);
+const newStatus = !m.isHidden;
+await updateDoc(doc(db, "sanwoori", id), { isHidden: newStatus });
+alert(newStatus ? "회원이 숨김 처리되었습니다." : "회원이 다시 표시됩니다.");
 };
 
 window.addMember = async () => {
 const name = document.getElementById('newName').value;
 const date = document.getElementById('regDate').value;
-if(name) { await addDoc(collection(db, "sanwoori"), { name, level: 0, lastDate: Timestamp.fromDate(date?new Date(date):new Date()), isHidden: false }); document.getElementById('newName').value = ""; alert("등록 완료"); }
+if(!name) return;
+const d = date ? new Date(date + "T00:00:00") : new Date();
+await addDoc(collection(db, "sanwoori"), { name, level: 0, lastDate: Timestamp.fromDate(d), isHidden: false, bonusDays: 0 });
+document.getElementById('newName').value = "";
+alert("회원 등록 완료");
 };
 
 document.getElementById('regDate').valueAsDate = new Date();
 document.getElementById('activityDate').valueAsDate = new Date();
 changeQuarter(selectedQuarter);
+
 </script>
 </body>
 </html>
