@@ -21,7 +21,7 @@ input, select, .btn-submit, .up-amount-group { width: 100% !important; display: 
 .slogan-txt { font-size: 0.65rem; font-weight: 700; margin-left: 6px; align-self: flex-end; margin-bottom: 4px; background: linear-gradient(135deg, #10b981 0%, #3b82f6 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: slogan-blink 2s infinite ease-in-out; }
 @keyframes slogan-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 .year-selector { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-.year-select-custom { padding: 4px 12px; border-radius: 20px; background: #f1f5f9; font-weight: 800; font-size: 0.8rem; color: #1e293b; border: 1px solid #e2e8f0; cursor: pointer; height: 32px !important; width: auto !important; -webkit-appearance: none; appearance: none; }
+.year-select-custom { padding: 4px 12px; border-radius: 20px; background: #f1f5f9; font-weight: 800; font-size: 0.8rem; color: #1e293b; border: 1px solid #e2e8f0; cursor: pointer; height: 32px !important; width: auto !important; -webkit-appearance: none; appearance: none; text-align: center; }
 #quarterTabs { display: flex; gap: 6px; margin-bottom: 16px; background: #f1f5f9; padding: 4px; border-radius: 30px; border: 1px solid #e2e8f0; width: 100%; }
 .q-btn { flex: 1; padding: 5px 0; border-radius: 20px; font-size: 0.7rem; font-weight: 800; border: none; background: transparent; color: #94a3b8; transition: 0.3s; cursor: pointer; }
 .active-q { background: white !important; color: #3b82f6 !important; box-shadow: 0 2px 5px rgba(0,0,0,0.08); }
@@ -76,7 +76,7 @@ td { padding: 14px 0; text-align: center; vertical-align: middle; }
 .level-blink-yellow { animation: glow-yellow 1.8s infinite ease-in-out; border-width: 1.8px !important; }
 .control-bar { display: flex; gap: 8px; margin-bottom: 12px; height: 40px; align-items: center; }
 .search-input { height: 100% !important; font-size: 0.8rem !important; flex: 2; border-radius: 10px !important; }
-.level-info-btn, .sort-select { height: 100% !important; flex: 1; border-radius: 10px !important; font-size: 0.75rem !important; font-weight: 800; border: 1px solid #e2e8f0 !important; cursor: pointer; text-align: center; }
+.level-info-btn, .sort-select { height: 100% !important; flex: 1; border-radius: 10px !important; font-size: 0.75rem !important; font-weight: 800; border: 1px solid #e2e8f0 !important; cursor: pointer; text-align: center; -webkit-appearance: none; appearance: none; }
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 100; padding: 15px; }
 .modal-content { background: white; border-radius: 24px; width: 100%; max-width: 440px; max-height: 90vh; overflow-y: auto; position: relative; padding: 20px; }
 .guide-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
@@ -229,13 +229,12 @@ const db = getFirestore(app);
 
 let isAdminLoggedIn = false;
 let currentData = [];
-let prevBadges = {}; // 이전 등급 마크 저장용
+let prevBadges = {}; 
 let selectedMemberIds = new Set();
 const now = new Date();
 let selectedYear = now.getFullYear();
 let selectedQuarter = Math.ceil((now.getMonth() + 1) / 3);
 
-// 등급 데이터
 const levelThresholds = [
 { lv: 100, name: "🌌 은하수" }, { lv: 90, name: "🌠 별똥별" }, { lv: 80, name: "💫 타원별" },
 { lv: 70, name: "🌟 황금별" }, { lv: 60, name: "⭐️ 별" }, { lv: 50, name: "☀️ 해" },
@@ -270,7 +269,6 @@ if (dday <= 30) return "dday-yellow";
 return "bg-gray-soft";
 };
 
-// 실시간 테이블 렌더링
 window.renderStatusTable = () => {
 const list = document.getElementById('statusList');
 const search = document.getElementById('searchInput').value.trim();
@@ -285,7 +283,6 @@ const limitDays = (m.level === 0 ? 30 : 122);
 return { ...m, ddayVal: (limitDays + (m.bonusDays || 0)) - diff };
 });
 
-// 정렬 로직
 processedData.sort((a, b) => {
 if (sort === 'qCount') return b.qCount - a.qCount || b.level - a.level;
 if (sort === 'level') return b.level - a.level || b.qCount - a.qCount;
@@ -331,19 +328,31 @@ list.innerHTML += `<tr class="border-b border-gray-50 ${m.isHidden ? 'opacity-40
 });
 };
 
-// 등급 변경 감지 함수
-function checkBadgeChange(newData) {
+// 등급 변경 및 클립보드 복사 함수
+async function checkBadgeChange(newData) {
 newData.forEach(member => {
-const currentBadge = getLevelBadge(member.level);
-const oldBadge = prevBadges[member.id];
-if (oldBadge && oldBadge !== currentBadge) {
-alert(`🎉 [등급 변경 알림]\n'${member.name}'님의 마크가\n[${oldBadge}] → [${currentBadge}]로 변경되었습니다!`);
+const currentBadgeFull = getLevelBadge(member.level);
+const oldBadgeFull = prevBadges[member.id];
+
+// 🫘 신입 같은 이모지+이름에서 이모지 추출 (첫 2바이트 혹은 이모지 부분)
+const emojiOnly = currentBadgeFull.split(' ')[0];
+const nameOnly = currentBadgeFull.split(' ')[1] || "";
+
+if (oldBadgeFull && oldBadgeFull !== currentBadgeFull) {
+const msg = `${member.name}님이 ${member.level}레벨로 ${emojiOnly} ${nameOnly} 마크를 획득하셨습니다 축하드립니다 🎉`;
+// 클립보드 복사
+if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(msg).then(() => {
+        alert(`🎉 [등급 변경 알림]\n\n"${msg}"\n\n문구가 복사되었습니다!`);
+    });
+} else {
+    alert(`🎉 [등급 변경 알림]\n\n${msg}`);
 }
-prevBadges[member.id] = currentBadge;
+}
+prevBadges[member.id] = currentBadgeFull;
 });
 }
 
-// 데이터 동기화
 let unsubscribe = null;
 function startRealtimeSync() {
 if (unsubscribe) unsubscribe();
@@ -356,14 +365,13 @@ const lSnap = await getDocs(query(collection(db, `sanwoori/${m.id}/logs`), where
 m.qCount = lSnap.size;
 return m;
 }));
-checkBadgeChange(results); // 마크 변경 감지
+checkBadgeChange(results);
 currentData = results;
 updateAdminMemberLists();
 renderStatusTable();
 });
 }
 
-// 방문자 카운트 및 기타 관리자 기능 (기존 로직 통합)
 async function updateVisitorCount() {
 const todayStr = new Date().toISOString().split('T')[0];
 const statsRef = doc(db, "site_stats", "visitors");
@@ -378,7 +386,6 @@ onSnapshot(doc(db, "site_stats", "visitors"), (s) => { if(s.exists()) document.g
 onSnapshot(doc(db, "site_stats", `day_${todayStr}`), (s) => { if(s.exists()) document.getElementById('todayHits').innerText = s.data().count ? s.data().count.toLocaleString() : "0"; });
 }
 
-// 초기화 실행
 if (!sessionStorage.getItem('visited')) { updateVisitorCount(); sessionStorage.setItem('visited', 'true'); }
 listenVisitors();
 document.getElementById('regDate').valueAsDate = document.getElementById('activityDate').valueAsDate = new Date();
@@ -402,7 +409,6 @@ else { alert("비밀번호 불일치"); }
 };
 window.logoutAdmin = () => { isAdminLoggedIn = false; document.getElementById('adminPassword').value=""; showView('status'); };
 
-// 관리자 액션 함수들
 window.updateMemberName = async () => {
 const id = document.getElementById('memberSelectEdit').value;
 const newName = document.getElementById('editMemberNameInput').value.trim();
@@ -487,7 +493,6 @@ manage.innerHTML += `<option value="${m.id}">${m.name}${m.isHidden?' (숨김)':'
 });
 }
 
-// 쿼터 시작
 changeQuarter(selectedQuarter);
 </script>
 </body>
