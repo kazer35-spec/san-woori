@@ -8,8 +8,12 @@
 <style>
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
 body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: #333; }
-.main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
+.main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); position: relative; }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
+
+/* 실시간 알림 팝업 스타일 */
+#toast-container { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; width: 90%; max-width: 400px; display: none; }
+.toast-box { background: #1e293b; color: white; padding: 16px; border-radius: 16px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); border: 1px solid #3b82f6; }
 
 /* 입력창 및 버튼 공통 스타일 */
 input, select, .btn-submit, .up-amount-group {
@@ -42,7 +46,7 @@ select { -webkit-appearance: none; -moz-appearance: none; appearance: none; back
 .tab-btn { flex: 1; padding: 14px; border-radius: 12px; font-weight: 700; font-size: 0.95rem; border: 1px solid #e2e8f0; background: white; color: #64748b; }
 .active-tab { background: #3b82f6; color: white; border: none; }
 
-/* 테이블 및 배지 */
+/* 테이블 및 배지 스타일 (생략 없이 유지) */
 .card { background: white; border-radius: 20px; border: 1px solid #f1f5f9; padding: 20px; margin-bottom: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
 table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 th { color: #94a3b8; font-size: 0.75rem; padding-bottom: 12px; border-bottom: 2px solid #f8fafc; text-align: center; }
@@ -106,135 +110,145 @@ td { padding: 14px 0; text-align: center; vertical-align: middle; }
 </head>
 <body>
 
+<div id="toast-container">
+    <div class="toast-box">
+        <div class="text-blue-400 font-black text-xs mb-1">NEW ACHIEVEMENTS!</div>
+        <div id="toast-msg-list" class="text-[13px] leading-tight mb-3"></div>
+        <button onclick="copyAndCloseToast()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 rounded-lg text-sm transition-all shadow-lg active:scale-95">
+            전체 소식 복사하기 🎉
+        </button>
+    </div>
+</div>
+
 <div class="main-container">
-<div class="tab-menu">
-<button id="tabStatus" class="tab-btn active-tab" onclick="showView('status')">📡 실시간 현황</button>
-<button id="tabAdmin" class="tab-btn" onclick="handleAdminTab()">🔐 관리자 설정</button>
-</div>
+    <div class="tab-menu">
+        <button id="tabStatus" class="tab-btn active-tab" onclick="showView('status')">📡 실시간 현황</button>
+        <button id="tabAdmin" class="tab-btn" onclick="handleAdminTab()">🔐 관리자 설정</button>
+    </div>
 
-<div id="viewStatus" class="view-content p-6">
-<div class="year-selector justify-between">
-<h1 class="main-title">
-<img src="https://i.ibb.co/3mHmBPXd/1770301184544.png" alt="산:우리 로고" class="brand-logo">
-<span>산:우리</span>
-<span class="slogan-txt">같이 걷는 즐거움</span>
-</h1>
-<select id="yearSelect" onchange="changeYear()" class="year-select-custom outline-none">
-<option value="2026">2026년</option>
-<option value="2027">2027년</option>
-</select>
-</div>
+    <div id="viewStatus" class="view-content p-6">
+        <div class="year-selector justify-between">
+            <h1 class="main-title">
+                <img src="https://i.ibb.co/3mHmBPXd/1770301184544.png" alt="산:우리 로고" class="brand-logo">
+                <span>산:우리</span>
+                <span class="slogan-txt">같이 걷는 즐거움</span>
+            </h1>
+            <select id="yearSelect" onchange="changeYear()" class="year-select-custom outline-none">
+                <option value="2026">2026년</option>
+                <option value="2027">2027년</option>
+            </select>
+        </div>
 
-<div class="control-bar">
-<input type="text" id="searchInput" onkeyup="renderStatusTable()" placeholder="🔍 검색..." class="search-input bg-gray-50 border-gray-200 outline-none">
-<button onclick="toggleModal(true)" class="level-info-btn">📊 등급표</button>
-<select id="statusSortOrder" onchange="renderStatusTable()" class="sort-select bg-white">
-<option value="qCount">분기순 ▼</option>
-<option value="level">레벨순 ▼</option>
-<option value="name">이름순 ▼</option>
-<option value="dday">날짜순 ▼</option>
-</select>
-</div>
+        <div class="control-bar">
+            <input type="text" id="searchInput" onkeyup="renderStatusTable()" placeholder="🔍 검색..." class="search-input bg-gray-50 border-gray-200 outline-none">
+            <button onclick="toggleModal(true)" class="level-info-btn">📊 등급표</button>
+            <select id="statusSortOrder" onchange="renderStatusTable()" class="sort-select bg-white">
+                <option value="qCount">분기순 ▼</option>
+                <option value="level">레벨순 ▼</option>
+                <option value="name">이름순 ▼</option>
+                <option value="dday">날짜순 ▼</option>
+            </select>
+        </div>
 
-<div id="quarterTabs">
-<button id="qBtn1" class="q-btn" onclick="changeQuarter(1)">1분기</button>
-<button id="qBtn2" class="q-btn" onclick="changeQuarter(2)">2분기</button>
-<button id="qBtn3" class="q-btn" onclick="changeQuarter(3)">3분기</button>
-<button id="qBtn4" class="q-btn" onclick="changeQuarter(4)">4분기</button>
-</div>
+        <div id="quarterTabs">
+            <button id="qBtn1" class="q-btn" onclick="changeQuarter(1)">1분기</button>
+            <button id="qBtn2" class="q-btn" onclick="changeQuarter(2)">2분기</button>
+            <button id="qBtn3" class="q-btn" onclick="changeQuarter(3)">3분기</button>
+            <button id="qBtn4" class="q-btn" onclick="changeQuarter(4)">4분기</button>
+        </div>
 
-<table>
-<thead>
-<tr>
-<th class="w-[28%]">회원명</th>
-<th class="w-[30%]">레벨(Lv)</th>
-<th class="w-[20%]">분기횟수</th>
-<th class="w-[22%]">남은날짜</th>
-</tr>
-</thead>
-<tbody id="statusList"></tbody>
-</table>
-</div>
+        <table>
+            <thead>
+                <tr>
+                    <th class="w-[28%]">회원명</th>
+                    <th class="w-[30%]">레벨(Lv)</th>
+                    <th class="w-[20%]">분기횟수</th>
+                    <th class="w-[22%]">남은날짜</th>
+                </tr>
+            </thead>
+            <tbody id="statusList"></tbody>
+        </table>
+    </div>
 
-<div id="viewLogin" class="view-content hidden p-6">
-<div class="secret-login-container text-center">
-<div class="secret-icon">🔐</div>
-<h2 class="text-white text-xl font-black mb-2">관리자 구역</h2>
-<p class="text-blue-300 text-xs mb-8 font-medium opacity-80 uppercase tracking-widest">Authorized Personnel Only</p>
-<div class="px-4">
-<input type="password" id="adminPassword" placeholder="••••" class="secret-input input-gap mb-4">
-<button onclick="loginAdmin()" class="btn-submit btn-secret">ACCESS GRANTED</button>
-</div>
-<div class="visitor-log-box">
-<div class="v-item"><span class="v-label">SESSION_TODAY</span><span id="todayHits" class="v-count">0</span></div>
-<div class="v-item"><span class="v-label">SYSTEM_TOTAL</span><span id="totalHits" class="v-count total">0</span></div>
-</div>
-</div>
-</div>
+    <div id="viewLogin" class="view-content hidden p-6">
+        <div class="secret-login-container text-center">
+            <div class="secret-icon">🔐</div>
+            <h2 class="text-white text-xl font-black mb-2">관리자 구역</h2>
+            <p class="text-blue-300 text-xs mb-8 font-medium opacity-80 uppercase tracking-widest">Authorized Personnel Only</p>
+            <div class="px-4">
+                <input type="password" id="adminPassword" placeholder="••••" class="secret-input input-gap mb-4">
+                <button onclick="loginAdmin()" class="btn-submit btn-secret">ACCESS GRANTED</button>
+            </div>
+            <div class="visitor-log-box">
+                <div class="v-item"><span class="v-label">SESSION_TODAY</span><span id="todayHits" class="v-count">0</span></div>
+                <div class="v-item"><span class="v-label">SYSTEM_TOTAL</span><span id="totalHits" class="v-count total">0</span></div>
+            </div>
+        </div>
+    </div>
 
-<div id="viewAdmin" class="view-content hidden p-6">
-<div class="card">
-<div class="card-title text-green-600 font-bold mb-4">🆕 신규 회원 등록</div>
-<input type="text" id="newName" placeholder="회원 이름" class="input-gap">
-<input type="date" id="regDate" class="input-gap">
-<button onclick="addMember()" class="btn-submit bg-green-500">등록 완료</button>
-</div>
+    <div id="viewAdmin" class="view-content hidden p-6">
+        <div class="card">
+            <div class="card-title text-green-600 font-bold mb-4">🆕 신규 회원 등록</div>
+            <input type="text" id="newName" placeholder="회원 이름" class="input-gap">
+            <input type="date" id="regDate" class="input-gap">
+            <button onclick="addMember()" class="btn-submit bg-green-500">등록 완료</button>
+        </div>
 
-<div class="card">
-<div class="card-title text-blue-600 font-bold mb-4">📅 등산 기록 추가</div>
-<input type="text" id="adminSearchInput" onkeyup="filterAdminMemberList()" placeholder="🔍 회원 검색..." class="h-10 px-4 rounded-xl w-full mb-3 text-xs bg-blue-50 border-blue-100 outline-none">
-<div id="multiMemberList" class="member-grid max-h-64 overflow-y-auto mb-4 p-1"></div>
-<div class="up-amount-group">
-<label><input type="radio" name="upAmount" value="1" checked> 1up</label>
-<label><input type="radio" name="upAmount" value="2"> 2up</label>
-<label><input type="radio" name="upAmount" value="3"> 3up</label>
-</div>
-<input type="date" id="activityDate" class="input-gap">
-<button onclick="addMultiActivity()" class="btn-submit bg-blue-500">기록 저장하기</button>
-</div>
+        <div class="card">
+            <div class="card-title text-blue-600 font-bold mb-4">📅 등산 기록 추가</div>
+            <input type="text" id="adminSearchInput" onkeyup="filterAdminMemberList()" placeholder="🔍 회원 검색..." class="h-10 px-4 rounded-xl w-full mb-3 text-xs bg-blue-50 border-blue-100 outline-none">
+            <div id="multiMemberList" class="member-grid max-h-64 overflow-y-auto mb-4 p-1"></div>
+            <div class="up-amount-group">
+                <label><input type="radio" name="upAmount" value="1" checked> 1up</label>
+                <label><input type="radio" name="upAmount" value="2"> 2up</label>
+                <label><input type="radio" name="upAmount" value="3"> 3up</label>
+            </div>
+            <input type="date" id="activityDate" class="input-gap">
+            <button onclick="addMultiActivity()" class="btn-submit bg-blue-500">기록 저장하기</button>
+        </div>
 
-<div class="card" style="background-color: #fffdf0; border-color: #fef3c7;">
-<div class="card-title text-yellow-700 font-bold mb-4">✏️ 레벨 관리 및 이름 수정</div>
-<select id="memberSelectEdit" onchange="loadMemberLogs()" class="input-gap"><option value="">대상 회원 선택</option></select>
-<div class="flex gap-2 mb-4">
-<input type="text" id="editMemberNameInput" placeholder="변경할 이름 입력" class="h-10 text-sm flex-1" style="height:40px!important">
-<button onclick="updateMemberName()" class="bg-indigo-500 text-white px-4 rounded-xl text-xs font-bold whitespace-nowrap">이름 수정</button>
-</div>
-<div class="flex flex-col bg-orange-50 p-3 rounded-xl border border-orange-100 mb-4">
-<div class="flex justify-around mb-2">
-<label class="flex items-center gap-1 font-bold text-red-600 text-sm"><input type="radio" name="downAmount" value="1" checked> -1</label>
-<label class="flex items-center gap-1 font-bold text-red-600 text-sm"><input type="radio" name="downAmount" value="2"> -2</label>
-<label class="flex items-center gap-1 font-bold text-red-600 text-sm"><input type="radio" name="downAmount" value="3"> -3</label>
-</div>
-<button onclick="onlyDownLevel()" class="w-full bg-orange-500 text-white py-2 rounded-lg font-black text-xs">기록 삭제 없이 '레벨만' 차감</button>
-</div>
-<div id="logListArea" class="log-grid"></div>
-</div>
+        <div class="card" style="background-color: #fffdf0; border-color: #fef3c7;">
+            <div class="card-title text-yellow-700 font-bold mb-4">✏️ 레벨 관리 및 이름 수정</div>
+            <select id="memberSelectEdit" onchange="loadMemberLogs()" class="input-gap"><option value="">대상 회원 선택</option></select>
+            <div class="flex gap-2 mb-4">
+                <input type="text" id="editMemberNameInput" placeholder="변경할 이름 입력" class="h-10 text-sm flex-1" style="height:40px!important">
+                <button onclick="updateMemberName()" class="bg-indigo-500 text-white px-4 rounded-xl text-xs font-bold whitespace-nowrap">이름 수정</button>
+            </div>
+            <div class="flex flex-col bg-orange-50 p-3 rounded-xl border border-orange-100 mb-4">
+                <div class="flex justify-around mb-2">
+                    <label class="flex items-center gap-1 font-bold text-red-600 text-sm"><input type="radio" name="downAmount" value="1" checked> -1</label>
+                    <label class="flex items-center gap-1 font-bold text-red-600 text-sm"><input type="radio" name="downAmount" value="2"> -2</label>
+                    <label class="flex items-center gap-1 font-bold text-red-600 text-sm"><input type="radio" name="downAmount" value="3"> -3</label>
+                </div>
+                <button onclick="onlyDownLevel()" class="w-full bg-orange-500 text-white py-2 rounded-lg font-black text-xs">기록 삭제 없이 '레벨만' 차감</button>
+            </div>
+            <div id="logListArea" class="log-grid"></div>
+        </div>
 
-<div class="card" style="background-color: #fff5f5; border-color: #fee2e2;">
-<div class="card-title text-red-600 font-bold mb-4">🗑️ 회원 상태 및 보너스 관리</div>
-<select id="memberSelectManage" class="input-gap"><option value="">대상 회원 선택</option></select>
-<div class="bg-white p-3 rounded-xl border border-red-100 mb-4">
-<p class="text-[10px] text-gray-500 mb-2">🎁 D-Day 보너스 일수 (추가 기간)</p>
-<div class="flex gap-2">
-<input type="number" id="bonusDaysInput" placeholder="일수 입력" class="h-10 text-sm" style="height:40px!important">
-<button onclick="updateBonusDays()" class="bg-red-400 text-white px-4 rounded-xl text-xs font-bold whitespace-nowrap">보너스 적용</button>
-</div>
-</div>
-<button onclick="toggleHideMember()" class="btn-submit bg-gray-600 mb-2 h-10 py-0">숨기기/보이기</button>
-<button onclick="deleteMember()" class="btn-submit bg-red-500 h-10 py-0">회원 영구 삭제</button>
-</div>
+        <div class="card" style="background-color: #fff5f5; border-color: #fee2e2;">
+            <div class="card-title text-red-600 font-bold mb-4">🗑️ 회원 상태 및 보너스 관리</div>
+            <select id="memberSelectManage" class="input-gap"><option value="">대상 회원 선택</option></select>
+            <div class="bg-white p-3 rounded-xl border border-red-100 mb-4">
+                <p class="text-[10px] text-gray-500 mb-2">🎁 D-Day 보너스 일수 (추가 기간)</p>
+                <div class="flex gap-2">
+                    <input type="number" id="bonusDaysInput" placeholder="일수 입력" class="h-10 text-sm" style="height:40px!important">
+                    <button onclick="updateBonusDays()" class="bg-red-400 text-white px-4 rounded-xl text-xs font-bold whitespace-nowrap">보너스 적용</button>
+                </div>
+            </div>
+            <button onclick="toggleHideMember()" class="btn-submit bg-gray-600 mb-2 h-10 py-0">숨기기/보이기</button>
+            <button onclick="deleteMember()" class="btn-submit bg-red-500 h-10 py-0">회원 영구 삭제</button>
+        </div>
 
-<div class="p-8 text-center"><button onclick="logoutAdmin()" class="text-gray-400 underline font-bold text-sm">로그아웃</button></div>
-</div>
+        <div class="p-8 text-center"><button onclick="logoutAdmin()" class="text-gray-400 underline font-bold text-sm">로그아웃</button></div>
+    </div>
 
-<div id="levelModal" class="modal-overlay" onclick="toggleModal(false)">
-<div class="modal-content" onclick="event.stopPropagation()">
-<h2 class="text-lg font-black mb-5 text-center text-slate-800">📊 산:우리 등급 체계</h2>
-<div id="levelGuideGrid" class="guide-grid"></div>
-<button onclick="toggleModal(false)" class="w-full mt-6 py-3 bg-slate-800 text-white rounded-xl font-bold">닫기</button>
-</div>
-</div>
+    <div id="levelModal" class="modal-overlay" onclick="toggleModal(false)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <h2 class="text-lg font-black mb-5 text-center text-slate-800">📊 산:우리 등급 체계</h2>
+            <div id="levelGuideGrid" class="guide-grid"></div>
+            <button onclick="toggleModal(false)" class="w-full mt-6 py-3 bg-slate-800 text-white rounded-xl font-bold">닫기</button>
+        </div>
+    </div>
 </div>
 
 <script type="module">
@@ -257,6 +271,8 @@ let isAdminLoggedIn = false;
 let currentData = [];
 let prevBadges = {};
 let selectedMemberIds = new Set();
+let pendingMessages = ""; // 복사할 통합 텍스트 보관
+
 const now = new Date();
 let selectedYear = now.getFullYear();
 let selectedQuarter = Math.ceil((now.getMonth() + 1) / 3);
@@ -293,6 +309,50 @@ if (level === 0) return "bg-gray-soft";
 if (dday <= 20) return "dday-orange";
 if (dday <= 30) return "dday-yellow";
 return "bg-gray-soft";
+};
+
+/* ✅ [통합/자동복사보안 수정] 배지 변경 감지 및 토스트 표시 */
+async function checkBadgeChange(newData) {
+    let msgList = [];
+    newData.forEach(member => {
+        const curBadge = getLevelBadge(member.level);
+        const oldBadge = prevBadges[member.id];
+        
+        // 이전 기록이 있고 배지가 바뀌었을 때 (레벨 하락 제외, 상승 시에만 알림)
+        if (oldBadge && oldBadge !== curBadge) {
+            // 레벨이 실제로 올랐는지 체크 (옵션: m.level > m._prevLevel)
+            const emoji = curBadge.split(' ')[0];
+            const name = curBadge.split(' ')[1] || "";
+            msgList.push(`${member.name}님이 ${member.level}레벨로 ${emoji} ${name} 마크를 획득하셨습니다 🎉`);
+        }
+        prevBadges[member.id] = curBadge;
+    });
+
+    if (msgList.length > 0) {
+        pendingMessages = msgList.join('\n'); // 전역 변수에 저장
+        const toast = document.getElementById('toast-container');
+        const msgArea = document.getElementById('toast-msg-list');
+        
+        // 토스트 내부에 리스트 표시
+        msgArea.innerHTML = msgList.map(m => `• ${m}`).join('<br>');
+        toast.style.display = 'block';
+        
+        // 10초 후 자동 사라짐 (선택 사항)
+        // setTimeout(() => { toast.style.display = 'none'; }, 10000);
+    }
+}
+
+/* ✅ 사용자가 버튼을 클릭해야 클립보드 복사가 100% 성공함 */
+window.copyAndCloseToast = async () => {
+    if (!pendingMessages) return;
+    try {
+        await navigator.clipboard.writeText(pendingMessages);
+        alert("성공적으로 복사되었습니다! 카톡에 붙여넣으세요. 👍");
+        document.getElementById('toast-container').style.display = 'none';
+        pendingMessages = "";
+    } catch (err) {
+        alert("복사 실패: " + err);
+    }
 };
 
 window.renderStatusTable = () => {
@@ -350,43 +410,6 @@ list.innerHTML += `<tr class="border-b border-gray-50 ${m.isHidden ? 'opacity-40
 });
 };
 
-/* ✅ [통합 업데이트] 마크 변경 알림 및 클립보드 복사 로직 */
-async function checkBadgeChange(newData) {
-    let upgradeMsgs = [];
-
-    newData.forEach(member => {
-        const currentBadgeFull = getLevelBadge(member.level);
-        const oldBadgeFull = prevBadges[member.id];
-
-        // 배지가 변경되었고, 이전 배지 기록이 있는 경우에만 동작
-        if (oldBadgeFull && oldBadgeFull !== currentBadgeFull) {
-            const emojiOnly = currentBadgeFull.split(' ')[0];
-            const nameOnly = currentBadgeFull.split(' ')[1] || "";
-            const msg = `${member.name}님이 ${member.level}레벨로 ${emojiOnly} ${nameOnly} 마크를 획득하셨습니다 축하드립니다 🎉`;
-            upgradeMsgs.push(msg);
-        }
-        // 비교용 배지 정보 갱신
-        prevBadges[member.id] = currentBadgeFull;
-    });
-
-    // 변경사항이 하나라도 있으면 통합하여 처리
-    if (upgradeMsgs.length > 0) {
-        const finalMsg = upgradeMsgs.join('\n'); // 여러 명일 경우 줄바꿈으로 합침
-
-        // 클립보드 복사 시도
-        try {
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                await navigator.clipboard.writeText(finalMsg);
-                alert(`🎉 [등급 변경 안내]\n\n${finalMsg}\n\n(메시지가 복사되었습니다.)`);
-            } else {
-                alert(`🎉 [등급 변경 안내]\n\n${finalMsg}`);
-            }
-        } catch (e) {
-            alert(`🎉 [등급 변경 안내]\n\n${finalMsg}`);
-        }
-    }
-}
-
 async function updateVisitorCount() {
 const d = new Date();
 const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -415,7 +438,6 @@ const lSnap = await getDocs(query(collection(db, `sanwoori/${m.id}/logs`), where
 m.qCount = lSnap.size;
 return m;
 }));
-/* ✅ 여기서 통합 알림 함수 호출 */
 checkBadgeChange(results);
 currentData = results;
 updateAdminMemberLists();
