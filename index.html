@@ -35,6 +35,11 @@ animation: slogan-blink 2s infinite ease-in-out;
 }
 @keyframes slogan-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
+/* 로그인 화면 특수 스타일 */
+.admin-lock-icon { font-size: 3.5rem; margin-bottom: 1rem; display: block; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1)); }
+.secret-input { border: 2px solid #e2e8f0 !important; text-align: center; letter-spacing: 0.5em; font-size: 1.2rem !important; background: #fdfdfd; }
+.secret-input:focus { border-color: #6366f1 !important; box-shadow: 0 0 15px rgba(99, 102, 241, 0.1); }
+
 /* 연도 및 분기 선택 탭 */
 .year-selector { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
 .year-select-custom { padding: 4px 12px; border-radius: 20px; background: #f1f5f9; font-weight: 800; font-size: 0.8rem; color: #1e293b; border: 1px solid #e2e8f0; cursor: pointer; height: 32px !important; width: auto !important; -webkit-appearance: none; appearance: none; }
@@ -161,11 +166,22 @@ td { padding: 14px 0; text-align: center; vertical-align: middle; }
         </table>
     </div>
 
-    <div id="viewLogin" class="view-content hidden p-6 text-center">
-        <div class="card border-dashed border-2 py-12">
-            <h2 class="text-lg font-bold mb-6">관리자 인증</h2>
-            <input type="password" id="adminPassword" placeholder="비밀번호 입력" class="text-center input-gap">
-            <button onclick="loginAdmin()" class="btn-submit bg-blue-500">인증하기</button>
+    <div id="viewLogin" class="view-content hidden p-6 flex items-center justify-center min-h-[70vh]">
+        <div class="card border-2 border-indigo-100 bg-indigo-50/30 w-full py-10 px-8 text-center">
+            <span class="admin-lock-icon">🕵️‍♂️</span>
+            <h2 class="text-xl font-black mb-2 text-indigo-900">제한구역 : 산지기</h2>
+            <p class="text-xs text-indigo-400 mb-8 font-bold">허가된 관리자만 발을 들일 수 있습니다.</p>
+            
+            <div class="relative mb-4">
+                <input type="password" id="adminPassword" placeholder="••••" class="secret-input input-gap">
+            </div>
+            
+            <button onclick="loginAdmin()" class="btn-submit bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-200 flex items-center justify-center gap-2">
+                <span>비밀의 문 열기</span>
+                <span class="text-lg">🗝️</span>
+            </button>
+            
+            <p class="mt-6 text-[10px] text-gray-400 italic">"산 아래의 비밀은 산 위에서 풀린다."</p>
         </div>
     </div>
 
@@ -347,7 +363,6 @@ window.renderStatusTable = () => {
     });
 };
 
-// 관리자 전역 함수들
 window.loginAdmin = async () => {
     const passwordInput = document.getElementById('adminPassword').value;
     const adminSnap = await getDoc(doc(db, "admin_settings", "config"));
@@ -355,7 +370,7 @@ window.loginAdmin = async () => {
         isAdminLoggedIn = true; 
         showView('admin'); 
     } else { 
-        alert("비밀번호 불일치"); 
+        alert("비밀번호가 일치하지 않습니다. 🕵️"); 
     }
 };
 
@@ -454,7 +469,6 @@ window.addMultiActivity = async () => {
     alert(`${up}up 기록 완료.`); selectedMemberIds.clear();
 };
 
-// 공통 UI 함수들
 const getLevelBadge = (lv) => { for (const t of levelThresholds) { if (lv >= t.lv) return t.name; } return "🫘 신입"; };
 window.toggleModal = (show) => {
     const modal = document.getElementById('levelModal');
