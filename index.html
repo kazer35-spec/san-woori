@@ -28,13 +28,13 @@ input, select, .btn-submit, .up-amount-group { width: 100% !important; display: 
     letter-spacing: -0.5px;
 }
 
-/* 연도 및 분기 선택 탭 (크기 축소) */
+/* 연도 및 분기 선택 탭 (수정: 분기 탭 너비 확장) */
 .year-selector { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-.year-select-custom { padding: 4px 12px; border-radius: 20px; background: #f1f5f9; font-weight: 800; font-size: 0.8rem; color: #1e293b; border: 1px solid #e2e8f0; cursor: pointer; height: 32px !important; width: auto !important; }
+.year-select-custom { padding: 4px 12px; border-radius: 20px; background: #f1f5f9; font-weight: 800; font-size: 0.8rem; color: #1e293b; border: 1px solid #e2e8f0; cursor: pointer; height: 32px !important; width: auto !important; -webkit-appearance: none; -moz-appearance: none; appearance: none; }
 
-#quarterTabs { display: flex; gap: 3px; margin-bottom: 20px; background: #f1f5f9; padding: 3px; border-radius: 8px; border: 1px solid #e2e8f0; max-width: 240px; }
-.q-btn { flex: 1; padding: 4px 0; border-radius: 5px; font-size: 0.7rem; font-weight: 700; border: none; background: transparent; color: #94a3b8; transition: 0.2s; cursor: pointer; }
-.active-q { background: white !important; color: #1d4ed8 !important; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+#quarterTabs { display: flex; gap: 4px; margin-bottom: 20px; background: #f1f5f9; padding: 4px; border-radius: 10px; border: 1px solid #e2e8f0; width: 100%; }
+.q-btn { flex: 1; padding: 10px 0; border-radius: 7px; font-size: 0.85rem; font-weight: 700; border: none; background: transparent; color: #94a3b8; transition: 0.2s; cursor: pointer; }
+.active-q { background: white !important; color: #1d4ed8 !important; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
 
 /* 메인 탭 메뉴 */
 .tab-menu { display: flex; background: #f8fafc; padding: 12px; gap: 10px; border-bottom: 1px solid #e2e8f0; }
@@ -79,6 +79,16 @@ td { padding: 14px 0; text-align: center; vertical-align: middle; }
 .control-bar { display: flex; gap: 8px; margin-bottom: 12px; height: 44px; align-items: center; }
 .search-input { height: 100% !important; font-size: 0.8rem !important; flex: 2; border-radius: 10px !important; }
 .level-info-btn, .sort-select { height: 100% !important; flex: 1; border-radius: 10px !important; font-size: 0.75rem !important; font-weight: 800; border: 1px solid #e2e8f0 !important; cursor: pointer; text-align: center; }
+
+/* 수정: 우측 화살표 표시 지우기 */
+.sort-select { 
+    background: #white;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    padding-right: 0 !important;
+}
+
 .level-info-btn { background: #f1f5f9; color: #475569; }
 
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 100; padding: 15px; }
@@ -281,6 +291,7 @@ const todayZero = new Date(now.getFullYear(), now.getMonth(), now.getDate()).get
 let processedData = currentData.map(m => {
 const last = m.lastDate.toDate();
 const diff = Math.floor((todayZero - new Date(last.getFullYear(), last.getMonth(), last.getDate()).getTime()) / 86400000);
+// Lv.0 신입은 30일 기준, 일반은 122일 기준
 const limitDays = (m.level === 0 ? 30 : 122);
 return { ...m, ddayVal: (limitDays + (m.bonusDays || 0)) - diff };
 });
@@ -311,8 +322,8 @@ const style = getLevelStyle(m.level);
 const dday = m.ddayVal;
 let ddayClass = "dday-bold text-slate-500";
 
-// 신입(Lv.0) 혹은 일반회원 D-Day 조건
-if (dday <= 10) ddayClass = "dday-critical"; // 신입/일반 공통 10일 이내 빨간색 깜빡임
+// D-Day 강조 로직 (신입은 30일 중 10일 남았을 때 빨간 깜빡임)
+if (dday <= 10) ddayClass = "dday-critical"; 
 else if (dday <= 20) ddayClass = "dday-orange-blink";
 else if (dday <= 30) ddayClass = "dday-yellow-blink";
 
@@ -333,7 +344,6 @@ list.innerHTML += `<tr class="border-b border-gray-50 ${m.isHidden ? 'opacity-40
 });
 };
 
-// 이하 기능 함수 (기존과 동일)
 window.toggleModal = (show) => {
 const modal = document.getElementById('levelModal');
 modal.style.display = show ? 'flex' : 'none';
