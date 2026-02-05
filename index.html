@@ -21,17 +21,21 @@ input, select, .btn-submit, .up-amount-group { width: 100% !important; display: 
 .up-amount-group input[type="radio"] { display: none; }
 .up-amount-group label:has(input:checked) { background: #3b82f6; color: white; }
 
-/* 타이틀 디자인 및 로고 애니메이션 */
-.brand-wrapper { display: flex; align-items: center; gap: 6px; animation: brand-wave 2s infinite ease-in-out; }
-.logo-img {
-    width: 1.5rem; height: 1.5rem;
-    background: linear-gradient(135deg, #10b981 0%, #3b82f6 100%);
-    -webkit-mask-image: url('https://i.ibb.co/9mB2j2Xf/1770298988989.png');
-    mask-image: url('https://i.ibb.co/9mB2j2Xf/1770298988989.png');
-    -webkit-mask-size: contain; mask-size: contain;
-    -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
-    -webkit-mask-position: center; mask-position: center;
+/* 타이틀 및 로고 통합 디자인 */
+.brand-container { display: flex; align-items: center; gap: 8px; animation: brand-wave 2s infinite ease-in-out; }
+
+/* 로고 이미지 설정: 그라데이션 필터 적용 */
+.logo-box {
+    width: 1.8rem; height: 1.8rem; /* 타이틀 크기에 맞춤 */
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
 }
+.logo-box img {
+    width: 100%; height: 100%; object-fit: contain;
+    /* 이미지 색상을 제목 그라데이션 느낌(청록/블루)으로 강제 변경하는 필터 */
+    filter: invert(48%) sepia(79%) saturate(2476%) hue-rotate(130deg) brightness(95%) contrast(92%);
+}
+
 .main-title {
     font-size: 1.5rem; font-weight: 900; 
     background: linear-gradient(135deg, #10b981 0%, #3b82f6 100%);
@@ -44,9 +48,10 @@ input, select, .btn-submit, .up-amount-group { width: 100% !important; display: 
     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
 }
 
-@keyframes brand-wave { 
-    0%, 100% { opacity: 1; transform: translateY(0); } 
-    50% { opacity: 0.5; transform: translateY(-2px); } 
+/* 파도치듯 반짝이는 애니메이션 */
+@keyframes brand-wave {
+    0%, 100% { transform: translateY(0); opacity: 1; filter: brightness(1); }
+    50% { transform: translateY(-3px); opacity: 0.7; filter: brightness(1.3); }
 }
 
 /* 연도 및 분기 선택 탭 */
@@ -179,15 +184,17 @@ gap: 20px;
 
 <div id="viewStatus" class="view-content p-6">
 <div class="year-selector justify-between">
-<div class="brand-wrapper">
-    <div class="logo-img"></div>
-    <h1 class="main-title">산:우리</h1>
-    <span class="slogan-txt">같이 걷는 즐거움</span>
-</div>
-<select id="yearSelect" onchange="changeYear()" class="year-select-custom outline-none">
-<option value="2026">2026년</option>
-<option value="2027">2027년</option>
-</select>
+    <div class="brand-container">
+        <div class="logo-box">
+            <img src="https://i.ibb.co/9mB2j2Xf/1770298988989.png" alt="logo">
+        </div>
+        <h1 class="main-title">산:우리</h1>
+        <span class="slogan-txt">같이 걷는 즐거움</span>
+    </div>
+    <select id="yearSelect" onchange="changeYear()" class="year-select-custom outline-none">
+        <option value="2026">2026년</option>
+        <option value="2027">2027년</option>
+    </select>
 </div>
 
 <div class="control-bar">
@@ -226,22 +233,13 @@ gap: 20px;
 <div class="secret-icon">🔐</div>
 <h2 class="text-white text-xl font-black mb-2">관리자 구역</h2>
 <p class="text-blue-300 text-xs mb-8 font-medium opacity-80 uppercase tracking-widest">Authorized Personnel Only</p>
-
 <div class="px-4">
 <input type="password" id="adminPassword" placeholder="••••" class="secret-input input-gap mb-4">
 <button onclick="loginAdmin()" class="btn-submit btn-secret">ACCESS GRANTED</button>
-<p class="text-slate-500 text-[10px] mt-8 uppercase tracking-tighter">System encrypted. All activities are logged.</p>
 </div>
-
 <div class="visitor-log-box">
-<div class="v-item">
-<span class="v-label">SESSION_TODAY</span>
-<span id="todayHits" class="v-count">0</span>
-</div>
-<div class="v-item">
-<span class="v-label">SYSTEM_TOTAL</span>
-<span id="totalHits" class="v-count total">0</span>
-</div>
+<div class="v-item"><span class="v-label">SESSION_TODAY</span><span id="todayHits" class="v-count">0</span></div>
+<div class="v-item"><span class="v-label">SYSTEM_TOTAL</span><span id="totalHits" class="v-count total">0</span></div>
 </div>
 </div>
 </div>
@@ -253,7 +251,6 @@ gap: 20px;
 <input type="date" id="regDate" class="input-gap">
 <button onclick="addMember()" class="btn-submit bg-green-500">등록 완료</button>
 </div>
-
 <div class="card">
 <div class="card-title text-blue-600 font-bold mb-4">📅 등산 기록 추가</div>
 <input type="text" id="adminSearchInput" onkeyup="filterAdminMemberList()" placeholder="🔍 회원 검색..." class="h-10 px-4 rounded-xl w-full mb-3 text-xs bg-blue-50 border-blue-100 outline-none">
@@ -266,7 +263,6 @@ gap: 20px;
 <input type="date" id="activityDate" class="input-gap">
 <button onclick="addMultiActivity()" class="btn-submit bg-blue-500">기록 저장하기</button>
 </div>
-
 <div class="card" style="background-color: #fffdf0; border-color: #fef3c7;">
 <div class="card-title text-yellow-700 font-bold mb-4">✏️ 레벨 관리 및 이름 수정</div>
 <select id="memberSelectEdit" onchange="loadMemberLogs()" class="input-gap"><option value="">대상 회원 선택</option></select>
@@ -284,7 +280,6 @@ gap: 20px;
 </div>
 <div id="logListArea" class="log-grid"></div>
 </div>
-
 <div class="card" style="background-color: #fff5f5; border-color: #fee2e2;">
 <div class="card-title text-red-600 font-bold mb-4">🗑️ 회원 상태 및 보너스 관리</div>
 <select id="memberSelectManage" class="input-gap"><option value="">대상 회원 선택</option></select>
@@ -298,7 +293,6 @@ gap: 20px;
 <button onclick="toggleHideMember()" class="btn-submit bg-gray-600 mb-2 h-10 py-0">숨기기/보이기</button>
 <button onclick="deleteMember()" class="btn-submit bg-red-500 h-10 py-0">회원 영구 삭제</button>
 </div>
-
 <div class="p-8 text-center"><button onclick="logoutAdmin()" class="text-gray-400 underline font-bold text-sm">로그아웃</button></div>
 </div>
 
