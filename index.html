@@ -139,6 +139,12 @@ margin-top: 20px !important;
 .modal-content { background: white; border-radius: 24px; width: 100%; max-width: 440px; max-height: 90vh; overflow-y: auto; position: relative; padding: 20px; }
 .guide-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .guide-item { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 10px 5px; border-radius: 15px; border: 1px solid #f1f5f9; background: #fafafa; }
+
+/* 방문자 카운터 스타일 */
+.visitor-counter { display: flex; justify-content: space-between; background: #f8fafc; padding: 10px 16px; border-radius: 14px; margin-bottom: 16px; border: 1px solid #e2e8f0; }
+.v-item { display: flex; flex-direction: column; align-items: center; }
+.v-label { font-size: 0.6rem; font-weight: 800; color: #94a3b8; margin-bottom: 2px; }
+.v-count { font-size: 0.85rem; font-weight: 900; color: #1e293b; }
 </style>
 </head>
 <body>
@@ -163,6 +169,17 @@ margin-top: 20px !important;
 <option value="2026">2026년</option>
 <option value="2027">2027년</option>
 </select>
+</div>
+
+<div class="visitor-counter">
+    <div class="v-item">
+        <span class="v-label">TODAY</span>
+        <span id="todayHits" class="v-count text-blue-500">0</span>
+    </div>
+    <div class="v-item">
+        <span class="v-label">TOTAL</span>
+        <span id="totalHits" class="v-count">0</span>
+    </div>
 </div>
 
 <div class="control-bar">
@@ -277,7 +294,7 @@ margin-top: 20px !important;
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc, increment, query, orderBy, Timestamp, where, getDocs, getDoc, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc, increment, query, orderBy, Timestamp, where, getDocs, getDoc, limit, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
 apiKey: "AIzaSyBoAh3V3WrHg_wo53g1LHM0UW3-y6w2deg",
@@ -296,6 +313,46 @@ let selectedMemberIds = new Set();
 const now = new Date();
 let selectedYear = now.getFullYear();
 let selectedQuarter = Math.ceil((now.getMonth() + 1) / 3);
+
+// --- 방문자 카운트 로직 시작 ---
+async function updateVisitorCount() {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const statsRef = doc(db, "site_stats", "visitors");
+    const dailyRef = doc(db, "site_stats", `day_${todayStr}`);
+
+    // 전체 누적 증가
+    try {
+        await updateDoc(statsRef, { total: increment(1) });
+    } catch (e) {
+        await setDoc(statsRef, { total: 1 }, { merge: true });
+    }
+
+    // 오늘 증가
+    try {
+        await updateDoc(dailyRef, { count: increment(1) });
+    } catch (e) {
+        await setDoc(dailyRef, { count: 1, date: todayStr }, { merge: true });
+    }
+}
+
+// 실시간 방문자 리스너 설정
+function listenVisitors() {
+    const todayStr = new Date().toISOString().split('T')[0];
+    onSnapshot(doc(db, "site_stats", "visitors"), (s) => {
+        if(s.exists()) document.getElementById('totalHits').innerText = s.data().total.toLocaleString();
+    });
+    onSnapshot(doc(db, "site_stats", `day_${todayStr}`), (s) => {
+        if(s.exists()) document.getElementById('todayHits').innerText = s.data().count ? s.data().count.toLocaleString() : "0";
+    });
+}
+
+// 세션 체크 후 실행
+if (!sessionStorage.getItem('visited')) {
+    updateVisitorCount();
+    sessionStorage.setItem('visited', 'true');
+}
+listenVisitors();
+// --- 방문자 카운트 로직 끝 ---
 
 const levelThresholds = [
 { lv: 100, name: "🌌 은하수" }, { lv: 90, name: "🌠 별똥별" }, { lv: 80, name: "💫 타원별" },
@@ -388,7 +445,6 @@ list.innerHTML += `<tr class="border-b border-gray-50 ${m.isHidden ? 'opacity-40
 });
 };
 
-// 관리자 전역 함수들
 window.loginAdmin = async () => {
 const passwordInput = document.getElementById('adminPassword').value;
 const adminSnap = await getDoc(doc(db, "admin_settings", "config"));
@@ -495,7 +551,6 @@ for(let i=0; i < up; i++) { await addDoc(collection(db, `sanwoori/${id}/logs`), 
 alert(`${up}up 기록 완료.`); selectedMemberIds.clear();
 };
 
-// 공통 UI 함수들
 const getLevelBadge = (lv) => { for (const t of levelThresholds) { if (lv >= t.lv) return t.name; } return "🫘 신입"; };
 window.toggleModal = (show) => {
 const modal = document.getElementById('levelModal');
