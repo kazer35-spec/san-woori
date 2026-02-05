@@ -26,7 +26,36 @@ input, select, .btn-submit, .up-amount-group { width: 100% !important; display: 
 font-size: 1.5rem; font-weight: 900; background: linear-gradient(135deg, #10b981 0%, #3b82f6 100%);
 -webkit-background-clip: text; -webkit-text-fill-color: transparent;
 letter-spacing: -0.5px;
+display: flex; align-items: center;
 }
+
+/* 로고 이미지 스타일: 글씨색 그라데이션 적용 및 파도 애니메이션 */
+.logo-img {
+  width: 1.5rem; height: 1.5rem;
+  margin-right: 6px;
+  background: linear-gradient(135deg, #10b981 0%, #3b82f6 50%, #10b981 100%);
+  background-size: 200% 200%;
+  -webkit-mask-image: url('https://raw.githubusercontent.com/ai-gen-images/storage/main/mountain_logo.png'); /* 업로드하신 이미지를 경로로 사용하거나 로컬 경로로 변경하세요 */
+  mask-image: url('https://raw.githubusercontent.com/ai-gen-images/storage/main/mountain_logo.png');
+  -webkit-mask-size: contain; mask-size: contain;
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-position: center; mask-position: center;
+  animation: wave-glow 3s linear infinite;
+}
+
+/* 실제 업로드하신 이미지를 URL 데이터로 넣거나 대체 이미지 처리 (사용자가 올린 이미지로 대체 가능) */
+/* 여기서는 요청하신 이미지 모양을 기반으로 한 경로를 예시로 둡니다. 실제 파일이 135205.png 라면 해당 파일명을 넣으시면 됩니다. */
+.logo-img {
+    -webkit-mask-image: url('135205.png');
+    mask-image: url('135205.png');
+}
+
+@keyframes wave-glow {
+  0% { background-position: 0% 50%; opacity: 0.8; }
+  50% { background-position: 100% 50%; opacity: 1; }
+  100% { background-position: 0% 50%; opacity: 0.8; }
+}
+
 .slogan-txt {
 font-size: 0.65rem; font-weight: 700; margin-left: 4px; align-self: flex-end; margin-bottom: 4px;
 background: linear-gradient(135deg, #10b981 0%, #3b82f6 100%);
@@ -112,12 +141,12 @@ margin-top: 20px !important;
 
 /* 슬림 방문자 카운터 (시크릿 스타일) */
 .visitor-log-box {
-    margin-top: 24px;
-    padding-top: 16px;
-    border-top: 1px solid rgba(255,255,255,0.05);
-    display: flex;
-    justify-content: center;
-    gap: 20px;
+margin-top: 24px;
+padding-top: 16px;
+border-top: 1px solid rgba(255,255,255,0.05);
+display: flex;
+justify-content: center;
+gap: 20px;
 }
 .v-item { display: flex; flex-direction: column; align-items: center; }
 .v-label { font-size: 0.55rem; font-weight: 800; color: rgba(255,255,255,0.3); margin-bottom: 2px; letter-spacing: 0.1em; }
@@ -165,11 +194,8 @@ margin-top: 20px !important;
 
 <div id="viewStatus" class="view-content p-6">
 <div class="year-selector justify-between">
-<h1 class="main-title flex items-center">
-<span class="relative flex h-3 w-3 mr-2">
-<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-<span class="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
-</span>
+<h1 class="main-title">
+<div class="logo-img"></div>
 산:우리
 <span class="slogan-txt">같이 걷는 즐거움</span>
 </h1>
@@ -223,14 +249,14 @@ margin-top: 20px !important;
 </div>
 
 <div class="visitor-log-box">
-    <div class="v-item">
-        <span class="v-label">SESSION_TODAY</span>
-        <span id="todayHits" class="v-count">0</span>
-    </div>
-    <div class="v-item">
-        <span class="v-label">SYSTEM_TOTAL</span>
-        <span id="totalHits" class="v-count total">0</span>
-    </div>
+<div class="v-item">
+<span class="v-label">SESSION_TODAY</span>
+<span id="todayHits" class="v-count">0</span>
+</div>
+<div class="v-item">
+<span class="v-label">SYSTEM_TOTAL</span>
+<span id="totalHits" class="v-count total">0</span>
+</div>
 </div>
 </div>
 </div>
@@ -324,26 +350,26 @@ let selectedQuarter = Math.ceil((now.getMonth() + 1) / 3);
 
 // --- 방문자 카운트 로직 ---
 async function updateVisitorCount() {
-    const todayStr = new Date().toISOString().split('T')[0];
-    const statsRef = doc(db, "site_stats", "visitors");
-    const dailyRef = doc(db, "site_stats", `day_${todayStr}`);
-    try { await updateDoc(statsRef, { total: increment(1) }); } catch (e) { await setDoc(statsRef, { total: 1 }, { merge: true }); }
-    try { await updateDoc(dailyRef, { count: increment(1) }); } catch (e) { await setDoc(dailyRef, { count: 1, date: todayStr }, { merge: true }); }
+const todayStr = new Date().toISOString().split('T')[0];
+const statsRef = doc(db, "site_stats", "visitors");
+const dailyRef = doc(db, "site_stats", `day_${todayStr}`);
+try { await updateDoc(statsRef, { total: increment(1) }); } catch (e) { await setDoc(statsRef, { total: 1 }, { merge: true }); }
+try { await updateDoc(dailyRef, { count: increment(1) }); } catch (e) { await setDoc(dailyRef, { count: 1, date: todayStr }, { merge: true }); }
 }
 
 function listenVisitors() {
-    const todayStr = new Date().toISOString().split('T')[0];
-    onSnapshot(doc(db, "site_stats", "visitors"), (s) => {
-        if(s.exists()) document.getElementById('totalHits').innerText = s.data().total.toLocaleString();
-    });
-    onSnapshot(doc(db, "site_stats", `day_${todayStr}`), (s) => {
-        if(s.exists()) document.getElementById('todayHits').innerText = s.data().count ? s.data().count.toLocaleString() : "0";
-    });
+const todayStr = new Date().toISOString().split('T')[0];
+onSnapshot(doc(db, "site_stats", "visitors"), (s) => {
+if(s.exists()) document.getElementById('totalHits').innerText = s.data().total.toLocaleString();
+});
+onSnapshot(doc(db, "site_stats", `day_${todayStr}`), (s) => {
+if(s.exists()) document.getElementById('todayHits').innerText = s.data().count ? s.data().count.toLocaleString() : "0";
+});
 }
 
 if (!sessionStorage.getItem('visited')) {
-    updateVisitorCount();
-    sessionStorage.setItem('visited', 'true');
+updateVisitorCount();
+sessionStorage.setItem('visited', 'true');
 }
 listenVisitors();
 
