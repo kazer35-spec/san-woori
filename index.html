@@ -59,7 +59,7 @@ display: flex; flex-direction: column; align-items: center; justify-content: cen
 padding: 8px 4px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05);
 cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden;
 }
-.subroom-btn:active { transform: scale(0.95); }
+.subroom-btn:active { transform: scale(0.95); background: rgba(255,255,255,0.2); }
 .subroom-emoji { font-size: 1.1rem; margin-bottom: 2px; }
 .subroom-name { font-size: 0.6rem; font-weight: 800; color: rgba(255,255,255,0.7); }
 .subroom-status-txt { font-size: 0.5rem; font-weight: 700; color: #f87171; margin-top: 2px; height: 10px; overflow: hidden; }
@@ -107,7 +107,7 @@ animation: pulse-red 1.5s infinite;
 .secret-input { background: rgba(255, 255, 255, 0.05) !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; color: white !important; text-align: center; letter-spacing: 0.5em; }
 .btn-secret { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4); margin-top: 10px !important; }
 
-/* 방문자 기록 스타일 (추가됨) */
+/* 방문자 기록 스타일 */
 .visitor-log-box { margin-top: 24px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: center; gap: 20px; }
 .v-item { display: flex; flex-direction: column; align-items: center; }
 .v-label { font-size: 0.55rem; font-weight: 800; color: rgba(255,255,255,0.3); margin-bottom: 2px; letter-spacing: 0.1em; }
@@ -208,7 +208,6 @@ animation: pulse-red 1.5s infinite;
 <span class="text-[6px] text-gray-400 font-bold">클릭 시 링크 복사</span>
 </div>
 <div id="userSubRoomGrid" class="subroom-grid"></div>
-</div>
 </div>
 </div>
 
@@ -357,7 +356,7 @@ if (dday <= 30) return "dday-yellow";
 return "bg-gray-soft";
 };
 
-/* ✅ 방문자 기록 로직 (통합) */
+/* 방문자 기록 로직 */
 async function updateVisitorCount() {
 const d = new Date();
 const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -423,8 +422,12 @@ if (!nextActive) { msg = ""; msgInput.value = ""; }
 await setDoc(doc(db, "sub_rooms", roomId), { isActive: nextActive, statusMsg: msg }, { merge: true });
 };
 
+// 팝업 없이 복사만 수행
 window.copySubRoomUrl = (url, name) => {
-navigator.clipboard.writeText(url).then(() => alert(`🔗 [${name}] 링크 복사 완료!`));
+navigator.clipboard.writeText(url).then(() => {
+    console.log(`[${name}] 링크 복사됨`);
+    // 시각적 피드백을 원하면 버튼 색을 잠깐 바꾸는 등의 처리를 할 수 있습니다.
+});
 };
 
 // --- 테이블 렌더링 및 D-Day 계산 ---
@@ -432,6 +435,7 @@ window.renderStatusTable = () => {
 const list = document.getElementById('statusList');
 const search = document.getElementById('searchInput').value.trim();
 const sort = document.getElementById('statusSortOrder').value;
+if(!list) return;
 list.innerHTML = "";
 
 const today = new Date();
