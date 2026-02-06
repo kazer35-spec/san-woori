@@ -52,7 +52,7 @@ td { padding: 14px 0; text-align: center; vertical-align: middle; }
 .rank-2 { color: #94a3b8 !important; }
 .rank-3 { color: #a36a00 !important; }
 
-/* 서브방 UI 스타일 (다크 테마) */
+/* 서브방 UI 스타일 (실시간 현황 - 다크 테마 유지) */
 .subroom-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
 .subroom-btn {
 display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -64,11 +64,11 @@ cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden;
 .subroom-name { font-size: 0.6rem; font-weight: 800; color: rgba(255,255,255,0.7); }
 .subroom-status-txt { font-size: 0.5rem; font-weight: 700; color: #f87171; margin-top: 2px; height: 10px; overflow: hidden; }
 
-/* 관리자 서브방 그리드 설정 */
+/* 관리자 서브방 그리드 설정 (화이트 테마로 변경) */
 .admin-subroom-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
-.admin-room-item { background: #1e293b; border-radius: 10px; padding: 6px 4px; border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.admin-room-item input { height: 24px !important; font-size: 9px !important; padding: 2px 4px !important; border-radius: 4px !important; text-align: center; background: rgba(0,0,0,0.2) !important; color: white !important; border: 1px solid rgba(255,255,255,0.1) !important; }
-.admin-room-toggle { font-size: 9px; font-weight: 900; width: 100%; padding: 3px 0; border-radius: 5px; }
+.admin-room-item { background: #f8fafc; border-radius: 10px; padding: 6px 4px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.admin-room-item input { height: 24px !important; font-size: 9px !important; padding: 2px 4px !important; border-radius: 4px !important; text-align: center; background: #ffffff !important; color: #1e293b !important; border: 1px solid #cbd5e1 !important; }
+.admin-room-toggle { font-size: 9px; font-weight: 900; width: 100%; padding: 3px 0; border-radius: 5px; cursor: pointer; }
 
 /* 서브방 활성화 불빛 애니메이션 */
 .room-active { border-color: rgba(239, 68, 68, 0.4) !important; background: rgba(239, 68, 68, 0.1) !important; }
@@ -201,10 +201,10 @@ animation: pulse-red 1.5s infinite;
 </div>
 
 <div id="viewAdmin" class="view-content hidden p-6 overflow-y-auto max-h-[90vh]">
-<div class="card" style="background: #0f172a; border: 1px solid #334155;">
-<div class="card-title text-blue-400 font-black mb-3 flex justify-between items-center text-sm">
+<div class="card" style="background: white; border: 1.5px solid #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+<div class="card-title text-blue-600 font-black mb-4 flex justify-between items-center text-sm">
 <span>🛠️ 서브방 관리 패널</span>
-<span class="text-[9px] bg-blue-900 text-blue-200 px-2 py-0.5 rounded">실시간</span>
+<span class="text-[9px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded font-bold">REAL-TIME</span>
 </div>
 <div id="adminSubRoomList" class="admin-subroom-grid"></div>
 </div>
@@ -339,7 +339,7 @@ return { bg: '#ffffff', border: '#e2e8f0', text: '#94a3b8', blink: '' };
 
 const getDDayStyle = (dday, level) => {
 if (dday <= 10) return "dday-red";
-if (level === 0) return "bg-gray-soft"; // 신입은 깜빡임 제외
+if (level === 0) return "bg-gray-soft"; 
 if (dday <= 20) return "dday-orange";
 if (dday <= 30) return "dday-yellow";
 return "bg-gray-soft";
@@ -374,13 +374,13 @@ function renderAdminSubRooms() {
 const container = document.getElementById('adminSubRoomList');
 if(!container) return;
 container.innerHTML = subRoomsData.map(room => `
-<div class="admin-room-item ${room.isActive ? 'border-blue-500' : 'border-gray-700'}">
+<div class="admin-room-item ${room.isActive ? 'border-blue-400' : 'border-gray-200'}">
 <span class="text-xs">${room.emoji}</span>
-<span class="text-[9px] font-black text-gray-300">${room.name}</span>
+<span class="text-[9px] font-black text-gray-500">${room.name}</span>
 <input type="text" id="msg-${room.id}" value="${room.statusMsg || ''}" placeholder="상태"
 onchange="updateSubRoom('${room.id}', ${room.isActive})">
 <button onclick="updateSubRoom('${room.id}', ${!room.isActive})"
-class="admin-room-toggle ${room.isActive ? 'bg-red-500 text-white' : 'bg-gray-600 text-gray-300'}">
+class="admin-room-toggle ${room.isActive ? 'bg-red-500 text-white' : 'bg-gray-300 text-gray-600'}">
 ${room.isActive ? 'ON' : 'OFF'}
 </button>
 </div>
@@ -406,21 +406,17 @@ const sort = document.getElementById('statusSortOrder').value;
 list.innerHTML = "";
 
 const today = new Date();
-// 시간차 무시를 위해 날짜만 추출한 타임스탬프 계산
 const todayZero = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
 
 let processedData = currentData.map(m => {
 const last = m.lastDate.toDate();
 const lastZero = new Date(last.getFullYear(), last.getMonth(), last.getDate()).getTime();
 const diffDays = Math.floor((todayZero - lastZero) / (1000 * 60 * 60 * 24));
-// 등급별 기준일수 (신입 30일, 일반 122일)
 const baseLimit = (m.level === 0 ? 30 : 122);
-// 최종 남은 일수 = (기준일수 + 보너스) - 지난일수
 const ddayVal = (baseLimit + (m.bonusDays || 0)) - diffDays;
 return { ...m, ddayVal };
 });
 
-// 정렬 로직
 processedData.sort((a, b) => {
 if (sort === 'qCount') return b.qCount - a.qCount || b.level - a.level;
 if (sort === 'level') return b.level - a.level || b.qCount - a.qCount;
@@ -429,7 +425,6 @@ if (sort === 'dday') return a.ddayVal - b.ddayVal;
 return 0;
 });
 
-// 산신령 등 배지 계산 (숨김 인원 및 오즈 제외)
 const topNames = [...processedData]
 .filter(m => !m.isHidden && m.name !== "오즈")
 .sort((a, b) => b.qCount - a.qCount || b.level - a.level)
@@ -476,10 +471,7 @@ upgradeMsgs.push(`${member.name}님이 ${member.level}레벨로 ${emojiOnly} ${n
 }
 prevBadges[member.id] = currentBadgeFull;
 });
-if (upgradeMsgs.length > 0) {
-const finalMsg = upgradeMsgs.join(' ');
-alert(`🎉 [등급 변경 안내]\n${finalMsg}`);
-}
+if (upgradeMsgs.length > 0) alert(`🎉 [등급 변경 안내]\n${upgradeMsgs.join(' ')}`);
 }
 
 // --- 데이터 동기화 ---
@@ -502,7 +494,6 @@ renderStatusTable();
 });
 }
 
-// 초기화 호출
 startRealtimeSync();
 listenSubRooms();
 
@@ -526,7 +517,7 @@ window.loginAdmin = async () => {
 const passwordInput = document.getElementById('adminPassword').value;
 const adminSnap = await getDoc(doc(db, "admin_settings", "config"));
 if (adminSnap.exists() && passwordInput === String(adminSnap.data().admin_pw)) { isAdminLoggedIn = true; showView('admin'); }
-else { alert("비밀번호 불일치"); }
+else alert("비밀번호 불일치");
 };
 window.logoutAdmin = () => { isAdminLoggedIn = false; document.getElementById('adminPassword').value=""; showView('status'); };
 
