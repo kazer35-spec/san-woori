@@ -52,7 +52,7 @@ td { padding: 14px 0; text-align: center; vertical-align: middle; }
 .rank-2 { color: #94a3b8 !important; }
 .rank-3 { color: #a36a00 !important; }
 
-/* 서브방 UI 스타일 (실시간 현황 - 다크 테마 유지) */
+/* 서브방 UI 스타일 */
 .subroom-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
 .subroom-btn {
 display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -64,13 +64,13 @@ cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden;
 .subroom-name { font-size: 0.6rem; font-weight: 800; color: rgba(255,255,255,0.7); }
 .subroom-status-txt { font-size: 0.5rem; font-weight: 700; color: #f87171; margin-top: 2px; height: 10px; overflow: hidden; }
 
-/* 관리자 서브방 그리드 설정 (화이트 테마로 변경) */
+/* 관리자 서브방 그리드 */
 .admin-subroom-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
 .admin-room-item { background: #f8fafc; border-radius: 10px; padding: 6px 4px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .admin-room-item input { height: 24px !important; font-size: 9px !important; padding: 2px 4px !important; border-radius: 4px !important; text-align: center; background: #ffffff !important; color: #1e293b !important; border: 1px solid #cbd5e1 !important; }
 .admin-room-toggle { font-size: 9px; font-weight: 900; width: 100%; padding: 3px 0; border-radius: 5px; cursor: pointer; }
 
-/* 서브방 활성화 불빛 애니메이션 */
+/* 서브방 활성화 애니메이션 */
 .room-active { border-color: rgba(239, 68, 68, 0.4) !important; background: rgba(239, 68, 68, 0.1) !important; }
 .room-active::before {
 content: ''; position: absolute; top: 3px; right: 3px; width: 5px; height: 5px;
@@ -79,7 +79,7 @@ animation: pulse-red 1.5s infinite;
 }
 @keyframes pulse-red { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
 
-/* D-Day, 애니메이션 등 */
+/* D-Day, 애니메이션 */
 .badge-level { display: inline-flex; flex-direction: column; align-items: center; gap: 1px; }
 .badge-icon-box { padding: 2px 8px; border-radius: 14px; line-height: 1.2; display: flex; align-items: center; justify-content: center; border-width: 1.5px; min-width: 50px; }
 .badge-icon-txt { font-size: 0.75rem; font-weight: 800; }
@@ -106,6 +106,13 @@ animation: pulse-red 1.5s infinite;
 @keyframes floating { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 .secret-input { background: rgba(255, 255, 255, 0.05) !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; color: white !important; text-align: center; letter-spacing: 0.5em; }
 .btn-secret { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4); margin-top: 10px !important; }
+
+/* 방문자 기록 스타일 (추가됨) */
+.visitor-log-box { margin-top: 24px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: center; gap: 20px; }
+.v-item { display: flex; flex-direction: column; align-items: center; }
+.v-label { font-size: 0.55rem; font-weight: 800; color: rgba(255,255,255,0.3); margin-bottom: 2px; letter-spacing: 0.1em; }
+.v-count { font-size: 0.8rem; font-weight: 700; color: #3b82f6; font-family: monospace; }
+.v-count.total { color: rgba(255,255,255,0.6); }
 
 /* 관리자 서브방 섹션 다크 카드 */
 .admin-subroom-dark-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 14px; margin-top: 16px; }
@@ -188,6 +195,11 @@ animation: pulse-red 1.5s infinite;
 <div class="px-4">
 <input type="password" id="adminPassword" placeholder="••••••••" class="secret-input input-gap mb-4">
 <button onclick="loginAdmin()" class="btn-submit btn-secret">ACCESS GRANTED</button>
+</div>
+
+<div class="visitor-log-box">
+<div class="v-item"><span class="v-label">SESSION_TODAY</span><span id="todayHits" class="v-count">0</span></div>
+<div class="v-item"><span class="v-label">SYSTEM_TOTAL</span><span id="totalHits" class="v-count total">0</span></div>
 </div>
 
 <div class="admin-subroom-dark-card text-left">
@@ -345,6 +357,23 @@ if (dday <= 30) return "dday-yellow";
 return "bg-gray-soft";
 };
 
+/* ✅ 방문자 기록 로직 (통합) */
+async function updateVisitorCount() {
+const d = new Date();
+const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const statsRef = doc(db, "site_stats", "visitors");
+const dailyRef = doc(db, "site_stats", `day_${todayStr}`);
+try { await updateDoc(statsRef, { total: increment(1) }); } catch (e) { await setDoc(statsRef, { total: 1 }, { merge: true }); }
+try { await updateDoc(dailyRef, { count: increment(1) }); } catch (e) { await setDoc(dailyRef, { count: 1, date: todayStr }, { merge: true }); }
+}
+
+function listenVisitors() {
+const d = new Date();
+const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+onSnapshot(doc(db, "site_stats", "visitors"), (s) => { if(s.exists()) document.getElementById('totalHits').innerText = s.data().total.toLocaleString(); });
+onSnapshot(doc(db, "site_stats", `day_${todayStr}`), (s) => { if(s.exists()) document.getElementById('todayHits').innerText = s.data().count.toLocaleString(); });
+}
+
 // --- 서브방 로직 ---
 function listenSubRooms() {
 onSnapshot(collection(db, "sub_rooms"), (snapshot) => {
@@ -458,7 +487,7 @@ list.innerHTML += `<tr class="border-b border-gray-50 ${m.isHidden ? 'opacity-40
 });
 };
 
-// --- 배지 변경 알림 ---
+// --- 배지 변경 알림 및 자동 복사 ---
 async function checkBadgeChange(newData) {
 let upgradeMsgs = [];
 newData.forEach(member => {
@@ -467,11 +496,20 @@ const oldBadgeFull = prevBadges[member.id];
 if (oldBadgeFull && oldBadgeFull !== currentBadgeFull) {
 const emojiOnly = currentBadgeFull.split(' ')[0];
 const nameOnly = currentBadgeFull.split(' ')[1] || "";
-upgradeMsgs.push(`${member.name}님이 ${member.level}레벨로 ${emojiOnly} ${nameOnly} 마크를 획득하셨습니다 🎉`);
+upgradeMsgs.push(`${member.name}님이 ${member.level}레벨로 ${emojiOnly} ${nameOnly} 마크를 획득하셨습니다 축하드립니다 🎉`);
 }
 prevBadges[member.id] = currentBadgeFull;
 });
-if (upgradeMsgs.length > 0) alert(`🎉 [등급 변경 안내]\n${upgradeMsgs.join(' ')}`);
+
+if (upgradeMsgs.length > 0) {
+const finalMsg = upgradeMsgs.join(' ');
+try {
+await navigator.clipboard.writeText(finalMsg);
+alert(`🎉 [등급 변경 안내]\n${finalMsg}\n\n(메시지가 복사되었습니다.)`);
+} catch (e) {
+alert(`🎉 [등급 변경 안내]\n${finalMsg}`);
+}
+}
 }
 
 // --- 데이터 동기화 ---
@@ -494,6 +532,9 @@ renderStatusTable();
 });
 }
 
+/* 실행부 */
+if (!sessionStorage.getItem('visited')) { updateVisitorCount(); sessionStorage.setItem('visited', 'true'); }
+listenVisitors();
 startRealtimeSync();
 listenSubRooms();
 
