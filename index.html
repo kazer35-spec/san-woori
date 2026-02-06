@@ -89,6 +89,7 @@ animation: pulse-red 1.5s infinite;
 .dday-yellow { background-color: #fef08a; color: #854d0e; animation: blink-slow 2s infinite; }
 .dday-orange { background-color: #fed7aa; color: #9a3412; animation: blink-medium 1.2s infinite; }
 .dday-red { background-color: #fecaca; color: #991b1b; animation: blink-fast 0.6s infinite; }
+
 @keyframes blink-slow { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 @keyframes blink-medium { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 @keyframes blink-fast { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
@@ -105,11 +106,6 @@ animation: pulse-red 1.5s infinite;
 @keyframes floating { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 .secret-input { background: rgba(255, 255, 255, 0.05) !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; color: white !important; text-align: center; letter-spacing: 0.5em; }
 .btn-secret { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4); margin-top: 10px !important; }
-.visitor-log-box { margin-top: 20px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: center; gap: 20px; }
-.v-item { display: flex; flex-direction: column; align-items: center; }
-.v-label { font-size: 0.55rem; font-weight: 800; color: rgba(255,255,255,0.3); margin-bottom: 2px; }
-.v-count { font-size: 0.8rem; font-weight: 700; color: #3b82f6; font-family: monospace; }
-.v-count.total { color: rgba(255,255,255,0.6); }
 
 /* 관리자 서브방 섹션 다크 카드 */
 .admin-subroom-dark-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 14px; margin-top: 16px; }
@@ -193,18 +189,13 @@ animation: pulse-red 1.5s infinite;
 <input type="password" id="adminPassword" placeholder="••••••••" class="secret-input input-gap mb-4">
 <button onclick="loginAdmin()" class="btn-submit btn-secret">ACCESS GRANTED</button>
 </div>
-<div class="visitor-log-box">
-<div class="v-item"><span class="v-label">SESSION_TODAY</span><span id="todayHits" class="v-count">0</span></div>
-<div class="v-item"><span class="v-label">SYSTEM_TOTAL</span><span id="totalHits" class="v-count total">0</span></div>
-</div>
 
 <div class="admin-subroom-dark-card text-left">
 <div class="flex items-center gap-2 mb-3">
 <span class="text-xs font-black text-white">🏪 산:우리 서브방 현황</span>
 <span class="text-[9px] text-gray-400 font-bold">클릭 시 링크 복사</span>
 </div>
-<div id="userSubRoomGrid" class="subroom-grid">
-</div>
+<div id="userSubRoomGrid" class="subroom-grid"></div>
 </div>
 </div>
 </div>
@@ -215,8 +206,7 @@ animation: pulse-red 1.5s infinite;
 <span>🛠️ 서브방 관리 패널</span>
 <span class="text-[9px] bg-blue-900 text-blue-200 px-2 py-0.5 rounded">실시간</span>
 </div>
-<div id="adminSubRoomList" class="admin-subroom-grid">
-</div>
+<div id="adminSubRoomList" class="admin-subroom-grid"></div>
 </div>
 
 <div class="card">
@@ -349,13 +339,13 @@ return { bg: '#ffffff', border: '#e2e8f0', text: '#94a3b8', blink: '' };
 
 const getDDayStyle = (dday, level) => {
 if (dday <= 10) return "dday-red";
-if (level === 0) return "bg-gray-soft";
+if (level === 0) return "bg-gray-soft"; // 신입은 깜빡임 제외
 if (dday <= 20) return "dday-orange";
 if (dday <= 30) return "dday-yellow";
 return "bg-gray-soft";
 };
 
-// 서브방 리스너
+// --- 서브방 로직 ---
 function listenSubRooms() {
 onSnapshot(collection(db, "sub_rooms"), (snapshot) => {
 const rooms = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -368,7 +358,6 @@ renderAdminSubRooms();
 });
 }
 
-// 사용자 서브방 렌더링 (다크 테마 적용)
 function renderUserSubRooms() {
 const container = document.getElementById('userSubRoomGrid');
 if(!container) return;
@@ -381,7 +370,6 @@ container.innerHTML = subRoomsData.map(room => `
 `).join('');
 }
 
-// 관리자 패널 서브방 렌더링 (다크 테마 및 OFF 시 초기화 로직)
 function renderAdminSubRooms() {
 const container = document.getElementById('adminSubRoomList');
 if(!container) return;
@@ -399,43 +387,40 @@ ${room.isActive ? 'ON' : 'OFF'}
 `).join('');
 }
 
-// 서브방 업데이트 로직 (OFF 시 statusMsg 초기화 추가)
 window.updateSubRoom = async (roomId, nextActive) => {
-let msg = document.getElementById(`msg-${roomId}`).value;
-// 꺼질 때 메시지 초기화
-if (!nextActive) {
-msg = ""; 
-document.getElementById(`msg-${roomId}`).value = "";
-}
-await setDoc(doc(db, "sub_rooms", roomId), {
-isActive: nextActive,
-statusMsg: msg
-}, { merge: true });
+let msgInput = document.getElementById(`msg-${roomId}`);
+let msg = msgInput.value;
+if (!nextActive) { msg = ""; msgInput.value = ""; }
+await setDoc(doc(db, "sub_rooms", roomId), { isActive: nextActive, statusMsg: msg }, { merge: true });
 };
 
 window.copySubRoomUrl = (url, name) => {
-navigator.clipboard.writeText(url).then(() => {
-alert(`🔗 [${name}] 링크 복사 완료!`);
-});
+navigator.clipboard.writeText(url).then(() => alert(`🔗 [${name}] 링크 복사 완료!`));
 };
 
+// --- 테이블 렌더링 및 D-Day 계산 ---
 window.renderStatusTable = () => {
 const list = document.getElementById('statusList');
 const search = document.getElementById('searchInput').value.trim();
 const sort = document.getElementById('statusSortOrder').value;
 list.innerHTML = "";
+
 const today = new Date();
+// 시간차 무시를 위해 날짜만 추출한 타임스탬프 계산
 const todayZero = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
 
 let processedData = currentData.map(m => {
 const last = m.lastDate.toDate();
 const lastZero = new Date(last.getFullYear(), last.getMonth(), last.getDate()).getTime();
 const diffDays = Math.floor((todayZero - lastZero) / (1000 * 60 * 60 * 24));
+// 등급별 기준일수 (신입 30일, 일반 122일)
 const baseLimit = (m.level === 0 ? 30 : 122);
+// 최종 남은 일수 = (기준일수 + 보너스) - 지난일수
 const ddayVal = (baseLimit + (m.bonusDays || 0)) - diffDays;
 return { ...m, ddayVal };
 });
 
+// 정렬 로직
 processedData.sort((a, b) => {
 if (sort === 'qCount') return b.qCount - a.qCount || b.level - a.level;
 if (sort === 'level') return b.level - a.level || b.qCount - a.qCount;
@@ -444,6 +429,7 @@ if (sort === 'dday') return a.ddayVal - b.ddayVal;
 return 0;
 });
 
+// 산신령 등 배지 계산 (숨김 인원 및 오즈 제외)
 const topNames = [...processedData]
 .filter(m => !m.isHidden && m.name !== "오즈")
 .sort((a, b) => b.qCount - a.qCount || b.level - a.level)
@@ -453,6 +439,7 @@ const topNames = [...processedData]
 processedData.forEach((m) => {
 if (!isAdminLoggedIn && m.isHidden) return;
 if (search && !m.name.includes(search)) return;
+
 let rankT = ""; let rankC = "";
 if (m.name !== "오즈" && m.qCount > 0 && !m.isHidden) {
 const idx = topNames.indexOf(m.name);
@@ -460,8 +447,10 @@ if (idx === 0) { rankT = "🥇산신령"; rankC = "rank-1"; }
 else if (idx === 1) { rankT = "🥈심마니"; rankC = "rank-2"; }
 else if (idx === 2) { rankT = "🥉나무꾼"; rankC = "rank-3"; }
 }
+
 const style = getLevelStyle(m.level);
 const ddayClass = getDDayStyle(m.ddayVal, m.level);
+
 list.innerHTML += `<tr class="border-b border-gray-50 ${m.isHidden ? 'opacity-40' : ''}">
 <td class="text-xs text-center">${rankT ? `<span class="rank-badge ${rankC}">${rankT}</span>` : ''}
 <span class="font-bold">${m.name}${m.isHidden ? '<span class="admin-only-badge">숨김</span>' : ''}</span></td>
@@ -474,6 +463,7 @@ list.innerHTML += `<tr class="border-b border-gray-50 ${m.isHidden ? 'opacity-40
 });
 };
 
+// --- 배지 변경 알림 ---
 async function checkBadgeChange(newData) {
 let upgradeMsgs = [];
 newData.forEach(member => {
@@ -488,31 +478,11 @@ prevBadges[member.id] = currentBadgeFull;
 });
 if (upgradeMsgs.length > 0) {
 const finalMsg = upgradeMsgs.join(' ');
-try {
-if (navigator.clipboard && navigator.clipboard.writeText) {
-await navigator.clipboard.writeText(finalMsg);
-alert(`🎉 [등급 변경 안내] ${finalMsg} (메시지가 복사되었습니다.)`);
-} else { alert(`🎉 [등급 변경 안내] ${finalMsg}`); }
-} catch (e) { alert(`🎉 [등급 변경 안내] ${finalMsg}`); }
+alert(`🎉 [등급 변경 안내]\n${finalMsg}`);
 }
 }
 
-async function updateVisitorCount() {
-const d = new Date();
-const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-const statsRef = doc(db, "site_stats", "visitors");
-const dailyRef = doc(db, "site_stats", `day_${todayStr}`);
-try { await updateDoc(statsRef, { total: increment(1) }); } catch (e) { await setDoc(statsRef, { total: 1 }, { merge: true }); }
-try { await updateDoc(dailyRef, { count: increment(1) }); } catch (e) { await setDoc(dailyRef, { count: 1, date: todayStr }, { merge: true }); }
-}
-
-function listenVisitors() {
-const d = new Date();
-const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-onSnapshot(doc(db, "site_stats", "visitors"), (s) => { if(s.exists()) document.getElementById('totalHits').innerText = s.data().total.toLocaleString(); });
-onSnapshot(doc(db, "site_stats", `day_${todayStr}`), (s) => { if(s.exists()) document.getElementById('todayHits').innerText = s.data().count.toLocaleString(); });
-}
-
+// --- 데이터 동기화 ---
 let unsubscribe = null;
 function startRealtimeSync() {
 if (unsubscribe) unsubscribe();
@@ -532,11 +502,11 @@ renderStatusTable();
 });
 }
 
-if (!sessionStorage.getItem('visited')) { updateVisitorCount(); sessionStorage.setItem('visited', 'true'); }
-listenVisitors();
+// 초기화 호출
 startRealtimeSync();
 listenSubRooms();
 
+// --- 탭 및 UI 제어 ---
 window.changeQuarter = (q) => {
 selectedQuarter = q;
 document.querySelectorAll('.q-btn').forEach((btn, idx) => btn.classList.toggle('active-q', idx + 1 === q));
@@ -560,6 +530,7 @@ else { alert("비밀번호 불일치"); }
 };
 window.logoutAdmin = () => { isAdminLoggedIn = false; document.getElementById('adminPassword').value=""; showView('status'); };
 
+// --- 관리자 기능 ---
 window.addMember = async () => {
 const name = document.getElementById('newName').value;
 const date = document.getElementById('regDate').value;
