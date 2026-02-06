@@ -71,21 +71,28 @@ td { padding: 12px 0; text-align: center; vertical-align: middle; }
 .rank-badge { font-size: 0.65rem; display: block; margin-bottom: -1px; font-weight: 900; }
 .rank-1 { color: #facc15 !important; } .rank-2 { color: #94a3b8 !important; } .rank-3 { color: #a36a00 !important; }
 
-/* 서브방 스타일 개선 */
+/* 서브방 스타일 개선 및 동기화된 깜빡임 */
 .subroom-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
 .subroom-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px 4px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); cursor: pointer; position: relative; overflow: visible; transition: 0.3s; }
 .subroom-emoji { font-size: 1.1rem; } .subroom-name { font-size: 0.6rem; font-weight: 800; color: rgba(255,255,255,0.7); }
 
-/* 빨간 점 깜빡임 애니메이션 */
-@keyframes dot-blink { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.8); } }
-.status-dot { position: absolute; top: 4px; right: 4px; width: 5px; height: 5px; background-color: #ff4d4d; border-radius: 50%; box-shadow: 0 0 5px #ff4d4d; display: none; animation: dot-blink 1s infinite; }
+/* 빨간 점 및 테두리 동기화 애니메이션 (1초 주기) */
+@keyframes sync-blink { 
+  0%, 100% { opacity: 1; border-color: rgba(239, 68, 68, 0.9); background-color: rgba(239, 68, 68, 0.2); } 
+  50% { opacity: 0.4; border-color: rgba(239, 68, 68, 0.3); background-color: rgba(239, 68, 68, 0.05); } 
+}
+@keyframes dot-pulse {
+  0%, 100% { transform: scale(1.1); opacity: 1; }
+  50% { transform: scale(0.8); opacity: 0.5; }
+}
 
-/* 서브방 활성화 깜빡임 효과 */
-@keyframes room-pulse { 0% { border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.1); } 50% { border-color: rgba(239, 68, 68, 0.9); background: rgba(239, 68, 68, 0.25); } 100% { border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.1); } }
-.room-active { animation: room-pulse 1.5s infinite ease-in-out; border-width: 1.5px !important; }
-.room-active .status-dot { display: block; }
+.status-dot { position: absolute; top: 4px; right: 4px; width: 5px; height: 5px; background-color: #ff4d4d; border-radius: 50%; box-shadow: 0 0 5px #ff4d4d; display: none; }
+
+.room-active { animation: sync-blink 1s infinite ease-in-out; border-width: 1.5px !important; }
+.room-active .status-dot { display: block; animation: dot-pulse 1s infinite ease-in-out; }
 .room-active .subroom-name { color: #fca5a5 !important; }
 
+/* 레벨 뱃지 및 기타 스타일 */
 .badge-level { display: inline-flex; flex-direction: column; align-items: center; gap: 1px; }
 .badge-icon-box { padding: 2px 8px; border-radius: 14px; line-height: 1.2; display: flex; align-items: center; justify-content: center; border-width: 1.5px; min-width: 50px; }
 .badge-icon-txt { font-size: 0.75rem; font-weight: 800; }
@@ -96,7 +103,6 @@ td { padding: 12px 0; text-align: center; vertical-align: middle; }
 .dday-orange { background-color: #fed7aa; color: #9a3412; animation: blink-medium 1.2s infinite; }
 .dday-red { background-color: #fecaca; color: #991b1b; animation: blink-fast 0.6s infinite; }
 
-/* 애니메이션 및 특수효과 */
 @keyframes blink-slow { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 @keyframes blink-medium { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 @keyframes blink-fast { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
@@ -177,6 +183,7 @@ td { padding: 12px 0; text-align: center; vertical-align: middle; }
 <div class="px-4">
 <input type="password" id="adminPassword" placeholder="••••••••" class="secret-input input-gap">
 <button onclick="loginAdmin()" class="btn-submit bg-blue-600">ACCESS GRANTED</button>
+<p class="text-[8px] text-gray-500 mt-2 font-bold tracking-tighter">Your activity is being logged for system security and audit purposes.</p>
 </div>
 
 <div class="visitor-log-box">
@@ -334,7 +341,6 @@ if (dday <= 30) return "dday-yellow";
 return "bg-gray-soft";
 };
 
-/* 방문자 기록 로직 */
 async function updateVisitorCount() {
 const d = new Date();
 const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -351,7 +357,6 @@ onSnapshot(doc(db, "site_stats", "visitors"), (s) => { if(s.exists()) document.g
 onSnapshot(doc(db, "site_stats", `day_${todayStr}`), (s) => { if(s.exists()) document.getElementById('todayHits').innerText = s.data().count.toLocaleString(); });
 }
 
-/* 서브방 로직 */
 const defaultSubRooms = [
 { id: "shop", name: "상점", emoji: "🏕", url: "상점 톡방📢 https://open.kakao.com/o/gYPcpN3h" },
 { id: "blacksmith", name: "대장간", emoji: "⚒️", url: "대장간 톡방📢 https://open.kakao.com/o/gxAupN3h" },
@@ -418,7 +423,6 @@ window.copySubRoomUrl = (url, name) => {
 navigator.clipboard.writeText(url);
 };
 
-/* 테이블 렌더링 및 정렬 */
 window.renderStatusTable = () => {
 const list = document.getElementById('statusList');
 const search = document.getElementById('searchInput').value.trim();
@@ -467,7 +471,7 @@ const ddayClass = getDDayStyle(m.ddayVal, m.level);
 
 list.innerHTML += `<tr class="border-b border-gray-50 ${m.isHidden ? 'opacity-40' : ''}">
 <td class="text-xs text-center">${rankT ? `<span class="rank-badge ${rankC}">${rankT}</span>` : ''}
-<span class="font-bold">${m.name}${m.isHidden ? '<span class="admin-only-badge" style="font-size:8px; color:#ef4444; margin-left:2px;">(숨김)</span>' : ''}</span></td>
+<span class="font-bold">${m.name}${m.isHidden ? '<span style="font-size:8px; color:#ef4444; margin-left:2px;">(숨김)</span>' : ''}</span></td>
 <td class="flex justify-center"><div class="badge-level">
 <div class="badge-icon-box ${style.blink}" style="background:${style.bg}; border-color:${style.border};">
 <span class="badge-icon-txt" style="color:${style.text}">${getLevelBadge(m.level)}</span></div>
@@ -477,7 +481,6 @@ list.innerHTML += `<tr class="border-b border-gray-50 ${m.isHidden ? 'opacity-40
 });
 };
 
-/* 뱃지 변경 감지 및 알림 */
 async function checkBadgeChange(newData) {
 let upgradeMsgs = [];
 newData.forEach(member => {
