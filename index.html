@@ -127,7 +127,7 @@ td { padding: 12px 0; text-align: center; vertical-align: middle; }
 </div>
 
 <div class="flex gap-2 mb-3 h-10 items-center">
-<input type="text" id="searchInput" onkeyup="renderStatusTable()" placeholder="🔍 검색..." class="flex-[1.8] bg-gray-50 border-gray-200 outline-none rounded-xl px-4 text-sm h-full border">
+<input type="text" id="searchInput" onkeyup="renderStatusTable()" placeholder="🔍 검색..." class="flex-[1.5] bg-gray-50 border-gray-200 outline-none rounded-xl px-4 text-sm h-full border">
 <button onclick="toggleModal(true)" class="flex-1 bg-white border border-gray-200 rounded-xl font-extrabold text-[11px] h-full text-center">📊 등급표</button>
 <select id="statusSortOrder" onchange="renderStatusTable()" class="flex-1 w-full bg-white border border-gray-200 rounded-xl font-extrabold text-[11px] h-full px-2 text-center">
 <option value="qCount">분기순 ▼</option>
@@ -322,7 +322,6 @@ if (dday <= 30) return "dday-yellow";
 return "bg-gray-soft";
 };
 
-/* 방문자 기록 로직 */
 async function updateVisitorCount() {
 const d = new Date();
 const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -339,7 +338,6 @@ onSnapshot(doc(db, "site_stats", "visitors"), (s) => { if(s.exists()) document.g
 onSnapshot(doc(db, "site_stats", `day_${todayStr}`), (s) => { if(s.exists()) document.getElementById('todayHits').innerText = s.data().count.toLocaleString(); });
 }
 
-/* 서브방 로직 */
 const defaultSubRooms = [
 { id: "shop", name: "상점", emoji: "🏕", url: "상점 톡방📢 https://open.kakao.com/o/gYPcpN3h" },
 { id: "blacksmith", name: "대장간", emoji: "⚒️", url: "대장간 톡방📢 https://open.kakao.com/o/gxAupN3h" },
@@ -406,7 +404,6 @@ navigator.clipboard.writeText(url);
 alert(`${name} 링크가 복사되었습니다.`);
 };
 
-/* 테이블 렌더링 및 정렬 (마지막 산행일 기준 D-Day 계산) */
 window.renderStatusTable = () => {
 const list = document.getElementById('statusList');
 const search = document.getElementById('searchInput').value.trim();
@@ -465,7 +462,6 @@ list.innerHTML += `<tr class="border-b border-gray-50 ${m.isHidden ? 'opacity-40
 });
 };
 
-/* 뱃지 변경 감지 및 알림 */
 async function checkBadgeChange(newData) {
 let upgradeMsgs = [];
 newData.forEach(member => {
@@ -493,10 +489,8 @@ const start = Timestamp.fromDate(new Date(selectedYear, (selectedQuarter - 1) * 
 const end = Timestamp.fromDate(new Date(selectedYear, selectedQuarter * 3, 1));
 const results = await Promise.all(snapshot.docs.map(async (docSnap) => {
 const m = { id: docSnap.id, ...docSnap.data() };
-// 분기 횟수 가져오기
 const lSnap = await getDocs(query(collection(db, `sanwoori/${m.id}/logs`), where("date", ">=", start), where("date", "<", end)));
 m.qCount = lSnap.size;
-// 전체 로그 중 가장 최신 날짜 찾기 (남은 날짜 계산용)
 const latestLogSnap = await getDocs(query(collection(db, `sanwoori/${m.id}/logs`), orderBy("date", "desc"), limit(1)));
 if (!latestLogSnap.empty) {
 m.lastDate = latestLogSnap.docs[0].data().date;
@@ -555,7 +549,6 @@ for(const id of selectedMemberIds){
 const mRef = doc(db, "sanwoori", id);
 const mS = await getDoc(mRef);
 let upData = { level: increment(up) };
-// 신규 기록이 기존 데이터보다 미래면 lastDate 업데이트
 if(ts.toMillis() > mS.data().lastDate.toMillis()) upData.lastDate = ts;
 await updateDoc(mRef, upData);
 for(let i=0; i < up; i++) await addDoc(collection(db, `sanwoori/${id}/logs`), { date: ts });
@@ -588,7 +581,6 @@ await deleteDoc(doc(db, `sanwoori/${mId}/logs`, logId));
 const downVal = parseInt(document.querySelector('input[name="downAmount"]:checked').value);
 const latestSnap = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc"), limit(1)));
 let updateObj = { level: increment(-downVal) };
-// 삭제 후 남은 기록 중 최신 날짜로 lastDate 갱신
 if (!latestSnap.empty) updateObj.lastDate = latestSnap.docs[0].data().date;
 await updateDoc(doc(db, "sanwoori", mId), updateObj); loadMemberLogs();
 };
