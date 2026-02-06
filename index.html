@@ -52,8 +52,8 @@ td { padding: 14px 0; text-align: center; vertical-align: middle; }
 .rank-2 { color: #94a3b8 !important; }
 .rank-3 { color: #a36a00 !important; }
 
-/* 서브방 UI 스타일 */
-.subroom-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: 10px; }
+/* 서브방 UI 스타일 (공통) */
+.subroom-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
 .subroom-btn {
 display: flex; flex-direction: column; align-items: center; justify-content: center;
 padding: 10px 4px; border-radius: 12px; border: 1px solid #e2e8f0; background: white;
@@ -64,6 +64,12 @@ cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden;
 .subroom-name { font-size: 0.65rem; font-weight: 800; color: #475569; }
 .subroom-status-txt { font-size: 0.55rem; font-weight: 700; color: #ef4444; margin-top: 2px; height: 12px; overflow: hidden; }
 
+/* 관리자 서브방 그리드 설정 (5개씩) */
+.admin-subroom-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.admin-room-item { background: white; border-radius: 12px; padding: 8px 4px; border: 1.5px solid #e2e8f0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.admin-room-item input { height: 28px !important; font-size: 10px !important; padding: 2px 4px !important; border-radius: 6px !important; text-align: center; }
+.admin-room-toggle { font-size: 9px; font-weight: 900; width: 100%; padding: 4px 0; border-radius: 6px; }
+
 /* 서브방 활성화 불빛 애니메이션 */
 .room-active { border-color: #fecaca !important; background: #fff1f1 !important; }
 .room-active::before {
@@ -73,7 +79,7 @@ animation: pulse-red 1.5s infinite;
 }
 @keyframes pulse-red { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
 
-/* 나머지 기존 스타일 (D-Day, 관리자 등) 생략 없이 유지 */
+/* D-Day, 관리자 등 */
 .badge-level { display: inline-flex; flex-direction: column; align-items: center; gap: 1px; }
 .badge-icon-box { padding: 2px 8px; border-radius: 14px; line-height: 1.2; display: flex; align-items: center; justify-content: center; border-width: 1.5px; min-width: 50px; }
 .badge-icon-txt { font-size: 0.75rem; font-weight: 800; }
@@ -93,7 +99,7 @@ animation: pulse-red 1.5s infinite;
 .level-blink-red { animation: glow-red 1.2s infinite ease-in-out; border-width: 1.8px !important; }
 .level-blink-yellow { animation: glow-yellow 1.8s infinite ease-in-out; border-width: 1.8px !important; }
 
-.secret-login-container { background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%); border-radius: 24px; padding: 40px 24px; position: relative; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3); }
+.secret-login-container { background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%); border-radius: 24px; padding: 40px 16px; position: relative; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3); }
 .secret-icon { font-size: 3rem; margin-bottom: 1rem; filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.5)); animation: floating 3s ease-in-out infinite; }
 @keyframes floating { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 .secret-input { background: rgba(255, 255, 255, 0.05) !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; color: white !important; text-align: center; letter-spacing: 0.5em; }
@@ -103,6 +109,10 @@ animation: pulse-red 1.5s infinite;
 .v-label { font-size: 0.55rem; font-weight: 800; color: rgba(255,255,255,0.3); margin-bottom: 2px; letter-spacing: 0.1em; }
 .v-count { font-size: 0.8rem; font-weight: 700; color: #3b82f6; font-family: monospace; }
 .v-count.total { color: rgba(255,255,255,0.6); }
+
+/* 관리자 서브방 섹션용 다크 테마 */
+.admin-subroom-dark-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 16px; margin-top: 20px; }
+
 .member-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .member-chip { padding: 10px 4px; border: 1px solid #e2e8f0; border-radius: 10px; text-align: center; font-size: 0.7rem; font-weight: 700; cursor: pointer; background: white; color: #64748b; }
 .member-chip.selected { background: #3b82f6 !important; color: white !important; border-color: #3b82f6 !important; }
@@ -171,18 +181,9 @@ animation: pulse-red 1.5s infinite;
 </thead>
 <tbody id="statusList"></tbody>
 </table>
-
-<div class="mt-8 border-t pt-6">
-<div class="flex items-center gap-2 mb-3">
-<span class="text-sm font-black text-slate-800">🏪 산:우리 서브방 현황</span>
-<span class="text-[10px] text-slate-400 font-bold">클릭 시 링크 복사</span>
-</div>
-<div id="userSubRoomGrid" class="subroom-grid">
-</div>
-</div>
 </div>
 
-<div id="viewLogin" class="view-content hidden p-6">
+<div id="viewLogin" class="view-content hidden p-6 overflow-y-auto">
 <div class="secret-login-container text-center">
 <div class="secret-icon">🔐</div>
 <h2 class="text-white text-xl font-black mb-2">관리자 구역</h2>
@@ -195,16 +196,25 @@ animation: pulse-red 1.5s infinite;
 <div class="v-item"><span class="v-label">SESSION_TODAY</span><span id="todayHits" class="v-count">0</span></div>
 <div class="v-item"><span class="v-label">SYSTEM_TOTAL</span><span id="totalHits" class="v-count total">0</span></div>
 </div>
+
+<div class="admin-subroom-dark-card text-left">
+<div class="flex items-center gap-2 mb-4">
+<span class="text-xs font-black text-white">🏪 산:우리 서브방 현황</span>
+<span class="text-[9px] text-gray-400 font-bold">클릭 시 링크 복사</span>
+</div>
+<div id="userSubRoomGrid" class="subroom-grid">
+</div>
+</div>
 </div>
 </div>
 
 <div id="viewAdmin" class="view-content hidden p-6 overflow-y-auto max-h-[90vh]">
 <div class="card" style="background: #f8fafc; border: 2px solid #3b82f6;">
 <div class="card-title text-blue-600 font-black mb-4 flex justify-between items-center">
-<span>🛠️ 서브방 관리 패널</span>
+<span>🛠️ 서브방 관리 패널 (5개씩)</span>
 <span class="text-[10px] bg-blue-100 px-2 py-1 rounded">실시간 반영</span>
 </div>
-<div id="adminSubRoomList" class="space-y-3">
+<div id="adminSubRoomList" class="admin-subroom-grid">
 </div>
 </div>
 
@@ -297,7 +307,6 @@ const now = new Date();
 let selectedYear = now.getFullYear();
 let selectedQuarter = Math.ceil((now.getMonth() + 1) / 3);
 
-// 서브방 기본 데이터 정의
 const defaultSubRooms = [
 { id: "shop", name: "상점", emoji: "🏪", url: "https://open.kakao.com/o/gYPcpN3h" },
 { id: "blacksmith", name: "대장간", emoji: "⚒️", url: "https://open.kakao.com/o/gxAupN3h" },
@@ -345,7 +354,7 @@ if (dday <= 30) return "dday-yellow";
 return "bg-gray-soft";
 };
 
-// 실시간 서브방 동기화 및 렌더링
+// 실시간 서브방 동기화
 function listenSubRooms() {
 onSnapshot(collection(db, "sub_rooms"), (snapshot) => {
 const rooms = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -354,13 +363,14 @@ const dbData = rooms.find(r => r.id === def.id) || { isActive: false, statusMsg:
 return { ...def, ...dbData };
 });
 renderUserSubRooms();
-if(isAdminLoggedIn) renderAdminSubRooms();
+renderAdminSubRooms();
 });
 }
 
-// 사용자 화면 서브방 렌더링
+// 사용자(로그인화면) 서브방 렌더링
 function renderUserSubRooms() {
 const container = document.getElementById('userSubRoomGrid');
+if(!container) return;
 container.innerHTML = subRoomsData.map(room => `
 <div class="subroom-btn ${room.isActive ? 'room-active' : ''}" onclick="copySubRoomUrl('${room.url}', '${room.name}')">
 <span class="subroom-emoji">${room.emoji}</span>
@@ -370,24 +380,24 @@ container.innerHTML = subRoomsData.map(room => `
 `).join('');
 }
 
-// 관리자 화면 서브방 관리 리스트 렌더링
+// 관리자 패널 서브방 렌더링 (5열 그리드)
 function renderAdminSubRooms() {
 const container = document.getElementById('adminSubRoomList');
+if(!container) return;
 container.innerHTML = subRoomsData.map(room => `
-<div class="flex items-center gap-3 bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
-<span class="text-lg w-8 text-center">${room.emoji}</span>
-<span class="text-xs font-bold w-12">${room.name}</span>
-<input type="text" id="msg-${room.id}" value="${room.statusMsg || ''}" placeholder="방 상태 입력"
-class="flex-1 h-8 text-[11px] px-2 border rounded-lg bg-gray-50 outline-none">
+<div class="admin-room-item ${room.isActive ? 'border-blue-400 bg-blue-50' : ''}">
+<span class="text-sm">${room.emoji}</span>
+<span class="text-[9px] font-black">${room.name}</span>
+<input type="text" id="msg-${room.id}" value="${room.statusMsg || ''}" placeholder="상태"
+onchange="updateSubRoom('${room.id}', ${room.isActive})">
 <button onclick="updateSubRoom('${room.id}', ${!room.isActive})"
-class="px-3 py-1 rounded-lg text-[10px] font-black transition ${room.isActive ? 'bg-red-500 text-white' : 'bg-gray-200 text-gray-500'}">
-${room.isActive ? '사용중' : '미사용'}
+class="admin-room-toggle ${room.isActive ? 'bg-red-500 text-white' : 'bg-gray-200 text-gray-500'}">
+${room.isActive ? 'ON' : 'OFF'}
 </button>
 </div>
 `).join('');
 }
 
-// 서브방 상태 업데이트 (관리자용)
 window.updateSubRoom = async (roomId, nextActive) => {
 const msg = document.getElementById(`msg-${roomId}`).value;
 await setDoc(doc(db, "sub_rooms", roomId), {
@@ -396,10 +406,9 @@ statusMsg: msg
 }, { merge: true });
 };
 
-// URL 클립보드 복사
 window.copySubRoomUrl = (url, name) => {
 navigator.clipboard.writeText(url).then(() => {
-alert(`🔗 [${name}] 링크가 복사되었습니다! 카카오톡에 붙여넣기 해주세요.`);
+alert(`🔗 [${name}] 링크 복사 완료!`);
 });
 };
 
@@ -466,7 +475,7 @@ const oldBadgeFull = prevBadges[member.id];
 if (oldBadgeFull && oldBadgeFull !== currentBadgeFull) {
 const emojiOnly = currentBadgeFull.split(' ')[0];
 const nameOnly = currentBadgeFull.split(' ')[1] || "";
-upgradeMsgs.push(`${member.name}님이 ${member.level}레벨로 ${emojiOnly} ${nameOnly} 마크를 획득하셨습니다 축하드립니다 🎉`);
+upgradeMsgs.push(`${member.name}님이 ${member.level}레벨로 ${emojiOnly} ${nameOnly} 마크를 획득하셨습니다 🎉`);
 }
 prevBadges[member.id] = currentBadgeFull;
 });
@@ -519,7 +528,7 @@ renderStatusTable();
 if (!sessionStorage.getItem('visited')) { updateVisitorCount(); sessionStorage.setItem('visited', 'true'); }
 listenVisitors();
 startRealtimeSync();
-listenSubRooms(); // 서브방 실시간 리스너 추가
+listenSubRooms();
 
 window.changeQuarter = (q) => {
 selectedQuarter = q;
@@ -534,7 +543,6 @@ document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active-ta
 if(v === 'status') document.getElementById('tabStatus').classList.add('active-tab');
 if(v === 'admin' || v === 'login') document.getElementById('tabAdmin').classList.add('active-tab');
 renderStatusTable();
-if(v === 'admin') renderAdminSubRooms();
 };
 window.handleAdminTab = () => isAdminLoggedIn ? showView('admin') : showView('login');
 window.loginAdmin = async () => {
@@ -653,6 +661,7 @@ const alpha = [...currentData].sort((a, b) => a.name.localeCompare(b.name, 'ko')
 const multi = document.getElementById('multiMemberList');
 const edit = document.getElementById('memberSelectEdit');
 const manage = document.getElementById('memberSelectManage');
+if(!multi) return;
 multi.innerHTML = ""; edit.innerHTML = manage.innerHTML = '<option value="">대상 회원 선택</option>';
 alpha.forEach(m => {
 multi.innerHTML += `<div class="member-chip ${selectedMemberIds.has(m.id)?'selected':''} ${m.isHidden?'is-hidden':''}" onclick="toggleSelectMember('${m.id}', this)">${m.name}</div>`;
@@ -667,6 +676,3 @@ document.querySelectorAll('.q-btn')[selectedQuarter-1].classList.add('active-q')
 </script>
 </body>
 </html>
-산우리 서브방 현황창을 관리자 모드 로그인 화면 하단으로 옮겨줘 검은배경으로 해주고
-관리자 모드에서 서브방 현황 체크하고 적는 창을 5개씩 해서 작게 만들어줘
-누락되는거 없이 통합코드로 만들어줘 
