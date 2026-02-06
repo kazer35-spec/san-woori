@@ -70,17 +70,20 @@ th { color: #94a3b8; font-size: 0.75rem; padding-bottom: 12px; border-bottom: 2p
 td { padding: 12px 0; text-align: center; vertical-align: middle; }
 .rank-badge { font-size: 0.65rem; display: block; margin-bottom: -1px; font-weight: 900; }
 .rank-1 { color: #facc15 !important; } .rank-2 { color: #94a3b8 !important; } .rank-3 { color: #a36a00 !important; }
+
+/* 서브방 스타일 개선 */
 .subroom-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
-.subroom-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px 4px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); cursor: pointer; position: relative; overflow: hidden; transition: 0.3s; }
+.subroom-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px 4px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); cursor: pointer; position: relative; overflow: visible; transition: 0.3s; }
 .subroom-emoji { font-size: 1.1rem; } .subroom-name { font-size: 0.6rem; font-weight: 800; color: rgba(255,255,255,0.7); }
 
+/* 빨간 점 깜빡임 애니메이션 */
+@keyframes dot-blink { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.8); } }
+.status-dot { position: absolute; top: 4px; right: 4px; width: 5px; height: 5px; background-color: #ff4d4d; border-radius: 50%; box-shadow: 0 0 5px #ff4d4d; display: none; animation: dot-blink 1s infinite; }
+
 /* 서브방 활성화 깜빡임 효과 */
-@keyframes room-pulse {
-  0% { border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.1); }
-  50% { border-color: rgba(239, 68, 68, 0.9); background: rgba(239, 68, 68, 0.25); box-shadow: 0 0 10px rgba(239, 68, 68, 0.2); }
-  100% { border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.1); }
-}
+@keyframes room-pulse { 0% { border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.1); } 50% { border-color: rgba(239, 68, 68, 0.9); background: rgba(239, 68, 68, 0.25); } 100% { border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.1); } }
 .room-active { animation: room-pulse 1.5s infinite ease-in-out; border-width: 1.5px !important; }
+.room-active .status-dot { display: block; }
 .room-active .subroom-name { color: #fca5a5 !important; }
 
 .badge-level { display: inline-flex; flex-direction: column; align-items: center; gap: 1px; }
@@ -379,9 +382,10 @@ const container = document.getElementById('userSubRoomGrid');
 if(!container) return;
 container.innerHTML = subRoomsData.map(room => `
 <div class="subroom-btn ${room.isActive ? 'room-active' : ''}" onclick="copySubRoomUrl('${room.url}', '${room.name}')">
+<div class="status-dot"></div>
 <span class="subroom-emoji">${room.emoji}</span>
 <span class="subroom-name">${room.name}</span>
-<span class="subroom-status-txt" style="font-size:0.5rem; color:#f87171; height:10px; font-weight:800;">${room.isActive ? (room.statusMsg || 'ON') : ''}</span>
+<span class="subroom-status-txt" style="font-size:0.5rem; color:#f87171; height:10px; font-weight:800; margin-top:1px;">${room.isActive ? (room.statusMsg || 'ON') : ''}</span>
 </div>
 `).join('');
 }
