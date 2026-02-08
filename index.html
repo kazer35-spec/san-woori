@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>산:우리 - 레벨 시스템</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
         body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: #333; }
@@ -53,7 +52,7 @@
         @keyframes floating { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
         .secret-input { background: rgba(255, 255, 255, 0.05) !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; color: white !important; text-align: center; letter-spacing: 0.5em; }
         
-        /* 방문자 통계 유리 느낌 카드 (Glassmorphism) */
+        /* 방문자 통계 유리 느낌 카드 */
         .visitor-stat-card { 
             background: rgba(255, 255, 255, 0.04); 
             backdrop-filter: blur(10px); 
@@ -64,7 +63,7 @@
             margin-top: 15px;
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
         }
-        .v-stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 15px; }
+        .v-stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .v-stat-item { 
             background: rgba(255, 255, 255, 0.03); 
             border: 1px solid rgba(255, 255, 255, 0.05); 
@@ -73,7 +72,7 @@
             text-align: center; 
         }
         .v-stat-label { font-size: 0.55rem; font-weight: 900; color: rgba(255, 255, 255, 0.4); text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 4px; }
-        .v-stat-value { font-size: 1.25rem; font-weight: 900; color: #60a5fa; font-family: 'Courier New', monospace; text-shadow: 0 0 10px rgba(59, 130, 246, 0.3); }
+        .v-stat-value { font-size: 1.25rem; font-weight: 900; color: #60a5fa; font-family: 'Pretendard', sans-serif; text-shadow: 0 0 10px rgba(59, 130, 246, 0.3); }
         .v-stat-total { color: rgba(255, 255, 255, 0.8); }
 
         /* 실시간 녹색 점 애니메이션 */
@@ -84,7 +83,7 @@
         .sys-log-header { font-size: 0.65rem; font-weight: 900; color: rgba(255,255,255,0.3); letter-spacing: 2px; margin-bottom: 12px; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px; }
 
         /* 시스템 기준일 디자인 */
-        .system-date-info { font-size: 9px; font-weight: 800; color: rgba(255,255,255,0.15); letter-spacing: 1.5px; text-align: center; margin-top: 15px; font-family: 'Courier New', monospace; border-top: 1px solid rgba(255,255,255,0.03); padding-top: 15px; }
+        .system-date-info { font-size: 9px; font-weight: 800; color: rgba(255,255,255,0.15); letter-spacing: 1.5px; text-align: center; margin-top: 15px; font-family: 'Pretendard', sans-serif; border-top: 1px solid rgba(255,255,255,0.03); padding-top: 15px; }
 
         /* 블랙 테마 통계 */
         .admin-subroom-dark-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 24px; padding: 16px; margin-top: 12px; position: relative; overflow: hidden; }
@@ -279,9 +278,6 @@
                         <div id="totalHits" class="v-stat-value v-stat-total">0</div>
                     </div>
                 </div>
-                <div style="height: 80px; width: 100%; margin-top: 5px;">
-                    <canvas id="visitorChart"></canvas>
-                </div>
             </div>
 
             <div class="system-date-info">
@@ -409,7 +405,6 @@
     const now = new Date();
     let selectedYear = now.getFullYear();
     let selectedQuarter = Math.ceil((now.getMonth() + 1) / 3);
-    let vChart = null; // 차트 객체 저장용
 
     const levelThresholds = [
         { lv: 100, name: "🌌 은하수" }, { lv: 90, name: "🌠 별똥별" }, { lv: 80, name: "💫 타원별" },
@@ -455,56 +450,11 @@
         try { await updateDoc(dailyRef, { count: increment(1) }); } catch (e) { await setDoc(dailyRef, { count: 1, date: todayStr }, { merge: true }); }
     }
 
-    // 방문자 그래프 초기화 및 업데이트
-    function initVisitorChart() {
-        const ctx = document.getElementById('visitorChart').getContext('2d');
-        vChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: ['', '', '', '', '', '', '오늘'],
-                datasets: [{
-                    data: [0, 0, 0, 0, 0, 0, 0],
-                    borderColor: '#60a5fa',
-                    backgroundColor: 'rgba(96, 165, 250, 0.1)',
-                    fill: true,
-                    tension: 0.4,
-                    pointRadius: 0,
-                    borderWidth: 2
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    x: { display: false },
-                    y: { display: false }
-                }
-            }
-        });
-    }
-
-    async function updateChartData() {
-        if (!vChart) return;
-        const statsQuery = query(collection(db, "site_stats"), orderBy("date", "desc"), limit(7));
-        const snap = await getDocs(statsQuery);
-        let counts = [0,0,0,0,0,0,0];
-        let idx = 6;
-        snap.forEach(doc => { if(doc.id.startsWith('day_')) { counts[idx] = doc.data().count; idx--; } });
-        vChart.data.datasets[0].data = counts;
-        vChart.update();
-    }
-
     function listenVisitors() {
         const d = new Date();
         const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         onSnapshot(doc(db, "site_stats", "visitors"), (s) => { if(s.exists()) document.getElementById('totalHits').innerText = s.data().total.toLocaleString(); });
-        onSnapshot(doc(db, "site_stats", `day_${todayStr}`), (s) => { 
-            if(s.exists()) {
-                document.getElementById('todayHits').innerText = s.data().count.toLocaleString();
-                updateChartData();
-            } 
-        });
+        onSnapshot(doc(db, "site_stats", `day_${todayStr}`), (s) => { if(s.exists()) document.getElementById('todayHits').innerText = s.data().count.toLocaleString(); });
     }
 
     // 서브방 데이터
@@ -571,9 +521,7 @@
     };
 
     window.copySubRoomUrl = (url, name) => {
-        navigator.clipboard.writeText(url).then(() => {
-            alert(`${name} 톡방 링크가 복사되었습니다.`);
-        });
+        navigator.clipboard.writeText(url);
     };
 
     // 실시간 현황 및 통계 렌더링
@@ -689,9 +637,7 @@
         });
     }
 
-    // 초기화 실행
     if (!sessionStorage.getItem('visited')) { updateVisitorCount(); sessionStorage.setItem('visited', 'true'); }
-    initVisitorChart();
     listenVisitors();
     startRealtimeSync();
     listenSubRooms();
@@ -705,7 +651,6 @@
         if(v === 'status') document.getElementById('tabStatus').classList.add('active-tab');
         if(v === 'admin' || v === 'login') document.getElementById('tabAdmin').classList.add('active-tab');
         renderStatusTable();
-        if(v === 'login') updateChartData(); // 로그인 뷰 진입 시 차트 갱신
     };
     window.handleAdminTab = () => isAdminLoggedIn ? showView('admin') : showView('login');
     window.loginAdmin = async () => {
@@ -716,7 +661,6 @@
     };
     window.logoutAdmin = () => { isAdminLoggedIn = false; document.getElementById('adminPassword').value=""; showView('status'); };
 
-    // 회원 관리 함수들
     window.addMember = async () => {
         const name = document.getElementById('newName').value.trim();
         const date = document.getElementById('regDate').value;
