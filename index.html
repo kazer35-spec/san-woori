@@ -56,8 +56,8 @@ select { -webkit-appearance: none; -moz-appearance: none; appearance: none; back
 .v-label { font-size: 0.55rem; font-weight: 800; color: rgba(255,255,255,0.3); margin-bottom: 4px; }
 .v-count { font-size: 0.85rem; font-weight: 800; color: #3b82f6; font-family: monospace; }
 
-/* 시스템 기준일 디자인 */
-.system-date-info { font-size: 10px; font-weight: 900; color: rgba(255,255,255,0.25); letter-spacing: 2px; text-align: center; margin-top: 8px; font-family: 'Courier New', monospace; }
+/* 시스템 기준일 디자인 - 하단 이동용 */
+.system-date-info { font-size: 9px; font-weight: 800; color: rgba(255,255,255,0.15); letter-spacing: 1.5px; text-align: center; margin-top: 25px; font-family: 'Courier New', monospace; border-top: 1px solid rgba(255,255,255,0.03); padding-top: 15px; }
 
 /* 블랙 테마 통계 */
 .admin-subroom-dark-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 24px; padding: 16px; margin-top: 12px; position: relative; overflow: hidden; }
@@ -205,9 +205,8 @@ td { padding: 12px 0; text-align: center; vertical-align: middle; }
 <div class="v-item"><span class="v-label">SESSION_TODAY</span><span id="todayHits" class="v-count">0</span></div>
 <div class="v-item"><span class="v-label">SYSTEM_TOTAL</span><span id="totalHits" class="v-count" style="color:rgba(255,255,255,0.5)">0</span></div>
 </div>
-<div class="system-date-info">SYSTEM_ESTABLISHED: 2025.11.24</div>
 
-<div class="admin-subroom-dark-card text-left mt-6">
+<div class="admin-subroom-dark-card text-left">
 <div class="flex items-center gap-2 mb-3">
 <span class="text-xs font-black text-white">⛺️ 산:우리 서브방 </span>
 <span class="text-[7px] text-gray-500 font-bold bg-white/5 px-2 py-0.5 rounded-full">클릭 시 링크 복사</span>
@@ -237,6 +236,10 @@ td { padding: 12px 0; text-align: center; vertical-align: middle; }
             <div class="stat-icon-bg">👧</div>
         </div>
     </div>
+</div>
+
+<div class="system-date-info">SYSTEM_ESTABLISHED: 2025.11.24</div>
+
 </div>
 </div>
 
@@ -395,7 +398,7 @@ if (dday <= 30) return "dday-yellow";
 return "bg-gray-soft";
 };
 
-// 방문자 카운트 로직
+// 방문자 카운트
 async function updateVisitorCount() {
 const d = new Date();
 const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -412,7 +415,7 @@ onSnapshot(doc(db, "site_stats", "visitors"), (s) => { if(s.exists()) document.g
 onSnapshot(doc(db, "site_stats", `day_${todayStr}`), (s) => { if(s.exists()) document.getElementById('todayHits').innerText = s.data().count.toLocaleString(); });
 }
 
-// 서브방 데이터 정의
+// 서브방 데이터
 const defaultSubRooms = [
 { id: "shop", name: "상점", emoji: "🏕", url: "상점 톡방📢 https://open.kakao.com/o/gYPcpN3h" },
 { id: "blacksmith", name: "대장간", emoji: "⚒️", url: "대장간 톡방📢 https://open.kakao.com/o/gxAupN3h" },
@@ -486,6 +489,7 @@ window.renderStatusTable = () => {
 const list = document.getElementById('statusList');
 const search = document.getElementById('searchInput').value.trim();
 const sort = document.getElementById('statusSortOrder').value;
+if(!list) return;
 list.innerHTML = "";
 const today = new Date();
 const todayZero = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
@@ -508,9 +512,12 @@ processedData.forEach(m => {
     }
 });
 
-document.getElementById('countMale').innerText = maleCount;
-document.getElementById('countFemale').innerText = femaleCount;
-document.getElementById('countTotal').innerText = (maleCount + femaleCount);
+const cMale = document.getElementById('countMale');
+const cFemale = document.getElementById('countFemale');
+const cTotal = document.getElementById('countTotal');
+if(cMale) cMale.innerText = maleCount;
+if(cFemale) cFemale.innerText = femaleCount;
+if(cTotal) cTotal.innerText = (maleCount + femaleCount);
 
 processedData.sort((a, b) => {
 if (sort === 'qCount') return b.qCount - a.qCount || b.level - a.level;
@@ -590,6 +597,7 @@ renderStatusTable();
 });
 }
 
+// 초기화
 if (!sessionStorage.getItem('visited')) { updateVisitorCount(); sessionStorage.setItem('visited', 'true'); }
 listenVisitors();
 startRealtimeSync();
@@ -614,7 +622,7 @@ else alert("비밀번호 불일치");
 };
 window.logoutAdmin = () => { isAdminLoggedIn = false; document.getElementById('adminPassword').value=""; showView('status'); };
 
-// 관리자 기능 일체
+// 관리자 기능
 window.addMember = async () => {
 const name = document.getElementById('newName').value.trim();
 const date = document.getElementById('regDate').value;
@@ -747,7 +755,8 @@ manage.innerHTML += `<option value="${m.id}">${m.name}${m.isHidden?' (숨김)':'
 
 document.getElementById('regDate').valueAsDate = new Date();
 document.getElementById('activityDate').valueAsDate = new Date();
-document.querySelectorAll('.q-btn')[selectedQuarter-1].classList.add('active-q');
+const currentQBtn = document.getElementById(`qBtn${selectedQuarter}`);
+if(currentQBtn) currentQBtn.classList.add('active-q');
 </script>
 </body>
 </html>
