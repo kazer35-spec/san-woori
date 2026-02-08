@@ -57,7 +57,7 @@ select { -webkit-appearance: none; -moz-appearance: none; appearance: none; back
 .v-count { font-size: 0.85rem; font-weight: 800; color: #3b82f6; font-family: monospace; }
 
 /* 시스템 기준일 디자인 */
-.system-date-info { font-size: 10px; font-weight: 900; color: rgba(255,255,255,0.25); letter-spacing: 2px; text-align: center; margin-top: 12px; font-family: 'Courier New', monospace; }
+.system-date-info { font-size: 10px; font-weight: 900; color: rgba(255,255,255,0.25); letter-spacing: 2px; text-align: center; margin-top: 8px; font-family: 'Courier New', monospace; }
 
 /* 블랙 테마 통계 */
 .admin-subroom-dark-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 24px; padding: 16px; margin-top: 12px; position: relative; overflow: hidden; }
@@ -201,7 +201,13 @@ td { padding: 12px 0; text-align: center; vertical-align: middle; }
 <button onclick="loginAdmin()" class="btn-submit bg-blue-600">ACCESS GRANTED</button>
 </div>
 
-<div class="admin-subroom-dark-card text-left mt-8">
+<div class="visitor-log-box">
+<div class="v-item"><span class="v-label">SESSION_TODAY</span><span id="todayHits" class="v-count">0</span></div>
+<div class="v-item"><span class="v-label">SYSTEM_TOTAL</span><span id="totalHits" class="v-count" style="color:rgba(255,255,255,0.5)">0</span></div>
+</div>
+<div class="system-date-info">SYSTEM_ESTABLISHED: 2025.11.24</div>
+
+<div class="admin-subroom-dark-card text-left mt-6">
 <div class="flex items-center gap-2 mb-3">
 <span class="text-xs font-black text-white">⛺️ 산:우리 서브방 </span>
 <span class="text-[7px] text-gray-500 font-bold bg-white/5 px-2 py-0.5 rounded-full">클릭 시 링크 복사</span>
@@ -231,14 +237,6 @@ td { padding: 12px 0; text-align: center; vertical-align: middle; }
             <div class="stat-icon-bg">👧</div>
         </div>
     </div>
-</div>
-
-<div class="visitor-log-box">
-<div class="v-item"><span class="v-label">SESSION_TODAY</span><span id="todayHits" class="v-count">0</span></div>
-<div class="v-item"><span class="v-label">SYSTEM_TOTAL</span><span id="totalHits" class="v-count" style="color:rgba(255,255,255,0.5)">0</span></div>
-</div>
-<div class="system-date-info">SYSTEM_ESTABLISHED: 2025.11.24</div>
-
 </div>
 </div>
 
@@ -397,7 +395,7 @@ if (dday <= 30) return "dday-yellow";
 return "bg-gray-soft";
 };
 
-// 방문자 카운트
+// 방문자 카운트 로직
 async function updateVisitorCount() {
 const d = new Date();
 const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -414,7 +412,7 @@ onSnapshot(doc(db, "site_stats", "visitors"), (s) => { if(s.exists()) document.g
 onSnapshot(doc(db, "site_stats", `day_${todayStr}`), (s) => { if(s.exists()) document.getElementById('todayHits').innerText = s.data().count.toLocaleString(); });
 }
 
-// 서브방 데이터
+// 서브방 데이터 정의
 const defaultSubRooms = [
 { id: "shop", name: "상점", emoji: "🏕", url: "상점 톡방📢 https://open.kakao.com/o/gYPcpN3h" },
 { id: "blacksmith", name: "대장간", emoji: "⚒️", url: "대장간 톡방📢 https://open.kakao.com/o/gxAupN3h" },
@@ -616,7 +614,7 @@ else alert("비밀번호 불일치");
 };
 window.logoutAdmin = () => { isAdminLoggedIn = false; document.getElementById('adminPassword').value=""; showView('status'); };
 
-// 관리자 기능
+// 관리자 기능 일체
 window.addMember = async () => {
 const name = document.getElementById('newName').value.trim();
 const date = document.getElementById('regDate').value;
