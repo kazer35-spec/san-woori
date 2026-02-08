@@ -56,11 +56,14 @@ select { -webkit-appearance: none; -moz-appearance: none; appearance: none; back
 .v-label { font-size: 0.55rem; font-weight: 800; color: rgba(255,255,255,0.3); margin-bottom: 4px; }
 .v-count { font-size: 0.85rem; font-weight: 800; color: #3b82f6; font-family: monospace; }
 
-/* 통계 슬림 바 (로그인 하단용) */
-.slim-stat-bar { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 15px; padding: 8px 12px; margin-top: 12px; display: flex; justify-content: space-between; align-items: center; }
-.slim-stat-item { display: flex; align-items: center; gap: 6px; }
-.slim-stat-label { font-size: 0.6rem; font-weight: 900; color: rgba(255,255,255,0.4); }
-.slim-stat-val { font-size: 0.85rem; font-weight: 900; }
+/* 통계 디자인 (2줄 세련된 스타일) */
+.stat-box-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 15px; }
+.stat-mini-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 10px 14px; display: flex; flex-direction: column; justify-content: center; }
+.stat-mini-card.full { grid-column: span 2; flex-direction: row; justify-content: space-between; align-items: center; background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.2); }
+.stat-row-top { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; }
+.stat-mini-label { font-size: 0.65rem; font-weight: 900; color: rgba(255,255,255,0.4); letter-spacing: 0.5px; }
+.stat-mini-val { font-size: 1.1rem; font-weight: 900; font-family: 'Pretendard'; }
+.stat-mini-emoji { font-size: 1rem; }
 
 /* 서브방 그리드 */
 .admin-subroom-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
@@ -202,23 +205,31 @@ td { padding: 12px 0; text-align: center; vertical-align: middle; }
 <span class="text-[7px] text-gray-500 font-bold">클릭 시 링크 복사</span>
 </div>
 <div id="userSubRoomGrid" class="subroom-grid"></div>
-</div>
 
-<div class="slim-stat-bar">
-    <div class="slim-stat-item">
-        <span class="slim-stat-label">GENTS</span>
-        <span id="countMale" class="slim-stat-val text-blue-400">0</span>
+<div class="stat-box-grid">
+    <div class="stat-mini-card">
+        <div class="stat-row-top">
+            <span class="stat-mini-emoji">👦</span>
+            <span class="stat-mini-label">GENTLEMEN</span>
+        </div>
+        <span id="countMale" class="stat-mini-val text-blue-400">0</span>
     </div>
-    <div class="slim-stat-item border-l border-white/10 pl-4">
-        <span class="slim-stat-label">LADIES</span>
-        <span id="countFemale" class="slim-stat-val text-pink-400">0</span>
+    <div class="stat-mini-card">
+        <div class="stat-row-top">
+            <span class="stat-mini-emoji">👧</span>
+            <span class="stat-mini-label">LADIES</span>
+        </div>
+        <span id="countFemale" class="stat-mini-val text-pink-400">0</span>
     </div>
-    <div class="slim-stat-item border-l border-white/10 pl-4">
-        <span class="slim-stat-label">TOTAL</span>
-        <span id="countTotal" class="slim-stat-val text-emerald-400">0</span>
+    <div class="stat-mini-card full">
+        <div class="flex items-center gap-2">
+            <span class="stat-mini-emoji">🏔️</span>
+            <span class="stat-mini-label text-emerald-300/60">TOTAL MEMBERS</span>
+        </div>
+        <span id="countTotal" class="stat-mini-val text-emerald-400">0</span>
     </div>
 </div>
-
+</div>
 </div>
 </div>
 
@@ -316,6 +327,7 @@ td { padding: 12px 0; text-align: center; vertical-align: middle; }
 <button onclick="toggleModal(false)" class="w-full mt-6 py-3 bg-slate-800 text-white rounded-xl font-bold">닫기</button>
 </div>
 </div>
+</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -376,7 +388,6 @@ if (dday <= 30) return "dday-yellow";
 return "bg-gray-soft";
 };
 
-// 방문자 카운트
 async function updateVisitorCount() {
 const d = new Date();
 const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -393,7 +404,6 @@ onSnapshot(doc(db, "site_stats", "visitors"), (s) => { if(s.exists()) document.g
 onSnapshot(doc(db, "site_stats", `day_${todayStr}`), (s) => { if(s.exists()) document.getElementById('todayHits').innerText = s.data().count.toLocaleString(); });
 }
 
-// 서브방 관리
 const defaultSubRooms = [
 { id: "shop", name: "상점", emoji: "🏕", url: "상점 톡방📢 https://open.kakao.com/o/gYPcpN3h" },
 { id: "blacksmith", name: "대장간", emoji: "⚒️", url: "대장간 톡방📢 https://open.kakao.com/o/gxAupN3h" },
@@ -460,7 +470,6 @@ window.copySubRoomUrl = (url, name) => {
 navigator.clipboard.writeText(url).then(() => alert(`${name} 주소가 복사되었습니다.`));
 };
 
-// 실시간 현황 렌더링
 window.renderStatusTable = () => {
 const list = document.getElementById('statusList');
 const search = document.getElementById('searchInput').value.trim();
@@ -527,7 +536,6 @@ list.innerHTML += `<tr class="border-b border-gray-50 ${m.isHidden ? 'opacity-40
 <td class="text-center"><span class="dday-box ${ddayClass}">${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}</span></td></tr>`;
 });
 
-// 통계 UI 업데이트 (로그인 화면용)
 document.getElementById('countMale').innerText = maleCount;
 document.getElementById('countFemale').innerText = femaleCount;
 document.getElementById('countTotal').innerText = (maleCount + femaleCount);
@@ -573,13 +581,11 @@ renderStatusTable();
 });
 }
 
-// 초기화
 if (!sessionStorage.getItem('visited')) { updateVisitorCount(); sessionStorage.setItem('visited', 'true'); }
 listenVisitors();
 startRealtimeSync();
 listenSubRooms();
 
-// 화면 제어 함수들
 window.changeQuarter = (q) => {
 selectedQuarter = q;
 document.querySelectorAll('.q-btn').forEach((btn, idx) => btn.classList.toggle('active-q', idx + 1 === q));
@@ -603,19 +609,17 @@ else alert("비밀번호 불일치");
 };
 window.logoutAdmin = () => { isAdminLoggedIn = false; document.getElementById('adminPassword').value=""; showView('status'); };
 
-// 관리자 액션: 회원 등록
 window.addMember = async () => {
 const name = document.getElementById('newName').value.trim();
 const date = document.getElementById('regDate').value;
 const genderSelect = document.querySelector('input[name="newGender"]:checked');
 const gender = genderSelect ? genderSelect.value : "남";
 if(name && date) {
-await addDoc(collection(db, "sanwoori"), { name, level: 0, gender: gender, lastDate: Timestamp.fromDate(new Date(date + "T00:00:00")), isHidden: false, bonusDays: 0 });
+await addDoc(collection(db, "sanwoori"), { name, level: 0, gender, lastDate: Timestamp.fromDate(new Date(date + "T00:00:00")), isHidden: false, bonusDays: 0 });
 alert(`${name}(${gender})님 등록 완료`); document.getElementById('newName').value = "";
 } else alert("이름과 날짜를 입력하세요.");
 };
 
-// 관리자 액션: 기록 저장
 window.addMultiActivity = async () => {
 if(!selectedMemberIds.size || !document.getElementById('activityDate').value) return alert("회원과 날짜를 확인하세요.");
 const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
@@ -631,7 +635,6 @@ for(let i=0; i < up; i++) await addDoc(collection(db, `sanwoori/${id}/logs`), { 
 alert("기록 저장 완료"); selectedMemberIds.clear(); updateAdminMemberLists();
 };
 
-// 관리자 액션: 성별 일괄 변경
 window.bulkUpdateGender = async () => {
 if(!selectedMemberIds.size) return alert("변경할 회원을 먼저 선택하세요.");
 const selectedGender = document.querySelector('input[name="bulkGender"]:checked');
