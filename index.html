@@ -160,6 +160,14 @@
         .modal-content { background: white; border-radius: 24px; width: 100%; max-width: 440px; max-height: 90vh; overflow-y: auto; padding: 20px; }
         .guide-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
         .guide-item { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 10px 5px; border-radius: 15px; border: 1px solid #f1f5f9; background: #fafafa; }
+
+        /* 타임라인 스타일 */
+        .timeline-container { position: relative; padding-left: 30px; margin-top: 10px; }
+        .timeline-container::before { content: ''; position: absolute; left: 14px; top: 5px; bottom: 5px; width: 2px; background: #e2e8f0; }
+        .timeline-item { position: relative; margin-bottom: 15px; }
+        .timeline-dot { position: absolute; left: -21px; top: 4px; width: 10px; height: 10px; background: #3b82f6; border: 2px solid white; border-radius: 50%; z-index: 1; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+        .timeline-date { font-size: 0.75rem; font-weight: 800; color: #1e293b; margin-bottom: 2px; }
+        .timeline-desc { font-size: 0.65rem; color: #64748b; font-weight: 500; }
     </style>
 </head>
 <body>
@@ -221,18 +229,15 @@
             <div class="secret-icon">🔐</div>
             <h2 class="text-white text-lg font-black mb-1">관리자 구역</h2>
             <p class="text-blue-300 text-[9px] mb-4 font-medium opacity-80 uppercase tracking-widest">Authorized Personnel Only</p>
-            
             <div class="px-4">
                 <input type="password" id="adminPassword" placeholder="••••••" class="secret-input">
                 <button onclick="loginAdmin()" class="btn-submit bg-blue-600">ACCESS GRANTED</button>
-                
                 <div class="flex items-center justify-center gap-1.5 mt-3 mb-4 opacity-40">
                     <span class="w-1 h-1 bg-blue-400 rounded-full animate-pulse"></span>
                     <p class="text-[8px] text-blue-200 font-bold tracking-tighter uppercase italic">Encryption Secured . System Access Protocol Active</p>
                     <span class="w-1 h-1 bg-blue-400 rounded-full animate-pulse"></span>
                 </div>
             </div>
-
             <div class="admin-subroom-dark-card text-left mt-6">
                 <div class="flex items-center gap-2 mb-3">
                     <span class="text-xs font-black text-white">⛺️ 산:우리 서브방 </span>
@@ -240,13 +245,9 @@
                 </div>
                 <div id="userSubRoomGrid" class="subroom-grid"></div>
             </div>
-
             <div class="admin-subroom-dark-card">
                 <div class="stat-header">
-                    <div class="stat-title-fancy">
-                        <span class="w-1.5 h-4 bg-blue-500 rounded-full"></span>
-                        🌲 산:우리 멤버 구성 현황
-                    </div>
+                    <div class="stat-title-fancy"><span class="w-1.5 h-4 bg-blue-500 rounded-full"></span> 🌲 산:우리 멤버 구성 현황</div>
                     <div class="stat-badge-total">TOTAL <span id="countTotal">0</span></div>
                 </div>
                 <div class="stat-grid-premium">
@@ -262,28 +263,14 @@
                     </div>
                 </div>
             </div>
-
             <div class="visitor-stat-card">
-                <div class="sys-log-header">
-                    <span class="live-dot"></span>
-                    SYSTEM LOG: ENCRYPTED
-                </div>
+                <div class="sys-log-header"><span class="live-dot"></span> SYSTEM LOG: ENCRYPTED</div>
                 <div class="v-stat-grid">
-                    <div class="v-stat-item">
-                        <div class="v-stat-label">Session Today</div>
-                        <div id="todayHits" class="v-stat-value">0</div>
-                    </div>
-                    <div class="v-stat-item">
-                        <div class="v-stat-label">System Total</div>
-                        <div id="totalHits" class="v-stat-value v-stat-total">0</div>
-                    </div>
+                    <div class="v-stat-item"><div class="v-stat-label">Session Today</div><div id="todayHits" class="v-stat-value">0</div></div>
+                    <div class="v-stat-item"><div class="v-stat-label">System Total</div><div id="totalHits" class="v-stat-value v-stat-total">0</div></div>
                 </div>
             </div>
-
-            <div class="system-date-info">
-                Our journey begins at San: Woori.<br>
-                Opened on Nov 24, 2025
-            </div>
+            <div class="system-date-info">Our journey begins at San: Woori.<br>Opened on Nov 24, 2025</div>
         </div>
     </div>
 
@@ -368,7 +355,6 @@
                 <button onclick="deleteMember()" class="flex-1 bg-red-500 text-white font-bold rounded-lg text-xs h-9">영구 삭제</button>
             </div>
         </div>
-
         <div class="p-4 text-center"><button onclick="logoutAdmin()" class="text-gray-400 underline font-bold text-xs">로그아웃</button></div>
     </div>
 
@@ -379,6 +365,19 @@
             <button onclick="toggleModal(false)" class="w-full mt-6 py-3 bg-slate-800 text-white rounded-xl font-bold">닫기</button>
         </div>
     </div>
+
+    <div id="timelineModal" class="modal-overlay" onclick="toggleTimelineModal(false)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-black text-slate-800"><span id="timelineMemberName"></span>님의 산행 타임라인</h2>
+                <span class="text-[10px] font-bold text-blue-500 bg-blue-50 px-2 py-1 rounded-full">최근 30개 기록</span>
+            </div>
+            <div id="timelineContent" class="timeline-container">
+                </div>
+            <button onclick="toggleTimelineModal(false)" class="w-full mt-6 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold">닫기</button>
+        </div>
+    </div>
+
 </div>
 
 <script type="module">
@@ -440,7 +439,6 @@
         return "bg-gray-soft";
     };
 
-    // 방문자 카운트 및 동기화
     async function updateVisitorCount() {
         const d = new Date();
         const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -457,7 +455,6 @@
         onSnapshot(doc(db, "site_stats", `day_${todayStr}`), (s) => { if(s.exists()) document.getElementById('todayHits').innerText = s.data().count.toLocaleString(); });
     }
 
-    // 서브방 데이터
     const defaultSubRooms = [
         { id: "shop", name: "상점", emoji: "🏕", url: "상점 톡방📢 https://open.kakao.com/o/gYPcpN3h" },
         { id: "blacksmith", name: "대장간", emoji: "⚒️", url: "대장간 톡방📢 https://open.kakao.com/o/gxAupN3h" },
@@ -524,7 +521,6 @@
         navigator.clipboard.writeText(url);
     };
 
-    // 실시간 현황 및 통계 렌더링
     window.renderStatusTable = () => {
         const list = document.getElementById('statusList');
         const search = document.getElementById('searchInput').value.trim();
@@ -586,8 +582,11 @@
             const nameColor = m.gender === '여' ? 'text-pink-600' : (m.gender === '남' ? 'text-blue-600' : 'text-slate-800');
 
             list.innerHTML += `<tr class="border-b border-gray-50 ${m.isHidden ? 'opacity-40' : ''}">
-                <td class="text-xs text-center">${rankT ? `<span class="rank-badge ${rankC}">${rankT}</span>` : ''}
-                <span class="font-bold ${nameColor}">${m.name}${m.isHidden ? '<span style="font-size:8px; color:#ef4444; margin-left:2px;">(숨김)</span>' : ''}</span></td>
+                <td class="text-xs text-center cursor-pointer" onclick="showMemberTimeline('${m.id}', '${m.name}')">
+                    ${rankT ? `<span class="rank-badge ${rankC}">${rankT}</span>` : ''}
+                    <span class="font-bold ${nameColor}">${m.name}${m.isHidden ? '<span style="font-size:8px; color:#ef4444; margin-left:2px;">(숨김)</span>' : ''}</span>
+                    <div style="font-size:8px; color:#94a3b8; margin-top:2px;">📅 기록보기</div>
+                </td>
                 <td class="flex justify-center"><div class="badge-level">
                 <div class="badge-icon-box ${style.blink}" style="background:${style.bg}; border-color:${style.border};">
                 <span class="badge-icon-txt" style="color:${style.text}">${getLevelBadge(m.level)}</span></div>
@@ -595,6 +594,46 @@
                 <td class="text-xs font-bold text-slate-600">${m.qCount}회</td>
                 <td class="text-center"><span class="dday-box ${ddayClass}">${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}</span></td></tr>`;
         });
+    };
+
+    // [신규] 타임라인 시각화 함수
+    window.showMemberTimeline = async (mId, mName) => {
+        const container = document.getElementById('timelineContent');
+        document.getElementById('timelineMemberName').innerText = mName;
+        container.innerHTML = "<p class='text-center text-xs py-10 text-gray-400'>기록을 불러오는 중...</p>";
+        toggleTimelineModal(true);
+
+        try {
+            const q = query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc"), limit(30));
+            const snap = await getDocs(q);
+            
+            if(snap.empty) {
+                container.innerHTML = "<p class='text-center text-xs py-10 text-gray-400'>아직 산행 기록이 없습니다.</p>";
+                return;
+            }
+
+            let html = "";
+            snap.forEach(doc => {
+                const date = doc.data().date.toDate();
+                const dateStr = `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`;
+                const dayName = ['일','월','화','수','목','금','토'][date.getDay()];
+                
+                html += `
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-date">${dateStr} (${dayName})</div>
+                        <div class="timeline-desc">정기/번개 산행 참여 완료</div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        } catch (e) {
+            container.innerHTML = "<p class='text-center text-xs py-10 text-red-400'>데이터를 불러오지 못했습니다.</p>";
+        }
+    };
+
+    window.toggleTimelineModal = (show) => {
+        document.getElementById('timelineModal').style.display = show ? 'flex' : 'none';
     };
 
     async function checkBadgeChange(newData) {
