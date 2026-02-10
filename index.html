@@ -410,7 +410,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 </div>
 
 <div id="timelineModal" class="modal-overlay" onclick="toggleTimelineModal(false)">
-<div id="timelineScrollTarget" class="modal-content !p-4 !rounded-3xl" onclick="event.stopPropagation()">
+<div class="modal-content !p-4 !rounded-3xl" onclick="event.stopPropagation()">
 <div class="flex justify-between items-center mb-2">
 <div>
 <h2 class="text-base font-black text-slate-800"><span id="timelineMemberName" class="text-blue-600"></span> 님</h2>
@@ -476,6 +476,7 @@ appId: "1:387585514110:web:44749e6d92769fff6ad62f"
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+// 상태 변수
 let isAdminLoggedIn = false;
 let currentData = [];
 let subRoomsData = [];
@@ -519,6 +520,7 @@ if (dday <= 30) return "dday-yellow";
 return "bg-gray-soft";
 };
 
+// 방문자 및 시스템 초기화
 async function updateVisitorCount() {
 const statsRef = doc(db, "site_stats", "visitors");
 try { await updateDoc(statsRef, { total: increment(1) }); } catch (e) { await setDoc(statsRef, { total: 1 }, { merge: true }); }
@@ -531,6 +533,7 @@ onSnapshot(doc(db, "site_stats", "visitors"), (s) => { if(s.exists()) document.g
 onSnapshot(doc(db, "site_stats", `day_${todayStr}`), (s) => { if(s.exists()) document.getElementById('todayHits').innerText = s.data().count.toLocaleString(); });
 }
 
+// 서브방 로직
 const defaultSubRooms = [
 { id: "shop", name: "상점", emoji: "🏕", url: "상점 톡방📢 https://open.kakao.com/o/gYPcpN3h" },
 { id: "blacksmith", name: "대장간", emoji: "⚒️", url: "대장간 톡방📢 https://open.kakao.com/o/gxAupN3h" },
@@ -585,6 +588,7 @@ await setDoc(doc(db, "sub_rooms", roomId), { isActive: nextActive, statusMsg: ms
 
 window.copySubRoomUrl = (url, name) => { navigator.clipboard.writeText(url); alert(`[${name}] 링크 복사 완료`); };
 
+// 실시간 테이블 렌더링
 window.renderStatusTable = () => {
 const list = document.getElementById('statusList');
 const search = document.getElementById('searchInput').value.trim();
@@ -640,15 +644,15 @@ list.innerHTML += `<tr class="border-b border-gray-50 ${m.isHidden ? 'opacity-40
 });
 };
 
+// 타임라인 보드 로직 (스크롤 최상단 고정 추가)
 window.showMemberTimeline = async (mId, mName) => {
     const container = document.getElementById('timelineContent');
     const grassBoard = document.getElementById('grassBoard');
     const pointsBoard = document.getElementById('conquerMapPoints');
     const vibeArea = document.getElementById('passionVibeArea');
-    const modalContent = document.getElementById('timelineScrollTarget');
 
-    // ★ 추가: 모달이 열릴 때 스크롤을 최상단으로 초기화
-    if(modalContent) modalContent.scrollTop = 0;
+    // 스크롤 위치를 항상 최상단으로 초기화
+    container.scrollTop = 0;
 
     document.getElementById('timelineMemberName').innerText = mName;
     document.getElementById('timelineSubTitle').innerText = `${selectedYear}년 ${selectedQuarter}분기`;
@@ -698,11 +702,17 @@ window.showMemberTimeline = async (mId, mName) => {
             listHtml += `<div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-date">${dateStr} (${dayName})</div><div class="timeline-desc">${mountainTxt} ✔️</div></div>`;
         });
         container.innerHTML = listHtml;
+        
+        // 데이터 로드 후에도 혹시 모르니 다시 한번 최상단으로
+        container.scrollTop = 0;
     } catch (e) { container.innerHTML = "<p class='text-center text-xs text-red-400'>로드 실패</p>"; }
 };
 
-window.toggleTimelineModal = (show) => { document.getElementById('timelineModal').style.display = show ? 'flex' : 'none'; };
+window.toggleTimelineModal = (show) => { 
+    document.getElementById('timelineModal').style.display = show ? 'flex' : 'none'; 
+};
 
+// 관리자 좌표 설정
 window.setAdminCoordinate = (event) => {
 const rect = event.currentTarget.getBoundingClientRect();
 const x = ((event.clientX - rect.left) / rect.width) * 100;
@@ -730,6 +740,7 @@ if(snap.exists()) {
 }
 };
 
+// 데이터 실시간 동기화
 let unsubscribe = null;
 function startRealtimeSync() {
 if (unsubscribe) unsubscribe();
@@ -748,6 +759,7 @@ currentData = results; updateAdminMemberLists(); renderStatusTable();
 });
 }
 
+// 관리자 기록 추가 (산 이름 및 좌표 저장 포함)
 window.addMultiActivity = async () => {
 const dateVal = document.getElementById('activityDate').value;
 const mName = document.getElementById('mountainName').value.trim();
@@ -775,6 +787,7 @@ updateAdminMemberLists();
 
 window.changeQuarter = (q) => { selectedQuarter = q; document.querySelectorAll('.q-btn').forEach((btn, idx) => btn.classList.toggle('active-q', idx + 1 === q)); startRealtimeSync(); };
 window.changeYear = () => { selectedYear = parseInt(document.getElementById('yearSelect').value); startRealtimeSync(); };
+
 window.showView = (v) => {
 document.querySelectorAll('.view-content').forEach(e => e.classList.add('hidden'));
 document.getElementById('view'+v.charAt(0).toUpperCase()+v.slice(1)).classList.remove('hidden');
@@ -783,13 +796,17 @@ if(v === 'status') document.getElementById('tabStatus').classList.add('active-ta
 if(v === 'admin' || v === 'login') document.getElementById('tabAdmin').classList.add('active-tab');
 renderStatusTable();
 };
+
 window.handleAdminTab = () => isAdminLoggedIn ? showView('admin') : showView('login');
+
 window.loginAdmin = async () => {
 const passwordInput = document.getElementById('adminPassword').value;
 const adminSnap = await getDoc(doc(db, "admin_settings", "config"));
 if (adminSnap.exists() && passwordInput === String(adminSnap.data().admin_pw)) { isAdminLoggedIn = true; showView('admin'); } else alert("비밀번호 불일치");
 };
+
 window.logoutAdmin = () => { isAdminLoggedIn = false; document.getElementById('adminPassword').value=""; showView('status'); };
+
 window.addMember = async () => {
 const name = document.getElementById('newName').value.trim(); const dateStr = document.getElementById('regDate').value;
 const gender = document.querySelector('input[name="newGender"]:checked').value;
