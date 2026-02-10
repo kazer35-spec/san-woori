@@ -204,7 +204,7 @@ animation: neon-flicker 1.5s infinite; letter-spacing: 0.5px; pointer-events: no
 .guide-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .guide-item { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 10px 5px; border-radius: 15px; border: 1px solid #f1f5f9; background: #fafafa; }
 
-.timeline-container { position: relative; padding-left: 20px; margin-top: 5px; }
+.timeline-container { position: relative; padding-left: 20px; margin-top: 5px; scroll-behavior: smooth; }
 .timeline-container::before { content: ''; position: absolute; left: 8px; top: 4px; bottom: 4px; width: 1.5px; background: #e2e8f0; }
 .timeline-item { position: relative; margin-bottom: 6px; }
 .timeline-dot { position: absolute; left: -16px; top: 4px; width: 6px; height: 6px; background: #3b82f6; border: 1.5px solid white; border-radius: 50%; z-index: 1; }
@@ -703,8 +703,8 @@ window.showMemberTimeline = async (mId, mName) => {
         });
         container.innerHTML = listHtml;
         
-        // 데이터 로드 후에도 혹시 모르니 다시 한번 최상단으로
-        container.scrollTop = 0;
+        // 데이터 로드 완료 후 스크롤을 한 번 더 최상단으로 강제
+        setTimeout(() => { container.scrollTop = 0; }, 50);
     } catch (e) { container.innerHTML = "<p class='text-center text-xs text-red-400'>로드 실패</p>"; }
 };
 
@@ -712,7 +712,7 @@ window.toggleTimelineModal = (show) => {
     document.getElementById('timelineModal').style.display = show ? 'flex' : 'none'; 
 };
 
-// 관리자 좌표 설정
+// 관리자 좌표 설정 (수동 클릭)
 window.setAdminCoordinate = (event) => {
 const rect = event.currentTarget.getBoundingClientRect();
 const x = ((event.clientX - rect.left) / rect.width) * 100;
@@ -724,6 +724,7 @@ marker.classList.remove('hidden');
 document.getElementById('coordDisplay').innerText = `선택 좌표: X ${tempCoord.x} / Y ${tempCoord.y}`;
 };
 
+// 산 이름 입력 시 DB에서 좌표 자동 로드
 window.autoFindCoords = async () => {
 const mName = document.getElementById('mountainName').value.trim();
 if(!mName) return;
@@ -766,6 +767,8 @@ const mName = document.getElementById('mountainName').value.trim();
 if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜를 확인해주세요.");
 const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
 const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
+
+// 좌표가 있으면 산 이름 DB에 저장
 if(mName && tempCoord) await setDoc(doc(db, "mountains", mName), tempCoord, { merge: true });
 
 for(const id of selectedMemberIds){
