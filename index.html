@@ -819,7 +819,9 @@ const snap = await getDocs(query(collection(db, `sanwoori/${id}/logs`), orderBy(
 snap.forEach(ld => {
 const d = ld.data().date.toDate();
 const mName = ld.data().mountain || '산';
+const coords = ld.data().coords || {x:null, y:null}; // 좌표 정보 가져오기
 const dateStr = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+// 수정 버튼에 좌표 정보도 전달
 area.innerHTML += `
 <div class="log-item-box">
     <div class="log-info-group">
@@ -827,28 +829,49 @@ area.innerHTML += `
         <span class="log-mt-txt">${mName}</span>
     </div>
     <div class="log-btn-group">
-        <button class="edit-btn-mini" onclick="editLog('${id}', '${ld.id}', '${dateStr}', '${mName}')">수정</button>
+        <button class="edit-btn-mini" onclick="editLog('${id}', '${ld.id}', '${dateStr}', '${mName}', '${coords.x||''}', '${coords.y||''}')">수정</button>
         <button class="del-btn-mini" onclick="deleteLog('${id}', '${ld.id}')">삭제</button>
     </div>
 </div>`;
 });
 };
-window.editLog = async (mId, logId, oldDate, oldName) => {
+window.editLog = async (mId, logId, oldDate, oldName, oldX, oldY) => {
     const newDateStr = prompt("날짜 수정 (YYYY.MM.DD)", oldDate);
+    if(!newDateStr) return;
     const newName = prompt("산 이름 수정", oldName);
-    if(newDateStr && newName) {
-        try {
-            const parts = newDateStr.split('.');
-            const newTs = Timestamp.fromDate(new Date(parts[0], parts[1]-1, parts[2]));
-            await updateDoc(doc(db, `sanwoori/${mId}/logs`, logId), { date: newTs, mountain: newName });
-            alert("수정 완료");
-            loadMemberLogs();
-        } catch(e) { alert("날짜 형식 오류 등 문제가 발생했습니다."); }
+    if(!newName) return;
+
+    // 좌표 수정 질문
+    let newCoords = null;
+    if(confirm("좌표(지도 위치)도 수정하시겠습니까? (확인=수정, 취소=유지)")) {
+        const x = prompt("X 좌표 (0~100 사이 숫자)", oldX || 50);
+        const y = prompt("Y 좌표 (0~100 사이 숫자)", oldY || 50);
+        if(x && y) newCoords = { x: parseFloat(x), y: parseFloat(y) };
     }
+
+    try {
+        const parts = newDateStr.split('.');
+        const newTs = Timestamp.fromDate(new Date(parts[0], parts[1]-1, parts[2]));
+        
+        let updateData = { date: newTs, mountain: newName };
+        if(newCoords) updateData.coords = newCoords; // 좌표가 새로 입력되었다면 업데이트
+
+        await updateDoc(doc(db, `sanwoori/${mId}/logs`, logId), updateData);
+        alert("수정 완료");
+        loadMemberLogs();
+    } catch(e) { alert("날짜 형식 오류 등 문제가 발생했습니다."); }
 };
 window.deleteLog = async (mId, logId) => {
-if(!confirm("기록을 삭제하시겠습니까? (레벨은 별도 차감해야 함)")) return;
-await deleteDoc(doc(db, `sanwoori/${mId}/logs`, logId)); loadMemberLogs();
+    if(!confirm("기록을 삭제하시겠습니까? (레벨이 자동으로 -1 차감됩니다)")) return;
+    try {
+        await deleteDoc(doc(db, `sanwoori/${mId}/logs`, logId)); 
+        // 레벨 자동 차감 추가
+        await updateDoc(doc(db, "sanwoori", mId), { level: increment(-1) });
+        alert("기록 삭제 및 레벨 차감 완료");
+        loadMemberLogs();
+    } catch (e) {
+        alert("오류 발생: " + e.message);
+    }
 };
 window.onlyDownLevel = async () => {
 const id = document.getElementById('memberSelectEdit').value;
