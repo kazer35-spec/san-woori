@@ -645,14 +645,11 @@ list.innerHTML += `<tr class="border-b border-gray-50 ${m.isHidden ? 'opacity-40
 });
 };
 
-// 타임라인 (스크롤 최상단 고정 반영)
+// 타임라인
 window.showMemberTimeline = async (mId, mName) => {
-    // 1. 모달 표시 및 스크롤 초기화
     toggleTimelineModal(true);
     const scrollArea = document.getElementById('timelineScrollArea');
     const modalContent = document.querySelector('#timelineModal .modal-content');
-    
-    // 모달 자체의 스크롤과 내부 영역 스크롤을 모두 위로 올림
     if(modalContent) modalContent.scrollTop = 0;
     if(scrollArea) scrollArea.scrollTop = 0;
 
@@ -709,8 +706,6 @@ window.showMemberTimeline = async (mId, mName) => {
             listHtml += `<div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-date">${dateStr} (${dayName})</div><div class="timeline-desc">${mountainTxt} ✔️</div></div>`;
         });
         container.innerHTML = listHtml;
-        
-        // 데이터 로드 후 한번 더 최상단 확인
         if(scrollArea) scrollArea.scrollTop = 0;
     } catch (e) { container.innerHTML = "<p class='text-center text-xs text-red-400'>로드 실패</p>"; }
 };
@@ -719,14 +714,14 @@ window.toggleTimelineModal = (show) => { document.getElementById('timelineModal'
 
 // 관리자 좌표 시스템 (자동 로드 반영)
 window.setAdminCoordinate = (event) => {
-const rect = event.currentTarget.getBoundingClientRect();
-const x = ((event.clientX - rect.left) / rect.width) * 100;
-const y = ((event.clientY - rect.top) / rect.height) * 100;
-tempCoord = { x: x.toFixed(2), y: y.toFixed(2) };
-const marker = document.getElementById('adminMapMarker');
-marker.style.left = x + "%"; marker.style.top = y + "%";
-marker.classList.remove('hidden');
-document.getElementById('coordDisplay').innerText = `선택 좌표: X ${tempCoord.x} / Y ${tempCoord.y}`;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * 100;
+    const y = ((event.clientY - rect.top) / rect.height) * 100;
+    tempCoord = { x: parseFloat(x.toFixed(2)), y: parseFloat(y.toFixed(2)) };
+    const marker = document.getElementById('adminMapMarker');
+    marker.style.left = x + "%"; marker.style.top = y + "%";
+    marker.classList.remove('hidden');
+    document.getElementById('coordDisplay').innerText = `선택 좌표: X ${tempCoord.x} / Y ${tempCoord.y}`;
 };
 
 window.autoFindCoords = async () => {
@@ -734,19 +729,23 @@ window.autoFindCoords = async () => {
     if(!mName) return;
     const docRef = doc(db, "mountains", mName);
     const snap = await getDoc(docRef);
+    const marker = document.getElementById('adminMapMarker');
+    const display = document.getElementById('coordDisplay');
+
     if(snap.exists()) {
         tempCoord = snap.data();
-        const marker = document.getElementById('adminMapMarker');
         marker.style.left = tempCoord.x + "%"; 
         marker.style.top = tempCoord.y + "%";
         marker.classList.remove('hidden');
-        document.getElementById('coordDisplay').innerText = `좌표 자동 로드됨: ${mName}`;
+        display.innerText = `좌표 자동 로드됨: ${mName}`;
+        display.style.color = "#10b981"; // 초록색 강조
     } else {
-        document.getElementById('coordDisplay').innerText = `기존 좌표 없음. 지도에서 위치를 찍어주세요.`;
+        display.innerText = `[${mName}]의 기존 좌표 없음. 지도에서 위치를 찍어주세요.`;
+        display.style.color = "#3b82f6";
     }
 };
 
-// 동기화
+// 실시간 동기화 시작
 let unsubscribe = null;
 function startRealtimeSync() {
 if (unsubscribe) unsubscribe();
@@ -765,7 +764,7 @@ currentData = results; updateAdminMemberLists(); renderStatusTable();
 });
 }
 
-// 기록 추가
+// 기록 추가 (좌표 자동 저장 포함)
 window.addMultiActivity = async () => {
     const dateVal = document.getElementById('activityDate').value;
     const mName = document.getElementById('mountainName').value.trim();
@@ -773,8 +772,10 @@ window.addMultiActivity = async () => {
     const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
     const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
 
-    // 좌표 정보가 있다면 산 정보 업데이트
-    if(mName && tempCoord) await setDoc(doc(db, "mountains", mName), tempCoord, { merge: true });
+    // 좌표 정보가 있다면 해당 산의 정보를 DB(mountains)에 저장/업데이트하여 학습시킴
+    if(mName && tempCoord) {
+        await setDoc(doc(db, "mountains", mName), tempCoord, { merge: true });
+    }
 
     for(const id of selectedMemberIds){
         const mRef = doc(db, "sanwoori", id); const mS = await getDoc(mRef);
