@@ -410,7 +410,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 </div>
 
 <div id="timelineModal" class="modal-overlay" onclick="toggleTimelineModal(false)">
-<div class="modal-content !p-4 !rounded-3xl" onclick="event.stopPropagation()">
+<div id="timelineScrollTarget" class="modal-content !p-4 !rounded-3xl" onclick="event.stopPropagation()">
 <div class="flex justify-between items-center mb-2">
 <div>
 <h2 class="text-base font-black text-slate-800"><span id="timelineMemberName" class="text-blue-600"></span> 님</h2>
@@ -422,7 +422,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 </div>
 </div>
 
-<div class="mb-4">
+<div class="mb-2">
 <p class="text-[10px] font-extrabold text-slate-500 mb-1.5">🌱 <span id="grassYearTitle"></span> 산행 기록</p>
 <div id="grassBoard" class="grass-container"></div>
 <div class="flex justify-between mt-1 px-1">
@@ -441,7 +441,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 
 <div class="border-t border-dashed border-gray-100 my-2"></div>
 
-<div class="mb-4">
+<div class="mb-3">
 <p class="text-[10px] font-extrabold text-slate-500 mb-1.5">🚩 산:우리 정복 지도 (전체 기록)</p>
 <div class="map-container">
 <img src="https://i.ibb.co/bMLmRYRJ/2-1.jpg" class="map-image" alt="정복지도">
@@ -462,7 +462,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc, increment, query, orderBy, Timestamp, where, getDocs, getDoc, setDoc, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc, increment, query, orderBy, Timestamp, where, getDocs, getDoc, setDoc, limit, arrayUnion } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
 apiKey: "AIzaSyBoAh3V3WrHg_wo53g1LHM0UW3-y6w2deg",
@@ -476,7 +476,6 @@ appId: "1:387585514110:web:44749e6d92769fff6ad62f"
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// 상태 변수
 let isAdminLoggedIn = false;
 let currentData = [];
 let subRoomsData = [];
@@ -520,7 +519,6 @@ if (dday <= 30) return "dday-yellow";
 return "bg-gray-soft";
 };
 
-// 방문자 및 시스템 초기화
 async function updateVisitorCount() {
 const statsRef = doc(db, "site_stats", "visitors");
 try { await updateDoc(statsRef, { total: increment(1) }); } catch (e) { await setDoc(statsRef, { total: 1 }, { merge: true }); }
@@ -533,7 +531,6 @@ onSnapshot(doc(db, "site_stats", "visitors"), (s) => { if(s.exists()) document.g
 onSnapshot(doc(db, "site_stats", `day_${todayStr}`), (s) => { if(s.exists()) document.getElementById('todayHits').innerText = s.data().count.toLocaleString(); });
 }
 
-// 서브방 로직
 const defaultSubRooms = [
 { id: "shop", name: "상점", emoji: "🏕", url: "상점 톡방📢 https://open.kakao.com/o/gYPcpN3h" },
 { id: "blacksmith", name: "대장간", emoji: "⚒️", url: "대장간 톡방📢 https://open.kakao.com/o/gxAupN3h" },
@@ -588,7 +585,6 @@ await setDoc(doc(db, "sub_rooms", roomId), { isActive: nextActive, statusMsg: ms
 
 window.copySubRoomUrl = (url, name) => { navigator.clipboard.writeText(url); alert(`[${name}] 링크 복사 완료`); };
 
-// 실시간 테이블 렌더링
 window.renderStatusTable = () => {
 const list = document.getElementById('statusList');
 const search = document.getElementById('searchInput').value.trim();
@@ -644,18 +640,19 @@ list.innerHTML += `<tr class="border-b border-gray-50 ${m.isHidden ? 'opacity-40
 });
 };
 
-// 타임라인/잔디심기 모달 표시 로직
 window.showMemberTimeline = async (mId, mName) => {
     const container = document.getElementById('timelineContent');
     const grassBoard = document.getElementById('grassBoard');
     const pointsBoard = document.getElementById('conquerMapPoints');
     const vibeArea = document.getElementById('passionVibeArea');
+    const modalContent = document.getElementById('timelineScrollTarget');
+
+    // ★ 추가: 모달이 열릴 때 스크롤을 최상단으로 초기화
+    if(modalContent) modalContent.scrollTop = 0;
 
     document.getElementById('timelineMemberName').innerText = mName;
     document.getElementById('timelineSubTitle').innerText = `${selectedYear}년 ${selectedQuarter}분기`;
     document.getElementById('grassYearTitle').innerText = `${selectedYear}년 ${selectedQuarter}분기`;
-    
-    // 초기화 및 로딩 표시
     container.innerHTML = "<p class='text-center text-xs py-5 text-gray-400'>데이터 불러오는 중...</p>"; 
     grassBoard.innerHTML = ""; pointsBoard.innerHTML = ""; vibeArea.innerHTML = "";
     toggleTimelineModal(true);
@@ -664,34 +661,23 @@ window.showMemberTimeline = async (mId, mName) => {
         const start = new Date(selectedYear, (selectedQuarter - 1) * 3, 1);
         const end = new Date(selectedYear, selectedQuarter * 3, 1);
         const totalDaysInQ = Math.floor((end - start) / (1000 * 60 * 60 * 24));
-        
-        // 1. 해당 분기 로그 가져오기
         const qQuarter = query(collection(db, `sanwoori/${mId}/logs`), where("date", ">=", Timestamp.fromDate(start)), where("date", "<", Timestamp.fromDate(end)), orderBy("date", "desc"));
         const snapQuarter = await getDocs(qQuarter);
         const logsQuarter = snapQuarter.docs.map(doc => ({ ...doc.data(), date: doc.data().date.toDate() }));
 
-        // 2. 전체 로그 가져오기 (지도 표시용)
         const qAll = query(collection(db, `sanwoori/${mId}/logs`));
         const snapAll = await getDocs(qAll);
         const logsAll = snapAll.docs.map(doc => doc.data());
 
-        // 3. 지도 포인트 렌더링
         let mapHtml = "";
         logsAll.forEach(log => { if(log.coords) mapHtml += `<div class="map-point" style="left:${log.coords.x}%; top:${log.coords.y}%;"></div>`; });
         pointsBoard.innerHTML = mapHtml;
 
-        // 4. 열정 온도 체크 (최근 30일 내 4회 이상)
         const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
         const recentLogs = logsQuarter.filter(l => l.date >= thirtyDaysAgo);
         if(recentLogs.length >= 4) vibeArea.innerHTML = `<span class="hot-vibe text-[10px] font-black text-orange-500 bg-orange-50 px-2 py-0.5 rounded-md">🔥 HOT 열정</span>`;
 
-        // 5. 잔디 심기 보드 생성
-        const dateCounts = {}; 
-        logsQuarter.forEach(l => { 
-            const key = `${l.date.getFullYear()}-${l.date.getMonth() + 1}-${l.date.getDate()}`; 
-            dateCounts[key] = (dateCounts[key] || 0) + 1; 
-        });
-        
+        const dateCounts = {}; logsQuarter.forEach(l => { const key = `${l.date.getFullYear()}-${l.date.getMonth() + 1}-${l.date.getDate()}`; dateCounts[key] = (dateCounts[key] || 0) + 1; });
         let grassHtml = "";
         for (let i = 0; i < totalDaysInQ; i++) {
             const current = new Date(start); current.setDate(start.getDate() + i);
@@ -703,13 +689,8 @@ window.showMemberTimeline = async (mId, mName) => {
         grassBoard.innerHTML = grassHtml;
         document.getElementById('timelineCountBadge').innerText = `이번 분기 ${logsQuarter.length}회`;
 
-        // 6. 하단 타임라인 리스트 생성
-        if(snapQuarter.empty) { 
-            container.innerHTML = "<p class='text-center text-[10px] py-10 text-gray-400'>이번 분기 산행 기록이 없습니다.</p>"; 
-            return; 
-        }
-        let listHtml = ""; 
-        logsQuarter.forEach(log => {
+        if(snapQuarter.empty) { container.innerHTML = "<p class='text-center text-[10px] py-10 text-gray-400'>기록 없음</p>"; return; }
+        let listHtml = ""; logsQuarter.forEach(log => {
             const date = log.date;
             const dateStr = `${date.getMonth() + 1}월 ${date.getDate()}일`;
             const dayName = ['일','월','화','수','목','금','토'][date.getDay()];
@@ -717,15 +698,11 @@ window.showMemberTimeline = async (mId, mName) => {
             listHtml += `<div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-date">${dateStr} (${dayName})</div><div class="timeline-desc">${mountainTxt} ✔️</div></div>`;
         });
         container.innerHTML = listHtml;
-    } catch (e) { 
-        console.error(e);
-        container.innerHTML = "<p class='text-center text-xs text-red-400'>데이터를 불러오는 중 오류가 발생했습니다.</p>"; 
-    }
+    } catch (e) { container.innerHTML = "<p class='text-center text-xs text-red-400'>로드 실패</p>"; }
 };
 
 window.toggleTimelineModal = (show) => { document.getElementById('timelineModal').style.display = show ? 'flex' : 'none'; };
 
-// 관리자 좌표 설정 및 자동 완성
 window.setAdminCoordinate = (event) => {
 const rect = event.currentTarget.getBoundingClientRect();
 const x = ((event.clientX - rect.left) / rect.width) * 100;
@@ -753,7 +730,6 @@ if(snap.exists()) {
 }
 };
 
-// 실시간 동기화
 let unsubscribe = null;
 function startRealtimeSync() {
 if (unsubscribe) unsubscribe();
@@ -772,11 +748,10 @@ currentData = results; updateAdminMemberLists(); renderStatusTable();
 });
 }
 
-// 관리자 액션
 window.addMultiActivity = async () => {
 const dateVal = document.getElementById('activityDate').value;
 const mName = document.getElementById('mountainName').value.trim();
-if(!selectedMemberIds.size || !dateVal) return alert("대상 회원과 날짜를 입력해주세요.");
+if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜를 확인해주세요.");
 const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
 const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
 if(mName && tempCoord) await setDoc(doc(db, "mountains", mName), tempCoord, { merge: true });
@@ -793,6 +768,7 @@ for(let i=0; i < up; i++) {
 }
 alert("저장 완료!"); selectedMemberIds.clear(); tempCoord = null;
 document.getElementById('adminMapMarker').classList.add('hidden');
+document.getElementById('coordDisplay').innerText = "선택 좌표: 없음";
 document.getElementById('mountainName').value = "";
 updateAdminMemberLists();
 };
@@ -853,7 +829,7 @@ window.editLog = async (mId, logId, oldDate, oldName, oldX, oldY) => {
     const newDateStr = prompt("날짜 수정 (YYYY.MM.DD)", oldDate); if(!newDateStr) return;
     const newName = prompt("산 이름 수정", oldName); if(!newName) return;
     let newCoords = null;
-    if(confirm("지도 좌표도 수정하시겠습니까?")) {
+    if(confirm("좌표(지도 위치)도 수정하시겠습니까?")) {
         const x = prompt("X 좌표 (0~100)", oldX || 50); const y = prompt("Y 좌표 (0~100)", oldY || 50);
         if(x && y) newCoords = { x: parseFloat(x), y: parseFloat(y) };
     }
@@ -887,7 +863,7 @@ if(id) { await updateDoc(doc(db, "sanwoori", id), { bonusDays: bonus }); alert("
 
 window.toggleHideMember = async () => {
 const id = document.getElementById('memberSelectManage').value;
-if(id){ const m = currentData.find(x => x.id === id); await updateDoc(doc(db, "sanwoori", id), { isHidden: !m.isHidden }); alert("상태 변경 완료"); }
+if(id){ const m = currentData.find(x => x.id === id); await updateDoc(doc(db, "sanwoori", id), { isHidden: !m.isHidden }); alert("변경 완료"); }
 };
 
 window.deleteMember = async () => {
@@ -930,7 +906,6 @@ manage.innerHTML += `<option value="${m.id}">${m.name}${m.isHidden?' (숨김)':'
 });
 }
 
-// 초기 구동
 if (!sessionStorage.getItem('visited')) { updateVisitorCount(); sessionStorage.setItem('visited', 'true'); }
 listenVisitors(); startRealtimeSync(); listenSubRooms();
 document.getElementById('regDate').valueAsDate = new Date();
