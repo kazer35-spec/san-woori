@@ -204,7 +204,7 @@ animation: neon-flicker 1.5s infinite; letter-spacing: 0.5px; pointer-events: no
 .guide-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .guide-item { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 10px 5px; border-radius: 15px; border: 1px solid #f1f5f9; background: #fafafa; }
 
-.timeline-container { position: relative; padding-left: 20px; margin-top: 5px; scroll-behavior: smooth; }
+.timeline-container { position: relative; padding-left: 20px; margin-top: 5px; }
 .timeline-container::before { content: ''; position: absolute; left: 8px; top: 4px; bottom: 4px; width: 1.5px; background: #e2e8f0; }
 .timeline-item { position: relative; margin-bottom: 6px; }
 .timeline-dot { position: absolute; left: -16px; top: 4px; width: 6px; height: 6px; background: #3b82f6; border: 1.5px solid white; border-radius: 50%; z-index: 1; }
@@ -452,7 +452,9 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 <div class="border-t border-dashed border-gray-100 my-2"></div>
 
 <p class="text-[10px] font-extrabold text-slate-500 mb-2">📜 산행 일지</p>
-<div id="timelineContent" class="timeline-container max-h-[160px] overflow-y-auto pr-1"></div>
+<div id="timelineScrollArea" class="max-h-[160px] overflow-y-auto pr-1">
+    <div id="timelineContent" class="timeline-container"></div>
+</div>
 
 <button onclick="toggleTimelineModal(false)" class="w-full mt-3 py-2 bg-gray-100 text-gray-600 rounded-xl font-bold text-sm">닫기</button>
 </div>
@@ -476,7 +478,6 @@ appId: "1:387585514110:web:44749e6d92769fff6ad62f"
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// 상태 변수
 let isAdminLoggedIn = false;
 let currentData = [];
 let subRoomsData = [];
@@ -520,7 +521,7 @@ if (dday <= 30) return "dday-yellow";
 return "bg-gray-soft";
 };
 
-// 방문자 및 시스템 초기화
+// 방문자
 async function updateVisitorCount() {
 const statsRef = doc(db, "site_stats", "visitors");
 try { await updateDoc(statsRef, { total: increment(1) }); } catch (e) { await setDoc(statsRef, { total: 1 }, { merge: true }); }
@@ -533,7 +534,7 @@ onSnapshot(doc(db, "site_stats", "visitors"), (s) => { if(s.exists()) document.g
 onSnapshot(doc(db, "site_stats", `day_${todayStr}`), (s) => { if(s.exists()) document.getElementById('todayHits').innerText = s.data().count.toLocaleString(); });
 }
 
-// 서브방 로직
+// 서브방 
 const defaultSubRooms = [
 { id: "shop", name: "상점", emoji: "🏕", url: "상점 톡방📢 https://open.kakao.com/o/gYPcpN3h" },
 { id: "blacksmith", name: "대장간", emoji: "⚒️", url: "대장간 톡방📢 https://open.kakao.com/o/gxAupN3h" },
@@ -588,7 +589,7 @@ await setDoc(doc(db, "sub_rooms", roomId), { isActive: nextActive, statusMsg: ms
 
 window.copySubRoomUrl = (url, name) => { navigator.clipboard.writeText(url); alert(`[${name}] 링크 복사 완료`); };
 
-// 실시간 테이블 렌더링
+// 실시간 테이블
 window.renderStatusTable = () => {
 const list = document.getElementById('statusList');
 const search = document.getElementById('searchInput').value.trim();
@@ -644,22 +645,28 @@ list.innerHTML += `<tr class="border-b border-gray-50 ${m.isHidden ? 'opacity-40
 });
 };
 
-// 타임라인 보드 로직 (스크롤 최상단 고정 추가)
+// 타임라인 (스크롤 최상단 고정 반영)
 window.showMemberTimeline = async (mId, mName) => {
+    // 1. 모달 표시 및 스크롤 초기화
+    toggleTimelineModal(true);
+    const scrollArea = document.getElementById('timelineScrollArea');
+    const modalContent = document.querySelector('#timelineModal .modal-content');
+    
+    // 모달 자체의 스크롤과 내부 영역 스크롤을 모두 위로 올림
+    if(modalContent) modalContent.scrollTop = 0;
+    if(scrollArea) scrollArea.scrollTop = 0;
+
     const container = document.getElementById('timelineContent');
     const grassBoard = document.getElementById('grassBoard');
     const pointsBoard = document.getElementById('conquerMapPoints');
     const vibeArea = document.getElementById('passionVibeArea');
 
-    // 스크롤 위치를 항상 최상단으로 초기화
-    container.scrollTop = 0;
-
     document.getElementById('timelineMemberName').innerText = mName;
     document.getElementById('timelineSubTitle').innerText = `${selectedYear}년 ${selectedQuarter}분기`;
     document.getElementById('grassYearTitle').innerText = `${selectedYear}년 ${selectedQuarter}분기`;
+    
     container.innerHTML = "<p class='text-center text-xs py-5 text-gray-400'>데이터 불러오는 중...</p>"; 
     grassBoard.innerHTML = ""; pointsBoard.innerHTML = ""; vibeArea.innerHTML = "";
-    toggleTimelineModal(true);
 
     try {
         const start = new Date(selectedYear, (selectedQuarter - 1) * 3, 1);
@@ -703,16 +710,14 @@ window.showMemberTimeline = async (mId, mName) => {
         });
         container.innerHTML = listHtml;
         
-        // 데이터 로드 완료 후 스크롤을 한 번 더 최상단으로 강제
-        setTimeout(() => { container.scrollTop = 0; }, 50);
+        // 데이터 로드 후 한번 더 최상단 확인
+        if(scrollArea) scrollArea.scrollTop = 0;
     } catch (e) { container.innerHTML = "<p class='text-center text-xs text-red-400'>로드 실패</p>"; }
 };
 
-window.toggleTimelineModal = (show) => { 
-    document.getElementById('timelineModal').style.display = show ? 'flex' : 'none'; 
-};
+window.toggleTimelineModal = (show) => { document.getElementById('timelineModal').style.display = show ? 'flex' : 'none'; };
 
-// 관리자 좌표 설정 (수동 클릭)
+// 관리자 좌표 시스템 (자동 로드 반영)
 window.setAdminCoordinate = (event) => {
 const rect = event.currentTarget.getBoundingClientRect();
 const x = ((event.clientX - rect.left) / rect.width) * 100;
@@ -724,24 +729,24 @@ marker.classList.remove('hidden');
 document.getElementById('coordDisplay').innerText = `선택 좌표: X ${tempCoord.x} / Y ${tempCoord.y}`;
 };
 
-// 산 이름 입력 시 DB에서 좌표 자동 로드
 window.autoFindCoords = async () => {
-const mName = document.getElementById('mountainName').value.trim();
-if(!mName) return;
-const docRef = doc(db, "mountains", mName);
-const snap = await getDoc(docRef);
-if(snap.exists()) {
-    tempCoord = snap.data();
-    const marker = document.getElementById('adminMapMarker');
-    marker.style.left = tempCoord.x + "%"; marker.style.top = tempCoord.y + "%";
-    marker.classList.remove('hidden');
-    document.getElementById('coordDisplay').innerText = `좌표 자동 로드: ${mName}`;
-} else {
-    document.getElementById('coordDisplay').innerText = `새로운 산입니다. 지도에서 위치를 찍어주세요.`;
-}
+    const mName = document.getElementById('mountainName').value.trim();
+    if(!mName) return;
+    const docRef = doc(db, "mountains", mName);
+    const snap = await getDoc(docRef);
+    if(snap.exists()) {
+        tempCoord = snap.data();
+        const marker = document.getElementById('adminMapMarker');
+        marker.style.left = tempCoord.x + "%"; 
+        marker.style.top = tempCoord.y + "%";
+        marker.classList.remove('hidden');
+        document.getElementById('coordDisplay').innerText = `좌표 자동 로드됨: ${mName}`;
+    } else {
+        document.getElementById('coordDisplay').innerText = `기존 좌표 없음. 지도에서 위치를 찍어주세요.`;
+    }
 };
 
-// 데이터 실시간 동기화
+// 동기화
 let unsubscribe = null;
 function startRealtimeSync() {
 if (unsubscribe) unsubscribe();
@@ -760,32 +765,35 @@ currentData = results; updateAdminMemberLists(); renderStatusTable();
 });
 }
 
-// 관리자 기록 추가 (산 이름 및 좌표 저장 포함)
+// 기록 추가
 window.addMultiActivity = async () => {
-const dateVal = document.getElementById('activityDate').value;
-const mName = document.getElementById('mountainName').value.trim();
-if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜를 확인해주세요.");
-const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
-const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
+    const dateVal = document.getElementById('activityDate').value;
+    const mName = document.getElementById('mountainName').value.trim();
+    if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜를 확인해주세요.");
+    const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
+    const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
 
-// 좌표가 있으면 산 이름 DB에 저장
-if(mName && tempCoord) await setDoc(doc(db, "mountains", mName), tempCoord, { merge: true });
+    // 좌표 정보가 있다면 산 정보 업데이트
+    if(mName && tempCoord) await setDoc(doc(db, "mountains", mName), tempCoord, { merge: true });
 
-for(const id of selectedMemberIds){
-const mRef = doc(db, "sanwoori", id); const mS = await getDoc(mRef);
-let updateData = { level: increment(up) };
-if(!mS.data().lastDate || ts.toMillis() > mS.data().lastDate.toMillis()) updateData.lastDate = ts;
-await updateDoc(mRef, updateData);
-for(let i=0; i < up; i++) {
-    let logData = { date: ts }; if(mName) logData.mountain = mName; if(tempCoord) logData.coords = tempCoord;
-    await addDoc(collection(db, `sanwoori/${id}/logs`), logData);
-}
-}
-alert("저장 완료!"); selectedMemberIds.clear(); tempCoord = null;
-document.getElementById('adminMapMarker').classList.add('hidden');
-document.getElementById('coordDisplay').innerText = "선택 좌표: 없음";
-document.getElementById('mountainName').value = "";
-updateAdminMemberLists();
+    for(const id of selectedMemberIds){
+        const mRef = doc(db, "sanwoori", id); const mS = await getDoc(mRef);
+        let updateData = { level: increment(up) };
+        if(!mS.data().lastDate || ts.toMillis() > mS.data().lastDate.toMillis()) updateData.lastDate = ts;
+        await updateDoc(mRef, updateData);
+        for(let i=0; i < up; i++) {
+            let logData = { date: ts }; 
+            if(mName) logData.mountain = mName; 
+            if(tempCoord) logData.coords = tempCoord;
+            await addDoc(collection(db, `sanwoori/${id}/logs`), logData);
+        }
+    }
+    alert("기록 저장 완료!"); 
+    selectedMemberIds.clear(); tempCoord = null;
+    document.getElementById('adminMapMarker').classList.add('hidden');
+    document.getElementById('coordDisplay').innerText = "선택 좌표: 없음";
+    document.getElementById('mountainName').value = "";
+    updateAdminMemberLists();
 };
 
 window.changeQuarter = (q) => { selectedQuarter = q; document.querySelectorAll('.q-btn').forEach((btn, idx) => btn.classList.toggle('active-q', idx + 1 === q)); startRealtimeSync(); };
@@ -849,8 +857,8 @@ window.editLog = async (mId, logId, oldDate, oldName, oldX, oldY) => {
     const newDateStr = prompt("날짜 수정 (YYYY.MM.DD)", oldDate); if(!newDateStr) return;
     const newName = prompt("산 이름 수정", oldName); if(!newName) return;
     let newCoords = null;
-    if(confirm("좌표(지도 위치)도 수정하시겠습니까?")) {
-        const x = prompt("X 좌표 (0~100)", oldX || 50); const y = prompt("Y 좌표 (0~100)", oldY || 50);
+    if(confirm("좌표도 수정하시겠습니까?")) {
+        const x = prompt("X 좌표", oldX || 50); const y = prompt("Y 좌표", oldY || 50);
         if(x && y) newCoords = { x: parseFloat(x), y: parseFloat(y) };
     }
     try {
@@ -863,7 +871,7 @@ window.editLog = async (mId, logId, oldDate, oldName, oldX, oldY) => {
 };
 
 window.deleteLog = async (mId, logId) => {
-    if(!confirm("삭제하시겠습니까? (레벨 -1)")) return;
+    if(!confirm("기록을 삭제하시겠습니까? (레벨 -1)")) return;
     await deleteDoc(doc(db, `sanwoori/${mId}/logs`, logId)); 
     await updateDoc(doc(db, "sanwoori", mId), { level: increment(-1) });
     alert("삭제 완료"); loadMemberLogs();
