@@ -162,36 +162,29 @@ text-align: center;
 .del-btn-mini { font-size: 0.6rem; background: #ef4444; color: white; padding: 5px; border-radius: 6px; font-weight: 800; }
 .del-only-btn-mini { font-size: 0.6rem; background: #64748b; color: white; padding: 5px; border-radius: 6px; font-weight: 800; }
 
-/* 테이블 레이아웃 수정: 분기횟수/정복높이 간격 확대 및 레벨 좌측 정렬 */
+/* 테이블 간격 및 정렬 최적화 */
 table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-th { color: #94a3b8; font-size: 0.65rem; padding-bottom: 8px; border-bottom: 2px solid #f8fafc; text-align: center; font-weight: 900; position: relative; }
-td { padding: 12px 0; text-align: center; vertical-align: middle; }
-
-/* 컬럼별 정렬 세부 조정 */
-.col-name { width: 18%; }
-.col-level { width: 22%; text-align: left !important; }
-.col-qcount { width: 20%; }
-.col-spacer { width: 4%; } /* 간격용 투명 컬럼 */
-.col-height { width: 20%; }
-.col-dday { width: 16%; }
+th { color: #94a3b8; font-size: 0.65rem; padding-bottom: 8px; border-bottom: 2px solid #f8fafc; text-align: center; font-weight: 900; }
+td { padding: 12px 0; text-align: center; vertical-align: middle; position: relative; }
 
 .rank-badge { font-size: 0.65rem; display: block; margin-bottom: -1px; font-weight: 900; }
 .rank-1 { color: #facc15 !important; } .rank-2 { color: #94a3b8 !important; } .rank-3 { color: #a36a00 !important; }
 
-/* CLICK 네온 텍스트 스타일: 일관된 상단 배치 */
+/* CLICK 네온 텍스트 스타일 - 중앙 상단 고정 */
 .click-neon {
   font-size: 6px;
   font-weight: 900;
   color: #3b82f6;
   text-transform: uppercase;
   position: absolute;
-  top: -8px; 
+  top: -4px;
   left: 50%;
   transform: translateX(-50%);
   animation: neon-flicker 1.5s infinite;
   letter-spacing: 0.5px;
   pointer-events: none;
   white-space: nowrap;
+  z-index: 5;
 }
 
 @keyframes neon-flicker {
@@ -199,10 +192,10 @@ td { padding: 12px 0; text-align: center; vertical-align: middle; }
   50% { opacity: 0.4; text-shadow: none; }
 }
 
-.badge-level { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px; }
+.badge-level { display: inline-flex; flex-direction: column; align-items: center; gap: 1px; }
 .badge-icon-box { padding: 2px 8px; border-radius: 14px; line-height: 1.2; display: flex; align-items: center; justify-content: center; border-width: 1.5px; min-width: 50px; }
 .badge-icon-txt { font-size: 0.75rem; font-weight: 800; }
-.badge-lv-txt { font-size: 0.6rem; font-weight: 800; opacity: 0.9; margin-left: 4px; }
+.badge-lv-txt { font-size: 0.6rem; font-weight: 800; opacity: 0.9; }
 .dday-box { padding: 4px 8px; border-radius: 8px; font-weight: 800; font-size: 10px; display: inline-block; min-width: 52px; }
 .bg-gray-soft { background-color: #f1f5f9; color: #64748b; }
 .dday-yellow { background-color: #fef08a; color: #854d0e; animation: blink-slow 2s infinite; }
@@ -280,11 +273,11 @@ td { padding: 12px 0; text-align: center; vertical-align: middle; }
 <table>
 <thead>
 <tr>
-<th class="col-name">회원명</th>
-<th class="col-level" style="padding-left: 10px;">레벨(Lv)</th>
-<th class="col-qcount">분기횟수</th>
-<th class="col-spacer"></th> <th class="col-height">정복높이</th>
-<th class="col-dday">D-Day</th>
+<th class="w-[20%]">회원명</th>
+<th class="w-[28%]">레벨(Lv)</th>
+<th class="w-[18%]">분기횟수</th>
+<th class="w-[18%]">정복높이</th>
+<th class="w-[16%]">D-Day</th>
 </tr>
 </thead>
 <tbody id="statusList"></tbody>
@@ -399,9 +392,32 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 <input type="text" id="editMemberNameInput" placeholder="변경할 이름 입력" class="h-10 text-sm flex-1 border rounded-xl px-3 outline-none">
 <button onclick="updateMemberName()" class="bg-indigo-500 text-white px-3 rounded-xl text-xs font-bold whitespace-nowrap">이름 수정</button>
 </div>
+<div class="flex flex-col bg-orange-50 p-2 rounded-xl border border-orange-100 mb-2">
+<div class="flex justify-around mb-1">
+<label class="flex items-center gap-1 font-bold text-red-600 text-xs"><input type="radio" name="downAmount" value="1" checked> -1</label>
+<label class="flex items-center gap-1 font-bold text-red-600 text-xs"><input type="radio" name="downAmount" value="2"> -2</label>
+<label class="flex items-center gap-1 font-bold text-red-600 text-xs"><input type="radio" name="downAmount" value="3"> -3</label>
+</div>
+<button onclick="onlyDownLevel()" class="w-full bg-orange-500 text-white py-1.5 rounded-lg font-black text-[10px]">레벨만 차감 (기록 유지)</button>
+</div>
 <div id="logListArea" class="log-grid"></div>
 </div>
 
+<div class="card" style="background-color: #fff5f5; border-color: #fee2e2;">
+<div class="card-title text-red-600 font-bold">🗑️ 회원 상태 및 보너스 관리</div>
+<select id="memberSelectManage" class="input-gap"><option value="">대상 회원 선택</option></select>
+<div class="bg-white p-2 rounded-xl border border-red-100 mb-3">
+<p class="text-[9px] text-gray-500 mb-1">🎁 D-Day 보너스 (양수:연장 / 음수:차감)</p>
+<div class="flex gap-2">
+<input type="number" id="bonusDaysInput" placeholder="예: 5 또는 -5" class="h-9 text-xs flex-1 border rounded-lg px-2 outline-none">
+<button onclick="updateBonusDays()" class="bg-red-400 text-white px-3 rounded-lg text-xs font-bold">날짜 적용</button>
+</div>
+</div>
+<div class="flex gap-2">
+<button onclick="toggleHideMember()" class="flex-1 bg-gray-600 text-white font-bold rounded-lg text-xs h-9">숨기기/보이기</button>
+<button onclick="deleteMember()" class="flex-1 bg-red-500 text-white font-bold rounded-lg text-xs h-9">영구 삭제</button>
+</div>
+</div>
 <div class="p-4 text-center"><button onclick="logoutAdmin()" class="text-gray-400 underline font-bold text-xs">로그아웃</button></div>
 </div>
 
@@ -421,6 +437,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 </div>
 <p class="text-[10px] font-extrabold text-slate-500 mb-2">🌱 분기 산행 잔디 (최대 30일)</p>
 <div id="grassBoard" class="grass-container mb-4"></div>
+<div class="border-t border-dashed border-gray-100 my-3"></div>
 <p class="text-[10px] font-extrabold text-slate-500 mb-2">📜 최근 산행 일지 (6개)</p>
 <div id="timelineScrollArea" class="max-h-[160px] overflow-y-auto bg-gray-50/50 p-2 rounded-xl">
 <div id="timelineContent" class="timeline-container"></div>
@@ -609,6 +626,7 @@ processedData.forEach((m) => {
 if (!isAdminLoggedIn && m.isHidden) return;
 if (search && !m.name.includes(search)) return;
 
+// 네온 CLICK 표시 결정 (분기횟수와 정복높이 모두 동일한 위치에 적용)
 let clickNeonHtml = (isFirstVisible && !m.isHidden) ? `<span class="click-neon">CLICK</span>` : "";
 if (!m.isHidden) isFirstVisible = false;
 
@@ -623,22 +641,21 @@ const style = getLevelStyle(m.level); const ddayClass = getDDayStyle(m.ddayVal, 
 const nameColor = m.gender === '여' ? 'text-pink-600' : (m.gender === '남' ? 'text-blue-600' : 'text-slate-800');
 
 list.innerHTML += `<tr class="border-b border-gray-50 ${m.isHidden ? 'opacity-40' : ''}">
-<td class="col-name text-xs text-center">${rankT ? `<span class="rank-badge ${rankC}">${rankT}</span>` : ''}<span class="font-bold ${nameColor}">${m.name}</span></td>
-<td class="col-level" style="padding-left: 10px;"><div class="badge-level"><div class="badge-icon-box ${style.blink}" style="background:${style.bg}; border-color:${style.border};"><span class="badge-icon-txt" style="color:${style.text}">${getLevelBadge(m.level)}</span></div><span class="badge-lv-txt" style="color:${style.text}">Lv ${m.level}</span></div></td>
-<td class="col-qcount text-xs font-bold text-slate-600 relative">
+<td class="text-xs text-center"><div class="flex flex-col items-center justify-center">${rankT ? `<span class="rank-badge ${rankC}">${rankT}</span>` : ''}<span class="font-bold ${nameColor}">${m.name}</span></div></td>
+<td class="flex justify-center"><div class="badge-level"><div class="badge-icon-box ${style.blink}" style="background:${style.bg}; border-color:${style.border};"><span class="badge-icon-txt" style="color:${style.text}">${getLevelBadge(m.level)}</span></div><span class="badge-lv-txt" style="color:${style.text}">Lv ${m.level}</span></div></td>
+<td class="text-center">
     ${clickNeonHtml}
-    <button onclick="showMemberTimeline('${m.id}', '${m.name}')" class="bg-slate-50 px-2 py-1 rounded-lg border border-gray-100 hover:bg-slate-200">${m.qCount}회</button>
+    <button onclick="showMemberTimeline('${m.id}', '${m.name}')" class="bg-slate-50 px-2 py-1 rounded-lg border border-gray-100 hover:bg-slate-200 text-xs font-bold text-slate-600">${m.qCount}회</button>
 </td>
-<td class="col-spacer"></td>
-<td class="col-height text-center relative">
+<td class="text-center">
     ${clickNeonHtml}
     <button onclick="showMemberMap('${m.id}', '${m.name}')" class="height-badge hover:scale-105 active:scale-95 transition-all">🚩 ${m.totalHeight || 0}m</button>
 </td>
-<td class="col-dday text-center"><span class="dday-box ${ddayClass}">${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}</span></td></tr>`;
+<td class="text-center"><span class="dday-box ${ddayClass}">${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}</span></td></tr>`;
 });
 };
 
-// 타임라인/지도/관리자 함수들 (변동 없음)
+// 타임라인 모달 (6개 기록으로 제한)
 window.showMemberTimeline = async (mId, mName) => {
 toggleTimelineModal(true);
 const container = document.getElementById('timelineContent');
@@ -651,6 +668,7 @@ try {
 const start = new Date(selectedYear, (selectedQuarter - 1) * 3, 1);
 const end = new Date(selectedYear, selectedQuarter * 3, 1);
 const totalDaysInQ = Math.floor((end - start) / (1000 * 60 * 60 * 24));
+
 const snapAll = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc")));
 const logsAll = snapAll.docs.map(doc => ({ ...doc.data(), date: doc.data().date.toDate() }));
 const logsQuarter = logsAll.filter(l => l.date >= start && l.date < end);
@@ -667,6 +685,7 @@ grassHtml += `<div class="grass-day ${cl}"></div>`;
 }
 grassBoard.innerHTML = grassHtml;
 document.getElementById('timelineCountBadge').innerText = `분기 ${logsQuarter.length}회 / 전체 ${logsAll.length}회`;
+
 if(logsRecent.length === 0) { container.innerHTML = "<p class='text-center text-[10px] py-10 text-gray-400'>기록 없음</p>"; return; }
 container.innerHTML = logsRecent.map(log => {
 const dayName = ['일','월','화','수','목','금','토'][log.date.getDay()];
@@ -675,21 +694,25 @@ return `<div class="timeline-item"><div class="timeline-dot"></div><div class="t
 } catch (e) { container.innerHTML = "<p class='text-center text-xs text-red-400'>실패</p>"; }
 };
 
+// 정복지도 모달
 window.showMemberMap = async (mId, mName) => {
 toggleMapModal(true);
 document.getElementById('mapMemberName').innerText = mName;
 const pointsBoard = document.getElementById('conquerMapPoints');
 const vibeArea = document.getElementById('passionVibeArea');
 pointsBoard.innerHTML = ""; vibeArea.innerHTML = "";
+
 const snapAll = await getDocs(collection(db, `sanwoori/${mId}/logs`));
 let totalH = 0; let mapHtml = "";
 let recentCount = 0; const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
 snapAll.forEach(doc => {
 const log = doc.data();
 totalH += (log.height || 0);
 if(log.coords) mapHtml += `<div class="map-point" style="left:${log.coords.x}%; top:${log.coords.y}%;"></div>`;
 if(log.date.toDate() >= thirtyDaysAgo) recentCount++;
 });
+
 document.getElementById('mapTotalHeight').innerText = totalH.toLocaleString();
 pointsBoard.innerHTML = mapHtml;
 if(recentCount >= 4) vibeArea.innerHTML = `<span class="hot-vibe text-[10px] font-black text-orange-500 bg-orange-50 px-2 py-0.5 rounded-md">🔥 HOT</span>`;
@@ -698,6 +721,7 @@ if(recentCount >= 4) vibeArea.innerHTML = `<span class="hot-vibe text-[10px] fon
 window.toggleTimelineModal = (show) => { document.getElementById('timelineModal').style.display = show ? 'flex' : 'none'; };
 window.toggleMapModal = (show) => { document.getElementById('mapModal').style.display = show ? 'flex' : 'none'; };
 
+// 관리자 지도 좌표 처리
 window.setAdminCoordinate = (event) => {
 const rect = event.currentTarget.getBoundingClientRect();
 const x = ((event.clientX - rect.left) / rect.width) * 100;
@@ -724,6 +748,7 @@ document.getElementById('coordDisplay').innerText = `자동 로드: ${mName}`;
 }
 };
 
+// 실시간 동기화
 let unsubscribe = null;
 function startRealtimeSync() {
 if (unsubscribe) unsubscribe();
@@ -745,6 +770,7 @@ renderStatusTable();
 });
 }
 
+// 기록 추가 로직
 window.addMultiActivity = async () => {
 const dateVal = document.getElementById('activityDate').value;
 const mName = document.getElementById('mountainName').value.trim();
@@ -752,18 +778,23 @@ const height = parseInt(document.getElementById('mountainHeight').value) || 0;
 if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜를 확인해주세요.");
 const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
 const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
+
 if(mName && tempCoord) await setDoc(doc(db, "mountains", mName), { ...tempCoord, height }, { merge: true });
+
 for(const id of selectedMemberIds){
 const mRef = doc(db, "sanwoori", id); const mS = await getDoc(mRef);
 let updateData = { level: increment(up) };
 if(!mS.data().lastDate || ts.toMillis() > mS.data().lastDate.toMillis()) updateData.lastDate = ts;
 await updateDoc(mRef, updateData);
-for(let i=0; i < up; i++) await addDoc(collection(db, `sanwoori/${id}/logs`), { date: ts, mountain: mName, height: height, coords: tempCoord });
+for(let i=0; i < up; i++) {
+await addDoc(collection(db, `sanwoori/${id}/logs`), { date: ts, mountain: mName, height: height, coords: tempCoord });
+}
 }
 alert("저장 완료!");
 selectedMemberIds.clear(); tempCoord = null;
 document.getElementById('adminMapMarker').classList.add('hidden');
-document.getElementById('mountainName').value = ""; document.getElementById('mountainHeight').value = "";
+document.getElementById('mountainName').value = "";
+document.getElementById('mountainHeight').value = "";
 updateAdminMemberLists();
 };
 
@@ -773,8 +804,9 @@ const area = document.getElementById('logListArea'); area.innerHTML = ""; if(!id
 const snap = await getDocs(query(collection(db, `sanwoori/${id}/logs`), orderBy("date", "desc"), limit(20)));
 snap.forEach(ld => {
 const d = ld.data().date.toDate();
+const mName = ld.data().mountain || '기록';
 const dateStr = `${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()}`;
-area.innerHTML += `<div class="log-item-box"><div class="log-info-group"><span class="log-date-txt">${dateStr}</span><span class="log-mt-txt">${ld.data().mountain || '기록'}</span></div>
+area.innerHTML += `<div class="log-item-box"><div class="log-info-group"><span class="log-date-txt">${dateStr}</span><span class="log-mt-txt">${mName}</span></div>
 <div class="log-btn-group"><button class="del-btn-mini" onclick="deleteLog('${id}', '${ld.id}', true)">레벨-1 삭제</button><button class="del-only-btn-mini" onclick="deleteLog('${id}', '${ld.id}', false)">기록만 삭제</button></div></div>`;
 });
 };
@@ -784,6 +816,12 @@ if(!confirm("삭제하시겠습니까?")) return;
 await deleteDoc(doc(db, `sanwoori/${mId}/logs`, logId));
 if(shouldDownLevel) await updateDoc(doc(db, "sanwoori", mId), { level: increment(-1) });
 loadMemberLogs();
+};
+
+window.onlyDownLevel = async () => {
+const id = document.getElementById('memberSelectEdit').value;
+const val = parseInt(document.querySelector('input[name="downAmount"]:checked').value);
+if(id) { await updateDoc(doc(db, "sanwoori", id), { level: increment(-val) }); alert("레벨 차감 완료"); }
 };
 
 window.updateMemberName = async () => {
@@ -818,6 +856,21 @@ if(name && dateStr) {
 await addDoc(collection(db, "sanwoori"), { name, level: 0, gender, lastDate: Timestamp.fromDate(new Date(dateStr + "T00:00:00")), isHidden: false, bonusDays: 0 });
 alert("등록 완료");
 }
+};
+
+window.updateBonusDays = async () => {
+const id = document.getElementById('memberSelectManage').value;
+const bonus = parseInt(document.getElementById('bonusDaysInput').value);
+if(id && !isNaN(bonus)) { await updateDoc(doc(db, "sanwoori", id), { bonusDays: increment(bonus) }); alert("적용 완료"); }
+};
+
+window.toggleHideMember = async () => {
+const id = document.getElementById('memberSelectManage').value;
+if(id){ const m = currentData.find(x => x.id === id); await updateDoc(doc(db, "sanwoori", id), { isHidden: !m.isHidden }); alert("변경 완료"); }
+};
+window.deleteMember = async () => {
+const id = document.getElementById('memberSelectManage').value;
+if(id && confirm("영구 삭제하시겠습니까?")) { await deleteDoc(doc(db, "sanwoori", id)); alert("삭제 완료"); }
 };
 
 window.toggleSelectMember = (id, el) => {
