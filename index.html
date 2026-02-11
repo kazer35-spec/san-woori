@@ -86,6 +86,9 @@ z-index: 10;
 @keyframes floating { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 .secret-input { background: rgba(255, 255, 255, 0.05) !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; color: white !important; text-align: center; letter-spacing: 0.5em; }
 
+/* 하단 여정 시작 문구 스타일 */
+.system-date-info { font-size: 9px; font-weight: 800; color: rgba(255,255,255,0.15); letter-spacing: 1.5px; text-align: center; margin-top: 25px; font-family: 'Pretendard', sans-serif; border-top: 1px solid rgba(255,255,255,0.03); padding-top: 15px; line-height: 1.6; }
+
 /* 방문자 통계 유리 느낌 카드 */
 .visitor-stat-card {
 background: rgba(255, 255, 255, 0.04);
@@ -165,7 +168,7 @@ td { padding: 12px 0; text-align: center; vertical-align: middle; }
 .rank-badge { font-size: 0.65rem; display: block; margin-bottom: -1px; font-weight: 900; }
 .rank-1 { color: #facc15 !important; } .rank-2 { color: #94a3b8 !important; } .rank-3 { color: #a36a00 !important; }
 
-/* CLICK 네온 텍스트 상단 배치 버전 */
+/* CLICK 네온 텍스트 (데이터 상단 배치 버전) */
 .click-neon-top {
 font-size: 7px; font-weight: 900; color: #3b82f6; text-transform: uppercase;
 display: block; margin-bottom: 2px;
@@ -174,7 +177,7 @@ white-space: nowrap; text-align: center;
 }
 @keyframes neon-flicker {
 0%, 100% { opacity: 1; text-shadow: 0 0 2px #3b82f6, 0 0 5px #3b82f6; }
-50% { opacity: 0.4; text-shadow: none; }
+50% { opacity: 0.3; text-shadow: none; }
 }
 
 .badge-level { display: inline-flex; flex-direction: column; align-items: center; gap: 1px; }
@@ -212,7 +215,6 @@ white-space: nowrap; text-align: center;
 .timeline-desc { font-size: 0.55rem; color: #64748b; }
 
 .height-badge { font-size: 10px; font-weight: 900; color: #059669; background: #ecfdf5; border: 1px solid #10b981; padding: 2px 4px; border-radius: 6px; cursor: pointer; }
-.system-date-info { font-size: 9px; font-weight: 800; color: rgba(255,255,255,0.15); letter-spacing: 1.5px; text-align: center; margin-top: 25px; border-top: 1px solid rgba(255,255,255,0.03); padding-top: 15px; line-height: 1.6; }
 </style>
 </head>
 <body>
@@ -261,14 +263,8 @@ white-space: nowrap; text-align: center;
 <tr>
 <th class="w-[22%]">회원명</th>
 <th class="w-[28%]">레벨(Lv)</th>
-<th class="w-[17%]">
-    <span class="click-neon-top">CLICK</span>
-    <span>분기횟수</span>
-</th>
-<th class="w-[17%]">
-    <span class="click-neon-top">CLICK</span>
-    <span>정복높이</span>
-</th>
+<th class="w-[17%]">분기횟수</th>
+<th class="w-[17%]">정복높이</th>
 <th class="w-[16%]">D-Day</th>
 </tr>
 </thead>
@@ -612,25 +608,56 @@ return 0;
 
 const topNames = [...processedData].filter(m => !m.isHidden && m.name !== "오즈").sort((a, b) => b.qCount - a.qCount || b.level - a.level).slice(0, 3).map(m => m.name);
 
-processedData.forEach((m) => {
-if (!isAdminLoggedIn && m.isHidden) return;
-if (search && !m.name.includes(search)) return;
-let rankT = ""; let rankC = "";
-if (m.name !== "오즈" && m.qCount > 0 && !m.isHidden) {
-const idx = topNames.indexOf(m.name);
-if (idx === 0) { rankT = "🥇산신령"; rankC = "rank-1"; }
-else if (idx === 1) { rankT = "🥈심마니"; rankC = "rank-2"; }
-else if (idx === 2) { rankT = "🥉나무꾼"; rankC = "rank-3"; }
-}
-const style = getLevelStyle(m.level); const ddayClass = getDDayStyle(m.ddayVal, m.level);
-const nameColor = m.gender === '여' ? 'text-pink-600' : (m.gender === '남' ? 'text-blue-600' : 'text-slate-800');
+// 현재 화면에 표시될 리스트 필터링
+const filteredDisplayData = processedData.filter(m => {
+    if (!isAdminLoggedIn && m.isHidden) return false;
+    if (search && !m.name.includes(search)) return false;
+    return true;
+});
 
-list.innerHTML += `<tr class="border-b border-gray-50 ${m.isHidden ? 'opacity-40' : ''}">
-<td class="text-xs text-center">${rankT ? `<span class="rank-badge ${rankC}">${rankT}</span>` : ''}<span class="font-bold ${nameColor}">${m.name}</span></td>
-<td class="flex justify-center"><div class="badge-level"><div class="badge-icon-box ${style.blink}" style="background:${style.bg}; border-color:${style.border};"><span class="badge-icon-txt" style="color:${style.text}">${getLevelBadge(m.level)}</span></div><span class="badge-lv-txt" style="color:${style.text}">Lv ${m.level}</span></div></td>
-<td class="text-xs font-bold text-slate-600"><button onclick="showMemberTimeline('${m.id}', '${m.name}')" class="bg-slate-50 px-2 py-1 rounded-lg border border-gray-100 hover:bg-slate-200">${m.qCount}회</button></td>
-<td class="text-center"><button onclick="showMemberMap('${m.id}', '${m.name}')" class="height-badge hover:scale-105 active:scale-95 transition-all">🚩 ${m.totalHeight || 0}m</button></td>
-<td class="text-center"><span class="dday-box ${ddayClass}">${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}</span></td></tr>`;
+filteredDisplayData.forEach((m, idx) => {
+    let rankT = ""; let rankC = "";
+    if (m.name !== "오즈" && m.qCount > 0 && !m.isHidden) {
+        const rIdx = topNames.indexOf(m.name);
+        if (rIdx === 0) { rankT = "🥇산신령"; rankC = "rank-1"; }
+        else if (rIdx === 1) { rankT = "🥈심마니"; rankC = "rank-2"; }
+        else if (rIdx === 2) { rankT = "🥉나무꾼"; rankC = "rank-3"; }
+    }
+    const style = getLevelStyle(m.level); const ddayClass = getDDayStyle(m.ddayVal, m.level);
+    const nameColor = m.gender === '여' ? 'text-pink-600' : (m.gender === '남' ? 'text-blue-600' : 'text-slate-800');
+
+    // 첫 번째 데이터 행에만 CLICK 네온 텍스트 추가 (분기횟수, 정복높이 위)
+    const neonText = (idx === 0) ? `<span class="click-neon-top">CLICK</span>` : '';
+
+    list.innerHTML += `<tr class="border-b border-gray-50 ${m.isHidden ? 'opacity-40' : ''}">
+        <td class="text-xs text-center">
+            ${rankT ? `<span class="rank-badge ${rankC}">${rankT}</span>` : ''}
+            <span class="font-bold ${nameColor}">${m.name}</span>
+        </td>
+        <td class="flex justify-center">
+            <div class="badge-level">
+                <div class="badge-icon-box ${style.blink}" style="background:${style.bg}; border-color:${style.border};">
+                    <span class="badge-icon-txt" style="color:${style.text}">${getLevelBadge(m.level)}</span>
+                </div>
+                <span class="badge-lv-txt" style="color:${style.text}">Lv ${m.level}</span>
+            </div>
+        </td>
+        <td class="text-xs font-bold text-slate-600">
+            ${neonText}
+            <button onclick="showMemberTimeline('${m.id}', '${m.name}')" class="bg-slate-50 px-2 py-1 rounded-lg border border-gray-100 hover:bg-slate-200">
+                ${m.qCount}회
+            </button>
+        </td>
+        <td class="text-center">
+            ${neonText}
+            <button onclick="showMemberMap('${m.id}', '${m.name}')" class="height-badge hover:scale-105 active:scale-95 transition-all">
+                🚩 ${m.totalHeight || 0}m
+            </button>
+        </td>
+        <td class="text-center">
+            <span class="dday-box ${ddayClass}">${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}</span>
+        </td>
+    </tr>`;
 });
 };
 
