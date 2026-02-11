@@ -202,7 +202,18 @@ td { padding: 12px 0; text-align: center; vertical-align: middle; position: rela
 .badge-icon-box { padding: 2px 8px; border-radius: 14px; line-height: 1.2; display: flex; align-items: center; justify-content: center; border-width: 1.5px; min-width: 50px; }
 .badge-icon-txt { font-size: 0.75rem; font-weight: 800; }
 .badge-lv-txt { font-size: 0.6rem; font-weight: 800; opacity: 0.9; }
-.dday-box { padding: 4px 8px; border-radius: 8px; font-weight: 800; font-size: 10px; display: inline-block; min-width: 52px; text-align: center; }
+
+/* 박스 크기 규격화: 분기 횟수 & D-Day */
+.dday-box, .qcount-box {
+    padding: 4px 8px;
+    border-radius: 8px;
+    font-weight: 800;
+    font-size: 10px;
+    display: inline-block;
+    min-width: 52px;
+    text-align: center;
+    box-sizing: border-box;
+}
 .bg-gray-soft { background-color: #f1f5f9; color: #64748b; }
 .dday-yellow { background-color: #fef08a; color: #854d0e; animation: blink-slow 2s infinite; }
 .dday-orange { background-color: #fed7aa; color: #9a3412; animation: blink-medium 1.2s infinite; }
@@ -370,11 +381,11 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 <div id="multiMemberList" class="member-grid max-h-48 overflow-y-auto mb-3 p-1"></div>
 
 <div class="bg-indigo-50 p-3 rounded-xl border border-indigo-100 mb-2">
-<div class="flex items-center justify-center gap-3 mb-2">
+<div class="flex items-center justify-between mb-2">
     <p class="text-[10px] font-black text-indigo-400">⛰️ 산 정보 및 좌표 설정</p>
-    <label class="flex items-center gap-1 cursor-pointer">
-        <input type="checkbox" id="isTop100Check" onchange="toggleTop100Mode()" class="w-3 h-3">
-        <span class="text-[10px] font-black text-blue-600">산림청</span>
+    <label class="flex items-center gap-1 cursor-pointer whitespace-nowrap">
+        <input type="checkbox" id="isTop100Check" onchange="toggleTop100Mode()" class="w-3.5 h-3.5">
+        <span class="text-[10px] font-black text-blue-600">산림청 100대명산</span>
     </label>
 </div>
 <input type="text" id="mountainName" onblur="autoFindCoords()" placeholder="등산한 산 이름 (예: 관악산)" class="mb-2 h-9 text-xs">
@@ -610,7 +621,7 @@ await setDoc(doc(db, "sub_rooms", roomId), { isActive: nextActive, statusMsg: ms
 
 window.copySubRoomUrl = (url, name) => { navigator.clipboard.writeText(url); alert(`[${name}] 링크 복사 완료`); };
 
-// 실시간 테이블 렌더링 (간격 및 정렬 최적화 반영)
+// 실시간 테이블 렌더링
 window.renderStatusTable = () => {
 const list = document.getElementById('statusList');
 const search = document.getElementById('searchInput').value.trim();
@@ -643,7 +654,6 @@ processedData.forEach((m) => {
 if (!isAdminLoggedIn && m.isHidden) return;
 if (search && !m.name.includes(search)) return;
 
-// 검색결과 중 첫 번째 사람에게만 CLICK 가이드 표시
 let clickNeonHtml = (isFirstVisible && !m.isHidden) ? `<span class="click-neon">CLICK</span>` : "";
 if (!m.isHidden) isFirstVisible = false;
 
@@ -657,12 +667,13 @@ else if (idx === 2) { rankT = "🥉나무꾼"; rankC = "rank-3"; }
 const style = getLevelStyle(m.level); const ddayClass = getDDayStyle(m.ddayVal, m.level);
 const nameColor = m.gender === '여' ? 'text-pink-600' : (m.gender === '남' ? 'text-blue-600' : 'text-slate-800');
 
+// 분기 횟수 버튼을 qcount-box 클래스로 규격화하여 D-Day 박스와 동일하게 맞춤
 list.innerHTML += `<tr class="${m.isHidden ? 'opacity-40' : ''}">
 <td class="text-xs text-center"><div class="flex flex-col items-center justify-center">${rankT ? `<span class="rank-badge ${rankC}">${rankT}</span>` : ''}<span class="font-bold ${nameColor}">${m.name}</span></div></td>
 <td><div class="badge-level"><div class="badge-icon-box ${style.blink}" style="background:${style.bg}; border-color:${style.border};"><span class="badge-icon-txt" style="color:${style.text}">${getLevelBadge(m.level)}</span></div><span class="badge-lv-txt" style="color:${style.text}">Lv ${m.level}</span></div></td>
 <td>
     ${clickNeonHtml}
-    <button onclick="showMemberTimeline('${m.id}', '${m.name}')" class="bg-slate-50 px-2.5 py-1.5 rounded-lg border border-gray-100 hover:bg-slate-200 text-xs font-bold text-slate-600">${m.qCount}회</button>
+    <button onclick="showMemberTimeline('${m.id}', '${m.name}')" class="qcount-box bg-gray-soft border-none hover:bg-slate-200 text-slate-600">${m.qCount}회 📈</button>
 </td>
 <td>
     ${clickNeonHtml}
@@ -672,7 +683,7 @@ list.innerHTML += `<tr class="${m.isHidden ? 'opacity-40' : ''}">
 });
 };
 
-// 타임라인 모달 (잔디 & 기록)
+// 타임라인 모달
 window.showMemberTimeline = async (mId, mName) => {
 toggleTimelineModal(true);
 const container = document.getElementById('timelineContent');
@@ -692,7 +703,6 @@ const snapAll = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orde
 const logsAll = snapAll.docs.map(doc => ({ ...doc.data(), date: doc.data().date.toDate() }));
 const logsQuarter = logsAll.filter(l => l.date >= start && l.date < end);
 
-// 최근 30일 열정 온도
 const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 const recentCount = logsAll.filter(l => l.date >= thirtyDaysAgo).length;
 if(recentCount >= 4) vibeArea.innerHTML = `<span class="hot-vibe text-[9px] font-black text-orange-500 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-100">🔥 HOT</span>`;
@@ -807,7 +817,7 @@ window.globalSyncMountainInfo = async () => {
     } catch (e) { alert("오류: " + e.message); }
 };
 
-// 실시간 동기화 및 관리자 UI 업데이트
+// 실시간 동기화
 let unsubscribe = null;
 function startRealtimeSync() {
 if (unsubscribe) unsubscribe();
@@ -858,7 +868,7 @@ document.getElementById('isTop100Check').checked = false; toggleTop100Mode();
 updateAdminMemberLists();
 };
 
-// 로그 목록 및 관리자 기능들
+// 로그 관리
 window.loadMemberLogs = async () => {
 const id = document.getElementById('memberSelectEdit').value;
 const area = document.getElementById('logListArea'); area.innerHTML = ""; if(!id) return;
@@ -953,7 +963,6 @@ if(selectedMemberIds.has(id)){ selectedMemberIds.delete(id); el.classList.remove
 else { selectedMemberIds.add(id); el.classList.add('selected'); }
 };
 
-// 멤버 리스트 및 통계 업데이트 (숨김 인원 제외 로직 반영)
 function updateAdminMemberLists() {
 const alpha = [...currentData].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
 const multi = document.getElementById('multiMemberList');
@@ -967,7 +976,6 @@ edit.innerHTML += `<option value="${m.id}">${m.name}</option>`;
 manage.innerHTML += `<option value="${m.id}">${m.name}</option>`;
 });
 
-// 숨김 처리된(isHidden: true) 인원은 통계에서 제외
 const visibleMembers = currentData.filter(m => !m.isHidden);
 document.getElementById('countTotal').innerText = visibleMembers.length;
 document.getElementById('countMale').innerText = visibleMembers.filter(m => m.gender === '남').length;
