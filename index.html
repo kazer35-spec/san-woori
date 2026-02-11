@@ -163,15 +163,17 @@ text-align: center;
 .del-only-btn-mini { font-size: 0.6rem; background: #64748b; color: white; padding: 5px; border-radius: 6px; font-weight: 800; }
 
 table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-th { color: #94a3b8; font-size: 0.65rem; padding-bottom: 12px; border-bottom: 2px solid #f8fafc; text-align: center; font-weight: 900; }
+th { color: #94a3b8; font-size: 0.65rem; padding-bottom: 12px; border-bottom: 2px solid #f8fafc; text-align: center; font-weight: 900; position: relative; }
 td { padding: 12px 0; text-align: center; vertical-align: middle; }
 .rank-badge { font-size: 0.65rem; display: block; margin-bottom: -1px; font-weight: 900; }
 .rank-1 { color: #facc15 !important; } .rank-2 { color: #94a3b8 !important; } .rank-3 { color: #a36a00 !important; }
 
+/* CLICK 네온 텍스트 */
 .click-neon {
 font-size: 6px; font-weight: 900; color: #3b82f6; text-transform: uppercase;
 position: absolute; top: -8px; left: 50%; transform: translateX(-50%);
 animation: neon-flicker 1.5s infinite; letter-spacing: 0.5px; pointer-events: none;
+white-space: nowrap;
 }
 @keyframes neon-flicker {
 0%, 100% { opacity: 1; text-shadow: 0 0 2px #3b82f6, 0 0 5px #3b82f6; }
@@ -212,8 +214,7 @@ animation: neon-flicker 1.5s infinite; letter-spacing: 0.5px; pointer-events: no
 .timeline-date { font-size: 0.65rem; font-weight: 800; color: #1e293b; }
 .timeline-desc { font-size: 0.55rem; color: #64748b; }
 
-/* 신규: 높이 뱃지 스타일 */
-.height-badge { font-size: 10px; font-weight: 900; color: #059669; background: #ecfdf5; border: 1px solid #10b981; padding: 2px 4px; border-radius: 6px; }
+.height-badge { font-size: 10px; font-weight: 900; color: #059669; background: #ecfdf5; border: 1px solid #10b981; padding: 2px 4px; border-radius: 6px; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -262,8 +263,14 @@ animation: neon-flicker 1.5s infinite; letter-spacing: 0.5px; pointer-events: no
 <tr>
 <th class="w-[23%]">회원명</th>
 <th class="w-[25%]">레벨(Lv)</th>
-<th class="w-[18%]">분기횟수</th>
-<th class="w-[18%]">정복높이</th>
+<th class="w-[18%]">
+    <span class="click-neon">CLICK</span>
+    분기횟수
+</th>
+<th class="w-[18%]">
+    <span class="click-neon">CLICK</span>
+    정복높이
+</th>
 <th class="w-[16%]">D-Day</th>
 </tr>
 </thead>
@@ -324,7 +331,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 </div>
 
 <div id="viewAdmin" class="view-content hidden p-5 overflow-y-auto max-h-[92vh]">
-<div class="card" style="border: 1.5px solid #e2e8f0;">
+<div class="card" style="border: 1.5px solid #e2e880;">
 <div class="card-title text-blue-600 font-black flex justify-between items-center">
 <span>🛠️ 서브방 관리</span>
 </div>
@@ -623,7 +630,7 @@ const nameColor = m.gender === '여' ? 'text-pink-600' : (m.gender === '남' ? '
 list.innerHTML += `<tr class="border-b border-gray-50 ${m.isHidden ? 'opacity-40' : ''}">
 <td class="text-xs text-center">${rankT ? `<span class="rank-badge ${rankC}">${rankT}</span>` : ''}<span class="font-bold ${nameColor}">${m.name}</span></td>
 <td class="flex justify-center"><div class="badge-level"><div class="badge-icon-box ${style.blink}" style="background:${style.bg}; border-color:${style.border};"><span class="badge-icon-txt" style="color:${style.text}">${getLevelBadge(m.level)}</span></div><span class="badge-lv-txt" style="color:${style.text}">Lv ${m.level}</span></div></td>
-<td class="text-xs font-bold text-slate-600"><button onclick="showMemberTimeline('${m.id}', '${m.name}')" class="bg-slate-50 px-2 py-1 rounded-lg border border-gray-100 hover:bg-slate-200">${m.qCount}회</button></td>
+<td class="text-xs font-bold text-slate-600"><button onclick="showMemberTimeline('${m.id}', '${m.name}')" class="bg-slate-50 px-2 py-1 rounded-lg border border-gray-100 hover:bg-slate-200">${m.qCount}회 📈</button></td>
 <td class="text-center"><button onclick="showMemberMap('${m.id}', '${m.name}')" class="height-badge hover:scale-105 active:scale-95 transition-all">🚩 ${m.totalHeight || 0}m</button></td>
 <td class="text-center"><span class="dday-box ${ddayClass}">${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}</span></td></tr>`;
 });
@@ -773,7 +780,6 @@ document.getElementById('mountainHeight').value = "";
 updateAdminMemberLists();
 };
 
-// 수정/삭제 로직 (기존 유지)
 window.loadMemberLogs = async () => {
 const id = document.getElementById('memberSelectEdit').value;
 const area = document.getElementById('logListArea'); area.innerHTML = ""; if(!id) return;
@@ -800,7 +806,12 @@ const val = parseInt(document.querySelector('input[name="downAmount"]:checked').
 if(id) { await updateDoc(doc(db, "sanwoori", id), { level: increment(-val) }); alert("레벨 차감 완료"); }
 };
 
-// 화면 및 기타 유틸
+window.updateMemberName = async () => {
+const id = document.getElementById('memberSelectEdit').value;
+const newName = document.getElementById('editMemberNameInput').value.trim();
+if(id && newName) { await updateDoc(doc(db, "sanwoori", id), { name: newName }); alert("이름 변경 완료"); document.getElementById('editMemberNameInput').value=""; }
+};
+
 window.changeQuarter = (q) => { selectedQuarter = q; document.querySelectorAll('.q-btn').forEach((btn, idx) => btn.classList.toggle('active-q', idx + 1 === q)); startRealtimeSync(); };
 window.changeYear = () => { selectedYear = parseInt(document.getElementById('yearSelect').value); startRealtimeSync(); };
 window.showView = (v) => {
@@ -861,6 +872,10 @@ multi.innerHTML += `<div class="member-chip ${selectedMemberIds.has(m.id)?'selec
 edit.innerHTML += `<option value="${m.id}">${m.name}</option>`;
 manage.innerHTML += `<option value="${m.id}">${m.name}</option>`;
 });
+// 성별 통계 업데이트
+document.getElementById('countTotal').innerText = currentData.length;
+document.getElementById('countMale').innerText = currentData.filter(m => m.gender === '남').length;
+document.getElementById('countFemale').innerText = currentData.filter(m => m.gender === '여').length;
 }
 
 window.toggleModal = (show) => {
