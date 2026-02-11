@@ -245,7 +245,7 @@ td { padding: 12px 0; text-align: center; vertical-align: middle; position: rela
 
 .height-badge { font-size: 10px; font-weight: 900; color: #059669; background: #ecfdf5; border: 1px solid #10b981; padding: 2px 6px; border-radius: 8px; cursor: pointer; }
 
-/* 출처 문구 스타일 - 위치 더 아래로 조정 */
+/* 출처 문구 스타일 */
 .map-source-txt {
     position: absolute;
     bottom: 3px;
@@ -431,14 +431,6 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 <input type="text" id="editMemberNameInput" placeholder="변경할 이름 입력" class="h-10 text-sm flex-1 border rounded-xl px-3 outline-none">
 <button onclick="updateMemberName()" class="bg-indigo-500 text-white px-3 rounded-xl text-xs font-bold whitespace-nowrap">이름 수정</button>
 </div>
-<div class="flex flex-col bg-orange-50 p-2 rounded-xl border border-orange-100 mb-2">
-<div class="flex justify-around mb-1">
-<label class="flex items-center gap-1 font-bold text-red-600 text-xs"><input type="radio" name="downAmount" value="1" checked> -1</label>
-<label class="flex items-center gap-1 font-bold text-red-600 text-xs"><input type="radio" name="downAmount" value="2"> -2</label>
-<label class="flex items-center gap-1 font-bold text-red-600 text-xs"><input type="radio" name="downAmount" value="3"> -3</label>
-</div>
-<button onclick="onlyDownLevel()" class="w-full bg-orange-500 text-white py-1.5 rounded-lg font-black text-[10px]">레벨만 차감 (기록 유지)</button>
-</div>
 <div id="logListArea" class="log-grid"></div>
 </div>
 
@@ -576,18 +568,38 @@ if (dday <= 30) return "dday-yellow";
 return "bg-gray-soft";
 };
 
-// 방문자 시스템
+// --- [방문자 시스템 로직 수정/추가] ---
 async function updateVisitorCount() {
-const statsRef = doc(db, "site_stats", "visitors");
-try { await updateDoc(statsRef, { total: increment(1) }); } catch (e) { await setDoc(statsRef, { total: 1 }, { merge: true }); }
+    const d = new Date();
+    const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    
+    // 1. 전체 방문자수 증가
+    const statsRef = doc(db, "site_stats", "visitors");
+    try { await updateDoc(statsRef, { total: increment(1) }); } 
+    catch (e) { await setDoc(statsRef, { total: 1 }, { merge: true }); }
+    
+    // 2. 일일 방문자수 증가 (이 부분이 누락되어 있었음)
+    const dailyRef = doc(db, "site_stats", `day_${todayStr}`);
+    try { await updateDoc(dailyRef, { count: increment(1) }); }
+    catch (e) { await setDoc(dailyRef, { count: 1 }, { merge: true }); }
 }
 
 function listenVisitors() {
-const d = new Date();
-const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-onSnapshot(doc(db, "site_stats", "visitors"), (s) => { if(s.exists()) document.getElementById('totalHits').innerText = s.data().total.toLocaleString(); });
-onSnapshot(doc(db, "site_stats", `day_${todayStr}`), (s) => { if(s.exists()) document.getElementById('todayHits').innerText = s.data().count.toLocaleString(); });
+    const d = new Date();
+    const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    
+    // 전체 카운트 리스닝
+    onSnapshot(doc(db, "site_stats", "visitors"), (s) => { 
+        if(s.exists()) document.getElementById('totalHits').innerText = s.data().total.toLocaleString(); 
+    });
+    
+    // 일일 카운트 리스닝
+    onSnapshot(doc(db, "site_stats", `day_${todayStr}`), (s) => { 
+        if(s.exists()) document.getElementById('todayHits').innerText = s.data().count.toLocaleString(); 
+        else document.getElementById('todayHits').innerText = "0";
+    });
 }
+// ------------------------------------
 
 // 서브방 설정
 const defaultSubRooms = [
@@ -915,12 +927,6 @@ if(shouldDownLevel) await updateDoc(doc(db, "sanwoori", mId), { level: increment
 loadMemberLogs();
 };
 
-window.onlyDownLevel = async () => {
-const id = document.getElementById('memberSelectEdit').value;
-const val = parseInt(document.querySelector('input[name="downAmount"]:checked').value);
-if(id) { await updateDoc(doc(db, "sanwoori", id), { level: increment(-val) }); alert("레벨 차감 완료"); }
-};
-
 window.updateMemberName = async () => {
 const id = document.getElementById('memberSelectEdit').value;
 const newName = document.getElementById('editMemberNameInput').value.trim();
@@ -1010,7 +1016,10 @@ document.querySelectorAll('.member-chip').forEach(c => { c.style.display = c.inn
 };
 
 // 초기 실행
-if (!sessionStorage.getItem('visited')) { updateVisitorCount(); sessionStorage.setItem('visited', 'true'); }
+if (!sessionStorage.getItem('visited')) { 
+    updateVisitorCount(); 
+    sessionStorage.setItem('visited', 'true'); 
+}
 listenVisitors(); initAutoSelection(); startRealtimeSync(); listenSubRooms();
 document.getElementById('regDate').valueAsDate = new Date();
 document.getElementById('activityDate').valueAsDate = new Date();
