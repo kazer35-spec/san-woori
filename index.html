@@ -86,9 +86,6 @@ z-index: 10;
 @keyframes floating { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 .secret-input { background: rgba(255, 255, 255, 0.05) !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; color: white !important; text-align: center; letter-spacing: 0.5em; }
 
-/* 하단 여정 시작 문구 스타일 */
-.system-date-info { font-size: 9px; font-weight: 800; color: rgba(255,255,255,0.15); letter-spacing: 1.5px; text-align: center; margin-top: 25px; font-family: 'Pretendard', sans-serif; border-top: 1px solid rgba(255,255,255,0.03); padding-top: 15px; line-height: 1.6; }
-
 /* 방문자 통계 유리 느낌 카드 */
 .visitor-stat-card {
 background: rgba(255, 255, 255, 0.04);
@@ -168,10 +165,10 @@ td { padding: 12px 0; text-align: center; vertical-align: middle; }
 .rank-badge { font-size: 0.65rem; display: block; margin-bottom: -1px; font-weight: 900; }
 .rank-1 { color: #facc15 !important; } .rank-2 { color: #94a3b8 !important; } .rank-3 { color: #a36a00 !important; }
 
-/* CLICK 네온 텍스트 (아이템 하단 배치 버전) */
-.click-neon-item {
-font-size: 6px; font-weight: 900; color: #3b82f6; text-transform: uppercase;
-display: block; margin-top: 2px;
+/* CLICK 네온 텍스트 상단 배치 버전 */
+.click-neon-top {
+font-size: 7px; font-weight: 900; color: #3b82f6; text-transform: uppercase;
+display: block; margin-bottom: 2px;
 animation: neon-flicker 1.5s infinite; letter-spacing: 0.5px; pointer-events: none;
 white-space: nowrap; text-align: center;
 }
@@ -215,6 +212,7 @@ white-space: nowrap; text-align: center;
 .timeline-desc { font-size: 0.55rem; color: #64748b; }
 
 .height-badge { font-size: 10px; font-weight: 900; color: #059669; background: #ecfdf5; border: 1px solid #10b981; padding: 2px 4px; border-radius: 6px; cursor: pointer; }
+.system-date-info { font-size: 9px; font-weight: 800; color: rgba(255,255,255,0.15); letter-spacing: 1.5px; text-align: center; margin-top: 25px; border-top: 1px solid rgba(255,255,255,0.03); padding-top: 15px; line-height: 1.6; }
 </style>
 </head>
 <body>
@@ -263,8 +261,14 @@ white-space: nowrap; text-align: center;
 <tr>
 <th class="w-[22%]">회원명</th>
 <th class="w-[28%]">레벨(Lv)</th>
-<th class="w-[17%]">분기횟수</th>
-<th class="w-[17%]">정복높이</th>
+<th class="w-[17%]">
+    <span class="click-neon-top">CLICK</span>
+    <span>분기횟수</span>
+</th>
+<th class="w-[17%]">
+    <span class="click-neon-top">CLICK</span>
+    <span>정복높이</span>
+</th>
 <th class="w-[16%]">D-Day</th>
 </tr>
 </thead>
@@ -624,14 +628,8 @@ const nameColor = m.gender === '여' ? 'text-pink-600' : (m.gender === '남' ? '
 list.innerHTML += `<tr class="border-b border-gray-50 ${m.isHidden ? 'opacity-40' : ''}">
 <td class="text-xs text-center">${rankT ? `<span class="rank-badge ${rankC}">${rankT}</span>` : ''}<span class="font-bold ${nameColor}">${m.name}</span></td>
 <td class="flex justify-center"><div class="badge-level"><div class="badge-icon-box ${style.blink}" style="background:${style.bg}; border-color:${style.border};"><span class="badge-icon-txt" style="color:${style.text}">${getLevelBadge(m.level)}</span></div><span class="badge-lv-txt" style="color:${style.text}">Lv ${m.level}</span></div></td>
-<td class="text-xs font-bold text-slate-600 text-center">
-    <button onclick="showMemberTimeline('${m.id}', '${m.name}')" class="bg-slate-50 px-2 py-1 rounded-lg border border-gray-100 hover:bg-slate-200">${m.qCount}회</button>
-    <span class="click-neon-item">CLICK</span>
-</td>
-<td class="text-center">
-    <button onclick="showMemberMap('${m.id}', '${m.name}')" class="height-badge hover:scale-105 active:scale-95 transition-all">🚩 ${m.totalHeight || 0}m</button>
-    <span class="click-neon-item">CLICK</span>
-</td>
+<td class="text-xs font-bold text-slate-600"><button onclick="showMemberTimeline('${m.id}', '${m.name}')" class="bg-slate-50 px-2 py-1 rounded-lg border border-gray-100 hover:bg-slate-200">${m.qCount}회</button></td>
+<td class="text-center"><button onclick="showMemberMap('${m.id}', '${m.name}')" class="height-badge hover:scale-105 active:scale-95 transition-all">🚩 ${m.totalHeight || 0}m</button></td>
 <td class="text-center"><span class="dday-box ${ddayClass}">${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}</span></td></tr>`;
 });
 };
@@ -653,9 +651,8 @@ const totalDaysInQ = Math.floor((end - start) / (1000 * 60 * 60 * 24));
 const snapAll = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc")));
 const logsAll = snapAll.docs.map(doc => ({ ...doc.data(), date: doc.data().date.toDate() }));
 const logsQuarter = logsAll.filter(l => l.date >= start && l.date < end);
-const logsRecent = logsAll.slice(0, 6);
+const logsRecent = logsAll.slice(0, 6); 
 
-// 잔디 보드 렌더링
 const dateCounts = {}; logsQuarter.forEach(l => { const key = `${l.date.getFullYear()}-${l.date.getMonth() + 1}-${l.date.getDate()}`; dateCounts[key] = (dateCounts[key] || 0) + 1; });
 let grassHtml = "";
 for (let i = 0; i < totalDaysInQ; i++) {
@@ -872,7 +869,6 @@ multi.innerHTML += `<div class="member-chip ${selectedMemberIds.has(m.id)?'selec
 edit.innerHTML += `<option value="${m.id}">${m.name}</option>`;
 manage.innerHTML += `<option value="${m.id}">${m.name}</option>`;
 });
-// 성별 통계 업데이트
 document.getElementById('countTotal').innerText = currentData.length;
 document.getElementById('countMale').innerText = currentData.filter(m => m.gender === '남').length;
 document.getElementById('countFemale').innerText = currentData.filter(m => m.gender === '여').length;
