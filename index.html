@@ -163,17 +163,17 @@ text-align: center;
 .del-only-btn-mini { font-size: 0.6rem; background: #64748b; color: white; padding: 5px; border-radius: 6px; font-weight: 800; }
 
 table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-th { color: #94a3b8; font-size: 0.65rem; padding-bottom: 12px; border-bottom: 2px solid #f8fafc; text-align: center; font-weight: 900; position: relative; }
+th { color: #94a3b8; font-size: 0.65rem; padding-bottom: 8px; border-bottom: 2px solid #f8fafc; text-align: center; font-weight: 900; position: relative; }
 td { padding: 12px 0; text-align: center; vertical-align: middle; }
 .rank-badge { font-size: 0.65rem; display: block; margin-bottom: -1px; font-weight: 900; }
 .rank-1 { color: #facc15 !important; } .rank-2 { color: #94a3b8 !important; } .rank-3 { color: #a36a00 !important; }
 
-/* CLICK 네온 텍스트 */
-.click-neon {
+/* CLICK 네온 텍스트 (하단 배치 버전) */
+.click-neon-bottom {
 font-size: 6px; font-weight: 900; color: #3b82f6; text-transform: uppercase;
-position: absolute; top: -8px; left: 50%; transform: translateX(-50%);
+display: block; margin-top: 2px;
 animation: neon-flicker 1.5s infinite; letter-spacing: 0.5px; pointer-events: none;
-white-space: nowrap;
+white-space: nowrap; text-align: center;
 }
 @keyframes neon-flicker {
 0%, 100% { opacity: 1; text-shadow: 0 0 2px #3b82f6, 0 0 5px #3b82f6; }
@@ -261,15 +261,15 @@ white-space: nowrap;
 <table>
 <thead>
 <tr>
-<th class="w-[23%]">회원명</th>
-<th class="w-[25%]">레벨(Lv)</th>
-<th class="w-[18%]">
-    <span class="click-neon">CLICK</span>
-    분기횟수
+<th class="w-[22%]">회원명</th>
+<th class="w-[28%]">레벨(Lv)</th>
+<th class="w-[17%]">
+    <span>분기횟수</span>
+    <span class="click-neon-bottom">CLICK</span>
 </th>
-<th class="w-[18%]">
-    <span class="click-neon">CLICK</span>
-    정복높이
+<th class="w-[17%]">
+    <span>정복높이</span>
+    <span class="click-neon-bottom">CLICK</span>
 </th>
 <th class="w-[16%]">D-Day</th>
 </tr>
@@ -432,8 +432,8 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 <p class="text-[10px] font-extrabold text-slate-500 mb-2">🌱 분기 산행 잔디 (최대 30일)</p>
 <div id="grassBoard" class="grass-container mb-4"></div>
 <div class="border-t border-dashed border-gray-100 my-3"></div>
-<p class="text-[10px] font-extrabold text-slate-500 mb-2">📜 산행 일지 (최근 30개)</p>
-<div id="timelineScrollArea" class="max-h-[300px] overflow-y-auto">
+<p class="text-[10px] font-extrabold text-slate-500 mb-2">📜 최근 산행 일지 (6개)</p>
+<div id="timelineScrollArea" class="max-h-[160px] overflow-y-auto bg-gray-50/50 p-2 rounded-xl">
 <div id="timelineContent" class="timeline-container"></div>
 </div>
 <button onclick="toggleTimelineModal(false)" class="w-full mt-4 py-2 bg-gray-100 text-gray-600 rounded-xl font-bold text-sm">닫기</button>
@@ -630,19 +630,19 @@ const nameColor = m.gender === '여' ? 'text-pink-600' : (m.gender === '남' ? '
 list.innerHTML += `<tr class="border-b border-gray-50 ${m.isHidden ? 'opacity-40' : ''}">
 <td class="text-xs text-center">${rankT ? `<span class="rank-badge ${rankC}">${rankT}</span>` : ''}<span class="font-bold ${nameColor}">${m.name}</span></td>
 <td class="flex justify-center"><div class="badge-level"><div class="badge-icon-box ${style.blink}" style="background:${style.bg}; border-color:${style.border};"><span class="badge-icon-txt" style="color:${style.text}">${getLevelBadge(m.level)}</span></div><span class="badge-lv-txt" style="color:${style.text}">Lv ${m.level}</span></div></td>
-<td class="text-xs font-bold text-slate-600"><button onclick="showMemberTimeline('${m.id}', '${m.name}')" class="bg-slate-50 px-2 py-1 rounded-lg border border-gray-100 hover:bg-slate-200">${m.qCount}회 📈</button></td>
+<td class="text-xs font-bold text-slate-600"><button onclick="showMemberTimeline('${m.id}', '${m.name}')" class="bg-slate-50 px-2 py-1 rounded-lg border border-gray-100 hover:bg-slate-200">${m.qCount}회</button></td>
 <td class="text-center"><button onclick="showMemberMap('${m.id}', '${m.name}')" class="height-badge hover:scale-105 active:scale-95 transition-all">🚩 ${m.totalHeight || 0}m</button></td>
 <td class="text-center"><span class="dday-box ${ddayClass}">${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}</span></td></tr>`;
 });
 };
 
-// 타임라인 모달 (분기횟수 클릭 시)
+// 타임라인 모달 (6개 기록으로 제한)
 window.showMemberTimeline = async (mId, mName) => {
 toggleTimelineModal(true);
 const container = document.getElementById('timelineContent');
 const grassBoard = document.getElementById('grassBoard');
 document.getElementById('timelineMemberName').innerText = mName;
-container.innerHTML = "<p class='text-center text-xs py-5 text-gray-400'>기록 조회 중...</p>";
+container.innerHTML = "<p class='text-center text-xs py-5 text-gray-400'>조회 중...</p>";
 grassBoard.innerHTML = "";
 
 try {
@@ -653,9 +653,9 @@ const totalDaysInQ = Math.floor((end - start) / (1000 * 60 * 60 * 24));
 const snapAll = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc")));
 const logsAll = snapAll.docs.map(doc => ({ ...doc.data(), date: doc.data().date.toDate() }));
 const logsQuarter = logsAll.filter(l => l.date >= start && l.date < end);
-const logsRecent = logsAll.slice(0, 30);
+const logsRecent = logsAll.slice(0, 6); // 6개만 보이게 조절
 
-// 잔디
+// 잔디 보드 렌더링
 const dateCounts = {}; logsQuarter.forEach(l => { const key = `${l.date.getFullYear()}-${l.date.getMonth() + 1}-${l.date.getDate()}`; dateCounts[key] = (dateCounts[key] || 0) + 1; });
 let grassHtml = "";
 for (let i = 0; i < totalDaysInQ; i++) {
@@ -676,7 +676,7 @@ return `<div class="timeline-item"><div class="timeline-dot"></div><div class="t
 } catch (e) { container.innerHTML = "<p class='text-center text-xs text-red-400'>실패</p>"; }
 };
 
-// 정복지도 모달 (정복높이 클릭 시)
+// 정복지도 모달
 window.showMemberMap = async (mId, mName) => {
 toggleMapModal(true);
 document.getElementById('mapMemberName').innerText = mName;
