@@ -244,6 +244,18 @@ td { padding: 12px 0; text-align: center; vertical-align: middle; position: rela
 .timeline-desc { font-size: 0.55rem; color: #64748b; }
 
 .height-badge { font-size: 10px; font-weight: 900; color: #059669; background: #ecfdf5; border: 1px solid #10b981; padding: 2px 6px; border-radius: 8px; cursor: pointer; }
+
+/* 출처 문구 스타일 */
+.map-source-txt {
+    position: absolute;
+    bottom: 5px;
+    right: 8px;
+    font-size: 8px;
+    font-weight: 800;
+    color: rgba(0,0,0,0.3);
+    pointer-events: none;
+    z-index: 20;
+}
 </style>
 </head>
 <body>
@@ -483,6 +495,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 <div class="map-container mb-4">
 <img src="https://i.ibb.co/bMLmRYRJ/2-1.jpg" class="map-image">
 <div id="conquerMapPoints"></div>
+<div class="map-source-txt">출처: 산림청</div>
 </div>
 <div class="bg-emerald-50 p-3 rounded-xl border border-emerald-100 mb-3 text-center">
 <p class="text-[10px] font-bold text-emerald-600">누적 정복 높이</p>
@@ -516,22 +529,17 @@ let subRoomsData = [];
 let selectedMemberIds = new Set();
 let tempCoord = null;
 
-// [분기 자동 선택 로직 추가] ----------------------------------------------------
 const now = new Date();
 let selectedYear = now.getFullYear();
 let selectedQuarter = Math.ceil((now.getMonth() + 1) / 3);
 
-// 초기 실행 시 UI 업데이트 (년도/분기 버튼 활성화)
 function initAutoSelection() {
     const yearSelect = document.getElementById('yearSelect');
     if (yearSelect) yearSelect.value = selectedYear;
-    
-    // 분기 버튼 활성화 상태 적용
     document.querySelectorAll('.q-btn').forEach((btn, idx) => {
         btn.classList.toggle('active-q', idx + 1 === selectedQuarter);
     });
 }
-// -------------------------------------------------------------------------
 
 const levelThresholds = [
 { lv: 100, name: "🌌 은하수" }, { lv: 90, name: "🌠 별똥별" }, { lv: 80, name: "💫 타원별" },
@@ -661,13 +669,11 @@ return 0;
 });
 
 const topNames = [...processedData].filter(m => !m.isHidden && m.name !== "오즈").sort((a, b) => b.qCount - a.qCount || b.level - a.level).slice(0, 3).map(m => m.name);
-
 let isFirstVisible = true;
 
 processedData.forEach((m) => {
 if (!isAdminLoggedIn && m.isHidden) return;
 if (search && !m.name.includes(search)) return;
-
 let clickNeonHtml = (isFirstVisible && !m.isHidden) ? `<span class="click-neon">CLICK</span>` : "";
 if (!m.isHidden) isFirstVisible = false;
 
@@ -695,7 +701,7 @@ list.innerHTML += `<tr class="${m.isHidden ? 'opacity-40' : ''}">
 <td><span class="dday-box ${ddayClass}">${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}</span></td></tr>`;
 });
 };
- 
+
 // 타임라인 모달
 window.showMemberTimeline = async (mId, mName) => {
 toggleTimelineModal(true);
@@ -704,8 +710,7 @@ const grassBoard = document.getElementById('grassBoard');
 const vibeArea = document.getElementById('passionVibeArea');
 document.getElementById('timelineMemberName').innerText = mName;
 container.innerHTML = "<p class='text-center text-xs py-5 text-gray-400'>조회 중...</p>";
-grassBoard.innerHTML = "";
-vibeArea.innerHTML = "";
+grassBoard.innerHTML = vibeArea.innerHTML = "";
 
 try {
 const start = new Date(selectedYear, (selectedQuarter - 1) * 3, 1);
@@ -750,7 +755,6 @@ pointsBoard.innerHTML = "";
 
 const snapAll = await getDocs(collection(db, `sanwoori/${mId}/logs`));
 let totalH = 0; let mapHtml = "";
-
 snapAll.forEach(doc => {
 const log = doc.data();
 totalH += (log.height || 0);
@@ -759,7 +763,6 @@ if(log.coords) {
     mapHtml += `<div class="map-point ${blueClass}" style="left:${log.coords.x}%; top:${log.coords.y}%;"></div>`;
 }
 });
-
 document.getElementById('mapTotalHeight').innerText = totalH.toLocaleString();
 pointsBoard.innerHTML = mapHtml;
 };
@@ -767,7 +770,7 @@ pointsBoard.innerHTML = mapHtml;
 window.toggleTimelineModal = (show) => { document.getElementById('timelineModal').style.display = show ? 'flex' : 'none'; };
 window.toggleMapModal = (show) => { document.getElementById('mapModal').style.display = show ? 'flex' : 'none'; };
 
-// 관리자 좌표 시스템
+// 관리자 좌표 및 일괄수정
 window.setAdminCoordinate = (event) => {
 const rect = event.currentTarget.getBoundingClientRect();
 const x = ((event.clientX - rect.left) / rect.width) * 100;
@@ -881,7 +884,7 @@ document.getElementById('isTop100Check').checked = false; toggleTop100Mode();
 updateAdminMemberLists();
 };
 
-// 로그 관리
+// 로그 및 회원 관리
 window.loadMemberLogs = async () => {
 const id = document.getElementById('memberSelectEdit').value;
 const area = document.getElementById('logListArea'); area.innerHTML = ""; if(!id) return;
@@ -891,14 +894,9 @@ const d = ld.data().date.toDate();
 const logData = ld.data();
 const dateStr = `${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()}`;
 area.innerHTML += `<div class="log-item-box">
-<div class="log-info-group">
-    <span class="log-date-txt">${dateStr}</span>
-    <span class="log-mt-txt">${logData.mountain || '기록'}</span>
-    <div class="flex items-center gap-1">
-        <input type="number" id="h-${ld.id}" value="${logData.height || 0}" class="log-height-input border rounded-md outline-none">
-        <button onclick="updateLogHeight('${id}', '${ld.id}')" class="text-[9px] bg-slate-200 px-1 py-1 rounded font-black">수정</button>
-    </div>
-</div>
+<div class="log-info-group"><span class="log-date-txt">${dateStr}</span><span class="log-mt-txt">${logData.mountain || '기록'}</span>
+<div class="flex items-center gap-1"><input type="number" id="h-${ld.id}" value="${logData.height || 0}" class="log-height-input border rounded-md outline-none">
+<button onclick="updateLogHeight('${id}', '${ld.id}')" class="text-[9px] bg-slate-200 px-1 py-1 rounded font-black">수정</button></div></div>
 <div class="log-btn-group"><button class="del-btn-mini" onclick="deleteLog('${id}', '${ld.id}', true)">레벨-1 삭제</button><button class="del-only-btn-mini" onclick="deleteLog('${id}', '${ld.id}', false)">기록만 삭제</button></div></div>`;
 });
 };
@@ -988,7 +986,6 @@ multi.innerHTML += `<div class="member-chip ${selectedMemberIds.has(m.id)?'selec
 edit.innerHTML += `<option value="${m.id}">${m.name}</option>`;
 manage.innerHTML += `<option value="${m.id}">${m.name}</option>`;
 });
-
 const visibleMembers = currentData.filter(m => !m.isHidden);
 document.getElementById('countTotal').innerText = visibleMembers.length;
 document.getElementById('countMale').innerText = visibleMembers.filter(m => m.gender === '남').length;
@@ -1011,13 +1008,9 @@ const q = document.getElementById('adminSearchInput').value.toLowerCase();
 document.querySelectorAll('.member-chip').forEach(c => { c.style.display = c.innerText.toLowerCase().includes(q) ? "block" : "none"; });
 };
 
-// [실행 로직 순서 정렬] ----------------------------------------------------
+// 초기 실행
 if (!sessionStorage.getItem('visited')) { updateVisitorCount(); sessionStorage.setItem('visited', 'true'); }
-listenVisitors(); 
-initAutoSelection(); // 분기 자동 선택 실행
-startRealtimeSync(); 
-listenSubRooms();
-
+listenVisitors(); initAutoSelection(); startRealtimeSync(); listenSubRooms();
 document.getElementById('regDate').valueAsDate = new Date();
 document.getElementById('activityDate').valueAsDate = new Date();
 </script>
