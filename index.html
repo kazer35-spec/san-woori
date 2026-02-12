@@ -294,14 +294,13 @@ td { padding: 12px 0; text-align: center; vertical-align: middle; position: rela
 
 /* 타임라인 일지 스크롤 영역 최적화 (약 6개 노출용) */
 #timelineScrollArea {
-    max-height: 190px; /* 일지 약 6개 분량의 높이 */
+    max-height: 190px;
     overflow-y: auto;
     background-color: #f8fafc;
     border-radius: 16px;
     padding: 12px;
     border: 1px solid #f1f5f9;
 }
-/* 스크롤바 커스텀 */
 #timelineScrollArea::-webkit-scrollbar { width: 4px; }
 #timelineScrollArea::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
 </style>
@@ -575,8 +574,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
             <div class="conquer-title">🎖 지역 점유율 </div>
             <div class="text-[10px] font-black text-slate-400">총 <span id="totalConquerCount" class="text-indigo-500">0</span>곳 정복</div>
         </div>
-        <div id="conquerRegionGrid" class="conquer-grid max-h-[350px] overflow-y-auto">
-            </div>
+        <div id="conquerRegionGrid" class="conquer-grid max-h-[350px] overflow-y-auto"></div>
     </div>
 
     <button onclick="toggleMapModal(false)" class="w-full py-3 mt-5 bg-gray-100 text-gray-600 rounded-2xl font-black text-sm transition-colors hover:bg-gray-200">닫기</button>
@@ -612,36 +610,38 @@ const now = new Date();
 let selectedYear = now.getFullYear();
 let selectedQuarter = Math.ceil((now.getMonth() + 1) / 3);
 
-// 행정구역 좌표 범위 정의
+// --- [개선] 행정구역 좌표 범위 정의 (누락 방지) ---
 const regionBoundaries = [
-    { name: "서울특별시", x: [25, 35], y: [18, 25] },
-    { name: "경기도", x: [20, 40], y: [12, 30] },
+    { name: "서울특별시", x: [25, 33], y: [18, 26] },
+    { name: "경기도", x: [18, 38], y: [10, 32] },
     { name: "강원도", x: [40, 75], y: [5, 30] },
-    { name: "충청북도", x: [40, 55], y: [30, 45] },
-    { name: "충청남도", x: [15, 35], y: [35, 50] },
+    { name: "충청북도", x: [40, 58], y: [30, 48] },
+    { name: "충청남도", x: [10, 35], y: [35, 52] },
     { name: "대전/세종", x: [35, 42], y: [42, 48] },
-    { name: "전라북도", x: [20, 45], y: [52, 65] },
-    { name: "전라남도", x: [15, 45], y: [65, 85] },
-    { name: "광주광역시", x: [25, 32], y: [72, 78] },
-    { name: "경상북도", x: [55, 85], y: [35, 60] },
-    { name: "경상남도", x: [45, 75], y: [62, 80] },
-    { name: "대구광역시", x: [62, 70], y: [52, 58] },
-    { name: "울산광역시", x: [78, 85], y: [65, 70] },
-    { name: "부산광역시", x: [72, 82], y: [72, 80] },
-    { name: "제주도", x: [20, 40], y: [88, 98] },
-    { name: "인천광역시", x: [18, 25], y: [20, 26] },
-    { name: "울릉도/독도", x: [85, 100], y: [35, 45] }
+    { name: "전라북도", x: [15, 45], y: [52, 65] },
+    { name: "전라남도", x: [10, 45], y: [65, 88] },
+    { name: "광주광역시", x: [23, 33], y: [72, 80] },
+    { name: "경상북도", x: [55, 88], y: [30, 62] },
+    { name: "경상남도", x: [45, 78], y: [62, 85] },
+    { name: "대구광역시", x: [60, 72], y: [50, 60] },
+    { name: "울산광역시", x: [78, 88], y: [62, 72] },
+    { name: "부산광역시", x: [70, 85], y: [72, 85] },
+    { name: "제주도", x: [15, 45], y: [88, 100] },
+    { name: "인천광역시", x: [10, 25], y: [20, 30] },
+    { name: "울릉도/독도", x: [85, 100], y: [30, 45] }
 ];
 
 function getRegionFromCoord(coords) {
-    if(!coords) return "기타";
-    const priorityRegions = ["서울특별시", "대구광역시", "부산광역시", "광주광역시", "대전/세종", "인천광역시", "울산광역시", "제주도"];
-    for(let rName of priorityRegions) {
+    if(!coords) return "미지정";
+    // 도시 단위 우선 체크
+    const cityRegions = ["서울특별시", "대구광역시", "부산광역시", "광주광역시", "대전/세종", "인천광역시", "울산광역시", "제주도"];
+    for(let rName of cityRegions) {
         let r = regionBoundaries.find(b => b.name === rName);
         if(coords.x >= r.x[0] && coords.x <= r.x[1] && coords.y >= r.y[0] && coords.y <= r.y[1]) return r.name;
     }
+    // 도 단위 체크
     for(let r of regionBoundaries) {
-        if(priorityRegions.includes(r.name)) continue;
+        if(cityRegions.includes(r.name)) continue;
         if(coords.x >= r.x[0] && coords.x <= r.x[1] && coords.y >= r.y[0] && coords.y <= r.y[1]) return r.name;
     }
     return "기타";
@@ -831,7 +831,6 @@ list.innerHTML += `<tr class="${m.isHidden ? 'opacity-40' : ''}">
 // 타임라인 모달 호출
 window.showMemberTimeline = async (mId, mName) => {
     toggleTimelineModal(true);
-    // 모달 스크롤 초기화
     document.getElementById('timelineModalContent').scrollTop = 0;
     const container = document.getElementById('timelineContent');
     const grassBoard = document.getElementById('grassBoard');
@@ -841,7 +840,7 @@ window.showMemberTimeline = async (mId, mName) => {
     document.getElementById('timelineMemberName').innerText = mName;
     container.innerHTML = "<p class='text-center text-xs py-5 text-gray-400'>조회 중...</p>";
     grassBoard.innerHTML = vibeArea.innerHTML = "";
-    scrollArea.scrollTop = 0; // 일지 스크롤바 초기화
+    scrollArea.scrollTop = 0;
 
     try {
         const start = new Date(selectedYear, (selectedQuarter - 1) * 3, 1);
@@ -878,7 +877,7 @@ window.showMemberTimeline = async (mId, mName) => {
     } catch (e) { container.innerHTML = "<p class='text-center text-xs text-red-400'>실패</p>"; }
 };
 
-// 정복지도 및 땅따먹기 뷰 전환 함수
+// 정복지도 및 땅따먹기 뷰 전환
 window.toggleMapView = () => {
     const main = document.getElementById('mapViewMain');
     const stats = document.getElementById('mapViewStats');
@@ -902,7 +901,6 @@ window.toggleMapView = () => {
 // 정복지도 모달 호출
 window.showMemberMap = async (mId, mName) => {
     toggleMapModal(true);
-    // 모달 스크롤 및 뷰 상태 초기화
     document.getElementById('mapModalContent').scrollTop = 0;
     document.getElementById('mapViewMain').classList.remove('hidden-view');
     document.getElementById('mapViewStats').classList.add('hidden-view');
@@ -981,7 +979,7 @@ window.toggleMarkerStyle = () => {
     else marker.classList.remove('top-100');
 };
 
-// 관리자: 산 정보 자동완성
+// --- [개선] 관리자: 산 정보 자동완성 (누락된 지역 정보를 좌표기반으로 다시 계산) ---
 window.autoFindCoords = async () => {
     const mName = document.getElementById('mountainName').value.trim();
     if(!mName) return;
@@ -996,7 +994,10 @@ window.autoFindCoords = async () => {
         const marker = document.getElementById('adminMapMarker');
         marker.style.left = d.x + "%"; marker.style.top = d.y + "%";
         marker.classList.remove('hidden');
-        document.getElementById('coordDisplay').innerText = `자동 로드: ${mName} (${getRegionFromCoord(tempCoord)})`;
+        
+        // 지역명 다시 판별
+        const rName = getRegionFromCoord(tempCoord);
+        document.getElementById('coordDisplay').innerText = `자동 로드: ${mName} (${rName})`;
     }
 };
 
@@ -1062,7 +1063,9 @@ window.addMultiActivity = async () => {
     const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
     const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
 
-    if(mName && tempCoord) await setDoc(doc(db, "mountains", mName), { x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC }, { merge: true });
+    if(mName && tempCoord) {
+        await setDoc(doc(db, "mountains", mName), { x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC }, { merge: true });
+    }
 
     for(const id of selectedMemberIds){
         const mRef = doc(db, "sanwoori", id);
@@ -1081,7 +1084,7 @@ window.addMultiActivity = async () => {
 window.loadMemberLogs = async () => {
     const id = document.getElementById('memberSelectEdit').value;
     const area = document.getElementById('logListArea'); area.innerHTML = ""; if(!id) return;
-    const snap = await getDocs(query(collection(db, `sanwoori/${id}/logs`), orderBy("date", "desc"), limit(20)));
+    const snap = await getDocs(query(collection(db, `sanwoori/${id}/logs`), orderBy("date", "desc"), limit(30)));
     snap.forEach(ld => {
         const d = ld.data().date.toDate();
         const logData = ld.data();
@@ -1113,6 +1116,7 @@ window.selectLogToMap = (logDataStr) => {
         const marker = document.getElementById('adminMapMarker');
         marker.style.left = log.coords.x + "%"; marker.style.top = log.coords.y + "%";
         marker.classList.remove('hidden');
+        document.getElementById('coordDisplay').innerText = `좌표: X ${tempCoord.x} / Y ${tempCoord.y} (${getRegionFromCoord(tempCoord)})`;
     }
 };
 
