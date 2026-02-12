@@ -524,6 +524,7 @@ appId: "1:387585514110:web:44749e6d92769fff6ad62f"
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+// 전역 변수
 let isAdminLoggedIn = false;
 let currentData = [];
 let subRoomsData = [];
@@ -534,6 +535,7 @@ const now = new Date();
 let selectedYear = now.getFullYear();
 let selectedQuarter = Math.ceil((now.getMonth() + 1) / 3);
 
+// 초기 세팅
 function initAutoSelection() {
     const yearSelect = document.getElementById('yearSelect');
     if (yearSelect) yearSelect.value = selectedYear;
@@ -714,7 +716,7 @@ list.innerHTML += `<tr class="${m.isHidden ? 'opacity-40' : ''}">
 });
 };
 
-// 타임라인 모달
+// 타임라인 모달 (개인 산행 기록 조회)
 window.showMemberTimeline = async (mId, mName) => {
 toggleTimelineModal(true);
 const container = document.getElementById('timelineContent');
@@ -802,6 +804,7 @@ window.toggleMarkerStyle = () => {
     else marker.classList.remove('top-100');
 };
 
+// 산 이름 입력 시 기존 정보 자동 로드
 window.autoFindCoords = async () => {
 const mName = document.getElementById('mountainName').value.trim();
 if(!mName) return;
@@ -820,32 +823,46 @@ document.getElementById('coordDisplay').innerText = `자동 로드: ${mName}`;
 }
 };
 
+// ★ 산 정보 일괄 수정 로직 ★ (BAC 포함 모든 기록 동기화)
 window.globalSyncMountainInfo = async () => {
     const mName = document.getElementById('mountainName').value.trim();
     const height = parseInt(document.getElementById('mountainHeight').value) || 0;
     const isTop100 = document.getElementById('isTop100Check').checked;
     const isBAC = document.getElementById('isBACCheck').checked;
+    
     if(!mName || !tempCoord) return alert("산 이름과 좌표를 먼저 설정해주세요.");
-    if(!confirm(`[${mName}] 정보를 수정하시겠습니까? \n해당 산을 등반한 모든 회원의 기록이 일괄 변경됩니다.`)) return;
+    if(!confirm(`[${mName}] 정보를 일괄 수정하시겠습니까? \n이 산을 등반한 모든 멤버의 '인증 여부(BAC/Top100), 높이, 좌표'가 실시간으로 변경됩니다.`)) return;
 
     try {
-        await setDoc(doc(db, "mountains", mName), { ...tempCoord, height, isTop100, isBAC }, { merge: true });
+        // 1. 산 마스터 DB 업데이트
+        await setDoc(doc(db, "mountains", mName), { x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC }, { merge: true });
+        
+        // 2. 모든 멤버를 순회하며 해당 산의 기록을 찾아 업데이트
         const membersSnap = await getDocs(collection(db, "sanwoori"));
         let updateCount = 0;
+        
         for (const mDoc of membersSnap.docs) {
             const logsSnap = await getDocs(query(collection(db, `sanwoori/${mDoc.id}/logs`), where("mountain", "==", mName)));
             if (!logsSnap.empty) {
                 const batch = writeBatch(db);
                 logsSnap.forEach(ldoc => {
-                    batch.update(ldoc.ref, { height: height, coords: tempCoord, isTop100: isTop100, isBAC: isBAC });
+                    batch.update(ldoc.ref, { 
+                        height: height, 
+                        coords: tempCoord, 
+                        isTop100: isTop100, 
+                        isBAC: isBAC 
+                    });
                     updateCount++;
                 });
                 await batch.commit();
             }
         }
-        alert(`일괄 수정 완료! 총 ${updateCount}개의 기록이 동기화되었습니다.`);
-        startRealtimeSync();
-    } catch (e) { alert("오류: " + e.message); }
+        alert(`일괄 수정 완료! 총 ${updateCount}개의 산행 기록이 최신 정보로 동기화되었습니다.`);
+        startRealtimeSync(); // 화면 새로고침
+    } catch (e) { 
+        console.error(e);
+        alert("수정 중 오류 발생: " + e.message); 
+    }
 };
 
 // 실시간 동기화
@@ -881,7 +898,8 @@ if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜를 확인
 const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
 const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
 
-if(mName && tempCoord) await setDoc(doc(db, "mountains", mName), { ...tempCoord, height, isTop100, isBAC }, { merge: true });
+// 산 정보가 있다면 마스터 DB에도 저장
+if(mName && tempCoord) await setDoc(doc(db, "mountains", mName), { x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC }, { merge: true });
 
 for(const id of selectedMemberIds){
 const mRef = doc(db, "sanwoori", id); const mS = await getDoc(mRef);
@@ -901,7 +919,7 @@ toggleMarkerStyle();
 updateAdminMemberLists();
 };
 
-// 로그 및 회원 관리
+// 개별 로그 관리 (수정/삭제)
 window.loadMemberLogs = async () => {
 const id = document.getElementById('memberSelectEdit').value;
 const area = document.getElementById('logListArea'); area.innerHTML = ""; if(!id) return;
@@ -1065,7 +1083,7 @@ const q = document.getElementById('adminSearchInput').value.toLowerCase();
 document.querySelectorAll('.member-chip').forEach(c => { c.style.display = c.innerText.toLowerCase().includes(q) ? "block" : "none"; });
 };
 
-// 초기 실행
+// 초기 실행 로직
 if (!sessionStorage.getItem('visited')) { 
     updateVisitorCount(); 
     sessionStorage.setItem('visited', 'true'); 
