@@ -568,17 +568,13 @@ if (dday <= 30) return "dday-yellow";
 return "bg-gray-soft";
 };
 
-// --- [방문자 시스템 로직 수정/추가] ---
+// --- 방문자 시스템 ---
 async function updateVisitorCount() {
     const d = new Date();
     const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    
-    // 1. 전체 방문자수 증가
     const statsRef = doc(db, "site_stats", "visitors");
     try { await updateDoc(statsRef, { total: increment(1) }); } 
     catch (e) { await setDoc(statsRef, { total: 1 }, { merge: true }); }
-    
-    // 2. 일일 방문자수 증가 (이 부분이 누락되어 있었음)
     const dailyRef = doc(db, "site_stats", `day_${todayStr}`);
     try { await updateDoc(dailyRef, { count: increment(1) }); }
     catch (e) { await setDoc(dailyRef, { count: 1 }, { merge: true }); }
@@ -587,19 +583,14 @@ async function updateVisitorCount() {
 function listenVisitors() {
     const d = new Date();
     const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    
-    // 전체 카운트 리스닝
     onSnapshot(doc(db, "site_stats", "visitors"), (s) => { 
         if(s.exists()) document.getElementById('totalHits').innerText = s.data().total.toLocaleString(); 
     });
-    
-    // 일일 카운트 리스닝
     onSnapshot(doc(db, "site_stats", `day_${todayStr}`), (s) => { 
         if(s.exists()) document.getElementById('todayHits').innerText = s.data().count.toLocaleString(); 
         else document.getElementById('todayHits').innerText = "0";
     });
 }
-// ------------------------------------
 
 // 서브방 설정
 const defaultSubRooms = [
@@ -783,7 +774,7 @@ pointsBoard.innerHTML = mapHtml;
 window.toggleTimelineModal = (show) => { document.getElementById('timelineModal').style.display = show ? 'flex' : 'none'; };
 window.toggleMapModal = (show) => { document.getElementById('mapModal').style.display = show ? 'flex' : 'none'; };
 
-// 관리자 좌표 및 일괄수정
+// 관리자 좌표 설정
 window.setAdminCoordinate = (event) => {
 const rect = event.currentTarget.getBoundingClientRect();
 const x = ((event.clientX - rect.left) / rect.width) * 100;
@@ -908,8 +899,11 @@ const logData = ld.data();
 const dateStr = `${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()}`;
 area.innerHTML += `<div class="log-item-box">
 <div class="log-info-group"><span class="log-date-txt">${dateStr}</span><span class="log-mt-txt">${logData.mountain || '기록'}</span>
-<div class="flex items-center gap-1"><input type="number" id="h-${ld.id}" value="${logData.height || 0}" class="log-height-input border rounded-md outline-none">
-<button onclick="updateLogHeight('${id}', '${ld.id}')" class="text-[9px] bg-slate-200 px-1 py-1 rounded font-black">수정</button></div></div>
+<div class="flex items-center gap-1">
+<input type="number" id="h-${ld.id}" value="${logData.height || 0}" class="log-height-input border rounded-md outline-none">
+<button onclick="updateLogHeight('${id}', '${ld.id}')" class="text-[9px] bg-slate-200 px-1 py-1 rounded font-black">높이수정</button>
+<button onclick="updateLogCoord('${id}', '${ld.id}')" class="text-[9px] bg-emerald-500 text-white px-1 py-1 rounded font-black">좌표수정</button>
+</div></div>
 <div class="log-btn-group"><button class="del-btn-mini" onclick="deleteLog('${id}', '${ld.id}', true)">레벨-1 삭제</button><button class="del-only-btn-mini" onclick="deleteLog('${id}', '${ld.id}', false)">기록만 삭제</button></div></div>`;
 });
 };
@@ -918,6 +912,13 @@ window.updateLogHeight = async (mId, logId) => {
     const newH = parseInt(document.getElementById(`h-${logId}`).value) || 0;
     await updateDoc(doc(db, `sanwoori/${mId}/logs`, logId), { height: newH });
     alert("높이 수정 완료"); startRealtimeSync();
+};
+
+window.updateLogCoord = async (mId, logId) => {
+    if(!tempCoord) return alert("수정할 좌표를 위 [지도]에서 먼저 클릭해주세요.");
+    if(!confirm("현재 선택된 좌표로 이 기록의 위치를 변경하시겠습니까?")) return;
+    await updateDoc(doc(db, `sanwoori/${mId}/logs`, logId), { coords: tempCoord });
+    alert("개별 좌표 수정 완료"); startRealtimeSync();
 };
 
 window.deleteLog = async (mId, logId, shouldDownLevel) => {
