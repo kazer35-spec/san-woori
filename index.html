@@ -282,6 +282,19 @@ td { padding: 12px 0; text-align: center; vertical-align: middle; position: rela
 .everest-progress-bg { height: 4px; background: rgba(255,255,255,0.1); border-radius: 10px; margin-top: 6px; overflow: hidden; }
 .everest-progress-bar { height: 100%; background: linear-gradient(90deg, #3b82f6, #60a5fa); border-radius: 10px; transition: width 1s ease-out; }
 .everest-icon-bg { position: absolute; right: -5px; bottom: -5px; font-size: 2rem; opacity: 0.1; transform: rotate(-15deg); }
+
+/* 땅따먹기 UI */
+.conquer-stat-container { margin-top: 12px; }
+.conquer-header-box { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.conquer-title { font-size: 0.7rem; font-weight: 900; color: #1e293b; display: flex; align-items: center; gap: 4px; }
+.conquer-grid { display: grid; grid-template-columns: 1fr; gap: 6px; max-height: 180px; overflow-y: auto; padding-right: 4px; }
+.conquer-item { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 8px 10px; }
+.conquer-item-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.conquer-region-name { font-size: 0.75rem; font-weight: 900; color: #334155; }
+.conquer-region-percent { font-size: 0.65rem; font-weight: 900; color: #3b82f6; }
+.conquer-bar-bg { height: 5px; background: #e2e8f0; border-radius: 10px; overflow: hidden; }
+.conquer-bar-fill { height: 100%; background: linear-gradient(90deg, #10b981, #3b82f6); border-radius: 10px; transition: width 0.8s ease-out; }
+.conquer-count-badge { font-size: 0.55rem; color: #64748b; font-weight: 700; margin-left: 4px; }
 </style>
 </head>
 <body>
@@ -544,6 +557,15 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
     <div class="everest-icon-bg">🏔️</div>
 </div>
 
+<div class="conquer-stat-container">
+    <div class="conquer-header-box">
+        <div class="conquer-title">⚔️ 지역 점유율 (땅따먹기)</div>
+        <div class="text-[9px] font-black text-slate-400">Total: <span id="totalConquerCount">0</span>곳</div>
+    </div>
+    <div id="conquerRegionGrid" class="conquer-grid">
+        </div>
+</div>
+
 <button onclick="toggleMapModal(false)" class="w-full py-2 mt-4 bg-gray-100 text-gray-600 rounded-xl font-bold text-sm">닫기</button>
 </div>
 </div>
@@ -576,6 +598,42 @@ let tempCoord = null;
 const now = new Date();
 let selectedYear = now.getFullYear();
 let selectedQuarter = Math.ceil((now.getMonth() + 1) / 3);
+
+// 행정구역 좌표 범위 정의 (지도 이미지상의 % 기준 추정치)
+const regionBoundaries = [
+    { name: "서울특별시", x: [25, 35], y: [18, 25] },
+    { name: "경기도", x: [20, 40], y: [12, 30] },
+    { name: "강원도", x: [40, 75], y: [5, 30] },
+    { name: "충청북도", x: [40, 55], y: [30, 45] },
+    { name: "충청남도", x: [15, 35], y: [35, 50] },
+    { name: "대전/세종", x: [35, 42], y: [42, 48] },
+    { name: "전라북도", x: [20, 45], y: [52, 65] },
+    { name: "전라남도", x: [15, 45], y: [65, 85] },
+    { name: "광주광역시", x: [25, 32], y: [72, 78] },
+    { name: "경상북도", x: [55, 85], y: [35, 60] },
+    { name: "경상남도", x: [45, 75], y: [62, 80] },
+    { name: "대구광역시", x: [62, 70], y: [52, 58] },
+    { name: "울산광역시", x: [78, 85], y: [65, 70] },
+    { name: "부산광역시", x: [72, 82], y: [72, 80] },
+    { name: "제주도", x: [20, 40], y: [88, 98] },
+    { name: "인천광역시", x: [18, 25], y: [20, 26] },
+    { name: "경북 동해안(울릉도)", x: [85, 100], y: [35, 45] }
+];
+
+function getRegionFromCoord(coords) {
+    if(!coords) return "기타";
+    // 세밀한 판별을 위해 우선순위 적용 (광역시 등 좁은 영역 먼저 체크)
+    const priorityRegions = ["서울특별시", "대구광역시", "부산광역시", "광주광역시", "대전/세종", "인천광역시", "울산광역시", "제주도"];
+    for(let rName of priorityRegions) {
+        let r = regionBoundaries.find(b => b.name === rName);
+        if(coords.x >= r.x[0] && coords.x <= r.x[1] && coords.y >= r.y[0] && coords.y <= r.y[1]) return r.name;
+    }
+    for(let r of regionBoundaries) {
+        if(priorityRegions.includes(r.name)) continue;
+        if(coords.x >= r.x[0] && coords.x <= r.x[1] && coords.y >= r.y[0] && coords.y <= r.y[1]) return r.name;
+    }
+    return "기타";
+}
 
 // 초기 세팅
 function initAutoSelection() {
@@ -803,25 +861,53 @@ return `<div class="timeline-item"><div class="timeline-dot"></div><div class="t
 } catch (e) { container.innerHTML = "<p class='text-center text-xs text-red-400'>실패</p>"; }
 };
 
-// 정복지도 모달
+// 정복지도 및 땅따먹기 모달
 window.showMemberMap = async (mId, mName) => {
 toggleMapModal(true);
 document.getElementById('mapMemberName').innerText = mName;
 const pointsBoard = document.getElementById('conquerMapPoints');
-pointsBoard.innerHTML = "";
+const regionBoard = document.getElementById('conquerRegionGrid');
+pointsBoard.innerHTML = ""; regionBoard.innerHTML = "";
 
 const snapAll = await getDocs(collection(db, `sanwoori/${mId}/logs`));
 let totalH = 0; let mapHtml = "";
+let regionCounts = {};
+let validLogsCount = 0;
+
 snapAll.forEach(doc => {
     const log = doc.data();
     totalH += (log.height || 0);
     if(log.coords) {
+        validLogsCount++;
         const blueClass = log.isTop100 ? 'top-100' : '';
         mapHtml += `<div class="map-point ${blueClass}" style="left:${log.coords.x}%; top:${log.coords.y}%;"></div>`;
+        
+        // 지역 판별
+        const rName = getRegionFromCoord(log.coords);
+        regionCounts[rName] = (regionCounts[rName] || 0) + 1;
     }
 });
 document.getElementById('mapTotalHeight').innerText = totalH.toLocaleString();
+document.getElementById('totalConquerCount').innerText = validLogsCount;
 pointsBoard.innerHTML = mapHtml;
+
+// 땅따먹기 순위 정렬 및 렌더링
+const sortedRegions = Object.entries(regionCounts).sort((a,b) => b[1] - a[1]);
+if(sortedRegions.length === 0) {
+    regionBoard.innerHTML = "<p class='text-center text-[10px] py-4 text-gray-400'>좌표 기록이 없습니다.</p>";
+} else {
+    regionBoard.innerHTML = sortedRegions.map(([name, count]) => {
+        const percent = ((count / validLogsCount) * 100).toFixed(1);
+        return `
+        <div class="conquer-item">
+            <div class="conquer-item-info">
+                <span class="conquer-region-name">${name}<span class="conquer-count-badge">${count}회</span></span>
+                <span class="conquer-region-percent">${percent}%</span>
+            </div>
+            <div class="conquer-bar-bg"><div class="conquer-bar-fill" style="width:${percent}%"></div></div>
+        </div>`;
+    }).join('');
+}
 
 const globalTotalH = currentData.reduce((acc, m) => acc + (m.totalHeight || 0), 0);
 document.getElementById('mapGlobalTotalHeight').innerText = globalTotalH.toLocaleString();
@@ -846,7 +932,8 @@ tempCoord = { x: parseFloat(x.toFixed(2)), y: parseFloat(y.toFixed(2)) };
 const marker = document.getElementById('adminMapMarker');
 marker.style.left = x + "%"; marker.style.top = y + "%";
 marker.classList.remove('hidden');
-document.getElementById('coordDisplay').innerText = `좌표: X ${tempCoord.x} / Y ${tempCoord.y}`;
+const rName = getRegionFromCoord(tempCoord);
+document.getElementById('coordDisplay').innerText = `좌표: X ${tempCoord.x} / Y ${tempCoord.y} (${rName})`;
 };
 
 window.toggleMarkerStyle = () => {
@@ -871,7 +958,8 @@ toggleMarkerStyle();
 const marker = document.getElementById('adminMapMarker');
 marker.style.left = d.x + "%"; marker.style.top = d.y + "%";
 marker.classList.remove('hidden');
-document.getElementById('coordDisplay').innerText = `자동 로드: ${mName}`;
+const rName = getRegionFromCoord(tempCoord);
+document.getElementById('coordDisplay').innerText = `자동 로드: ${mName} (${rName})`;
 }
 };
 
