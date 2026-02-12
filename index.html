@@ -247,6 +247,17 @@ td { padding: 12px 0; text-align: center; vertical-align: middle; position: rela
 .hall-rank-name { font-size: 0.75rem; font-weight: 900; color: #1e293b; }
 .hall-rank-label { font-size: 0.6rem; font-weight: 900; }
 
+/* 명예의 전당 전용 스크롤 영역 */
+.hall-scroll-area {
+    max-height: 480px; /* 카드 약 3~4개 노출 높이 */
+    overflow-y: auto;
+    padding-right: 4px;
+}
+/* 스크롤바 디자인 */
+.hall-scroll-area::-webkit-scrollbar { width: 4px; }
+.hall-scroll-area::-webkit-scrollbar-track { background: transparent; }
+.hall-scroll-area::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+
 @keyframes gold-shine { 0% { text-shadow: 0 0 2px #facc15; } 50% { text-shadow: 0 0 10px #facc15, 0 0 20px #fbbf24; } 100% { text-shadow: 0 0 2px #facc15; } }
 @keyframes silver-shine { 0% { text-shadow: 0 0 2px #94a3b8; } 50% { text-shadow: 0 0 10px #94a3b8, 0 0 20px #cbd5e1; } 100% { text-shadow: 0 0 2px #94a3b8; } }
 @keyframes bronze-shine { 0% { text-shadow: 0 0 2px #a36a00; } 50% { text-shadow: 0 0 10px #a36a00, 0 0 20px #d97706; } 100% { text-shadow: 0 0 2px #a36a00; } }
@@ -255,7 +266,7 @@ td { padding: 12px 0; text-align: center; vertical-align: middle; position: rela
 .glow-silver { color: #64748b; animation: silver-shine 1.5s infinite; }
 .glow-bronze { color: #92400e; animation: bronze-shine 1.5s infinite; }
 
-/* 타임라인 레이아웃 최적화: 6개 노출 후 스크롤 */
+/* 타임라인 레이아웃 최적화 */
 .timeline-scroll-area { 
     max-height: 220px; 
     overflow-y: auto; 
@@ -572,24 +583,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
         <p class="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-widest">Hall of Fame - San:Woori</p>
     </div>
     
-    <div id="hallListArea">
-        <div class="hall-card">
-            <div class="hall-season-title">2025년 4분기 (Season 1)</div>
-            <div class="hall-rank-flex">
-                <div class="hall-rank-item">
-                    <span class="hall-rank-label glow-gold">🥇산신령</span>
-                    <span class="hall-rank-name">아랑</span>
-                </div>
-                <div class="hall-rank-item">
-                    <span class="hall-rank-label glow-silver">🥈심마니</span>
-                    <span class="hall-rank-name">용삼</span>
-                </div>
-                <div class="hall-rank-item">
-                    <span class="hall-rank-label glow-bronze">🥉나무꾼</span>
-                    <span class="hall-rank-name">우진</span>
-                </div>
-            </div>
-        </div>
+    <div id="hallListArea" class="hall-scroll-area">
         </div>
     <button onclick="toggleHallModal(false)" class="w-full mt-4 py-3 bg-gray-100 text-gray-600 rounded-2xl font-black text-sm">닫기</button>
 </div>
@@ -904,42 +898,24 @@ list.innerHTML += `<tr class="${m.isHidden ? 'opacity-40' : ''}">
 });
 };
 
-// 명예의 전당 모달 토글 및 렌더링
+// 명예의 전당 모달 토글 및 렌더링 (최신순 정렬 + 스크롤 적용)
 window.toggleHallModal = async (show) => {
     const modal = document.getElementById('hallModal');
     modal.style.display = show ? 'flex' : 'none';
     if(show) {
         const listArea = document.getElementById('hallListArea');
-        // 기본 25년 4분기 데이터 유지
-        let baseHtml = `
-        <div class="hall-card">
-            <div class="hall-season-title">2025년 4분기 (Season 1)</div>
-            <div class="hall-rank-flex">
-                <div class="hall-rank-item">
-                    <span class="hall-rank-label glow-gold">🥇산신령</span>
-                    <span class="hall-rank-name">아랑</span>
-                </div>
-                <div class="hall-rank-item">
-                    <span class="hall-rank-label glow-silver">🥈심마니</span>
-                    <span class="hall-rank-name">용삼</span>
-                </div>
-                <div class="hall-rank-item">
-                    <span class="hall-rank-label glow-bronze">🥉나무꾼</span>
-                    <span class="hall-rank-name">우진</span>
-                </div>
-            </div>
-        </div>`;
+        let combinedHtml = "";
 
-        // 2026년 이후 데이터는 현재 currentData 기반 실시간 자동 생성 (선택된 년도/분기 기준 상위 3명)
+        // 1. 현재 진행 중인 분기 데이터 (최상단)
         const top3 = [...currentData]
             .filter(m => !m.isHidden && m.name !== "오즈" && m.qCount > 0)
             .sort((a,b) => b.qCount - a.qCount || b.level - a.level)
             .slice(0, 3);
 
         if(top3.length > 0) {
-            baseHtml += `
+            combinedHtml += `
             <div class="hall-card border-blue-100 bg-blue-50/30">
-                <div class="hall-season-title">${selectedYear}년 ${selectedQuarter}분기 (진행 중)</div>
+                <div class="hall-season-title">${selectedYear}년 ${selectedQuarter}분기 (Season 2)</div>
                 <div class="hall-rank-flex">
                     <div class="hall-rank-item">
                         <span class="hall-rank-label glow-gold">🥇산신령</span>
@@ -958,7 +934,29 @@ window.toggleHallModal = async (show) => {
                 </div>
             </div>`;
         }
-        listArea.innerHTML = baseHtml;
+
+        // 2. 과거 시즌 데이터 (하단 배치)
+        combinedHtml += `
+        <div class="hall-card">
+            <div class="hall-season-title">2025년 4분기 (Season 1)</div>
+            <div class="hall-rank-flex">
+                <div class="hall-rank-item">
+                    <span class="hall-rank-label glow-gold">🥇산신령</span>
+                    <span class="hall-rank-name">아랑</span>
+                </div>
+                <div class="hall-rank-item">
+                    <span class="hall-rank-label glow-silver">🥈심마니</span>
+                    <span class="hall-rank-name">용삼</span>
+                </div>
+                <div class="hall-rank-item">
+                    <span class="hall-rank-label glow-bronze">🥉나무꾼</span>
+                    <span class="hall-rank-name">우진</span>
+                </div>
+            </div>
+        </div>`;
+
+        listArea.innerHTML = combinedHtml;
+        listArea.scrollTop = 0; // 열 때 항상 위로
     }
 };
 
