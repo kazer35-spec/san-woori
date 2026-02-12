@@ -259,6 +259,22 @@ td { padding: 12px 0; text-align: center; vertical-align: middle; position: rela
     z-index: 20;
     letter-spacing: -0.2px;
 }
+
+/* 추가된 에베레스트 디자인 스타일 */
+.everest-card {
+    background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
+    border-radius: 20px;
+    padding: 14px;
+    position: relative;
+    overflow: hidden;
+    margin-top: 8px;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+.everest-title { font-size: 0.6rem; font-weight: 900; color: #38bdf8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+.everest-count { font-size: 1.1rem; font-weight: 900; color: white; }
+.everest-progress-bg { height: 6px; background: rgba(255,255,255,0.1); border-radius: 10px; margin-top: 8px; overflow: hidden; }
+.everest-progress-bar { height: 100%; background: linear-gradient(90deg, #3b82f6, #60a5fa); border-radius: 10px; transition: width 1s ease-out; }
+.everest-icon-bg { position: absolute; right: -10px; bottom: -10px; font-size: 3rem; opacity: 0.1; transform: rotate(-15deg); }
 </style>
 </head>
 <body>
@@ -498,11 +514,28 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 <div id="conquerMapPoints"></div>
 <div class="map-source-txt">출처: 산림청</div>
 </div>
-<div class="bg-emerald-50 p-3 rounded-xl border border-emerald-100 mb-3 text-center">
-<p class="text-[10px] font-bold text-emerald-600">누적 정복 높이</p>
-<p class="text-lg font-black text-emerald-700"><span id="mapTotalHeight">0</span> m</p>
+
+<div class="grid grid-cols-2 gap-2 mb-2">
+    <div class="bg-emerald-50 p-3 rounded-xl border border-emerald-100 text-center">
+        <p class="text-[9px] font-bold text-emerald-600">개인 정복 높이</p>
+        <p class="text-base font-black text-emerald-700"><span id="mapTotalHeight">0</span> m</p>
+    </div>
+    <div class="bg-blue-50 p-3 rounded-xl border border-blue-100 text-center">
+        <p class="text-[9px] font-bold text-blue-600">산:우리 전체 높이</p>
+        <p class="text-base font-black text-blue-700"><span id="mapGlobalTotalHeight">0</span> m</p>
+    </div>
 </div>
-<button onclick="toggleMapModal(false)" class="w-full py-2 bg-gray-100 text-gray-600 rounded-xl font-bold text-sm">닫기</button>
+
+<div class="everest-card">
+    <div class="everest-title">Mount Everest Conquest</div>
+    <div class="everest-count">우리는 지금까지 에베레스트를 <span id="everestCount" class="text-sky-400">0.0</span>번 정복했습니다!</div>
+    <div class="everest-progress-bg">
+        <div id="everestProgressBar" class="everest-progress-bar" style="width: 0%"></div>
+    </div>
+    <div class="everest-icon-bg">🏔️</div>
+</div>
+
+<button onclick="toggleMapModal(false)" class="w-full py-2 mt-4 bg-gray-100 text-gray-600 rounded-xl font-bold text-sm">닫기</button>
 </div>
 </div>
 
@@ -768,18 +801,32 @@ document.getElementById('mapMemberName').innerText = mName;
 const pointsBoard = document.getElementById('conquerMapPoints');
 pointsBoard.innerHTML = "";
 
+// 1. 선택된 개인의 산행 기록 조회
 const snapAll = await getDocs(collection(db, `sanwoori/${mId}/logs`));
 let totalH = 0; let mapHtml = "";
 snapAll.forEach(doc => {
-const log = doc.data();
-totalH += (log.height || 0);
-if(log.coords) {
-    const blueClass = log.isTop100 ? 'top-100' : '';
-    mapHtml += `<div class="map-point ${blueClass}" style="left:${log.coords.x}%; top:${log.coords.y}%;"></div>`;
-}
+    const log = doc.data();
+    totalH += (log.height || 0);
+    if(log.coords) {
+        const blueClass = log.isTop100 ? 'top-100' : '';
+        mapHtml += `<div class="map-point ${blueClass}" style="left:${log.coords.x}%; top:${log.coords.y}%;"></div>`;
+    }
 });
 document.getElementById('mapTotalHeight').innerText = totalH.toLocaleString();
 pointsBoard.innerHTML = mapHtml;
+
+// 2. 전체 멤버 누적 높이 계산 (currentData에 있는 값 활용)
+const globalTotalH = currentData.reduce((acc, m) => acc + (m.totalHeight || 0), 0);
+document.getElementById('mapGlobalTotalHeight').innerText = globalTotalH.toLocaleString();
+
+// 3. 에베레스트 정복 횟수 계산 (에베레스트 높이: 8,848m)
+const everestHeight = 8848;
+const conquestCount = (globalTotalH / everestHeight).toFixed(1);
+document.getElementById('everestCount').innerText = conquestCount;
+
+// 4. 프로그레스 바 (소수점 자리를 퍼센트로 표현, 100%가 되면 다시 0%부터 채움)
+const progress = (conquestCount % 1) * 100;
+document.getElementById('everestProgressBar').style.width = `${progress}%`;
 };
 
 window.toggleTimelineModal = (show) => { document.getElementById('timelineModal').style.display = show ? 'flex' : 'none'; };
@@ -823,7 +870,7 @@ document.getElementById('coordDisplay').innerText = `자동 로드: ${mName}`;
 }
 };
 
-// ★ 산 정보 일괄 수정 로직 ★ (BAC 포함 모든 기록 동기화)
+// 산 정보 일괄 수정 로직 (BAC 포함 모든 기록 동기화)
 window.globalSyncMountainInfo = async () => {
     const mName = document.getElementById('mountainName').value.trim();
     const height = parseInt(document.getElementById('mountainHeight').value) || 0;
@@ -834,13 +881,9 @@ window.globalSyncMountainInfo = async () => {
     if(!confirm(`[${mName}] 정보를 일괄 수정하시겠습니까? \n이 산을 등반한 모든 멤버의 '인증 여부(BAC/Top100), 높이, 좌표'가 실시간으로 변경됩니다.`)) return;
 
     try {
-        // 1. 산 마스터 DB 업데이트
         await setDoc(doc(db, "mountains", mName), { x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC }, { merge: true });
-        
-        // 2. 모든 멤버를 순회하며 해당 산의 기록을 찾아 업데이트
         const membersSnap = await getDocs(collection(db, "sanwoori"));
         let updateCount = 0;
-        
         for (const mDoc of membersSnap.docs) {
             const logsSnap = await getDocs(query(collection(db, `sanwoori/${mDoc.id}/logs`), where("mountain", "==", mName)));
             if (!logsSnap.empty) {
@@ -858,11 +901,8 @@ window.globalSyncMountainInfo = async () => {
             }
         }
         alert(`일괄 수정 완료! 총 ${updateCount}개의 산행 기록이 최신 정보로 동기화되었습니다.`);
-        startRealtimeSync(); // 화면 새로고침
-    } catch (e) { 
-        console.error(e);
-        alert("수정 중 오류 발생: " + e.message); 
-    }
+        startRealtimeSync();
+    } catch (e) { alert("수정 중 오류 발생: " + e.message); }
 };
 
 // 실시간 동기화
@@ -898,7 +938,6 @@ if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜를 확인
 const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
 const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
 
-// 산 정보가 있다면 마스터 DB에도 저장
 if(mName && tempCoord) await setDoc(doc(db, "mountains", mName), { x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC }, { merge: true });
 
 for(const id of selectedMemberIds){
@@ -919,7 +958,7 @@ toggleMarkerStyle();
 updateAdminMemberLists();
 };
 
-// 개별 로그 관리 (수정/삭제)
+// 개별 로그 관리
 window.loadMemberLogs = async () => {
 const id = document.getElementById('memberSelectEdit').value;
 const area = document.getElementById('logListArea'); area.innerHTML = ""; if(!id) return;
@@ -928,15 +967,7 @@ snap.forEach(ld => {
 const d = ld.data().date.toDate();
 const logData = ld.data();
 const dateStr = `${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()}`;
-
-const logJson = JSON.stringify({ 
-    mountain: logData.mountain || '', 
-    height: logData.height || 0, 
-    coords: logData.coords || null, 
-    isTop100: logData.isTop100 || false,
-    isBAC: logData.isBAC || false
-}).replace(/"/g, '&quot;');
-
+const logJson = JSON.stringify({ mountain: logData.mountain || '', height: logData.height || 0, coords: logData.coords || null, isTop100: logData.isTop100 || false, isBAC: logData.isBAC || false }).replace(/"/g, '&quot;');
 area.innerHTML += `<div class="log-item-box" onclick="selectLogToMap('${logJson}')">
 <div class="log-info-group"><span class="log-date-txt">${dateStr}</span><span class="log-mt-txt">${logData.isBAC ? '<span class="bac-txt">BAC</span>' : ''}${logData.mountain || '기록'}</span>
 <div class="flex items-center gap-1">
@@ -954,13 +985,11 @@ area.innerHTML += `<div class="log-item-box" onclick="selectLogToMap('${logJson}
 window.selectLogToMap = (logDataStr) => {
     const log = JSON.parse(logDataStr.replace(/&quot;/g, '"'));
     const marker = document.getElementById('adminMapMarker');
-    
     document.getElementById('mountainName').value = log.mountain;
     document.getElementById('mountainHeight').value = log.height;
     document.getElementById('isTop100Check').checked = log.isTop100;
     document.getElementById('isBACCheck').checked = log.isBAC || false;
     toggleMarkerStyle();
-
     if (log.coords && log.coords.x !== undefined) {
         tempCoord = log.coords;
         marker.style.left = log.coords.x + "%";
@@ -970,7 +999,7 @@ window.selectLogToMap = (logDataStr) => {
     } else {
         tempCoord = null;
         marker.classList.add('hidden');
-        document.getElementById('coordDisplay').innerText = `좌표 정보 없음 (지도 클릭하여 설정)`;
+        document.getElementById('coordDisplay').innerText = `좌표 정보 없음 (지도 클릭)`;
     }
 };
 
@@ -1084,10 +1113,7 @@ document.querySelectorAll('.member-chip').forEach(c => { c.style.display = c.inn
 };
 
 // 초기 실행 로직
-if (!sessionStorage.getItem('visited')) { 
-    updateVisitorCount(); 
-    sessionStorage.setItem('visited', 'true'); 
-}
+if (!sessionStorage.getItem('visited')) { updateVisitorCount(); sessionStorage.setItem('visited', 'true'); }
 listenVisitors(); initAutoSelection(); startRealtimeSync(); listenSubRooms();
 document.getElementById('regDate').valueAsDate = new Date();
 document.getElementById('activityDate').valueAsDate = new Date();
