@@ -237,12 +237,22 @@ td { padding: 12px 0; text-align: center; vertical-align: middle; position: rela
 .guide-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .guide-item { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 10px 5px; border-radius: 15px; border: 1px solid #f1f5f9; background: #fafafa; }
 
-.timeline-container { position: relative; padding-left: 20px; margin-top: 5px; }
+/* 타임라인 레이아웃 최적화: 6개 노출 후 스크롤 */
+.timeline-scroll-area { 
+    max-height: 220px; /* 대략 산행 기록 6개 높이 */
+    overflow-y: auto; 
+    background: #f8fafc; 
+    padding: 12px; 
+    border-radius: 16px; 
+    border: 1px solid #f1f5f9;
+}
+.timeline-container { position: relative; padding-left: 20px; }
 .timeline-container::before { content: ''; position: absolute; left: 8px; top: 4px; bottom: 4px; width: 1.5px; background: #e2e8f0; }
-.timeline-item { position: relative; margin-bottom: 6px; }
+.timeline-item { position: relative; margin-bottom: 12px; }
+.timeline-item:last-child { margin-bottom: 0; }
 .timeline-dot { position: absolute; left: -16px; top: 4px; width: 6px; height: 6px; background: #3b82f6; border: 1.5px solid white; border-radius: 50%; z-index: 1; }
-.timeline-date { font-size: 0.65rem; font-weight: 800; color: #1e293b; }
-.timeline-desc { font-size: 0.55rem; color: #64748b; }
+.timeline-date { font-size: 0.65rem; font-weight: 800; color: #1e293b; line-height: 1; margin-bottom: 3px; }
+.timeline-desc { font-size: 0.6rem; color: #64748b; font-weight: 600; line-height: 1.2; }
 .bac-txt { color: #ef4444; font-weight: 900; margin-right: 2px; }
 
 .height-badge { font-size: 10px; font-weight: 900; color: #059669; background: #ecfdf5; border: 1px solid #10b981; padding: 2px 6px; border-radius: 8px; cursor: pointer; }
@@ -547,10 +557,10 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 <div id="grassBoard" class="grass-container mb-4"></div>
 <div class="border-t border-dashed border-gray-100 my-3"></div>
 <p class="text-[10px] font-extrabold text-slate-500 mb-2">📜 최근 산행 일지 (최대 30개)</p>
-<div id="timelineScrollArea" class="max-height-[160px] overflow-y-auto bg-gray-50/50 p-2 rounded-xl">
-<div id="timelineContent" class="timeline-container"></div>
+<div class="timeline-scroll-area">
+    <div id="timelineContent" class="timeline-container"></div>
 </div>
-<button onclick="toggleTimelineModal(false)" class="w-full mt-4 py-2 bg-gray-100 text-gray-600 rounded-xl font-bold text-sm">닫기</button>
+<button onclick="toggleTimelineModal(false)" class="w-full mt-4 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold text-sm">닫기</button>
 </div>
 </div>
 
@@ -633,7 +643,6 @@ const now = new Date();
 let selectedYear = now.getFullYear();
 let selectedQuarter = Math.ceil((now.getMonth() + 1) / 3);
 
-// 행정구역 좌표 범위 정의 (경상도 지역 범위 확대 및 상세화)
 const regionBoundaries = [
     { name: "서울특별시", x: [25, 35], y: [18, 25] },
     { name: "경기도", x: [20, 40], y: [12, 32] },
@@ -656,8 +665,6 @@ const regionBoundaries = [
 
 function getRegionFromCoord(coords) {
     if(!coords) return "기타";
-    // 수동 선택값이 "기타"가 아닐 경우 수동값이 최우선 (버튼 입력 시 처리)
-    
     const priorityRegions = ["서울특별시", "대구광역시", "부산광역시", "광주광역시", "대전/세종", "인천광역시", "울산광역시", "제주도"];
     for(let rName of priorityRegions) {
         let r = regionBoundaries.find(b => b.name === rName);
@@ -670,7 +677,6 @@ function getRegionFromCoord(coords) {
     return "기타";
 }
 
-// 초기화 함수
 function initAutoSelection() {
     const yearSelect = document.getElementById('yearSelect');
     if (yearSelect) yearSelect.value = selectedYear;
@@ -713,7 +719,6 @@ if (dday <= 30) return "dday-yellow";
 return "bg-gray-soft";
 };
 
-// --- 방문자 카운트 ---
 async function updateVisitorCount() {
     const d = new Date();
     const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -737,7 +742,6 @@ function listenVisitors() {
     });
 }
 
-// 서브방 설정
 const defaultSubRooms = [
 { id: "shop", name: "상점", emoji: "🏕", url: "상점 톡방📢 https://open.kakao.com/o/gYPcpN3h" },
 { id: "blacksmith", name: "대장간", emoji: "⚒️", url: "대장간 톡방📢 https://open.kakao.com/o/gxAupN3h" },
@@ -792,7 +796,6 @@ await setDoc(doc(db, "sub_rooms", roomId), { isActive: nextActive, statusMsg: ms
 
 window.copySubRoomUrl = (url, name) => { navigator.clipboard.writeText(url); alert(`[${name}] 링크 복사 완료`); };
 
-// 실시간 테이블 렌더링
 window.renderStatusTable = () => {
 const list = document.getElementById('statusList');
 const search = document.getElementById('searchInput').value.trim();
@@ -851,7 +854,6 @@ list.innerHTML += `<tr class="${m.isHidden ? 'opacity-40' : ''}">
 });
 };
 
-// 타임라인 모달 호출
 window.showMemberTimeline = async (mId, mName) => {
     toggleTimelineModal(true);
     document.getElementById('timelineModalContent').scrollTop = 0;
@@ -897,7 +899,6 @@ window.showMemberTimeline = async (mId, mName) => {
     } catch (e) { container.innerHTML = "<p class='text-center text-xs text-red-400'>실패</p>"; }
 };
 
-// 정복지도 및 땅따먹기 뷰 전환 함수
 window.toggleMapView = () => {
     const main = document.getElementById('mapViewMain');
     const stats = document.getElementById('mapViewStats');
@@ -918,7 +919,6 @@ window.toggleMapView = () => {
     }
 };
 
-// 정복지도 모달 호출
 window.showMemberMap = async (mId, mName) => {
     toggleMapModal(true);
     document.getElementById('mapModalContent').scrollTop = 0;
@@ -943,8 +943,6 @@ window.showMemberMap = async (mId, mName) => {
             validLogsCount++;
             const blueClass = log.isTop100 ? 'top-100' : '';
             mapHtml += `<div class="map-point ${blueClass}" style="left:${log.coords.x}%; top:${log.coords.y}%;"></div>`;
-            
-            // 저장된 region이 있으면 사용하고, 없으면 좌표로 판별
             const rName = log.region || getRegionFromCoord(log.coords);
             regionCounts[rName] = (regionCounts[rName] || 0) + 1;
         }
@@ -981,7 +979,6 @@ window.showMemberMap = async (mId, mName) => {
 window.toggleTimelineModal = (show) => { document.getElementById('timelineModal').style.display = show ? 'flex' : 'none'; };
 window.toggleMapModal = (show) => { document.getElementById('mapModal').style.display = show ? 'flex' : 'none'; };
 
-// 관리자: 좌표 설정
 window.setAdminCoordinate = (event) => {
     const rect = event.currentTarget.getBoundingClientRect();
     const x = ((event.clientX - rect.left) / rect.width) * 100;
@@ -992,7 +989,6 @@ window.setAdminCoordinate = (event) => {
     marker.style.left = x + "%"; marker.style.top = y + "%";
     marker.classList.remove('hidden');
     
-    // 좌표 클릭 시 자동으로 지역 판별하여 수동 선택창 값 업데이트
     const detectedRegion = getRegionFromCoord(tempCoord);
     document.getElementById('adminManualRegionSelect').value = detectedRegion;
     document.getElementById('coordDisplay').innerText = `좌표: X ${tempCoord.x} / Y ${tempCoord.y} (${detectedRegion})`;
@@ -1005,7 +1001,6 @@ window.toggleMarkerStyle = () => {
     else marker.classList.remove('top-100');
 };
 
-// 관리자: 산 정보 자동완성
 window.autoFindCoords = async () => {
     const mName = document.getElementById('mountainName').value.trim();
     if(!mName) return;
@@ -1016,11 +1011,8 @@ window.autoFindCoords = async () => {
         document.getElementById('mountainHeight').value = d.height || "";
         document.getElementById('isTop100Check').checked = d.isTop100 || false;
         document.getElementById('isBACCheck').checked = d.isBAC || false;
-        
-        // 산 정보 불러올 때도 지역 정보 자동 세팅
         if(d.region) document.getElementById('adminManualRegionSelect').value = d.region;
         else document.getElementById('adminManualRegionSelect').value = getRegionFromCoord(tempCoord);
-        
         toggleMarkerStyle();
         const marker = document.getElementById('adminMapMarker');
         marker.style.left = d.x + "%"; marker.style.top = d.y + "%";
@@ -1029,7 +1021,6 @@ window.autoFindCoords = async () => {
     }
 };
 
-// 관리자: 산 정보 일괄 수정
 window.globalSyncMountainInfo = async () => {
     const mName = document.getElementById('mountainName').value.trim();
     const height = parseInt(document.getElementById('mountainHeight').value) || 0;
@@ -1060,7 +1051,6 @@ window.globalSyncMountainInfo = async () => {
     } catch (e) { alert("오류 발생: " + e.message); }
 };
 
-// 관리자: 데이터 실시간 동기화
 let unsubscribe = null;
 function startRealtimeSync() {
     if (unsubscribe) unsubscribe();
@@ -1082,7 +1072,6 @@ function startRealtimeSync() {
     });
 }
 
-// 관리자: 기록 추가
 window.addMultiActivity = async () => {
     const dateVal = document.getElementById('activityDate').value;
     const mName = document.getElementById('mountainName').value.trim();
@@ -1110,7 +1099,6 @@ window.addMultiActivity = async () => {
     updateAdminMemberLists();
 };
 
-// 개별 로그 관리
 window.loadMemberLogs = async () => {
     const id = document.getElementById('memberSelectEdit').value;
     const area = document.getElementById('logListArea'); area.innerHTML = ""; if(!id) return;
