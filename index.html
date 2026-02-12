@@ -239,7 +239,7 @@ td { padding: 12px 0; text-align: center; vertical-align: middle; position: rela
 
 .timeline-container { position: relative; padding-left: 20px; margin-top: 5px; }
 .timeline-container::before { content: ''; position: absolute; left: 8px; top: 4px; bottom: 4px; width: 1.5px; background: #e2e8f0; }
-.timeline-item { position: relative; margin-bottom: 10px; }
+.timeline-item { position: relative; margin-bottom: 6px; }
 .timeline-dot { position: absolute; left: -16px; top: 4px; width: 6px; height: 6px; background: #3b82f6; border: 1.5px solid white; border-radius: 50%; z-index: 1; }
 .timeline-date { font-size: 0.65rem; font-weight: 800; color: #1e293b; }
 .timeline-desc { font-size: 0.55rem; color: #64748b; }
@@ -292,17 +292,16 @@ td { padding: 12px 0; text-align: center; vertical-align: middle; position: rela
 #mapViewMain, #mapViewStats { transition: opacity 0.3s; }
 .hidden-view { display: none; }
 
-/* 타임라인 일지 스크롤 영역 최적화 (약 6개 노출용) */
-#timelineScrollArea {
-    max-height: 190px;
-    overflow-y: auto;
-    background-color: #f8fafc;
-    border-radius: 16px;
-    padding: 12px;
-    border: 1px solid #f1f5f9;
+/* 관리자 지역 선택용 스타일 */
+.region-select-mini {
+    height: 32px !important;
+    font-size: 11px !important;
+    font-weight: 900;
+    color: #3b82f6;
+    border-color: #3b82f6 !important;
+    padding: 0 8px !important;
+    background: white;
 }
-#timelineScrollArea::-webkit-scrollbar { width: 4px; }
-#timelineScrollArea::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
 </style>
 </head>
 <body>
@@ -454,6 +453,29 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
     </div>
 </div>
 <input type="text" id="mountainName" onblur="autoFindCoords()" placeholder="등산한 산 이름 (예: 관악산)" class="mb-2 h-9 text-xs">
+
+<div class="flex gap-2 mb-2">
+    <select id="adminManualRegionSelect" class="region-select-mini flex-1 rounded-lg border">
+        <option value="기타">📍 수동 지역 선택 (선택 안함)</option>
+        <option value="서울특별시">서울특별시</option>
+        <option value="인천광역시">인천광역시</option>
+        <option value="경기도">경기도</option>
+        <option value="강원도">강원도</option>
+        <option value="충청북도">충청북도</option>
+        <option value="충청남도">충청남도</option>
+        <option value="대전/세종">대전/세종</option>
+        <option value="전라북도">전라북도</option>
+        <option value="전라남도">전라남도</option>
+        <option value="광주광역시">광주광역시</option>
+        <option value="경상북도">경상북도</option>
+        <option value="경상남도">경상남도</option>
+        <option value="대구광역시">대구광역시</option>
+        <option value="울산광역시">울산광역시</option>
+        <option value="부산광역시">부산광역시</option>
+        <option value="제주도">제주도</option>
+    </select>
+</div>
+
 <div class="flex gap-2 mb-2">
 <input type="number" id="mountainHeight" placeholder="높이(m) 예: 629" class="h-9 text-xs flex-1 border rounded-lg px-2 outline-none">
 <div class="flex-1 flex gap-1 items-center bg-white px-2 rounded-lg border">
@@ -525,7 +547,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 <div id="grassBoard" class="grass-container mb-4"></div>
 <div class="border-t border-dashed border-gray-100 my-3"></div>
 <p class="text-[10px] font-extrabold text-slate-500 mb-2">📜 최근 산행 일지 (최대 30개)</p>
-<div id="timelineScrollArea">
+<div id="timelineScrollArea" class="max-height-[160px] overflow-y-auto bg-gray-50/50 p-2 rounded-xl">
 <div id="timelineContent" class="timeline-container"></div>
 </div>
 <button onclick="toggleTimelineModal(false)" class="w-full mt-4 py-2 bg-gray-100 text-gray-600 rounded-xl font-bold text-sm">닫기</button>
@@ -574,7 +596,8 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
             <div class="conquer-title">🎖 지역 점유율 </div>
             <div class="text-[10px] font-black text-slate-400">총 <span id="totalConquerCount" class="text-indigo-500">0</span>곳 정복</div>
         </div>
-        <div id="conquerRegionGrid" class="conquer-grid max-h-[350px] overflow-y-auto"></div>
+        <div id="conquerRegionGrid" class="conquer-grid max-h-[350px] overflow-y-auto">
+            </div>
     </div>
 
     <button onclick="toggleMapModal(false)" class="w-full py-3 mt-5 bg-gray-100 text-gray-600 rounded-2xl font-black text-sm transition-colors hover:bg-gray-200">닫기</button>
@@ -610,38 +633,38 @@ const now = new Date();
 let selectedYear = now.getFullYear();
 let selectedQuarter = Math.ceil((now.getMonth() + 1) / 3);
 
-// --- [개선] 행정구역 좌표 범위 정의 (누락 방지) ---
+// 행정구역 좌표 범위 정의 (경상도 지역 범위 확대 및 상세화)
 const regionBoundaries = [
-    { name: "서울특별시", x: [25, 33], y: [18, 26] },
-    { name: "경기도", x: [18, 38], y: [10, 32] },
-    { name: "강원도", x: [40, 75], y: [5, 30] },
-    { name: "충청북도", x: [40, 58], y: [30, 48] },
-    { name: "충청남도", x: [10, 35], y: [35, 52] },
-    { name: "대전/세종", x: [35, 42], y: [42, 48] },
-    { name: "전라북도", x: [15, 45], y: [52, 65] },
-    { name: "전라남도", x: [10, 45], y: [65, 88] },
-    { name: "광주광역시", x: [23, 33], y: [72, 80] },
-    { name: "경상북도", x: [55, 88], y: [30, 62] },
-    { name: "경상남도", x: [45, 78], y: [62, 85] },
-    { name: "대구광역시", x: [60, 72], y: [50, 60] },
-    { name: "울산광역시", x: [78, 88], y: [62, 72] },
-    { name: "부산광역시", x: [70, 85], y: [72, 85] },
-    { name: "제주도", x: [15, 45], y: [88, 100] },
-    { name: "인천광역시", x: [10, 25], y: [20, 30] },
-    { name: "울릉도/독도", x: [85, 100], y: [30, 45] }
+    { name: "서울특별시", x: [25, 35], y: [18, 25] },
+    { name: "경기도", x: [20, 40], y: [12, 32] },
+    { name: "강원도", x: [40, 75], y: [5, 32] },
+    { name: "충청북도", x: [40, 55], y: [30, 48] },
+    { name: "충청남도", x: [15, 35], y: [35, 52] },
+    { name: "대전/세종", x: [35, 42], y: [42, 50] },
+    { name: "전라북도", x: [20, 45], y: [52, 68] },
+    { name: "전라남도", x: [15, 45], y: [68, 88] },
+    { name: "광주광역시", x: [25, 32], y: [72, 80] },
+    { name: "경상북도", x: [55, 88], y: [32, 62] },
+    { name: "경상남도", x: [45, 80], y: [62, 85] },
+    { name: "대구광역시", x: [62, 72], y: [52, 60] },
+    { name: "울산광역시", x: [78, 88], y: [65, 75] },
+    { name: "부산광역시", x: [72, 85], y: [72, 85] },
+    { name: "제주도", x: [20, 40], y: [88, 98] },
+    { name: "인천광역시", x: [18, 26], y: [20, 28] },
+    { name: "울릉도/독도", x: [88, 100], y: [35, 48] }
 ];
 
 function getRegionFromCoord(coords) {
-    if(!coords) return "미지정";
-    // 도시 단위 우선 체크
-    const cityRegions = ["서울특별시", "대구광역시", "부산광역시", "광주광역시", "대전/세종", "인천광역시", "울산광역시", "제주도"];
-    for(let rName of cityRegions) {
+    if(!coords) return "기타";
+    // 수동 선택값이 "기타"가 아닐 경우 수동값이 최우선 (버튼 입력 시 처리)
+    
+    const priorityRegions = ["서울특별시", "대구광역시", "부산광역시", "광주광역시", "대전/세종", "인천광역시", "울산광역시", "제주도"];
+    for(let rName of priorityRegions) {
         let r = regionBoundaries.find(b => b.name === rName);
         if(coords.x >= r.x[0] && coords.x <= r.x[1] && coords.y >= r.y[0] && coords.y <= r.y[1]) return r.name;
     }
-    // 도 단위 체크
     for(let r of regionBoundaries) {
-        if(cityRegions.includes(r.name)) continue;
+        if(priorityRegions.includes(r.name)) continue;
         if(coords.x >= r.x[0] && coords.x <= r.x[1] && coords.y >= r.y[0] && coords.y <= r.y[1]) return r.name;
     }
     return "기타";
@@ -835,12 +858,9 @@ window.showMemberTimeline = async (mId, mName) => {
     const container = document.getElementById('timelineContent');
     const grassBoard = document.getElementById('grassBoard');
     const vibeArea = document.getElementById('passionVibeArea');
-    const scrollArea = document.getElementById('timelineScrollArea');
-    
     document.getElementById('timelineMemberName').innerText = mName;
     container.innerHTML = "<p class='text-center text-xs py-5 text-gray-400'>조회 중...</p>";
     grassBoard.innerHTML = vibeArea.innerHTML = "";
-    scrollArea.scrollTop = 0;
 
     try {
         const start = new Date(selectedYear, (selectedQuarter - 1) * 3, 1);
@@ -877,7 +897,7 @@ window.showMemberTimeline = async (mId, mName) => {
     } catch (e) { container.innerHTML = "<p class='text-center text-xs text-red-400'>실패</p>"; }
 };
 
-// 정복지도 및 땅따먹기 뷰 전환
+// 정복지도 및 땅따먹기 뷰 전환 함수
 window.toggleMapView = () => {
     const main = document.getElementById('mapViewMain');
     const stats = document.getElementById('mapViewStats');
@@ -923,7 +943,9 @@ window.showMemberMap = async (mId, mName) => {
             validLogsCount++;
             const blueClass = log.isTop100 ? 'top-100' : '';
             mapHtml += `<div class="map-point ${blueClass}" style="left:${log.coords.x}%; top:${log.coords.y}%;"></div>`;
-            const rName = getRegionFromCoord(log.coords);
+            
+            // 저장된 region이 있으면 사용하고, 없으면 좌표로 판별
+            const rName = log.region || getRegionFromCoord(log.coords);
             regionCounts[rName] = (regionCounts[rName] || 0) + 1;
         }
     });
@@ -965,11 +987,15 @@ window.setAdminCoordinate = (event) => {
     const x = ((event.clientX - rect.left) / rect.width) * 100;
     const y = ((event.clientY - rect.top) / rect.height) * 100;
     tempCoord = { x: parseFloat(x.toFixed(2)), y: parseFloat(y.toFixed(2)) };
+    
     const marker = document.getElementById('adminMapMarker');
     marker.style.left = x + "%"; marker.style.top = y + "%";
     marker.classList.remove('hidden');
-    const rName = getRegionFromCoord(tempCoord);
-    document.getElementById('coordDisplay').innerText = `좌표: X ${tempCoord.x} / Y ${tempCoord.y} (${rName})`;
+    
+    // 좌표 클릭 시 자동으로 지역 판별하여 수동 선택창 값 업데이트
+    const detectedRegion = getRegionFromCoord(tempCoord);
+    document.getElementById('adminManualRegionSelect').value = detectedRegion;
+    document.getElementById('coordDisplay').innerText = `좌표: X ${tempCoord.x} / Y ${tempCoord.y} (${detectedRegion})`;
 };
 
 window.toggleMarkerStyle = () => {
@@ -979,7 +1005,7 @@ window.toggleMarkerStyle = () => {
     else marker.classList.remove('top-100');
 };
 
-// --- [개선] 관리자: 산 정보 자동완성 (누락된 지역 정보를 좌표기반으로 다시 계산) ---
+// 관리자: 산 정보 자동완성
 window.autoFindCoords = async () => {
     const mName = document.getElementById('mountainName').value.trim();
     if(!mName) return;
@@ -990,14 +1016,16 @@ window.autoFindCoords = async () => {
         document.getElementById('mountainHeight').value = d.height || "";
         document.getElementById('isTop100Check').checked = d.isTop100 || false;
         document.getElementById('isBACCheck').checked = d.isBAC || false;
+        
+        // 산 정보 불러올 때도 지역 정보 자동 세팅
+        if(d.region) document.getElementById('adminManualRegionSelect').value = d.region;
+        else document.getElementById('adminManualRegionSelect').value = getRegionFromCoord(tempCoord);
+        
         toggleMarkerStyle();
         const marker = document.getElementById('adminMapMarker');
         marker.style.left = d.x + "%"; marker.style.top = d.y + "%";
         marker.classList.remove('hidden');
-        
-        // 지역명 다시 판별
-        const rName = getRegionFromCoord(tempCoord);
-        document.getElementById('coordDisplay').innerText = `자동 로드: ${mName} (${rName})`;
+        document.getElementById('coordDisplay').innerText = `자동 로드: ${mName}`;
     }
 };
 
@@ -1007,11 +1035,13 @@ window.globalSyncMountainInfo = async () => {
     const height = parseInt(document.getElementById('mountainHeight').value) || 0;
     const isTop100 = document.getElementById('isTop100Check').checked;
     const isBAC = document.getElementById('isBACCheck').checked;
+    const region = document.getElementById('adminManualRegionSelect').value;
+    
     if(!mName || !tempCoord) return alert("산 이름과 좌표를 먼저 설정해주세요.");
     if(!confirm(`[${mName}] 정보를 일괄 수정하시겠습니까?`)) return;
 
     try {
-        await setDoc(doc(db, "mountains", mName), { x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC }, { merge: true });
+        await setDoc(doc(db, "mountains", mName), { x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region }, { merge: true });
         const membersSnap = await getDocs(collection(db, "sanwoori"));
         let updateCount = 0;
         for (const mDoc of membersSnap.docs) {
@@ -1019,7 +1049,7 @@ window.globalSyncMountainInfo = async () => {
             if (!logsSnap.empty) {
                 const batch = writeBatch(db);
                 logsSnap.forEach(ldoc => {
-                    batch.update(ldoc.ref, { height, coords: tempCoord, isTop100, isBAC });
+                    batch.update(ldoc.ref, { height, coords: tempCoord, isTop100, isBAC, region });
                     updateCount++;
                 });
                 await batch.commit();
@@ -1059,19 +1089,19 @@ window.addMultiActivity = async () => {
     const height = parseInt(document.getElementById('mountainHeight').value) || 0;
     const isTop100 = document.getElementById('isTop100Check').checked;
     const isBAC = document.getElementById('isBACCheck').checked;
+    const region = document.getElementById('adminManualRegionSelect').value;
+    
     if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜를 확인해주세요.");
     const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
     const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
 
-    if(mName && tempCoord) {
-        await setDoc(doc(db, "mountains", mName), { x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC }, { merge: true });
-    }
+    if(mName && tempCoord) await setDoc(doc(db, "mountains", mName), { x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region }, { merge: true });
 
     for(const id of selectedMemberIds){
         const mRef = doc(db, "sanwoori", id);
         await updateDoc(mRef, { level: increment(up), lastDate: ts });
         for(let i=0; i < up; i++) {
-            await addDoc(collection(db, `sanwoori/${id}/logs`), { date: ts, mountain: mName, height, coords: tempCoord, isTop100, isBAC });
+            await addDoc(collection(db, `sanwoori/${id}/logs`), { date: ts, mountain: mName, height, coords: tempCoord, isTop100, isBAC, region });
         }
     }
     alert("저장 완료!");
@@ -1084,12 +1114,12 @@ window.addMultiActivity = async () => {
 window.loadMemberLogs = async () => {
     const id = document.getElementById('memberSelectEdit').value;
     const area = document.getElementById('logListArea'); area.innerHTML = ""; if(!id) return;
-    const snap = await getDocs(query(collection(db, `sanwoori/${id}/logs`), orderBy("date", "desc"), limit(30)));
+    const snap = await getDocs(query(collection(db, `sanwoori/${id}/logs`), orderBy("date", "desc"), limit(20)));
     snap.forEach(ld => {
         const d = ld.data().date.toDate();
         const logData = ld.data();
         const dateStr = `${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()}`;
-        const logJson = JSON.stringify({ mountain: logData.mountain || '', height: logData.height || 0, coords: logData.coords || null, isTop100: logData.isTop100 || false, isBAC: logData.isBAC || false }).replace(/"/g, '&quot;');
+        const logJson = JSON.stringify({ mountain: logData.mountain || '', height: logData.height || 0, coords: logData.coords || null, isTop100: logData.isTop100 || false, isBAC: logData.isBAC || false, region: logData.region || '기타' }).replace(/"/g, '&quot;');
         area.innerHTML += `<div class="log-item-box" onclick="selectLogToMap('${logJson}')">
         <div class="log-info-group"><span class="log-date-txt">${dateStr}</span><span class="log-mt-txt">${logData.isBAC ? '<span class="bac-txt">BAC</span>' : ''}${logData.mountain || '기록'}</span>
         <div class="flex items-center gap-1">
@@ -1110,13 +1140,13 @@ window.selectLogToMap = (logDataStr) => {
     document.getElementById('mountainHeight').value = log.height;
     document.getElementById('isTop100Check').checked = log.isTop100;
     document.getElementById('isBACCheck').checked = log.isBAC || false;
+    document.getElementById('adminManualRegionSelect').value = log.region || '기타';
     toggleMarkerStyle();
     if (log.coords) {
         tempCoord = log.coords;
         const marker = document.getElementById('adminMapMarker');
         marker.style.left = log.coords.x + "%"; marker.style.top = log.coords.y + "%";
         marker.classList.remove('hidden');
-        document.getElementById('coordDisplay').innerText = `좌표: X ${tempCoord.x} / Y ${tempCoord.y} (${getRegionFromCoord(tempCoord)})`;
     }
 };
 
@@ -1128,8 +1158,9 @@ window.updateLogHeight = async (mId, logId) => {
 
 window.updateLogCoord = async (mId, logId) => {
     if(!tempCoord) return alert("지도를 클릭하여 좌표를 먼저 설정하세요.");
-    await updateDoc(doc(db, `sanwoori/${mId}/logs`, logId), { coords: tempCoord });
-    alert("좌표 수정 완료!"); loadMemberLogs(); 
+    const region = document.getElementById('adminManualRegionSelect').value;
+    await updateDoc(doc(db, `sanwoori/${mId}/logs`, logId), { coords: tempCoord, region });
+    alert("좌표 및 지역 수정 완료!"); loadMemberLogs(); 
 };
 
 window.deleteLog = async (mId, logId, shouldDownLevel) => {
