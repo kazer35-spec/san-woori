@@ -762,7 +762,8 @@ let totalH = 0; let mapHtml = "";
 snapAll.forEach(doc => {
 const log = doc.data();
 totalH += (log.height || 0);
-if(log.coords) {
+// 좌표 데이터가 유효할 때만 마커 생성 (x, y가 0이 아니거나 존재할 때)
+if(log.coords && log.coords.x > 0 && log.coords.y > 0) {
     const blueClass = log.isTop100 ? 'top-100' : '';
     mapHtml += `<div class="map-point ${blueClass}" style="left:${log.coords.x}%; top:${log.coords.y}%;"></div>`;
 }
@@ -897,15 +898,38 @@ snap.forEach(ld => {
 const d = ld.data().date.toDate();
 const logData = ld.data();
 const dateStr = `${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()}`;
-area.innerHTML += `<div class="log-item-box">
+// 기록을 클릭하면 지도의 마커를 업데이트하고 산 정보를 불러오는 기능 추가
+const loadLogToAdmin = `loadLogToAdminView('${logData.mountain || ""}', ${logData.height || 0}, ${logData.isTop100 || false}, ${logData.coords ? JSON.stringify(logData.coords) : 'null'})`;
+
+area.innerHTML += `<div class="log-item-box" onclick="${loadLogToAdmin}" style="cursor:pointer; border-left:4px solid #facc15">
 <div class="log-info-group"><span class="log-date-txt">${dateStr}</span><span class="log-mt-txt">${logData.mountain || '기록'}</span>
 <div class="flex items-center gap-1">
-<input type="number" id="h-${ld.id}" value="${logData.height || 0}" class="log-height-input border rounded-md outline-none">
-<button onclick="updateLogHeight('${id}', '${ld.id}')" class="text-[9px] bg-slate-200 px-1 py-1 rounded font-black">높이수정</button>
-<button onclick="updateLogCoord('${id}', '${ld.id}')" class="text-[9px] bg-emerald-500 text-white px-1 py-1 rounded font-black">좌표수정</button>
+<input type="number" id="h-${ld.id}" value="${logData.height || 0}" class="log-height-input border rounded-md outline-none" onclick="event.stopPropagation()">
+<button onclick="event.stopPropagation(); updateLogHeight('${id}', '${ld.id}')" class="text-[9px] bg-slate-200 px-1 py-1 rounded font-black">높이수정</button>
+<button onclick="event.stopPropagation(); updateLogCoord('${id}', '${ld.id}')" class="text-[9px] bg-emerald-500 text-white px-1 py-1 rounded font-black">좌표수정</button>
 </div></div>
-<div class="log-btn-group"><button class="del-btn-mini" onclick="deleteLog('${id}', '${ld.id}', true)">레벨-1 삭제</button><button class="del-only-btn-mini" onclick="deleteLog('${id}', '${ld.id}', false)">기록만 삭제</button></div></div>`;
+<div class="log-btn-group"><button class="del-btn-mini" onclick="event.stopPropagation(); deleteLog('${id}', '${ld.id}', true)">레벨-1 삭제</button><button class="del-only-btn-mini" onclick="event.stopPropagation(); deleteLog('${id}', '${ld.id}', false)">기록만 삭제</button></div></div>`;
 });
+};
+
+// 기록 선택 시 관리자 설정창에 데이터 로드
+window.loadLogToAdminView = (mName, height, isTop, coords) => {
+    document.getElementById('mountainName').value = mName;
+    document.getElementById('mountainHeight').value = height;
+    document.getElementById('isTop100Check').checked = isTop;
+    const marker = document.getElementById('adminMapMarker');
+    if(coords && coords.x > 0 && coords.y > 0) {
+        tempCoord = coords;
+        marker.style.left = coords.x + "%";
+        marker.style.top = coords.y + "%";
+        marker.classList.remove('hidden');
+        document.getElementById('coordDisplay').innerText = `선택한 기록 좌표: ${mName}`;
+        toggleTop100Mode();
+    } else {
+        tempCoord = null;
+        marker.classList.add('hidden');
+        document.getElementById('coordDisplay').innerText = `좌표 정보 없음 (지도 클릭)`;
+    }
 };
 
 window.updateLogHeight = async (mId, logId) => {
