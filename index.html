@@ -243,6 +243,7 @@ td { padding: 12px 0; text-align: center; vertical-align: middle; position: rela
 .timeline-dot { position: absolute; left: -16px; top: 4px; width: 6px; height: 6px; background: #3b82f6; border: 1.5px solid white; border-radius: 50%; z-index: 1; }
 .timeline-date { font-size: 0.65rem; font-weight: 800; color: #1e293b; }
 .timeline-desc { font-size: 0.55rem; color: #64748b; }
+.bac-txt { color: #ef4444; font-weight: 900; margin-right: 2px; }
 
 .height-badge { font-size: 10px; font-weight: 900; color: #059669; background: #ecfdf5; border: 1px solid #10b981; padding: 2px 6px; border-radius: 8px; cursor: pointer; }
 
@@ -397,10 +398,16 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 <div class="bg-indigo-50 p-3 rounded-xl border border-indigo-100 mb-2">
 <div class="flex items-center justify-between mb-2">
     <p class="text-[10px] font-black text-indigo-400">⛰️ 산 정보 및 좌표 설정</p>
-    <label class="flex items-center gap-1 cursor-pointer whitespace-nowrap">
-        <input type="checkbox" id="isTop100Check" onchange="toggleTop100Mode()" class="w-3.5 h-3.5">
-        <span class="text-[10px] font-black text-blue-600">산림청 100대명산</span>
-    </label>
+    <div class="flex gap-2">
+        <label class="flex items-center gap-1 cursor-pointer whitespace-nowrap">
+            <input type="checkbox" id="isTop100Check" onchange="toggleMarkerStyle()" class="w-3.5 h-3.5">
+            <span class="text-[10px] font-black text-blue-600">100대명산</span>
+        </label>
+        <label class="flex items-center gap-1 cursor-pointer whitespace-nowrap">
+            <input type="checkbox" id="isBACCheck" class="w-3.5 h-3.5">
+            <span class="text-[10px] font-black text-red-500">BAC인증지</span>
+        </label>
+    </div>
 </div>
 <input type="text" id="mountainName" onblur="autoFindCoords()" placeholder="등산한 산 이름 (예: 관악산)" class="mb-2 h-9 text-xs">
 <div class="flex gap-2 mb-2">
@@ -746,7 +753,8 @@ if(logsAll.length === 0) { container.innerHTML = "<p class='text-center text-[10
 container.innerHTML = logsAll.map(log => {
 const dayName = ['일','월','화','수','목','금','토'][log.date.getDay()];
 const top100Class = log.isTop100 ? 'text-blue-600 font-black' : '';
-return `<div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-date">${log.date.getFullYear()}.${log.date.getMonth()+1}.${log.date.getDate()} (${dayName})</div><div class="timeline-desc ${top100Class}">${log.mountain || '기록'} (${log.height || 0}m) ${log.isTop100 ? '⭐' : '✔️'}</div></div>`;
+const bacTag = log.isBAC ? '<span class="bac-txt">BAC</span>' : '';
+return `<div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-date">${log.date.getFullYear()}.${log.date.getMonth()+1}.${log.date.getDate()} (${dayName})</div><div class="timeline-desc ${top100Class}">${bacTag}${log.mountain || '기록'} (${log.height || 0}m) ${log.isTop100 ? '⭐' : '✔️'}</div></div>`;
 }).join('');
 } catch (e) { container.innerHTML = "<p class='text-center text-xs text-red-400'>실패</p>"; }
 };
@@ -787,7 +795,7 @@ marker.classList.remove('hidden');
 document.getElementById('coordDisplay').innerText = `좌표: X ${tempCoord.x} / Y ${tempCoord.y}`;
 };
 
-window.toggleTop100Mode = () => {
+window.toggleMarkerStyle = () => {
     const isTop100 = document.getElementById('isTop100Check').checked;
     const marker = document.getElementById('adminMapMarker');
     if(isTop100) marker.classList.add('top-100');
@@ -803,7 +811,8 @@ const d = snap.data();
 tempCoord = { x: d.x, y: d.y };
 document.getElementById('mountainHeight').value = d.height || "";
 document.getElementById('isTop100Check').checked = d.isTop100 || false;
-toggleTop100Mode();
+document.getElementById('isBACCheck').checked = d.isBAC || false;
+toggleMarkerStyle();
 const marker = document.getElementById('adminMapMarker');
 marker.style.left = d.x + "%"; marker.style.top = d.y + "%";
 marker.classList.remove('hidden');
@@ -815,11 +824,12 @@ window.globalSyncMountainInfo = async () => {
     const mName = document.getElementById('mountainName').value.trim();
     const height = parseInt(document.getElementById('mountainHeight').value) || 0;
     const isTop100 = document.getElementById('isTop100Check').checked;
+    const isBAC = document.getElementById('isBACCheck').checked;
     if(!mName || !tempCoord) return alert("산 이름과 좌표를 먼저 설정해주세요.");
     if(!confirm(`[${mName}] 정보를 수정하시겠습니까? \n해당 산을 등반한 모든 회원의 기록이 일괄 변경됩니다.`)) return;
 
     try {
-        await setDoc(doc(db, "mountains", mName), { ...tempCoord, height, isTop100 }, { merge: true });
+        await setDoc(doc(db, "mountains", mName), { ...tempCoord, height, isTop100, isBAC }, { merge: true });
         const membersSnap = await getDocs(collection(db, "sanwoori"));
         let updateCount = 0;
         for (const mDoc of membersSnap.docs) {
@@ -827,7 +837,7 @@ window.globalSyncMountainInfo = async () => {
             if (!logsSnap.empty) {
                 const batch = writeBatch(db);
                 logsSnap.forEach(ldoc => {
-                    batch.update(ldoc.ref, { height: height, coords: tempCoord, isTop100: isTop100 });
+                    batch.update(ldoc.ref, { height: height, coords: tempCoord, isTop100: isTop100, isBAC: isBAC });
                     updateCount++;
                 });
                 await batch.commit();
@@ -866,11 +876,12 @@ const dateVal = document.getElementById('activityDate').value;
 const mName = document.getElementById('mountainName').value.trim();
 const height = parseInt(document.getElementById('mountainHeight').value) || 0;
 const isTop100 = document.getElementById('isTop100Check').checked;
+const isBAC = document.getElementById('isBACCheck').checked;
 if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜를 확인해주세요.");
 const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
 const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
 
-if(mName && tempCoord) await setDoc(doc(db, "mountains", mName), { ...tempCoord, height, isTop100 }, { merge: true });
+if(mName && tempCoord) await setDoc(doc(db, "mountains", mName), { ...tempCoord, height, isTop100, isBAC }, { merge: true });
 
 for(const id of selectedMemberIds){
 const mRef = doc(db, "sanwoori", id); const mS = await getDoc(mRef);
@@ -878,14 +889,15 @@ let updateData = { level: increment(up) };
 if(!mS.data().lastDate || ts.toMillis() > mS.data().lastDate.toMillis()) updateData.lastDate = ts;
 await updateDoc(mRef, updateData);
 for(let i=0; i < up; i++) {
-await addDoc(collection(db, `sanwoori/${id}/logs`), { date: ts, mountain: mName, height: height, coords: tempCoord, isTop100: isTop100 });
+await addDoc(collection(db, `sanwoori/${id}/logs`), { date: ts, mountain: mName, height: height, coords: tempCoord, isTop100: isTop100, isBAC: isBAC });
 }
 }
 alert("저장 완료!");
 selectedMemberIds.clear(); tempCoord = null;
 document.getElementById('adminMapMarker').classList.add('hidden');
 document.getElementById('mountainName').value = ""; document.getElementById('mountainHeight').value = "";
-document.getElementById('isTop100Check').checked = false; toggleTop100Mode();
+document.getElementById('isTop100Check').checked = false; document.getElementById('isBACCheck').checked = false;
+toggleMarkerStyle();
 updateAdminMemberLists();
 };
 
@@ -899,16 +911,16 @@ const d = ld.data().date.toDate();
 const logData = ld.data();
 const dateStr = `${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()}`;
 
-// 기록 객체를 문자열로 안전하게 전달하기 위해 JSON 사용
 const logJson = JSON.stringify({ 
     mountain: logData.mountain || '', 
     height: logData.height || 0, 
     coords: logData.coords || null, 
-    isTop100: logData.isTop100 || false 
+    isTop100: logData.isTop100 || false,
+    isBAC: logData.isBAC || false
 }).replace(/"/g, '&quot;');
 
 area.innerHTML += `<div class="log-item-box" onclick="selectLogToMap('${logJson}')">
-<div class="log-info-group"><span class="log-date-txt">${dateStr}</span><span class="log-mt-txt">${logData.mountain || '기록'}</span>
+<div class="log-info-group"><span class="log-date-txt">${dateStr}</span><span class="log-mt-txt">${logData.isBAC ? '<span class="bac-txt">BAC</span>' : ''}${logData.mountain || '기록'}</span>
 <div class="flex items-center gap-1">
 <input type="number" id="h-${ld.id}" value="${logData.height || 0}" class="log-height-input border rounded-md outline-none" onclick="event.stopPropagation()">
 <button onclick="event.stopPropagation(); updateLogHeight('${id}', '${ld.id}')" class="text-[9px] bg-slate-200 px-1 py-1 rounded font-black">높이수정</button>
@@ -921,26 +933,23 @@ area.innerHTML += `<div class="log-item-box" onclick="selectLogToMap('${logJson}
 });
 };
 
-// [추가된 기능] 기록 선택 시 좌표 찍기/지우기
 window.selectLogToMap = (logDataStr) => {
     const log = JSON.parse(logDataStr.replace(/&quot;/g, '"'));
     const marker = document.getElementById('adminMapMarker');
     
-    // 산 이름과 높이 입력창 업데이트
     document.getElementById('mountainName').value = log.mountain;
     document.getElementById('mountainHeight').value = log.height;
     document.getElementById('isTop100Check').checked = log.isTop100;
-    toggleTop100Mode();
+    document.getElementById('isBACCheck').checked = log.isBAC || false;
+    toggleMarkerStyle();
 
     if (log.coords && log.coords.x !== undefined) {
-        // 좌표가 있는 경우 마커 표시
         tempCoord = log.coords;
         marker.style.left = log.coords.x + "%";
         marker.style.top = log.coords.y + "%";
         marker.classList.remove('hidden');
         document.getElementById('coordDisplay').innerText = `기록 좌표: X ${log.coords.x} / Y ${log.coords.y}`;
     } else {
-        // 좌표가 없는 경우 마커 숨기기 및 tempCoord 초기화
         tempCoord = null;
         marker.classList.add('hidden');
         document.getElementById('coordDisplay').innerText = `좌표 정보 없음 (지도 클릭하여 설정)`;
@@ -958,7 +967,7 @@ window.updateLogCoord = async (mId, logId) => {
     if(!confirm("현재 선택된 좌표로 이 기록의 위치를 변경하시겠습니까?")) return;
     await updateDoc(doc(db, `sanwoori/${mId}/logs`, logId), { coords: tempCoord });
     alert("기록 좌표 수정 완료!"); 
-    loadMemberLogs(); // 목록 새로고침하여 반영 확인
+    loadMemberLogs(); 
 };
 
 window.deleteLog = async (mId, logId, shouldDownLevel) => {
