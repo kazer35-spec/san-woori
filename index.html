@@ -237,9 +237,27 @@ td { padding: 12px 0; text-align: center; vertical-align: middle; position: rela
 .guide-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .guide-item { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 10px 5px; border-radius: 15px; border: 1px solid #f1f5f9; background: #fafafa; }
 
+/* 명예의 전당 추가 스타일 */
+.hall-of-fame-btn { width: 32px; height: 32px; border-radius: 50%; background: #fff; border: 1.5px solid #facc15; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; cursor: pointer; transition: 0.2s; box-shadow: 0 2px 5px rgba(250, 204, 21, 0.2); }
+.hall-of-fame-btn:hover { transform: scale(1.1); background: #fefce8; }
+.hall-card { background: #f8fafc; border-radius: 20px; padding: 16px; margin-bottom: 12px; border: 1px solid #e2e8f0; }
+.hall-season-title { font-size: 0.8rem; font-weight: 900; color: #64748b; margin-bottom: 10px; padding-left: 4px; border-left: 3px solid #3b82f6; }
+.hall-rank-flex { display: flex; justify-content: space-between; gap: 8px; }
+.hall-rank-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 4px; border-radius: 16px; background: white; border: 1px solid #f1f5f9; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+.hall-rank-name { font-size: 0.75rem; font-weight: 900; color: #1e293b; }
+.hall-rank-label { font-size: 0.6rem; font-weight: 900; }
+
+@keyframes gold-shine { 0% { text-shadow: 0 0 2px #facc15; } 50% { text-shadow: 0 0 10px #facc15, 0 0 20px #fbbf24; } 100% { text-shadow: 0 0 2px #facc15; } }
+@keyframes silver-shine { 0% { text-shadow: 0 0 2px #94a3b8; } 50% { text-shadow: 0 0 10px #94a3b8, 0 0 20px #cbd5e1; } 100% { text-shadow: 0 0 2px #94a3b8; } }
+@keyframes bronze-shine { 0% { text-shadow: 0 0 2px #a36a00; } 50% { text-shadow: 0 0 10px #a36a00, 0 0 20px #d97706; } 100% { text-shadow: 0 0 2px #a36a00; } }
+
+.glow-gold { color: #eab308; animation: gold-shine 1.5s infinite; }
+.glow-silver { color: #64748b; animation: silver-shine 1.5s infinite; }
+.glow-bronze { color: #92400e; animation: bronze-shine 1.5s infinite; }
+
 /* 타임라인 레이아웃 최적화: 6개 노출 후 스크롤 */
 .timeline-scroll-area { 
-    max-height: 220px; /* 대략 산행 기록 6개 높이 */
+    max-height: 220px; 
     overflow-y: auto; 
     background: #f8fafc; 
     padding: 12px; 
@@ -286,7 +304,7 @@ td { padding: 12px 0; text-align: center; vertical-align: middle; position: rela
 .everest-progress-bar { height: 100%; background: linear-gradient(90deg, #3b82f6, #60a5fa); border-radius: 10px; transition: width 1s ease-out; }
 .everest-icon-bg { position: absolute; right: -5px; bottom: -5px; font-size: 2rem; opacity: 0.1; transform: rotate(-15deg); }
 
-/* 지역 점유율 UI (지도 옆 버튼 및 모달 레이아웃 전용) */
+/* 지역 점유율 UI */
 .conquer-header-box { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #f1f5f9; }
 .conquer-title { font-size: 0.8rem; font-weight: 900; color: #1e293b; display: flex; align-items: center; gap: 4px; }
 .conquer-grid { display: grid; grid-template-columns: 1fr; gap: 8px; padding-right: 4px; }
@@ -298,11 +316,9 @@ td { padding: 12px 0; text-align: center; vertical-align: middle; position: rela
 .conquer-bar-fill { height: 100%; background: linear-gradient(90deg, #10b981, #3b82f6); border-radius: 10px; transition: width 0.8s ease-out; }
 .conquer-count-badge { font-size: 0.6rem; color: #94a3b8; font-weight: 800; margin-left: 6px; }
 
-/* 점유율 창 전환 스타일 */
 #mapViewMain, #mapViewStats { transition: opacity 0.3s; }
 .hidden-view { display: none; }
 
-/* 관리자 지역 선택용 스타일 */
 .region-select-mini {
     height: 32px !important;
     font-size: 11px !important;
@@ -329,10 +345,13 @@ td { padding: 12px 0; text-align: center; vertical-align: middle; position: rela
 <span>산:우리</span>
 <span class="slogan-txt">같이 걷는 즐거움</span>
 </h1>
-<select id="yearSelect" onchange="changeYear()" class="year-select-custom outline-none">
-<option value="2026">2026년</option>
-<option value="2027">2027년</option>
-</select>
+<div class="flex items-center gap-2">
+    <button onclick="toggleHallModal(true)" class="hall-of-fame-btn">🏆</button>
+    <select id="yearSelect" onchange="changeYear()" class="year-select-custom outline-none">
+    <option value="2026">2026년</option>
+    <option value="2027">2027년</option>
+    </select>
+</div>
 </div>
 
 <div class="flex gap-2 mb-3 h-10 items-center">
@@ -544,6 +563,38 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 </div>
 </div>
 
+<div id="hallModal" class="modal-overlay" onclick="toggleHallModal(false)">
+<div class="modal-content !p-5 !max-w-[440px]" onclick="event.stopPropagation()">
+    <div class="text-center mb-6">
+        <h2 class="text-xl font-black text-slate-800 flex items-center justify-center gap-2">
+            🏆 명예의 전당
+        </h2>
+        <p class="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-widest">Hall of Fame - San:Woori</p>
+    </div>
+    
+    <div id="hallListArea">
+        <div class="hall-card">
+            <div class="hall-season-title">2025년 4분기 (Season 1)</div>
+            <div class="hall-rank-flex">
+                <div class="hall-rank-item">
+                    <span class="hall-rank-label glow-gold">🥇산신령</span>
+                    <span class="hall-rank-name">아랑</span>
+                </div>
+                <div class="hall-rank-item">
+                    <span class="hall-rank-label glow-silver">🥈심마니</span>
+                    <span class="hall-rank-name">용삼</span>
+                </div>
+                <div class="hall-rank-item">
+                    <span class="hall-rank-label glow-bronze">🥉나무꾼</span>
+                    <span class="hall-rank-name">우진</span>
+                </div>
+            </div>
+        </div>
+        </div>
+    <button onclick="toggleHallModal(false)" class="w-full mt-4 py-3 bg-gray-100 text-gray-600 rounded-2xl font-black text-sm">닫기</button>
+</div>
+</div>
+
 <div id="timelineModal" class="modal-overlay" onclick="toggleTimelineModal(false)">
 <div id="timelineModalContent" class="modal-content !p-5 !rounded-3xl" onclick="event.stopPropagation()">
 <div class="flex justify-between items-center mb-3">
@@ -632,7 +683,6 @@ appId: "1:387585514110:web:44749e6d92769fff6ad62f"
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// 전역 변수
 let isAdminLoggedIn = false;
 let currentData = [];
 let subRoomsData = [];
@@ -854,6 +904,64 @@ list.innerHTML += `<tr class="${m.isHidden ? 'opacity-40' : ''}">
 });
 };
 
+// 명예의 전당 모달 토글 및 렌더링
+window.toggleHallModal = async (show) => {
+    const modal = document.getElementById('hallModal');
+    modal.style.display = show ? 'flex' : 'none';
+    if(show) {
+        const listArea = document.getElementById('hallListArea');
+        // 기본 25년 4분기 데이터 유지
+        let baseHtml = `
+        <div class="hall-card">
+            <div class="hall-season-title">2025년 4분기 (Season 1)</div>
+            <div class="hall-rank-flex">
+                <div class="hall-rank-item">
+                    <span class="hall-rank-label glow-gold">🥇산신령</span>
+                    <span class="hall-rank-name">아랑</span>
+                </div>
+                <div class="hall-rank-item">
+                    <span class="hall-rank-label glow-silver">🥈심마니</span>
+                    <span class="hall-rank-name">용삼</span>
+                </div>
+                <div class="hall-rank-item">
+                    <span class="hall-rank-label glow-bronze">🥉나무꾼</span>
+                    <span class="hall-rank-name">우진</span>
+                </div>
+            </div>
+        </div>`;
+
+        // 2026년 이후 데이터는 현재 currentData 기반 실시간 자동 생성 (선택된 년도/분기 기준 상위 3명)
+        const top3 = [...currentData]
+            .filter(m => !m.isHidden && m.name !== "오즈" && m.qCount > 0)
+            .sort((a,b) => b.qCount - a.qCount || b.level - a.level)
+            .slice(0, 3);
+
+        if(top3.length > 0) {
+            baseHtml += `
+            <div class="hall-card border-blue-100 bg-blue-50/30">
+                <div class="hall-season-title">${selectedYear}년 ${selectedQuarter}분기 (진행 중)</div>
+                <div class="hall-rank-flex">
+                    <div class="hall-rank-item">
+                        <span class="hall-rank-label glow-gold">🥇산신령</span>
+                        <span class="hall-rank-name">${top3[0]?.name || '-'}</span>
+                    </div>
+                    ${top3[1] ? `
+                    <div class="hall-rank-item">
+                        <span class="hall-rank-label glow-silver">🥈심마니</span>
+                        <span class="hall-rank-name">${top3[1].name}</span>
+                    </div>` : ''}
+                    ${top3[2] ? `
+                    <div class="hall-rank-item">
+                        <span class="hall-rank-label glow-bronze">🥉나무꾼</span>
+                        <span class="hall-rank-name">${top3[2].name}</span>
+                    </div>` : ''}
+                </div>
+            </div>`;
+        }
+        listArea.innerHTML = baseHtml;
+    }
+};
+
 window.showMemberTimeline = async (mId, mName) => {
     toggleTimelineModal(true);
     document.getElementById('timelineModalContent').scrollTop = 0;
@@ -903,7 +1011,6 @@ window.toggleMapView = () => {
     const main = document.getElementById('mapViewMain');
     const stats = document.getElementById('mapViewStats');
     const btn = document.getElementById('toggleConquerView');
-    
     if (main.classList.contains('hidden-view')) {
         main.classList.remove('hidden-view');
         stats.classList.add('hidden-view');
@@ -924,18 +1031,12 @@ window.showMemberMap = async (mId, mName) => {
     document.getElementById('mapModalContent').scrollTop = 0;
     document.getElementById('mapViewMain').classList.remove('hidden-view');
     document.getElementById('mapViewStats').classList.add('hidden-view');
-    document.getElementById('toggleConquerView').innerText = "🎖 지역 점유율 보기";
-
     document.getElementById('mapMemberName').innerText = mName;
     const pointsBoard = document.getElementById('conquerMapPoints');
     const regionBoard = document.getElementById('conquerRegionGrid');
     pointsBoard.innerHTML = ""; regionBoard.innerHTML = "";
-
     const snapAll = await getDocs(collection(db, `sanwoori/${mId}/logs`));
-    let totalH = 0; let mapHtml = "";
-    let regionCounts = {};
-    let validLogsCount = 0;
-
+    let totalH = 0; let mapHtml = ""; let regionCounts = {}; let validLogsCount = 0;
     snapAll.forEach(doc => {
         const log = doc.data();
         totalH += (log.height || 0);
@@ -947,28 +1048,17 @@ window.showMemberMap = async (mId, mName) => {
             regionCounts[rName] = (regionCounts[rName] || 0) + 1;
         }
     });
-
     document.getElementById('mapTotalHeight').innerText = totalH.toLocaleString();
     document.getElementById('totalConquerCount').innerText = validLogsCount;
     pointsBoard.innerHTML = mapHtml;
-
     const sortedRegions = Object.entries(regionCounts).sort((a,b) => b[1] - a[1]);
-    if(sortedRegions.length === 0) {
-        regionBoard.innerHTML = "<p class='text-center text-[10px] py-10 text-gray-400'>좌표 기록이 없습니다.</p>";
-    } else {
+    if(sortedRegions.length === 0) regionBoard.innerHTML = "<p class='text-center text-[10px] py-10 text-gray-400'>좌표 기록이 없습니다.</p>";
+    else {
         regionBoard.innerHTML = sortedRegions.map(([name, count]) => {
             const percent = ((count / validLogsCount) * 100).toFixed(1);
-            return `
-            <div class="conquer-item">
-                <div class="conquer-item-info">
-                    <span class="conquer-region-name">${name}<span class="conquer-count-badge">${count}회</span></span>
-                    <span class="conquer-region-percent">${percent}%</span>
-                </div>
-                <div class="conquer-bar-bg"><div class="conquer-bar-fill" style="width:${percent}%"></div></div>
-            </div>`;
+            return `<div class="conquer-item"><div class="conquer-item-info"><span class="conquer-region-name">${name}<span class="conquer-count-badge">${count}회</span></span><span class="conquer-region-percent">${percent}%</span></div><div class="conquer-bar-bg"><div class="conquer-bar-fill" style="width:${percent}%"></div></div></div>`;
         }).join('');
     }
-
     const globalTotalH = currentData.reduce((acc, m) => acc + (m.totalHeight || 0), 0);
     document.getElementById('mapGlobalTotalHeight').innerText = globalTotalH.toLocaleString();
     const conquestCount = (globalTotalH / 8848).toFixed(1);
@@ -984,11 +1074,9 @@ window.setAdminCoordinate = (event) => {
     const x = ((event.clientX - rect.left) / rect.width) * 100;
     const y = ((event.clientY - rect.top) / rect.height) * 100;
     tempCoord = { x: parseFloat(x.toFixed(2)), y: parseFloat(y.toFixed(2)) };
-    
     const marker = document.getElementById('adminMapMarker');
     marker.style.left = x + "%"; marker.style.top = y + "%";
     marker.classList.remove('hidden');
-    
     const detectedRegion = getRegionFromCoord(tempCoord);
     document.getElementById('adminManualRegionSelect').value = detectedRegion;
     document.getElementById('coordDisplay').innerText = `좌표: X ${tempCoord.x} / Y ${tempCoord.y} (${detectedRegion})`;
@@ -1027,10 +1115,8 @@ window.globalSyncMountainInfo = async () => {
     const isTop100 = document.getElementById('isTop100Check').checked;
     const isBAC = document.getElementById('isBACCheck').checked;
     const region = document.getElementById('adminManualRegionSelect').value;
-    
     if(!mName || !tempCoord) return alert("산 이름과 좌표를 먼저 설정해주세요.");
     if(!confirm(`[${mName}] 정보를 일괄 수정하시겠습니까?`)) return;
-
     try {
         await setDoc(doc(db, "mountains", mName), { x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region }, { merge: true });
         const membersSnap = await getDocs(collection(db, "sanwoori"));
@@ -1079,13 +1165,10 @@ window.addMultiActivity = async () => {
     const isTop100 = document.getElementById('isTop100Check').checked;
     const isBAC = document.getElementById('isBACCheck').checked;
     const region = document.getElementById('adminManualRegionSelect').value;
-    
     if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜를 확인해주세요.");
     const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
     const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
-
     if(mName && tempCoord) await setDoc(doc(db, "mountains", mName), { x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region }, { merge: true });
-
     for(const id of selectedMemberIds){
         const mRef = doc(db, "sanwoori", id);
         await updateDoc(mRef, { level: increment(up), lastDate: ts });
