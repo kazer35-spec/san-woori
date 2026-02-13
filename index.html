@@ -267,20 +267,20 @@ padding-right: 4px;
 
 /* 타임라인 레이아웃 최적화 */
 .timeline-scroll-area { 
-max-height: 250px; 
+max-height: 450px; /* 일지 약 10개 높이로 조정 */
 overflow-y: auto; 
 background: #f8fafc; 
-padding: 12px; 
+padding: 16px; 
 border-radius: 16px; 
 border: 1px solid #f1f5f9;
 }
 .timeline-container { position: relative; padding-left: 20px; }
 .timeline-container::before { content: ''; position: absolute; left: 8px; top: 4px; bottom: 4px; width: 1.5px; background: #e2e8f0; }
-.timeline-item { position: relative; margin-bottom: 12px; }
+.timeline-item { position: relative; margin-bottom: 16px; }
 .timeline-dot { position: absolute; left: -16px; top: 4px; width: 6px; height: 6px; background: #3b82f6; border: 1.5px solid white; border-radius: 50%; z-index: 1; }
-.timeline-date { font-size: 0.65rem; font-weight: 800; color: #1e293b; line-height: 1; margin-bottom: 3px; }
-.timeline-desc { font-size: 0.6rem; color: #64748b; font-weight: 600; line-height: 1.2; }
-.bac-txt { color: #ef4444; font-weight: 900; margin-right: 2px; }
+.timeline-date { font-size: 0.7rem; font-weight: 800; color: #1e293b; line-height: 1; margin-bottom: 5px; }
+.timeline-desc { font-size: 0.75rem; color: #334155; font-weight: 700; line-height: 1.3; }
+.bac-txt { color: #ef4444; font-weight: 900; margin-right: 4px; }
 
 .height-badge { font-size: 10px; font-weight: 900; color: #059669; background: #ecfdf5; border: 1px solid #10b981; padding: 2px 6px; border-radius: 8px; cursor: pointer; }
 
@@ -633,7 +633,6 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 </h2>
 <p class="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-widest">Hall of Fame - San:Woori</p>
 </div>
-
 <div id="hallListArea" class="hall-scroll-area"></div>
 <button onclick="toggleHallModal(false)" class="w-full mt-4 py-3 bg-gray-100 text-gray-600 rounded-2xl font-black text-sm">닫기</button>
 </div>
@@ -675,7 +674,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 </div>
 
 <div id="logPopup" class="log-popup-overlay" onclick="toggleLogPopup(false)">
-    <div class="modal-content !max-h-[70vh] !p-6" onclick="event.stopPropagation()">
+    <div class="modal-content !max-h-[80vh] !p-6" onclick="event.stopPropagation()">
         <div class="flex justify-between items-center mb-4">
             <h3 class="text-base font-black text-slate-800">📜 최근 산행 일지</h3>
             <button onclick="toggleLogPopup(false)" class="text-gray-400 text-xl font-bold">&times;</button>
@@ -689,13 +688,11 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 
 <div id="mapModal" class="modal-overlay" onclick="toggleMapModal(false)">
 <div id="mapModalContent" class="modal-content !p-5 !rounded-3xl" onclick="event.stopPropagation()">
-
 <div class="flex justify-between items-center mb-4 gap-3">
 <div class="flex-shrink-0">
 <h2 class="text-lg font-black text-slate-800"><span id="mapMemberName" class="text-emerald-600"></span> 님</h2>
 <p class="text-[10px] font-bold text-slate-400">Conquest Map</p>
 </div>
-
 <div class="everest-card-mini flex-1">
 <div id="everestTextLine" class="everest-count-mini">
 우리는 🏔️ 에베레스트를 <span id="everestCount" class="text-sky-600">0.0</span>회 정복하였습니다
@@ -712,7 +709,6 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 <div id="conquerMapPoints"></div>
 <div class="map-source-txt">출처: 산림청</div>
 </div>
-
 <div class="grid grid-cols-2 gap-2 mb-2">
 <div class="bg-emerald-50 p-3 rounded-xl border border-emerald-100 text-center">
 <p class="text-[9px] font-bold text-emerald-600">개인 정복 높이</p>
@@ -723,7 +719,6 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 <p class="text-base font-black text-blue-700"><span id="mapGlobalTotalHeight">0</span> m</p>
 </div>
 </div>
-
 <div class="conquer-dark-card cursor-pointer" onclick="toggleMapView()">
 <div class="conquer-header-box">
 <div class="conquer-title">🎖 지역 점유율 통계</div>
@@ -745,7 +740,6 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 <div id="conquerRegionGrid" class="conquer-grid max-h-[380px] overflow-y-auto pr-1"></div>
 </div>
 </div>
-
 <button onclick="toggleMapModal(false)" class="w-full py-3 mt-5 bg-gray-100 text-gray-600 rounded-2xl font-black text-sm transition-colors hover:bg-gray-200">닫기</button>
 </div>
 </div>
@@ -1107,7 +1101,6 @@ async function calculateGrowthData(mId) {
     const labels = [];
     const counts = [];
     const heights = [];
-    const avgCounts = [];
     const peaks = []; 
 
     for (let i = 3; i >= 0; i--) {
@@ -1130,22 +1123,12 @@ async function calculateGrowthData(mId) {
             const data = d.data();
             if(data.height > maxH) {
                 maxH = data.height;
-                peakName = data.mountain || "산행";
+                peakName = data.mountain || "기록";
             }
         });
         peaks.push(peakName);
-
-        let totalQCount = 0;
-        let activeMembers = 0;
-        currentData.forEach(m => {
-            if(q === selectedQuarter && y === selectedYear) {
-                totalQCount += m.qCount;
-                if(m.qCount > 0) activeMembers++;
-            }
-        });
-        avgCounts.push(activeMembers > 0 ? (totalQCount / activeMembers).toFixed(1) : 2);
     }
-    return { labels, counts, heights, avgCounts, peaks };
+    return { labels, counts, heights, peaks };
 }
 
 function renderGrowthChart(data) {
@@ -1186,38 +1169,28 @@ function renderGrowthChart(data) {
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    backgroundColor: 'rgba(0,0,0,0.8)',
-                    padding: 10,
-                    titleFont: { size: 11, weight: 'bold' },
-                    bodyFont: { size: 10 },
+                    backgroundColor: 'rgba(0,0,0,0.85)',
+                    padding: 12,
+                    titleFont: { size: 12, weight: '900' },
+                    bodyFont: { size: 11, weight: '700' },
                     callbacks: {
                         label: function(context) {
                             const idx = context.dataIndex;
                             if(context.datasetIndex === 1) {
                                 return [
-                                    ` 누적 고도: ${context.raw.toLocaleString()}m`,
+                                    ` ⛰️ 누적: ${context.raw.toLocaleString()}m`,
                                     ` 🏔️ 최고봉: ${data.peaks[idx]}`
                                 ];
                             }
-                            return ` 횟수: ${context.raw}회`;
+                            return ` 📈 횟수: ${context.raw}회`;
                         }
                     }
                 }
             },
             scales: {
                 x: { grid: { display: false }, ticks: { font: { size: 10, weight: '800' } } },
-                y: { 
-                    beginAtZero: true, 
-                    position: 'left',
-                    grid: { color: '#f1f5f9' },
-                    ticks: { font: { size: 8 }, stepSize: 2 }
-                },
-                y1: {
-                    beginAtZero: true,
-                    position: 'right',
-                    grid: { display: false },
-                    ticks: { display: false }
-                }
+                y: { beginAtZero: true, position: 'left', grid: { color: '#f1f5f9' }, ticks: { font: { size: 8 } } },
+                y1: { beginAtZero: true, position: 'right', grid: { display: false }, ticks: { display: false } }
             }
         }
     });
