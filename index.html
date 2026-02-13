@@ -234,7 +234,7 @@ box-sizing: border-box;
 .active-q { background: white !important; color: #3b82f6 !important; }
 
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 100; padding: 15px; }
-.modal-content { background: white; border-radius: 24px; width: 100%; max-width: 420px; max-height: 85vh; overflow-y: auto; padding: 16px; position: relative; }
+.modal-content { background: white; border-radius: 24px; width: 100%; max-width: 420px; max-height: 85vh; overflow-y: auto; padding: 16px; }
 .guide-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .guide-item { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 10px 5px; border-radius: 15px; border: 1px solid #f1f5f9; background: #fafafa; }
 
@@ -267,7 +267,7 @@ padding-right: 4px;
 
 /* 타임라인 레이아웃 최적화 */
 .timeline-scroll-area { 
-max-height: 400px; 
+max-height: 220px; 
 overflow-y: auto; 
 background: #f8fafc; 
 padding: 12px; 
@@ -366,10 +366,6 @@ background: white;
 .legend-item { display: flex; align-items: center; gap: 3px; }
 .dot-bar { width: 6px; height: 6px; background: #3b82f6; border-radius: 2px; }
 .dot-line { width: 6px; height: 1.5px; background: #ef4444; }
-
-/* 일지 보기 버튼 전용 */
-.open-log-btn { width: 100%; background: #eff6ff; color: #3b82f6; border: 1.5px solid #dbeafe; padding: 12px; border-radius: 16px; font-weight: 800; font-size: 0.8rem; margin-top: 10px; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; }
-.open-log-btn:active { background: #dbeafe; transform: scale(0.98); }
 </style>
 </head>
 <body>
@@ -621,7 +617,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 
 <div id="timelineModal" class="modal-overlay" onclick="toggleTimelineModal(false)">
 <div id="timelineModalContent" class="modal-content !p-5 !rounded-3xl" onclick="event.stopPropagation()">
-<div class="flex justify-between items-center mb-4">
+<div class="flex justify-between items-center mb-3">
 <div><h2 class="text-lg font-black text-slate-800"><span id="timelineMemberName" class="text-blue-600"></span> 님</h2></div>
 <span id="timelineCountBadge" class="bg-blue-100 text-blue-600 text-[10px] font-black px-2 py-1 rounded-full"></span>
 </div>
@@ -634,7 +630,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 
 <div id="chartBox" class="chart-container-box">
     <div class="chart-header">
-        <div class="chart-title-sub">📊 분기별 성장 데이터</div>
+        <div class="chart-title-sub">📊 분기별 성장 및 최고봉(Peak)</div>
         <div class="chart-legend">
             <div class="legend-item"><span class="dot-bar"></span>횟수</div>
             <div class="legend-item"><span class="dot-line"></span>고도</div>
@@ -645,25 +641,13 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
     </div>
 </div>
 
-<button onclick="toggleLogDetailModal(true)" class="open-log-btn">
-    <span>📜 최근 산행 일지 보기</span>
-    <span id="recentLogCount" class="text-[10px] bg-blue-500 text-white px-2 py-0.5 rounded-full">0</span>
-</button>
-
+<div class="border-t border-dashed border-gray-100 my-3"></div>
+<p class="text-[10px] font-extrabold text-slate-500 mb-2">📜 최근 산행 일지 (최대 30개)</p>
+<div class="timeline-scroll-area">
+<div id="timelineContent" class="timeline-container"></div>
+</div>
 <button onclick="toggleTimelineModal(false)" class="w-full mt-4 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold text-sm">닫기</button>
 </div>
-</div>
-
-<div id="logDetailModal" class="modal-overlay" style="z-index: 110;" onclick="toggleLogDetailModal(false)">
-    <div class="modal-content !p-5 !rounded-3xl !max-w-[400px]" onclick="event.stopPropagation()">
-        <h3 class="text-sm font-black text-slate-800 mb-3 flex items-center gap-2">
-            📜 <span id="logDetailMemberName"></span> 님의 최근 일지
-        </h3>
-        <div class="timeline-scroll-area">
-            <div id="timelineContent" class="timeline-container"></div>
-        </div>
-        <button onclick="toggleLogDetailModal(false)" class="w-full mt-4 py-3 bg-slate-800 text-white rounded-xl font-bold text-sm">확인</button>
-    </div>
 </div>
 
 <div id="mapModal" class="modal-overlay" onclick="toggleMapModal(false)">
@@ -752,7 +736,7 @@ let currentData = [];
 let subRoomsData = [];
 let selectedMemberIds = new Set();
 let tempCoord = null;
-let growthChartInstance = null; 
+let growthChartInstance = null;
 
 const now = new Date();
 let selectedYear = now.getFullYear();
@@ -979,27 +963,54 @@ const now = new Date();
 const currentY = now.getFullYear();
 const currentQ = Math.ceil((now.getMonth() + 1) / 3);
 
-const seasons = [{ year: 2026, quarter: 1 }, { year: 2025, quarter: 4 }];
+const seasons = [
+{ year: 2026, quarter: 1 },
+{ year: 2025, quarter: 4 }
+];
 
 for (const s of seasons) {
 let top3 = [];
 let isCurrent = (s.year === currentY && s.quarter === currentQ);
+
 if(isCurrent) {
-top3 = [...currentData].filter(m => !m.isHidden && m.name !== "오즈" && m.qCount > 0).sort((a,b) => b.qCount - a.qCount || b.level - a.level).slice(0, 3);
+top3 = [...currentData]
+.filter(m => !m.isHidden && m.name !== "오즈" && m.qCount > 0)
+.sort((a,b) => b.qCount - a.qCount || b.level - a.level)
+.slice(0, 3);
 } else {
-if(s.year === 2025 && s.quarter === 4) top3 = [{ name: "아랑" }, { name: "용삼" }, { name: "우진" }];
+if(s.year === 2025 && s.quarter === 4) {
+top3 = [{ name: "아랑" }, { name: "용삼" }, { name: "우진" }];
 }
+}
+
 if(top3.length > 0) {
-combinedHtml += `<div class="hall-card ${isCurrent ? 'border-blue-100 bg-blue-50/30' : ''}">
-<div class="hall-season-title"><span>${s.year}년 ${s.quarter}분기</span>${isCurrent ? '<span class="status-badge-live">LIVE</span>' : '<span class="status-badge-end">종료</span>'}</div>
+combinedHtml += `
+<div class="hall-card ${isCurrent ? 'border-blue-100 bg-blue-50/30' : ''}">
+<div class="hall-season-title">
+<span>${s.year}년 ${s.quarter}분기 (Season ${s.year === 2025 ? 1 : 2})</span>
+${isCurrent ? '<span class="status-badge-live">진행중 LIVE</span>' : '<span class="status-badge-end">시즌종료</span>'}
+</div>
 <div class="hall-rank-flex">
-<div class="hall-rank-item"><span class="hall-rank-label glow-gold">🥇산신령</span><span class="hall-rank-name">${top3[0]?.name || '-'}</span></div>
-${top3[1] ? `<div class="hall-rank-item"><span class="hall-rank-label glow-silver">🥈심마니</span><span class="hall-rank-name">${top3[1].name}</span></div>` : ''}
-${top3[2] ? `<div class="hall-rank-item"><span class="hall-rank-label glow-bronze">🥉나무꾼</span><span class="hall-rank-name">${top3[2].name}</span></div>` : ''}
-</div></div>`;
+<div class="hall-rank-item">
+<span class="hall-rank-label glow-gold">🥇산신령</span>
+<span class="hall-rank-name">${top3[0]?.name || '-'}</span>
+</div>
+${top3[1] ? `
+<div class="hall-rank-item">
+<span class="hall-rank-label glow-silver">🥈심마니</span>
+<span class="hall-rank-name">${top3[1].name}</span>
+</div>` : ''}
+${top3[2] ? `
+<div class="hall-rank-item">
+<span class="hall-rank-label glow-bronze">🥉나무꾼</span>
+<span class="hall-rank-name">${top3[2].name}</span>
+</div>` : ''}
+</div>
+</div>`;
 }
 }
 listArea.innerHTML = combinedHtml;
+listArea.scrollTop = 0;
 }
 };
 
@@ -1012,9 +1023,9 @@ const vibeArea = document.getElementById('passionVibeArea');
 const chartBox = document.getElementById('chartBox');
 
 document.getElementById('timelineMemberName').innerText = mName;
-document.getElementById('logDetailMemberName').innerText = mName; // 팝업용 이름 세팅
 container.innerHTML = "<p class='text-center text-xs py-5 text-gray-400'>조회 중...</p>";
 grassBoard.innerHTML = vibeArea.innerHTML = "";
+
 chartBox.className = `chart-container-box chart-bg-q${selectedQuarter}`;
 
 try {
@@ -1026,11 +1037,9 @@ const snapAll = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orde
 const logsAll = snapAll.docs.map(doc => ({ ...doc.data(), date: doc.data().date.toDate() }));
 const logsQuarter = logsAll.filter(l => l.date >= start && l.date < end);
 
-// 성장 그래프 렌더링
 const chartData = await calculateGrowthData(mId);
 renderGrowthChart(chartData);
 
-// 잔디 심기
 const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 const recentCount = logsAll.filter(l => l.date >= thirtyDaysAgo).length;
 if(recentCount >= 4) vibeArea.innerHTML = `<span class="hot-vibe text-[9px] font-black text-orange-500 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-100">🔥 HOT</span>`;
@@ -1046,9 +1055,7 @@ grassHtml += `<div class="grass-day ${cl}"></div>`;
 }
 grassBoard.innerHTML = grassHtml;
 document.getElementById('timelineCountBadge').innerText = `분기 ${logsQuarter.length}회 / 최근 ${logsAll.length}회`;
-document.getElementById('recentLogCount').innerText = logsAll.length;
 
-// 타임라인 내용 (팝업용으로 준비만 해둠)
 if(logsAll.length === 0) { container.innerHTML = "<p class='text-center text-[10px] py-10 text-gray-400'>기록 없음</p>"; return; }
 container.innerHTML = logsAll.map(log => {
 const dayName = ['일','월','화','수','목','금','토'][log.date.getDay()];
@@ -1056,15 +1063,15 @@ const top100Class = log.isTop100 ? 'text-blue-600 font-black' : '';
 const bacTag = log.isBAC ? '<span class="bac-txt">BAC</span>' : '';
 return `<div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-date">${log.date.getFullYear()}.${log.date.getMonth()+1}.${log.date.getDate()} (${dayName})</div><div class="timeline-desc ${top100Class}">${bacTag}${log.mountain || '기록'} (${log.height || 0}m) ${log.isTop100 ? '⭐' : '✔️'}</div></div>`;
 }).join('');
-} catch (e) { console.error(e); }
+} catch (e) { container.innerHTML = "<p class='text-center text-xs text-red-400'>실패</p>"; }
 };
 
-// 성장 그래프 데이터 로직 (최고봉 정보 포함)
 async function calculateGrowthData(mId) {
     const labels = [];
     const counts = [];
     const heights = [];
-    const maxMountains = []; // 각 분기별 최고봉 저장
+    const avgCounts = [];
+    const peaks = []; // 최고봉 정보 저장
 
     for (let i = 3; i >= 0; i--) {
         let q = selectedQuarter - i;
@@ -1078,18 +1085,31 @@ async function calculateGrowthData(mId) {
         const qSnap = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), where("date", ">=", Timestamp.fromDate(qStart)), where("date", "<", Timestamp.fromDate(qEnd))));
         
         counts.push(qSnap.size);
-        const qLogs = qSnap.docs.map(d => d.data());
-        heights.push(qLogs.reduce((acc, d) => acc + (d.height || 0), 0));
-        
-        // 해당 분기 최고봉 찾기
-        if(qLogs.length > 0) {
-            const maxLog = qLogs.sort((a, b) => (b.height || 0) - (a.height || 0))[0];
-            maxMountains.push(`${maxLog.mountain || '기록'}(${maxLog.height || 0}m)`);
-        } else {
-            maxMountains.push("-");
-        }
+        heights.push(qSnap.docs.reduce((acc, d) => acc + (d.data().height || 0), 0));
+
+        // 분기 최고봉 찾기
+        let maxH = 0;
+        let peakName = "-";
+        qSnap.forEach(d => {
+            const data = d.data();
+            if(data.height > maxH) {
+                maxH = data.height;
+                peakName = data.mountain || "산행";
+            }
+        });
+        peaks.push(peakName);
+
+        let totalQCount = 0;
+        let activeMembers = 0;
+        currentData.forEach(m => {
+            if(q === selectedQuarter && y === selectedYear) {
+                totalQCount += m.qCount;
+                if(m.qCount > 0) activeMembers++;
+            }
+        });
+        avgCounts.push(activeMembers > 0 ? (totalQCount / activeMembers).toFixed(1) : 2);
     }
-    return { labels, counts, heights, maxMountains };
+    return { labels, counts, heights, avgCounts, peaks };
 }
 
 function renderGrowthChart(data) {
@@ -1117,6 +1137,7 @@ function renderGrowthChart(data) {
                     borderWidth: 2,
                     pointBackgroundColor: '#ef4444',
                     pointRadius: 4,
+                    pointHoverRadius: 6,
                     tension: 0.4,
                     yAxisID: 'y1',
                     order: 1
@@ -1129,30 +1150,58 @@ function renderGrowthChart(data) {
             plugins: {
                 legend: { display: false },
                 tooltip: {
+                    backgroundColor: 'rgba(0,0,0,0.8)',
+                    padding: 10,
+                    titleFont: { size: 11, weight: 'bold' },
+                    bodyFont: { size: 10 },
                     callbacks: {
-                        afterBody: (context) => {
-                            if(context[0].datasetIndex === 1) {
-                                return `분기 최고봉: ${data.maxMountains[context[0].dataIndex]}`;
+                        label: function(context) {
+                            const idx = context.dataIndex;
+                            if(context.datasetIndex === 1) {
+                                return [
+                                    ` 누적 고도: ${context.raw.toLocaleString()}m`,
+                                    ` 🏔️ 최고봉: ${data.peaks[idx]}`
+                                ];
                             }
+                            return ` 횟수: ${context.raw}회`;
                         }
                     }
                 }
             },
             scales: {
-                x: { grid: { display: false }, ticks: { font: { size: 9, weight: '800' } } },
-                y: { beginAtZero: true, position: 'left', ticks: { font: { size: 8 } } },
-                y1: { beginAtZero: true, position: 'right', grid: { display: false }, ticks: { display: false } }
+                x: { grid: { display: false }, ticks: { font: { size: 10, weight: '800' } } },
+                y: { 
+                    beginAtZero: true, 
+                    position: 'left',
+                    grid: { color: '#f1f5f9' },
+                    ticks: { font: { size: 8 }, stepSize: 2 }
+                },
+                y1: {
+                    beginAtZero: true,
+                    position: 'right',
+                    grid: { display: false },
+                    ticks: { display: false }
+                }
             }
         }
     });
 }
 
-window.toggleLogDetailModal = (show) => { document.getElementById('logDetailModal').style.display = show ? 'flex' : 'none'; };
-window.toggleTimelineModal = (show) => { document.getElementById('timelineModal').style.display = show ? 'flex' : 'none'; };
-window.toggleMapModal = (show) => { document.getElementById('mapModal').style.display = show ? 'flex' : 'none'; };
+window.toggleMapView = () => {
+const main = document.getElementById('mapViewMain');
+const stats = document.getElementById('mapViewStats');
+if (main.classList.contains('hidden-view')) {
+main.classList.remove('hidden-view');
+stats.classList.add('hidden-view');
+} else {
+main.classList.add('hidden-view');
+stats.classList.remove('hidden-view');
+}
+};
 
 window.showMemberMap = async (mId, mName) => {
 toggleMapModal(true);
+document.getElementById('mapModalContent').scrollTop = 0;
 document.getElementById('mapViewMain').classList.remove('hidden-view');
 document.getElementById('mapViewStats').classList.add('hidden-view');
 document.getElementById('mapMemberName').innerText = mName;
@@ -1164,7 +1213,8 @@ const snapAll = await getDocs(collection(db, `sanwoori/${mId}/logs`));
 let totalH = 0; let mapHtml = ""; let regionCounts = {}; let validLogsCount = 0;
 
 snapAll.forEach(doc => {
-const log = doc.data(); totalH += (log.height || 0);
+const log = doc.data();
+totalH += (log.height || 0);
 if(log.coords) {
 validLogsCount++;
 const blueClass = log.isTop100 ? 'top-100' : '';
@@ -1174,31 +1224,44 @@ regionCounts[rName] = (regionCounts[rName] || 0) + 1;
 }
 });
 
-let topRegion = Object.keys(regionCounts).length > 0 ? Object.entries(regionCounts).sort((a,b) => b[1] - a[1])[0][0] : "-";
+let topRegion = "-";
+if(Object.keys(regionCounts).length > 0) {
+topRegion = Object.entries(regionCounts).sort((a,b) => b[1] - a[1])[0][0];
+}
 document.getElementById('topRegionName').innerText = topRegion;
 document.getElementById('mapTotalHeight').innerText = totalH.toLocaleString();
 document.getElementById('totalConquerCount').innerText = validLogsCount;
 pointsBoard.innerHTML = mapHtml;
 
 const sortedRegions = Object.entries(regionCounts).sort((a,b) => b[1] - a[1]);
-regionBoard.innerHTML = sortedRegions.length ? sortedRegions.map(([name, count]) => {
+if(sortedRegions.length === 0) {
+regionBoard.innerHTML = "<p class='text-center text-[10px] py-10 text-slate-400'>좌표 기록이 없습니다.</p>";
+} else {
+regionBoard.innerHTML = sortedRegions.map(([name, count]) => {
 const percent = ((count / validLogsCount) * 100).toFixed(1);
-return `<div class="conquer-item-dark"><div class="flex justify-between items-center"><span class="conquer-region-name-dark">${name} <span class="opacity-40 ml-1 text-[8px]">${count}회</span></span><span class="conquer-region-percent-dark">${percent}%</span></div><div class="conquer-bar-bg-dark"><div class="conquer-bar-fill-dark" style="width:${percent}%"></div></div></div>`;
-}).join('') : "<p class='text-center py-10 text-slate-400'>데이터 없음</p>";
+return `
+<div class="conquer-item-dark">
+<div class="flex justify-between items-center">
+<span class="conquer-region-name-dark">${name} <span class="opacity-40 ml-1 text-[8px]">${count}회</span></span>
+<span class="conquer-region-percent-dark">${percent}%</span>
+</div>
+<div class="conquer-bar-bg-dark">
+<div class="conquer-bar-fill-dark" style="width:${percent}%"></div>
+</div>
+</div>`;
+}).join('');
+}
 
 const globalTotalH = currentData.reduce((acc, m) => acc + (m.totalHeight || 0), 0);
 document.getElementById('mapGlobalTotalHeight').innerText = globalTotalH.toLocaleString();
+
 const conquestCount = (globalTotalH / 8848).toFixed(1);
 document.getElementById('everestCount').innerText = conquestCount;
 document.getElementById('everestProgressBar').style.width = `${(conquestCount % 1) * 100}%`;
 };
 
-window.toggleMapView = () => {
-    const main = document.getElementById('mapViewMain');
-    const stats = document.getElementById('mapViewStats');
-    main.classList.toggle('hidden-view');
-    stats.classList.toggle('hidden-view');
-};
+window.toggleTimelineModal = (show) => { document.getElementById('timelineModal').style.display = show ? 'flex' : 'none'; };
+window.toggleMapModal = (show) => { document.getElementById('mapModal').style.display = show ? 'flex' : 'none'; };
 
 window.setAdminCoordinate = (event) => {
 const rect = event.currentTarget.getBoundingClientRect();
@@ -1206,23 +1269,37 @@ const x = ((event.clientX - rect.left) / rect.width) * 100;
 const y = ((event.clientY - rect.top) / rect.height) * 100;
 tempCoord = { x: parseFloat(x.toFixed(2)), y: parseFloat(y.toFixed(2)) };
 const marker = document.getElementById('adminMapMarker');
-marker.style.left = x + "%"; marker.style.top = y + "%"; marker.classList.remove('hidden');
-const det = getRegionFromCoord(tempCoord);
-document.getElementById('adminManualRegionSelect').value = det;
-document.getElementById('coordDisplay').innerText = `좌표: ${tempCoord.x}/${tempCoord.y} (${det})`;
+marker.style.left = x + "%"; marker.style.top = y + "%";
+marker.classList.remove('hidden');
+const detectedRegion = getRegionFromCoord(tempCoord);
+document.getElementById('adminManualRegionSelect').value = detectedRegion;
+document.getElementById('coordDisplay').innerText = `좌표: X ${tempCoord.x} / Y ${tempCoord.y} (${detectedRegion})`;
+};
+
+window.toggleMarkerStyle = () => {
+const isTop100 = document.getElementById('isTop100Check').checked;
+const marker = document.getElementById('adminMapMarker');
+if(isTop100) marker.classList.add('top-100');
+else marker.classList.remove('top-100');
 };
 
 window.autoFindCoords = async () => {
-const mName = document.getElementById('mountainName').value.trim(); if(!mName) return;
+const mName = document.getElementById('mountainName').value.trim();
+if(!mName) return;
 const snap = await getDoc(doc(db, "mountains", mName));
 if(snap.exists()) {
-const d = snap.data(); tempCoord = { x: d.x, y: d.y };
+const d = snap.data();
+tempCoord = { x: d.x, y: d.y };
 document.getElementById('mountainHeight').value = d.height || "";
 document.getElementById('isTop100Check').checked = d.isTop100 || false;
 document.getElementById('isBACCheck').checked = d.isBAC || false;
-document.getElementById('adminManualRegionSelect').value = d.region || getRegionFromCoord(tempCoord);
+if(d.region) document.getElementById('adminManualRegionSelect').value = d.region;
+else document.getElementById('adminManualRegionSelect').value = getRegionFromCoord(tempCoord);
+toggleMarkerStyle();
 const marker = document.getElementById('adminMapMarker');
-marker.style.left = d.x + "%"; marker.style.top = d.y + "%"; marker.classList.remove('hidden');
+marker.style.left = d.x + "%"; marker.style.top = d.y + "%";
+marker.classList.remove('hidden');
+document.getElementById('coordDisplay').innerText = `자동 로드: ${mName}`;
 }
 };
 
@@ -1237,16 +1314,21 @@ if(!confirm(`[${mName}] 정보를 일괄 수정하시겠습니까?`)) return;
 try {
 await setDoc(doc(db, "mountains", mName), { x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region }, { merge: true });
 const membersSnap = await getDocs(collection(db, "sanwoori"));
+let updateCount = 0;
 for (const mDoc of membersSnap.docs) {
 const logsSnap = await getDocs(query(collection(db, `sanwoori/${mDoc.id}/logs`), where("mountain", "==", mName)));
 if (!logsSnap.empty) {
 const batch = writeBatch(db);
-logsSnap.forEach(ldoc => batch.update(ldoc.ref, { height, coords: tempCoord, isTop100, isBAC, region }));
+logsSnap.forEach(ldoc => {
+batch.update(ldoc.ref, { height, coords: tempCoord, isTop100, isBAC, region });
+updateCount++;
+});
 await batch.commit();
 }
 }
-alert("동기화 완료!"); startRealtimeSync();
-} catch (e) { alert("오류: " + e.message); }
+alert(`수정 완료! 총 ${updateCount}개의 기록이 동기화되었습니다.`);
+startRealtimeSync();
+} catch (e) { alert("오류 발생: " + e.message); }
 };
 
 let unsubscribe = null;
@@ -1255,16 +1337,18 @@ if (unsubscribe) unsubscribe();
 unsubscribe = onSnapshot(collection(db, "sanwoori"), async (snapshot) => {
 const start = Timestamp.fromDate(new Date(selectedYear, (selectedQuarter - 1) * 3, 1));
 const end = Timestamp.fromDate(new Date(selectedYear, selectedQuarter * 3, 1));
-currentData = await Promise.all(snapshot.docs.map(async (docSnap) => {
+const results = await Promise.all(snapshot.docs.map(async (docSnap) => {
 const m = { id: docSnap.id, ...docSnap.data() };
 const allLogs = await getDocs(collection(db, `sanwoori/${m.id}/logs`));
 m.qCount = allLogs.docs.filter(l => l.data().date >= start && l.data().date < end).length;
 m.totalHeight = allLogs.docs.reduce((acc, l) => acc + (l.data().height || 0), 0);
-const latest = await getDocs(query(collection(db, `sanwoori/${m.id}/logs`), orderBy("date", "desc"), limit(1)));
-if (!latest.empty) m.lastDate = latest.docs[0].data().date;
+const latestLogSnap = await getDocs(query(collection(db, `sanwoori/${m.id}/logs`), orderBy("date", "desc"), limit(1)));
+if (!latestLogSnap.empty) m.lastDate = latestLogSnap.docs[0].data().date;
 return m;
 }));
-updateAdminMemberLists(); renderStatusTable();
+currentData = results; 
+updateAdminMemberLists(); 
+renderStatusTable();
 });
 }
 
@@ -1275,15 +1359,21 @@ const height = parseInt(document.getElementById('mountainHeight').value) || 0;
 const isTop100 = document.getElementById('isTop100Check').checked;
 const isBAC = document.getElementById('isBACCheck').checked;
 const region = document.getElementById('adminManualRegionSelect').value;
+if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜를 확인해주세요.");
 const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
-if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜 확인");
 const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
 if(mName && tempCoord) await setDoc(doc(db, "mountains", mName), { x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region }, { merge: true });
 for(const id of selectedMemberIds){
-await updateDoc(doc(db, "sanwoori", id), { level: increment(up), lastDate: ts });
-for(let i=0; i < up; i++) await addDoc(collection(db, `sanwoori/${id}/logs`), { date: ts, mountain: mName, height, coords: tempCoord, isTop100, isBAC, region });
+const mRef = doc(db, "sanwoori", id);
+await updateDoc(mRef, { level: increment(up), lastDate: ts });
+for(let i=0; i < up; i++) {
+await addDoc(collection(db, `sanwoori/${id}/logs`), { date: ts, mountain: mName, height, coords: tempCoord, isTop100, isBAC, region });
 }
-alert("저장 완료"); selectedMemberIds.clear(); startRealtimeSync();
+}
+alert("저장 완료!");
+selectedMemberIds.clear(); tempCoord = null;
+document.getElementById('adminMapMarker').classList.add('hidden');
+updateAdminMemberLists();
 };
 
 window.loadMemberLogs = async () => {
@@ -1293,27 +1383,62 @@ const snap = await getDocs(query(collection(db, `sanwoori/${id}/logs`), orderBy(
 snap.forEach(ld => {
 const d = ld.data().date.toDate();
 const logData = ld.data();
-area.innerHTML += `<div class="log-item-box">
-<div class="log-info-group"><span>${d.toLocaleDateString()}</span><span class="font-black text-blue-600">${logData.mountain}</span>
-<input type="number" id="h-${ld.id}" value="${logData.height || 0}" class="log-height-input border rounded">
-<button onclick="updateLogHeight('${id}', '${ld.id}')" class="text-[9px] bg-gray-200 px-1 rounded">높이수정</button></div>
-<div class="log-btn-group"><button class="del-btn-mini" onclick="deleteLog('${id}', '${ld.id}', true)">레벨포함삭제</button><button class="del-only-btn-mini" onclick="deleteLog('${id}', '${ld.id}', false)">기록만삭제</button></div></div>`;
+const dateStr = `${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()}`;
+const logJson = JSON.stringify({ mountain: logData.mountain || '', height: logData.height || 0, coords: logData.coords || null, isTop100: logData.isTop100 || false, isBAC: logData.isBAC || false, region: logData.region || '기타' }).replace(/"/g, '&quot;');
+area.innerHTML += `<div class="log-item-box" onclick="selectLogToMap('${logJson}')">
+<div class="log-info-group"><span class="log-date-txt">${dateStr}</span><span class="log-mt-txt">${logData.isBAC ? '<span class="bac-txt">BAC</span>' : ''}${logData.mountain || '기록'}</span>
+<div class="flex items-center gap-1">
+<input type="number" id="h-${ld.id}" value="${logData.height || 0}" class="log-height-input border rounded-md outline-none" onclick="event.stopPropagation()">
+<button onclick="event.stopPropagation(); updateLogHeight('${id}', '${ld.id}')" class="text-[9px] bg-slate-200 px-1 py-1 rounded font-black">높이수정</button>
+<button onclick="event.stopPropagation(); updateLogCoord('${id}', '${ld.id}')" class="text-[9px] bg-emerald-500 text-white px-1 py-1 rounded font-black">좌표수정</button>
+</div></div>
+<div class="log-btn-group" onclick="event.stopPropagation()">
+<button class="del-btn-mini" onclick="deleteLog('${id}', '${ld.id}', true)">레벨-1 삭제</button>
+<button class="del-only-btn-mini" onclick="deleteLog('${id}', '${ld.id}', false)">기록만 삭제</button>
+</div></div>`;
 });
+};
+
+window.selectLogToMap = (logDataStr) => {
+const log = JSON.parse(logDataStr.replace(/&quot;/g, '"'));
+document.getElementById('mountainName').value = log.mountain;
+document.getElementById('mountainHeight').value = log.height;
+document.getElementById('isTop100Check').checked = log.isTop100;
+document.getElementById('isBACCheck').checked = log.isBAC || false;
+document.getElementById('adminManualRegionSelect').value = log.region || '기타';
+toggleMarkerStyle();
+if (log.coords) {
+tempCoord = log.coords;
+const marker = document.getElementById('adminMapMarker');
+marker.style.left = log.coords.x + "%"; marker.style.top = log.coords.y + "%";
+marker.classList.remove('hidden');
+}
 };
 
 window.updateLogHeight = async (mId, logId) => {
 const newH = parseInt(document.getElementById(`h-${logId}`).value) || 0;
-await updateDoc(doc(db, `sanwoori/${mId}/logs`, logId), { height: newH }); alert("수정 완료");
+await updateDoc(doc(db, `sanwoori/${mId}/logs`, logId), { height: newH });
+alert("높이 수정 완료"); startRealtimeSync();
 };
 
-window.deleteLog = async (mId, logId, down) => {
-if(confirm("삭제?")) { await deleteDoc(doc(db, `sanwoori/${mId}/logs`, logId)); if(down) await updateDoc(doc(db, "sanwoori", mId), { level: increment(-1) }); loadMemberLogs(); }
+window.updateLogCoord = async (mId, logId) => {
+if(!tempCoord) return alert("지도를 클릭하여 좌표를 먼저 설정하세요.");
+const region = document.getElementById('adminManualRegionSelect').value;
+await updateDoc(doc(db, `sanwoori/${mId}/logs`, logId), { coords: tempCoord, region });
+alert("좌표 및 지역 수정 완료!"); loadMemberLogs(); 
+};
+
+window.deleteLog = async (mId, logId, shouldDownLevel) => {
+if(!confirm("기록을 삭제하시겠습니까?")) return;
+await deleteDoc(doc(db, `sanwoori/${mId}/logs`, logId));
+if(shouldDownLevel) await updateDoc(doc(db, "sanwoori", mId), { level: increment(-1) });
+loadMemberLogs();
 };
 
 window.updateMemberName = async () => {
 const id = document.getElementById('memberSelectEdit').value;
-const name = document.getElementById('editMemberNameInput').value.trim();
-if(id && name) { await updateDoc(doc(db, "sanwoori", id), { name }); alert("이름 변경 완료"); }
+const newName = document.getElementById('editMemberNameInput').value.trim();
+if(id && newName) { await updateDoc(doc(db, "sanwoori", id), { name: newName }); alert("변경 완료"); }
 };
 
 window.changeQuarter = (q) => { selectedQuarter = q; document.querySelectorAll('.q-btn').forEach((btn, idx) => btn.classList.toggle('active-q', idx + 1 === q)); startRealtimeSync(); };
@@ -1323,23 +1448,23 @@ document.querySelectorAll('.view-content').forEach(e => e.classList.add('hidden'
 document.getElementById('view'+v.charAt(0).toUpperCase()+v.slice(1)).classList.remove('hidden');
 document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active-tab'));
 if(v === 'status') document.getElementById('tabStatus').classList.add('active-tab');
-else document.getElementById('tabAdmin').classList.add('active-tab');
+if(v === 'admin' || v === 'login') document.getElementById('tabAdmin').classList.add('active-tab');
+renderStatusTable();
 };
-
 window.handleAdminTab = () => isAdminLoggedIn ? showView('admin') : showView('login');
+
 window.loginAdmin = async () => {
 const pw = document.getElementById('adminPassword').value;
 const snap = await getDoc(doc(db, "admin_settings", "config"));
-if (snap.exists() && pw === String(snap.data().admin_pw)) { isAdminLoggedIn = true; showView('admin'); } else alert("불일치");
+if (snap.exists() && pw === String(snap.data().admin_pw)) { isAdminLoggedIn = true; showView('admin'); } else alert("비밀번호 불일치");
 };
 window.logoutAdmin = () => { isAdminLoggedIn = false; showView('status'); };
 
 window.addMember = async () => {
-const name = document.getElementById('newName').value.trim();
+const name = document.getElementById('newName').value.trim(); const dateStr = document.getElementById('regDate').value;
 const gender = document.querySelector('input[name="newGender"]:checked').value;
-const date = document.getElementById('regDate').value;
-if(name && date) {
-await addDoc(collection(db, "sanwoori"), { name, level: 0, gender, lastDate: Timestamp.fromDate(new Date(date + "T00:00:00")), isHidden: false, bonusDays: 0 });
+if(name && dateStr) {
+await addDoc(collection(db, "sanwoori"), { name, level: 0, gender, lastDate: Timestamp.fromDate(new Date(dateStr + "T00:00:00")), isHidden: false, bonusDays: 0 });
 alert("등록 완료");
 }
 };
@@ -1352,13 +1477,11 @@ if(id && !isNaN(bonus)) { await updateDoc(doc(db, "sanwoori", id), { bonusDays: 
 
 window.toggleHideMember = async () => {
 const id = document.getElementById('memberSelectManage').value;
-const m = currentData.find(x => x.id === id);
-if(id) await updateDoc(doc(db, "sanwoori", id), { isHidden: !m.isHidden });
+if(id){ const m = currentData.find(x => x.id === id); await updateDoc(doc(db, "sanwoori", id), { isHidden: !m.isHidden }); alert("변경 완료"); }
 };
-
 window.deleteMember = async () => {
 const id = document.getElementById('memberSelectManage').value;
-if(id && confirm("영구 삭제?")) await deleteDoc(doc(db, "sanwoori", id));
+if(id && confirm("삭제하시겠습니까?")) { await deleteDoc(doc(db, "sanwoori", id)); alert("삭제 완료"); }
 };
 
 window.toggleSelectMember = (id, el) => {
@@ -1373,11 +1496,15 @@ const edit = document.getElementById('memberSelectEdit');
 const manage = document.getElementById('memberSelectManage');
 if(!multi) return; multi.innerHTML = ""; edit.innerHTML = manage.innerHTML = '<option value="">대상 회원 선택</option>';
 alpha.forEach(m => {
-multi.innerHTML += `<div class="member-chip ${selectedMemberIds.has(m.id)?'selected':''}" onclick="toggleSelectMember('${m.id}', this)">${m.name}</div>`;
+const dotColor = m.gender === '여' ? 'dot-pink' : 'dot-blue';
+multi.innerHTML += `<div class="member-chip ${selectedMemberIds.has(m.id)?'selected':''} ${m.isHidden?'opacity-50 border-dashed':''}" onclick="toggleSelectMember('${m.id}', this)"><span class="gender-dot ${dotColor}">●</span>${m.name}</div>`;
 edit.innerHTML += `<option value="${m.id}">${m.name}</option>`;
 manage.innerHTML += `<option value="${m.id}">${m.name}</option>`;
 });
-document.getElementById('countTotal').innerText = currentData.filter(m => !m.isHidden).length;
+const visibleMembers = currentData.filter(m => !m.isHidden);
+document.getElementById('countTotal').innerText = visibleMembers.length;
+document.getElementById('countMale').innerText = visibleMembers.filter(m => m.gender === '남').length;
+document.getElementById('countFemale').innerText = visibleMembers.filter(m => m.gender === '여').length;
 }
 
 window.toggleModal = (show) => {
@@ -1386,7 +1513,7 @@ if(show) {
 const grid = document.getElementById('levelGuideGrid'); grid.innerHTML = "";
 levelThresholds.forEach(item => {
 const style = getLevelStyle(item.lv);
-grid.innerHTML += `<div class="guide-item" style="border-color:${style.border}"><div class="badge-icon-box" style="background:${style.bg}; border-color:${style.border};"><span class="badge-icon-txt" style="color:${style.text}">${item.name}</span></div><span class="text-[10px] text-gray-400">Lv.${item.lv}</span></div>`;
+grid.innerHTML += `<div class="guide-item" style="border-color:${style.border}"><div class="badge-icon-box ${style.blink}" style="background:${style.bg}; border-color:${style.border};"><span class="badge-icon-txt" style="color:${style.text}">${item.name}</span></div><span class="text-[0.6rem] text-gray-400 font-bold">Lv.${item.lv}+</span></div>`;
 });
 }
 };
