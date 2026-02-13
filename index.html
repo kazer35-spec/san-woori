@@ -267,7 +267,7 @@ padding-right: 4px;
 
 /* 타임라인 레이아웃 최적화 */
 .timeline-scroll-area { 
-max-height: 220px; 
+max-height: 250px; 
 overflow-y: auto; 
 background: #f8fafc; 
 padding: 12px; 
@@ -366,6 +366,30 @@ background: white;
 .legend-item { display: flex; align-items: center; gap: 3px; }
 .dot-bar { width: 6px; height: 6px; background: #3b82f6; border-radius: 2px; }
 .dot-line { width: 6px; height: 1.5px; background: #ef4444; }
+
+/* 신규 추가: 타임라인 팝업용 세련된 버튼 */
+.btn-open-log {
+    width: 100%;
+    background: #ffffff;
+    border: 1.5px solid #bae6fd;
+    color: #0369a1;
+    padding: 12px;
+    border-radius: 16px;
+    font-size: 0.8rem;
+    font-weight: 900;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.08);
+    transition: 0.2s;
+    margin-top: 10px;
+}
+.btn-open-log:active { transform: scale(0.97); background: #f0f9ff; }
+.log-popup-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+    display: none; justify-content: center; align-items: center; z-index: 200; padding: 20px;
+}
 </style>
 </head>
 <body>
@@ -641,13 +665,26 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
     </div>
 </div>
 
-<div class="border-t border-dashed border-gray-100 my-3"></div>
-<p class="text-[10px] font-extrabold text-slate-500 mb-2">📜 최근 산행 일지 (최대 30개)</p>
-<div class="timeline-scroll-area">
-<div id="timelineContent" class="timeline-container"></div>
-</div>
+<button onclick="toggleLogPopup(true)" class="btn-open-log">
+    <span>📜 최근 산행 일지 자세히 보기</span>
+    <span class="text-sky-300">▶</span>
+</button>
+
 <button onclick="toggleTimelineModal(false)" class="w-full mt-4 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold text-sm">닫기</button>
 </div>
+</div>
+
+<div id="logPopup" class="log-popup-overlay" onclick="toggleLogPopup(false)">
+    <div class="modal-content !max-h-[70vh] !p-6" onclick="event.stopPropagation()">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-base font-black text-slate-800">📜 최근 산행 일지</h3>
+            <button onclick="toggleLogPopup(false)" class="text-gray-400 text-xl font-bold">&times;</button>
+        </div>
+        <div class="timeline-scroll-area">
+            <div id="timelineContent" class="timeline-container"></div>
+        </div>
+        <button onclick="toggleLogPopup(false)" class="w-full mt-4 py-3 bg-sky-50 text-sky-600 rounded-xl font-black text-sm border border-sky-100">일지 창 닫기</button>
+    </div>
 </div>
 
 <div id="mapModal" class="modal-overlay" onclick="toggleMapModal(false)">
@@ -1071,7 +1108,7 @@ async function calculateGrowthData(mId) {
     const counts = [];
     const heights = [];
     const avgCounts = [];
-    const peaks = []; // 최고봉 정보 저장
+    const peaks = []; 
 
     for (let i = 3; i >= 0; i--) {
         let q = selectedQuarter - i;
@@ -1087,7 +1124,6 @@ async function calculateGrowthData(mId) {
         counts.push(qSnap.size);
         heights.push(qSnap.docs.reduce((acc, d) => acc + (d.data().height || 0), 0));
 
-        // 분기 최고봉 찾기
         let maxH = 0;
         let peakName = "-";
         qSnap.forEach(d => {
@@ -1262,6 +1298,7 @@ document.getElementById('everestProgressBar').style.width = `${(conquestCount % 
 
 window.toggleTimelineModal = (show) => { document.getElementById('timelineModal').style.display = show ? 'flex' : 'none'; };
 window.toggleMapModal = (show) => { document.getElementById('mapModal').style.display = show ? 'flex' : 'none'; };
+window.toggleLogPopup = (show) => { document.getElementById('logPopup').style.display = show ? 'flex' : 'none'; };
 
 window.setAdminCoordinate = (event) => {
 const rect = event.currentTarget.getBoundingClientRect();
