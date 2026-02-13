@@ -270,7 +270,7 @@ padding-right: 4px;
 
 /* 타임라인 레이아웃 최적화 */
 .timeline-scroll-area { 
-max-height: 450px; 
+max-height: 450px; /* 일지 약 10개 높이로 조정 */
 overflow-y: auto; 
 background: #f8fafc; 
 padding: 16px; 
@@ -358,10 +358,10 @@ background: white;
     overflow: hidden;
 }
 /* 분기별 배경색 */
-.chart-bg-q1 { background: linear-gradient(180deg, #f0f9ff 0%, #ffffff 100%); }
-.chart-bg-q2 { background: linear-gradient(180deg, #fdf2f8 0%, #ffffff 100%); }
-.chart-bg-q3 { background: linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%); }
-.chart-bg-q4 { background: linear-gradient(180deg, #fffaf3 0%, #ffffff 100%); }
+.chart-bg-q1 { background: linear-gradient(180deg, #f0f9ff 0%, #ffffff 100%); } /* 겨울 - 하늘 */
+.chart-bg-q2 { background: linear-gradient(180deg, #fdf2f8 0%, #ffffff 100%); } /* 봄 - 분홍 */
+.chart-bg-q3 { background: linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%); } /* 여름 - 초록 */
+.chart-bg-q4 { background: linear-gradient(180deg, #fffaf3 0%, #ffffff 100%); } /* 가을 - 주황 */
 
 .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
 .chart-title-sub { font-size: 10px; font-weight: 900; color: #64748b; display: flex; align-items: center; gap: 4px; }
@@ -371,6 +371,7 @@ background: white;
 .dot-bar { width: 6px; height: 6px; background: #3b82f6; border-radius: 2px; }
 .dot-line { width: 6px; height: 1.5px; background: #ef4444; }
 
+/* 신규 추가: 타임라인 팝업용 세련된 버튼 */
 .btn-open-log {
     width: 100%;
     background: #ffffff;
@@ -683,7 +684,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
             <h3 class="text-base font-black text-slate-800">📜 최근 산행 일지</h3>
             <button onclick="toggleLogPopup(false)" class="text-gray-400 text-xl font-bold">&times;</button>
         </div>
-        <div id="logScrollContainer" class="timeline-scroll-area">
+        <div class="timeline-scroll-area" id="timelineScrollContainer">
             <div id="timelineContent" class="timeline-container"></div>
         </div>
         <button onclick="toggleLogPopup(false)" class="w-full mt-4 py-3 bg-sky-50 text-sky-600 rounded-xl font-black text-sm border border-sky-100">일지 창 닫기</button>
@@ -699,7 +700,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 </div>
 <div class="everest-card-mini flex-1">
 <div id="everestTextLine" class="everest-count-mini">
-🏔️ 에베레스트 <span id="everestCount" class="text-sky-600">0.0</span>회 정복
+우리는 🏔️ 에베레스트를 <span id="everestCount" class="text-sky-600">0.0</span>회 정복하였습니다
 </div>
 <div class="everest-progress-bg-mini">
 <div id="everestProgressBar" class="everest-progress-bar-mini" style="width: 0%"></div>
@@ -729,8 +730,8 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 <div class="text-[10px] font-black text-sky-600">자세히 보기 &gt;</div>
 </div>
 <div class="flex items-center justify-between text-[10px] font-bold text-slate-600">
-<span>총 <span id="totalConquerCount" class="text-emerald-600">0</span>개 지점</span>
-<span>Top: <span id="topRegionName" class="text-sky-600">-</span></span>
+<span>총 <span id="totalConquerCount" class="text-emerald-600">0</span>개 지점 정복 완료</span>
+<span>Best Region: <span id="topRegionName" class="text-sky-600">-</span></span>
 </div>
 </div>
 </div>
@@ -1002,7 +1003,7 @@ if(isCurrent) top3 = [...currentData].filter(m => !m.isHidden && m.name !== "오
 else if(s.year === 2025 && s.quarter === 4) top3 = [{ name: "아랑" }, { name: "용삼" }, { name: "우진" }];
 if(top3.length > 0) {
 combinedHtml += `<div class="hall-card ${isCurrent ? 'border-blue-100 bg-blue-50/30' : ''}">
-<div class="hall-season-title"><span>${s.year}년 ${s.quarter}분기</span>${isCurrent ? '<span class="status-badge-live">LIVE</span>' : '<span class="status-badge-end">종료</span>'}</div>
+<div class="hall-season-title"><span>${s.year}년 ${s.quarter}분기 (Season ${s.year === 2025 ? 1 : 2})</span>${isCurrent ? '<span class="status-badge-live">LIVE</span>' : '<span class="status-badge-end">종료</span>'}</div>
 <div class="hall-rank-flex"><div class="hall-rank-item"><span class="hall-rank-label glow-gold">🥇산신령</span><span class="hall-rank-name">${top3[0]?.name || '-'}</span></div>
 ${top3[1] ? `<div class="hall-rank-item"><span class="hall-rank-label glow-silver">🥈심마니</span><span class="hall-rank-name">${top3[1].name}</span></div>` : ''}
 ${top3[2] ? `<div class="hall-rank-item"><span class="hall-rank-label glow-bronze">🥉나무꾼</span><span class="hall-rank-name">${top3[2].name}</span></div>` : ''}</div></div>`;
@@ -1014,12 +1015,15 @@ listArea.innerHTML = combinedHtml;
 
 window.showMemberTimeline = async (mId, mName) => {
 toggleTimelineModal(true);
-document.getElementById('timelineModalContent').scrollTop = 0;
+const modalContent = document.getElementById('timelineModalContent');
+modalContent.scrollTop = 0; // 메인 타임라인 스크롤 초기화
+
 const container = document.getElementById('timelineContent');
 const grassBoard = document.getElementById('grassBoard');
 const vibeArea = document.getElementById('passionVibeArea');
 const chartBox = document.getElementById('chartBox');
 
+// 초기화
 document.getElementById('timelineMemberName').innerText = mName;
 container.innerHTML = "<p class='text-center text-xs py-5 text-gray-400'>조회 중...</p>";
 grassBoard.innerHTML = vibeArea.innerHTML = "";
@@ -1051,7 +1055,7 @@ let cl = (c >= 4) ? "grass-active-4" : (c === 3 ? "grass-active-3" : (c === 2 ? 
 grassHtml += `<div class="grass-day ${cl}"></div>`;
 }
 grassBoard.innerHTML = grassHtml;
-document.getElementById('timelineCountBadge').innerText = `분기 ${logsQuarter.length}회 / 전체 ${logsAll.length}회`;
+document.getElementById('timelineCountBadge').innerText = `분기 ${logsQuarter.length}회 / 최근 ${logsAll.length}회`;
 
 if(logsAll.length === 0) { container.innerHTML = "<p class='text-center text-[10px] py-10 text-gray-400'>기록 없음</p>"; return; }
 container.innerHTML = logsAll.map(log => {
@@ -1064,9 +1068,13 @@ return `<div class="timeline-item"><div class="timeline-dot"></div><div class="t
 };
 
 async function calculateGrowthData(mId) {
-    const labels = []; const counts = []; const heights = []; const peaks = []; 
+    const labels = [];
+    const counts = [];
+    const heights = [];
+    const peaks = []; 
     for (let i = 3; i >= 0; i--) {
-        let q = selectedQuarter - i; let y = selectedYear;
+        let q = selectedQuarter - i;
+        let y = selectedYear;
         while (q <= 0) { q += 4; y -= 1; }
         labels.push(`${q}Q`);
         const qStart = new Date(y, (q - 1) * 3, 1);
@@ -1075,7 +1083,8 @@ async function calculateGrowthData(mId) {
         counts.push(qSnap.size);
         let qH = 0; let maxH = 0; let peakName = "-";
         qSnap.forEach(d => {
-            const data = d.data(); qH += (data.height || 0);
+            const data = d.data();
+            qH += (data.height || 0);
             if((data.height || 0) > maxH) { maxH = data.height; peakName = data.mountain || "기록"; }
         });
         heights.push(qH); peaks.push(peakName);
@@ -1102,10 +1111,16 @@ function renderGrowthChart(data) {
                 tooltip: {
                     backgroundColor: 'rgba(30, 41, 59, 0.95)',
                     padding: 10,
+                    titleFont: { size: 12, weight: '900' },
+                    bodyFont: { size: 11, weight: '700' },
                     callbacks: {
                         label: function(context) {
                             const i = context.dataIndex;
-                            return [` ⛰️ 누적: ${data.heights[i].toLocaleString()}m`, ` 🏔️ 최고봉: ${data.peaks[i]}`, ` 📈 횟수: ${data.counts[i]}회`];
+                            return [
+                                ` ⛰️ 누적: ${data.heights[i].toLocaleString()}m`,
+                                ` 🏔️ 최고봉: ${data.peaks[i]}`,
+                                ` 📈 횟수: ${data.counts[i]}회`
+                            ];
                         }
                     }
                 }
@@ -1172,17 +1187,17 @@ document.getElementById('everestProgressBar').style.width = `${(conquestCount % 
 window.toggleTimelineModal = (show) => { document.getElementById('timelineModal').style.display = show ? 'flex' : 'none'; };
 window.toggleMapModal = (show) => { document.getElementById('mapModal').style.display = show ? 'flex' : 'none'; };
 
-// 최근 산행 일지 팝업 토글 (리셋 로직 포함)
+// 상세 기록 팝업 리셋 로직 포함
 window.toggleLogPopup = (show) => { 
     const popup = document.getElementById('logPopup');
-    const scrollContainer = document.getElementById('logScrollContainer');
+    const scrollContainer = document.getElementById('timelineScrollContainer');
     
     if (show) {
         popup.style.display = 'flex';
+        if (scrollContainer) scrollContainer.scrollTop = 0; // 열 때 스크롤 맨 위로
     } else {
-        // 창을 닫을 때 내용 리셋 및 스크롤 초기화
         popup.style.display = 'none';
-        if(scrollContainer) scrollContainer.scrollTop = 0;
+        if (scrollContainer) scrollContainer.scrollTop = 0; // 닫을 때 리셋
     }
 };
 
@@ -1290,8 +1305,8 @@ const logJson = JSON.stringify({ mountain: logData.mountain || '', height: logDa
 area.innerHTML += `<div class="log-item-box" onclick="selectLogToMap('${logJson}')">
 <div class="log-info-group"><span class="log-date-txt">${dateStr}</span><span class="log-mt-txt">${logData.isBAC ? '<span class="bac-txt">BAC</span>' : ''}${logData.mountain || '기록'}</span>
 <div class="flex items-center gap-1"><input type="number" id="h-${ld.id}" value="${logData.height || 0}" class="log-height-input border rounded-md" onclick="event.stopPropagation()">
-<button onclick="event.stopPropagation(); updateLogHeight('${id}', '${ld.id}')" class="text-[9px] bg-slate-200 px-1 py-1 rounded">수정</button>
-<button onclick="event.stopPropagation(); updateLogCoord('${id}', '${ld.id}')" class="text-[9px] bg-emerald-500 text-white px-1 py-1 rounded">좌표</button></div></div>
+<button onclick="event.stopPropagation(); updateLogHeight('${id}', '${ld.id}')" class="text-[9px] bg-slate-200 px-1 py-1 rounded">높이수정</button>
+<button onclick="event.stopPropagation(); updateLogCoord('${id}', '${ld.id}')" class="text-[9px] bg-emerald-500 text-white px-1 py-1 rounded">좌표수정</button></div></div>
 <div class="log-btn-group" onclick="event.stopPropagation()"><button class="del-btn-mini" onclick="deleteLog('${id}', '${ld.id}', true)">레벨-1 삭제</button>
 <button class="del-only-btn-mini" onclick="deleteLog('${id}', '${ld.id}', false)">기록만 삭제</button></div></div>`;
 });
@@ -1313,7 +1328,7 @@ marker.style.left = log.coords.x + "%"; marker.style.top = log.coords.y + "%"; m
 
 window.updateLogHeight = async (mId, logId) => {
 await updateDoc(doc(db, `sanwoori/${mId}/logs`, logId), { height: parseInt(document.getElementById(`h-${logId}`).value) || 0 });
-alert("수정 완료"); startRealtimeSync();
+alert("높이 수정 완료"); startRealtimeSync();
 };
 
 window.updateLogCoord = async (mId, logId) => {
