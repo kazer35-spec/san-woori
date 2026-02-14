@@ -251,6 +251,36 @@ box-sizing: border-box;
 .status-badge-live { background: #10b981; color: white; font-size: 7px; padding: 1px 5px; border-radius: 4px; animation: live-blink 1.5s infinite; }
 .status-badge-end { background: #94a3b8; color: white; font-size: 7px; padding: 1px 5px; border-radius: 4px; }
 
+/* 원형 활동 온도 버튼 스타일 */
+.vibe-circle-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #fff;
+    border: 1.5px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: 0.2s;
+    position: relative;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+/* 원형 게이지 테두리 효과 */
+.vibe-circle-btn::before {
+    content: '';
+    position: absolute;
+    inset: -1.5px;
+    border-radius: 50%;
+    padding: 1.5px;
+    background: conic-gradient(#ef4444 var(--vibe-per, 0%), #e2e8f0 0%);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+}
+
 /* 명예의 전당 전용 스크롤 영역 */
 .hall-scroll-area {
 max-height: 480px; 
@@ -451,11 +481,13 @@ background: white;
 <span class="slogan-txt">같이 걷는 즐거움</span>
 </h1>
 <div class="flex items-center gap-2">
-<button onclick="toggleHallModal(true)" class="hall-of-fame-btn">🏆</button>
-<select id="yearSelect" onchange="changeYear()" class="year-select-custom outline-none">
-<option value="2026">2026년</option>
-<option value="2027">2027년</option>
-</select>
+<div class="flex items-center gap-2">
+    <button id="vibeCircleBtn" onclick="toggleVibeModal(true)" class="vibe-circle-btn">🌱</button>
+    <button onclick="toggleHallModal(true)" class="hall-of-fame-btn">🏆</button>
+    <select id="yearSelect" onchange="changeYear()" class="year-select-custom outline-none">
+        <option value="2026">2026년</option>
+        <option value="2027">2027년</option>
+    </select>
 </div>
 </div>
 
@@ -472,19 +504,25 @@ background: white;
 </div>
 
 <div class="vibe-temp-card" id="vibeCard">
-    <div class="flex justify-between items-center">
-        <div class="flex items-center gap-1.5">
-            <span id="vibeIcon" class="text-lg">🌱</span>
-            <span class="text-[11px] font-black text-slate-700 uppercase tracking-tight">Community Passion</span>
+    <div id="vibeModal" class="modal-overlay" onclick="toggleVibeModal(false)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <div class="vibe-temp-card !mb-0" id="vibeCard">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center gap-1.5">
+                    <span id="vibeIcon" class="text-lg">🌱</span>
+                    <span class="text-[11px] font-black text-slate-700 uppercase tracking-tight">Community Passion</span>
+                </div>
+                <div class="text-right">
+                    <span id="vibeStatusTxt" class="text-[9px] font-extrabold text-rose-500 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-100">계산 중...</span>
+                </div>
+            </div>
+            <div class="temp-gauge-bg">
+                <div id="vibeGauge" class="temp-gauge-fill"></div>
+            </div>
+            <div id="vibeDesc" class="text-[9px] font-bold text-slate-400 mt-2">최근 24시간 활동량을 분석 중입니다.</div>
         </div>
-        <div class="text-right">
-            <span id="vibeStatusTxt" class="text-[9px] font-extrabold text-rose-500 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-100">계산 중...</span>
-        </div>
+        <button onclick="toggleVibeModal(false)" class="w-full mt-4 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold text-sm">닫기</button>
     </div>
-    <div class="temp-gauge-bg">
-        <div id="vibeGauge" class="temp-gauge-fill"></div>
-    </div>
-    <div id="vibeDesc" class="text-[9px] font-bold text-slate-400 mt-2">최근 24시간 활동량을 분석 중입니다.</div>
 </div>
 
 <div id="quarterTabs">
@@ -1571,6 +1609,17 @@ async function updateVibeTemp() {
         }
     } catch (e) { console.error("온도 갱신 오류:", e); }
 }
+// updateVibeTemp 함수 내부의 UI 업데이트 부분 마지막에 추가
+const circleBtn = document.getElementById('vibeCircleBtn');
+if(circleBtn) {
+circleBtn.innerText = icon.innerText; // 이모지 동기화
+circleBtn.style.setProperty('--vibe-per', `${tempPercent}%`); // 원형 테두리 게이지
+
+// 온도에 따른 테두리 색상 변화 (선택사항)
+if(tempPercent >= 80) circleBtn.style.borderColor = "#ef4444";
+else if(tempPercent >= 50) circleBtn.style.borderColor = "#f97316";
+else circleBtn.style.borderColor = "#e2e8f0";
+}​
 
 if (!sessionStorage.getItem('visited')) { updateVisitorCount(); sessionStorage.setItem('visited', 'true'); }
 listenVisitors(); initAutoSelection(); startRealtimeSync(); listenSubRooms();
@@ -1578,6 +1627,10 @@ setTimeout(() => { updateVibeTemp(); setInterval(updateVibeTemp, 60000); }, 2000
 
 document.getElementById('regDate').valueAsDate = new Date();
 document.getElementById('activityDate').valueAsDate = new Date();
+
+window.toggleVibeModal = (show) => {
+    document.getElementById('vibeModal').style.display = show ? 'flex' : 'none';
+};
 </script>
 </body>
 </html>
