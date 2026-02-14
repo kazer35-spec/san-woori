@@ -158,6 +158,14 @@ text-align: center;
 .gender-dot { position: absolute; top: 2px; left: 4px; font-size: 8px; }
 .dot-blue { color: #3b82f6; } .dot-pink { color: #ec4899; }
 
+/* 4번 아이디어: 등산화 마모도 시각화 시스템 코드 추가 */
+.shoes-status-box { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.shoes-icon { font-size: 14px; transition: 0.3s; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.1)); }
+.shoes-worn-30 { filter: grayscale(0.2) sepia(0.2); } /* 주의 */
+.shoes-worn-20 { filter: grayscale(0.5) sepia(0.5) brightness(0.8); transform: rotate(-5deg); } /* 경고 */
+.shoes-worn-10 { filter: grayscale(0.8) sepia(0.8) brightness(0.6); animation: shoes-shake 0.5s infinite; } /* 긴급 */
+@keyframes shoes-shake { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+
 .log-grid { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; max-height: 250px; overflow-y: auto; }
 .log-item-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px; cursor: pointer; transition: 0.2s; }
 .log-item-box:hover { background: #f1f5f9; }
@@ -220,6 +228,10 @@ box-sizing: border-box;
 .dday-yellow { background-color: #fef08a; color: #854d0e; animation: blink-slow 2s infinite; }
 .dday-orange { background-color: #fed7aa; color: #9a3412; animation: blink-medium 1.2s infinite; }
 .dday-red { background-color: #fecaca; color: #991b1b; animation: blink-fast 0.6s infinite; }
+
+@keyframes blink-slow { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+@keyframes blink-medium { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+@keyframes blink-fast { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
 @keyframes glow-orange { 0% { border-color: #f97316; } 50% { border-color: #ea580c; box-shadow: 0 0 8px rgba(234, 88, 12, 0.5); } 100% { border-color: #f97316; } }
 @keyframes glow-red { 0% { border-color: #ef4444; } 50% { border-color: #b91c1c; box-shadow: 0 0 10px rgba(185, 28, 28, 0.6); } 100% { border-color: #ef4444; } }
@@ -726,8 +738,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
         <span class="text-sm font-black text-emerald-700"><span id="mapTotalHeight">0</span> m</span>
     </div>
     <div class="flex flex-col text-right">
-        <span class="text-[8px] font-bold text-blue-500 uppercase">
-San:Woori Total</span>
+        <span class="text-[8px] font-bold text-blue-500 uppercase">San:Woori Total</span>
         <span class="text-sm font-black text-blue-700"><span id="mapGlobalTotalHeight">0</span> m</span>
     </div>
 </div>
@@ -842,6 +853,15 @@ if (lv >= 20) return { bg: '#eff6ff', border: '#60a5fa', text: '#1d4ed8', blink:
 if (lv >= 10) return { bg: '#f5f3ff', border: '#ddd6fe', text: '#7c3aed', blink: '' };
 if (lv >= 3) return { bg: '#f8fafc', border: '#94a3b8', text: '#475569', blink: '' };
 return { bg: '#ffffff', border: '#e2e8f0', text: '#94a3b8', blink: '' };
+};
+
+/* 4번 아이디어: 등산화 상태 및 마모도 계산 로직 추가 */
+const getShoesElement = (dday) => {
+    let shoesClass = "";
+    if (dday <= 10) shoesClass = "shoes-worn-10";
+    else if (dday <= 20) shoesClass = "shoes-worn-20";
+    else if (dday <= 30) shoesClass = "shoes-worn-30";
+    return `<div class="shoes-status-box"><span class="shoes-icon ${shoesClass}">🥾</span></div>`;
 };
 
 const getDDayStyle = (dday, level) => {
@@ -970,6 +990,7 @@ else if (idx === 1) { rankT = "🥈심마니"; rankC = "rank-2"; }
 else if (idx === 2) { rankT = "🥉나무꾼"; rankC = "rank-3"; }
 }
 const style = getLevelStyle(m.level); const ddayClass = getDDayStyle(m.ddayVal, m.level);
+const shoesHtml = getShoesElement(m.ddayVal); /* 4번 기능 적용 */
 const nameColor = m.gender === '여' ? 'text-pink-600' : (m.gender === '남' ? 'text-blue-600' : 'text-slate-800');
 
 list.innerHTML += `<tr class="${m.isHidden ? 'opacity-40' : ''}">
@@ -983,7 +1004,12 @@ ${clickNeonHtml}
 ${clickNeonHtml}
 <button onclick="showMemberMap('${m.id}', '${m.name}')" class="height-badge hover:scale-105 active:scale-95 transition-all">🚩${m.totalHeight || 0}m</button>
 </td>
-<td><span class="dday-box ${ddayClass}">${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}</span></td></tr>`;
+<td>
+    <div class="flex flex-col items-center gap-1">
+        ${shoesHtml}
+        <span class="dday-box ${ddayClass}">${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}</span>
+    </div>
+</td></tr>`;
 });
 };
 
