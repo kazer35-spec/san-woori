@@ -404,6 +404,23 @@ background: white;
 .level-msg-box { background: #f0f9ff; padding: 15px; border-radius: 20px; border: 2px dashed #3b82f6; margin-bottom: 20px; }
 .level-msg-txt { font-size: 1rem; font-weight: 800; color: #0369a1; line-height: 1.5; }
 .copy-badge { font-size: 10px; background: #3b82f6; color: white; padding: 3px 10px; border-radius: 20px; margin-top: 10px; display: inline-block; }
+/* [추가] 활동 온도 스타일 */
+.vibe-temp-card {
+    background: linear-gradient(135deg, #fff 0%, #fff5f5 100%);
+    border: 1.5px solid #fee2e2;
+    border-radius: 20px;
+    padding: 12px 16px;
+    margin-bottom: 12px;
+    position: relative;
+    overflow: hidden;
+}
+.temp-gauge-bg { height: 8px; background: #fee2e2; border-radius: 10px; margin-top: 6px; overflow: hidden; position: relative; }
+.temp-gauge-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #f87171, #ef4444); border-radius: 10px; transition: width 1.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.flame-particle { position: absolute; font-size: 10px; pointer-events: none; animation: particle-rise 1s infinite ease-out; opacity: 0; }
+@keyframes particle-rise {
+    0% { transform: translateY(0) scale(1); opacity: 1; }
+    100% { transform: translateY(-20px) scale(0.5); opacity: 0; }
+}
 </style>
 </head>
 <body>
@@ -452,6 +469,22 @@ background: white;
 <option value="totalHeight">높이순 ▼</option>
 <option value="dday">날짜순 ▼</option>
 </select>
+</div>
+
+<div class="vibe-temp-card" id="vibeCard">
+    <div class="flex justify-between items-center">
+        <div class="flex items-center gap-1.5">
+            <span id="vibeIcon" class="text-lg">🌱</span>
+            <span class="text-[11px] font-black text-slate-700 uppercase tracking-tight">Community Passion</span>
+        </div>
+        <div class="text-right">
+            <span id="vibeStatusTxt" class="text-[9px] font-extrabold text-rose-500 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-100">계산 중...</span>
+        </div>
+    </div>
+    <div class="temp-gauge-bg">
+        <div id="vibeGauge" class="temp-gauge-fill"></div>
+    </div>
+    <div id="vibeDesc" class="text-[9px] font-bold text-slate-400 mt-2">최근 24시간 활동량을 분석 중입니다.</div>
 </div>
 
 <div id="quarterTabs">
@@ -1484,8 +1517,87 @@ document.querySelectorAll('.member-chip').forEach(c => { c.style.display = c.inn
 
 if (!sessionStorage.getItem('visited')) { updateVisitorCount(); sessionStorage.setItem('visited', 'true'); }
 listenVisitors(); initAutoSelection(); startRealtimeSync(); listenSubRooms();
+/* [추가] 통합 활동 온도 로직 */
+async function updateVibeTemp() {
+    try {
+        // Firebase Timestamp를 사용하기 위해 전역 객체 확인
+        // module 타입이므로 코드 상단에서 import된 Timestamp를 사용합니다.
+        const twentyFourHoursAgo = Timestamp.fromMillis(Date.now() - 86400000);
+        let totalRecentActivities = 0;
+        
+        // 1. 산행 기록 집계
+        for (const member of currentData) {
+            const logSnap = await getDocs(query(
+                collection(db, `sanwoori/${member.id}/logs`), 
+                where("date", ">=", twentyFourHoursAgo)
+            ));
+            totalRecentActivities += logSnap.size;
+        }
+
+        // 2. 사이트 방문 기록 집계 (visitor_logs 기준)
+        const visitorSnap = await getDocs(query(
+            collection(db, "visitor_logs"), 
+            where("timestamp", ">=", twentyFourHoursAgo)
+        ));
+        totalRecentActivities += visitorSnap.size;
+
+        const gauge = document.getElementById('vibeGauge');
+        const icon = document.getElementById('vibeIcon');
+        const status = document.getElementById('vibeStatusTxt');
+        const desc = document.getElementById('vibeDesc');
+        
+        let tempPercent = Math.min((totalRecentActivities / 25) * 100, 100);
+        if(gauge) gauge.style.width = `${tempPercent}%`;
+        
+        if (tempPercent >= 80) {
+            icon.innerText = "🔥";
+            icon.className = "text-lg hot-vibe";
+            status.innerText = "EXPLOSIVE PASSION";
+            desc.innerText = `현재 활동지수 최고조! (${totalRecentActivities}개의 활동)`;
+            createFireParticles(); 
+        } else if (tempPercent >= 50) {
+            icon.innerText = "☀️";
+            icon.className = "text-lg";
+            status.innerText = "VERY ACTIVE";
+            desc.innerText = "커뮤니티가 아주 활발합니다. 지금 참여해보세요!";
+        } else if (tempPercent >= 20) {
+            icon.innerText = "🌱";
+            icon.className = "text-lg";
+            status.innerText = "WARMING UP";
+            desc.innerText = "산행과 방문의 온기가 느껴지기 시작합니다.";
+        } else {
+            icon.innerText = "❄️";
+            icon.className = "text-lg";
+            status.innerText = "CHILLING";
+            desc.innerText = "조용한 숲속 같네요. 첫 소식을 들려주세요!";
+        }
+    } catch (error) {
+        console.error("온도 업데이트 실패:", error);
+    }
+}
+
+function createFireParticles() {
+    const card = document.getElementById('vibeCard');
+    if(!card) return;
+    const p = document.createElement('span');
+    p.className = 'flame-particle';
+    p.innerText = '🔥';
+    p.style.left = (Math.random() * 80 + 10) + '%';
+    p.style.bottom = '20px';
+    card.appendChild(p);
+    setTimeout(() => { if (p.parentNode === card) card.removeChild(p); }, 1000);
+}
+
+// 60초마다 갱신 (데이터가 준비된 후 시작하기 위해 약간의 지연시간을 둠)
+setTimeout(() => {
+    updateVibeTemp();
+    setInterval(updateVibeTemp, 60000);
+}, 2000);
+
 document.getElementById('regDate').valueAsDate = new Date();
 document.getElementById('activityDate').valueAsDate = new Date();
 </script>
 </body>
 </html>
+
+​
