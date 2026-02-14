@@ -241,6 +241,18 @@ box-sizing: border-box;
 /* 명예의 전당 추가 스타일 */
 .hall-of-fame-btn { width: 32px; height: 32px; border-radius: 50%; background: #fff; border: 1.5px solid #facc15; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; cursor: pointer; transition: 0.2s; box-shadow: 0 2px 5px rgba(250, 204, 21, 0.2); }
 .hall-of-fame-btn:hover { transform: scale(1.1); background: #fefce8; }
+
+/* [추가/수정] 열정 온도 버튼 스타일 */
+.vibe-temp-btn { 
+    width: 32px; height: 32px; border-radius: 50%; background: #fff; border: 1.5px solid #fee2e2; 
+    display: flex; align-items: center; justify-content: center; font-size: 1rem; cursor: pointer; transition: 0.2s; 
+    position: relative; overflow: hidden;
+}
+.vibe-temp-btn svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+.vibe-temp-btn circle { fill: none; stroke-width: 3; stroke-linecap: round; transition: stroke-dashoffset 0.5s ease; }
+.vibe-temp-btn .bg { stroke: #f1f5f9; }
+.vibe-temp-btn .progress { stroke: #ef4444; }
+
 .hall-card { background: #f8fafc; border-radius: 20px; padding: 16px; margin-bottom: 12px; border: 1px solid #e2e8f0; position: relative; overflow: hidden; }
 .hall-season-title { font-size: 0.8rem; font-weight: 900; color: #64748b; margin-bottom: 10px; padding-left: 4px; border-left: 3px solid #3b82f6; display: flex; justify-content: space-between; align-items: center; }
 .hall-rank-flex { display: flex; justify-content: space-between; gap: 8px; }
@@ -403,7 +415,23 @@ background: white;
 .level-msg-name { font-size: 1.5rem; font-weight: 900; color: #1e293b; margin-bottom: 10px; display: block; }
 .level-msg-box { background: #f0f9ff; padding: 15px; border-radius: 20px; border: 2px dashed #3b82f6; margin-bottom: 20px; }
 .level-msg-txt { font-size: 1rem; font-weight: 800; color: #0369a1; line-height: 1.5; }
-.copy-badge { font-size: 10px; background: #3b82f6; color: white; padding: 3px 10px; border-radius: 20px; margin-top: 10px; display: inline-block; }
+
+/* [추가] 열정 온도 모달용 스타일 */
+.vibe-temp-card-modal {
+    background: linear-gradient(135deg, #fff 0%, #fff5f5 100%);
+    border: 1.5px solid #fee2e2;
+    border-radius: 24px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+}
+.temp-gauge-bg { height: 12px; background: #fee2e2; border-radius: 10px; margin-top: 10px; overflow: hidden; position: relative; }
+.temp-gauge-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #f87171, #ef4444); border-radius: 10px; transition: width 1.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.flame-particle { position: absolute; font-size: 14px; pointer-events: none; animation: particle-rise 1s infinite ease-out; opacity: 0; }
+@keyframes particle-rise {
+    0% { transform: translateY(0) scale(1); opacity: 1; }
+    100% { transform: translateY(-30px) scale(0.5); opacity: 0; }
+}
 </style>
 </head>
 <body>
@@ -434,6 +462,13 @@ background: white;
 <span class="slogan-txt">같이 걷는 즐거움</span>
 </h1>
 <div class="flex items-center gap-2">
+<button onclick="toggleVibeModal(true)" class="vibe-temp-btn" id="vibeCircleBtn">
+    <svg viewBox="0 0 36 36">
+        <circle class="bg" cx="18" cy="18" r="16"></circle>
+        <circle class="progress" cx="18" cy="18" r="16" stroke-dasharray="100, 100" stroke-dashoffset="100" id="vibeCircleProgress"></circle>
+    </svg>
+    <span id="vibeCircleIcon" style="z-index: 1;">🌱</span>
+</button>
 <button onclick="toggleHallModal(true)" class="hall-of-fame-btn">🏆</button>
 <select id="yearSelect" onchange="changeYear()" class="year-select-custom outline-none">
 <option value="2026">2026년</option>
@@ -648,6 +683,32 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 <h2 class="text-lg font-black mb-5 text-center text-slate-800">📊 산:우리 등급 체계</h2>
 <div id="levelGuideGrid" class="guide-grid"></div>
 <button onclick="toggleModal(false)" class="w-full mt-6 py-3 bg-slate-800 text-white rounded-xl font-bold">닫기</button>
+</div>
+</div>
+
+<div id="vibeModal" class="modal-overlay" onclick="toggleVibeModal(false)">
+<div class="modal-content !p-6" onclick="event.stopPropagation()">
+    <h2 class="text-lg font-black mb-4 text-slate-800 flex items-center gap-2">
+        <span id="vibeModalIcon">🌱</span> Community Passion
+    </h2>
+    <div class="vibe-temp-card-modal" id="vibeCard">
+        <div class="flex justify-between items-center mb-1">
+            <span class="text-[10px] font-black text-rose-500 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-100" id="vibeStatusTxt">WARMING UP</span>
+            <span class="text-[10px] font-bold text-slate-400" id="vibeScoreTxt">0%</span>
+        </div>
+        <div class="temp-gauge-bg">
+            <div id="vibeGauge" class="temp-gauge-fill"></div>
+        </div>
+        <div id="vibeDesc" class="text-xs font-bold text-slate-500 mt-4 leading-relaxed">최근 24시간 활동량을 분석 중입니다.</div>
+    </div>
+    <div class="mt-4 p-3 bg-blue-50 rounded-xl border border-blue-100">
+        <p class="text-[10px] font-bold text-blue-600 leading-tight">
+            💡 지수 산정 방식:<br>
+            • 방문자 5명당 20% 상승<br>
+            • 산행 기록 1개당 10% 상승
+        </p>
+    </div>
+    <button onclick="toggleVibeModal(false)" class="w-full mt-6 py-4 bg-slate-800 text-white rounded-2xl font-black text-sm">확인</button>
 </div>
 </div>
 
@@ -883,6 +944,7 @@ catch (e) { await setDoc(statsRef, { total: 1 }, { merge: true }); }
 const dailyRef = doc(db, "site_stats", `day_${todayStr}`);
 try { await updateDoc(dailyRef, { count: increment(1) }); }
 catch (e) { await setDoc(dailyRef, { count: 1 }, { merge: true }); }
+await addDoc(collection(db, "visitor_logs"), { timestamp: Timestamp.now() });
 }
 
 function listenVisitors() {
@@ -1033,11 +1095,12 @@ listArea.innerHTML = combinedHtml;
 }
 };
 
+window.toggleVibeModal = (show) => { document.getElementById('vibeModal').style.display = show ? 'flex' : 'none'; };
+
 window.showMemberTimeline = async (mId, mName) => {
 toggleTimelineModal(true);
 const modalContent = document.getElementById('timelineModalContent');
 modalContent.scrollTop = 0; 
-
 const container = document.getElementById('timelineContent');
 const grassBoard = document.getElementById('grassBoard');
 const vibeArea = document.getElementById('passionVibeArea');
@@ -1052,11 +1115,9 @@ try {
 const start = new Date(selectedYear, (selectedQuarter - 1) * 3, 1);
 const end = new Date(selectedYear, selectedQuarter * 3, 1);
 const totalDaysInQ = Math.floor((end - start) / (1000 * 60 * 60 * 24));
-
 const snapAll = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc"), limit(30)));
 const logsAll = snapAll.docs.map(doc => ({ ...doc.data(), date: doc.data().date.toDate() }));
 const logsQuarter = logsAll.filter(l => l.date >= start && l.date < end);
-
 const chartData = await calculateGrowthData(mId);
 renderGrowthChart(chartData);
 
@@ -1075,7 +1136,6 @@ grassHtml += `<div class="grass-day ${cl}"></div>`;
 }
 grassBoard.innerHTML = grassHtml;
 document.getElementById('timelineCountBadge').innerText = `분기 ${logsQuarter.length}회 / 최근 ${logsAll.length}회`;
-
 if(logsAll.length === 0) { container.innerHTML = "<p class='text-center text-[10px] py-10 text-gray-400'>기록 없음</p>"; return; }
 container.innerHTML = logsAll.map(log => {
 const dayName = ['일','월','화','수','목','금','토'][log.date.getDay()];
@@ -1087,13 +1147,9 @@ return `<div class="timeline-item"><div class="timeline-dot"></div><div class="t
 };
 
 async function calculateGrowthData(mId) {
-    const labels = [];
-    const counts = [];
-    const heights = [];
-    const peaks = []; 
+    const labels = []; const counts = []; const heights = []; const peaks = []; 
     for (let i = 3; i >= 0; i--) {
-        let q = selectedQuarter - i;
-        let y = selectedYear;
+        let q = selectedQuarter - i; let y = selectedYear;
         while (q <= 0) { q += 4; y -= 1; }
         labels.push(`${q}Q`);
         const qStart = new Date(y, (q - 1) * 3, 1);
@@ -1102,8 +1158,7 @@ async function calculateGrowthData(mId) {
         counts.push(qSnap.size);
         let qH = 0; let maxH = 0; let peakName = "-";
         qSnap.forEach(d => {
-            const data = d.data();
-            qH += (data.height || 0);
+            const data = d.data(); qH += (data.height || 0);
             if((data.height || 0) > maxH) { maxH = data.height; peakName = data.mountain || "기록"; }
         });
         heights.push(qH); peaks.push(peakName);
@@ -1135,11 +1190,7 @@ function renderGrowthChart(data) {
                     callbacks: {
                         label: function(context) {
                             const i = context.dataIndex;
-                            return [
-                                ` ⛰️ 누적: ${data.heights[i].toLocaleString()}m`,
-                                ` 🏔️ 최고봉: ${data.peaks[i]}`,
-                                ` 📈 횟수: ${data.counts[i]}회`
-                            ];
+                            return [ ` ⛰️ 누적: ${data.heights[i].toLocaleString()}m`, ` 🏔️ 최고봉: ${data.peaks[i]}`, ` 📈 횟수: ${data.counts[i]}회` ];
                         }
                     }
                 }
@@ -1180,10 +1231,8 @@ validLogsCount++; mapHtml += `<div class="map-point ${log.isTop100 ? 'top-100' :
 const rName = log.region || getRegionFromCoord(log.coords); regionCounts[rName] = (regionCounts[rName] || 0) + 1;
 }
 });
-
 document.getElementById('mapTotalHeight').innerText = totalH.toLocaleString();
 pointsBoard.innerHTML = mapHtml;
-
 const sortedRegions = Object.entries(regionCounts).sort((a,b) => b[1] - a[1]);
 if(sortedRegions.length === 0) regionBoard.innerHTML = "<p class='text-center text-[10px] py-10 text-slate-400'>좌표 기록 없음</p>";
 else regionBoard.innerHTML = sortedRegions.map(([name, count]) => {
@@ -1201,17 +1250,11 @@ document.getElementById('everestProgressBar').style.width = `${(conquestCount % 
 
 window.toggleTimelineModal = (show) => { document.getElementById('timelineModal').style.display = show ? 'flex' : 'none'; };
 window.toggleMapModal = (show) => { document.getElementById('mapModal').style.display = show ? 'flex' : 'none'; };
-
 window.toggleLogPopup = (show) => { 
     const popup = document.getElementById('logPopup');
     const scrollContainer = document.getElementById('timelineScrollContainer');
-    if (show) {
-        popup.style.display = 'flex';
-        if (scrollContainer) scrollContainer.scrollTop = 0; 
-    } else {
-        popup.style.display = 'none';
-        if (scrollContainer) scrollContainer.scrollTop = 0; 
-    }
+    if (show) { popup.style.display = 'flex'; if (scrollContainer) scrollContainer.scrollTop = 0; } 
+    else { popup.style.display = 'none'; if (scrollContainer) scrollContainer.scrollTop = 0; }
 };
 
 window.setAdminCoordinate = (event) => {
@@ -1271,17 +1314,12 @@ alert("수정 완료"); startRealtimeSync();
 } catch (e) { alert(e.message); }
 };
 
-// 실시간 감시 및 레벨업 팝업용 변수
-let previousLevels = {};
-let isInitialLoad = true;
-
 let unsubscribe = null;
 function startRealtimeSync() {
 if (unsubscribe) unsubscribe();
 unsubscribe = onSnapshot(collection(db, "sanwoori"), async (snapshot) => {
 const start = Timestamp.fromDate(new Date(selectedYear, (selectedQuarter - 1) * 3, 1));
 const end = Timestamp.fromDate(new Date(selectedYear, selectedQuarter * 3, 1));
-
 const results = await Promise.all(snapshot.docs.map(async (docSnap) => {
 const m = { id: docSnap.id, ...docSnap.data() };
 const allLogs = await getDocs(collection(db, `sanwoori/${m.id}/logs`));
@@ -1289,36 +1327,29 @@ m.qCount = allLogs.docs.filter(l => l.data().date >= start && l.data().date < en
 m.totalHeight = allLogs.docs.reduce((acc, l) => acc + (l.data().height || 0), 0);
 const latestLogSnap = await getDocs(query(collection(db, `sanwoori/${m.id}/logs`), orderBy("date", "desc"), limit(1)));
 if (!latestLogSnap.empty) m.lastDate = latestLogSnap.docs[0].data().date;
-
-// 레벨업 체크 (초기 로딩 이후에만 작동)
-if (!isInitialLoad && previousLevels[m.id] !== undefined && m.level > previousLevels[m.id]) {
-    triggerLevelupAlert(m.name, m.level);
-}
-previousLevels[m.id] = m.level;
-
 return m;
 }));
-
-currentData = results;
-isInitialLoad = false; // 초기 로딩 완료 표시
-updateAdminMemberLists(); 
-renderStatusTable();
+currentData = results; updateAdminMemberLists(); renderStatusTable();
 });
 }
 
-// 레벨업 팝업 트리거 함수
-window.triggerLevelupAlert = (name, level) => {
-    const badge = getLevelBadge(level);
+window.checkLevelUpgrade = (name, oldLevel, newLevel) => {
+    const thresholdLevels = levelThresholds.map(t => t.lv);
+    for (let lv = oldLevel + 1; lv <= newLevel; lv++) {
+        if (thresholdLevels.includes(lv)) {
+            const badge = getLevelBadge(lv);
+            triggerLevelupAlert(name, lv, badge); break;
+        }
+    }
+};
+
+window.triggerLevelupAlert = (name, level, badge) => {
     const msg = `${name}님이 ${level}레벨로 [${badge}] 마크를 획득하셨습니다! 축하드립니다 🎉`;
-    
     document.getElementById('levelUpName').innerText = name;
     document.getElementById('levelUpMsg').innerText = `${level}레벨 달성!\n[${badge}] 마크를 획득하셨습니다! 축하드립니다 🎉`;
-    
     const overlay = document.getElementById('levelupAlert');
     overlay.style.display = 'flex';
     setTimeout(() => overlay.classList.add('active'), 10);
-
-    // 자동 복사
     navigator.clipboard.writeText(msg).catch(err => console.log('복사 실패', err));
 };
 
@@ -1329,21 +1360,30 @@ window.closeLevelupAlert = () => {
 };
 
 window.addMultiActivity = async () => {
-const dateVal = document.getElementById('activityDate').value;
-const mName = document.getElementById('mountainName').value.trim();
-const height = parseInt(document.getElementById('mountainHeight').value) || 0;
-const isTop100 = document.getElementById('isTop100Check').checked;
-const isBAC = document.getElementById('isBACCheck').checked;
-const region = document.getElementById('adminManualRegionSelect').value;
-if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜 확인");
-const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
-const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
-if(mName && tempCoord) await setDoc(doc(db, "mountains", mName), { x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region }, { merge: true });
-for(const id of selectedMemberIds){
-await updateDoc(doc(db, "sanwoori", id), { level: increment(up), lastDate: ts });
-for(let i=0; i < up; i++) await addDoc(collection(db, `sanwoori/${id}/logs`), { date: ts, mountain: mName, height, coords: tempCoord, isTop100, isBAC, region });
-}
-alert("저장 완료"); selectedMemberIds.clear(); tempCoord = null; updateAdminMemberLists();
+    const dateVal = document.getElementById('activityDate').value;
+    const mName = document.getElementById('mountainName').value.trim();
+    const height = parseInt(document.getElementById('mountainHeight').value) || 0;
+    const isTop100 = document.getElementById('isTop100Check').checked;
+    const isBAC = document.getElementById('isBACCheck').checked;
+    const region = document.getElementById('adminManualRegionSelect').value;
+    if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜 확인");
+    const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
+    const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
+
+    if(mName && tempCoord) await setDoc(doc(db, "mountains", mName), { x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region }, { merge: true });
+
+    for(const id of selectedMemberIds){
+        const member = currentData.find(m => m.id === id);
+        if(!member) continue;
+        const oldLevel = member.level || 0; const newLevel = oldLevel + up;
+        await updateDoc(doc(db, "sanwoori", id), { level: newLevel, lastDate: ts });
+        for(let i=0; i < up; i++) {
+            await addDoc(collection(db, `sanwoori/${id}/logs`), { date: ts, mountain: mName, height, coords: tempCoord, isTop100, isBAC, region });
+        }
+        checkLevelUpgrade(member.name, oldLevel, newLevel);
+    }
+    alert("저장 완료"); selectedMemberIds.clear(); tempCoord = null; updateAdminMemberLists();
+    updateVibeTemp();
 };
 
 window.loadMemberLogs = async () => {
@@ -1392,7 +1432,7 @@ window.deleteLog = async (mId, logId, shouldDownLevel) => {
 if(!confirm("삭제하시겠습니까?")) return;
 await deleteDoc(doc(db, `sanwoori/${mId}/logs`, logId));
 if(shouldDownLevel) await updateDoc(doc(db, "sanwoori", mId), { level: increment(-1) });
-loadMemberLogs();
+loadMemberLogs(); updateVibeTemp();
 };
 
 window.updateMemberName = async () => {
@@ -1482,8 +1522,65 @@ const q = document.getElementById('adminSearchInput').value.toLowerCase();
 document.querySelectorAll('.member-chip').forEach(c => { c.style.display = c.innerText.toLowerCase().includes(q) ? "block" : "none"; });
 };
 
+/* [완성본] 원형 열정 온도 로직 */
+async function updateVibeTemp() {
+    try {
+        const twentyFourHoursAgo = Timestamp.fromMillis(Date.now() - 86400000);
+        let recentLogCount = 0;
+        for (const member of currentData) {
+            const logSnap = await getDocs(query(collection(db, `sanwoori/${member.id}/logs`), where("date", ">=", twentyFourHoursAgo)));
+            recentLogCount += logSnap.size;
+        }
+        const visitorSnap = await getDocs(query(collection(db, "visitor_logs"), where("timestamp", ">=", twentyFourHoursAgo)));
+        const recentVisitorCount = visitorSnap.size;
+
+        let visitorScore = (recentVisitorCount / 5) * 20; 
+        let logScore = recentLogCount * 10;
+        let tempPercent = Math.min(visitorScore + logScore, 100);
+
+        // 원형 게이지 업데이트 (Circle)
+        const circleProgress = document.getElementById('vibeCircleProgress');
+        const circleIcon = document.getElementById('vibeCircleIcon');
+        const circleBtn = document.getElementById('vibeCircleBtn');
+        
+        const offset = 100 - tempPercent;
+        if(circleProgress) circleProgress.style.strokeDashoffset = offset;
+
+        // 모달 및 바 업데이트
+        const gauge = document.getElementById('vibeGauge');
+        const modalIcon = document.getElementById('vibeModalIcon');
+        const status = document.getElementById('vibeStatusTxt');
+        const desc = document.getElementById('vibeDesc');
+        const scoreTxt = document.getElementById('vibeScoreTxt');
+        
+        if(gauge) gauge.style.width = `${tempPercent}%`;
+        if(scoreTxt) scoreTxt.innerText = `${Math.floor(tempPercent)}%`;
+
+        let currentEmoji = "🌱";
+        if (tempPercent >= 80) {
+            currentEmoji = "🔥"; status.innerText = "EXPLOSIVE PASSION"; desc.innerText = `현재 활동지수 최고조! 산행의 열기가 가득합니다. (방문 ${recentVisitorCount} / 산행 ${recentLogCount})`;
+            circleBtn.classList.add('hot-vibe');
+        } else if (tempPercent >= 50) {
+            currentEmoji = "☀️"; status.innerText = "VERY ACTIVE"; desc.innerText = `커뮤니티가 아주 활발합니다. 함께 등산해요! (방문 ${recentVisitorCount} / 산행 ${recentLogCount})`;
+            circleBtn.classList.remove('hot-vibe');
+        } else if (tempPercent >= 20) {
+            currentEmoji = "🌱"; status.innerText = "WARMING UP"; desc.innerText = `산행의 온기가 느껴집니다. (방문 ${recentVisitorCount} / 산행 ${recentLogCount})`;
+            circleBtn.classList.remove('hot-vibe');
+        } else {
+            currentEmoji = "❄️"; status.innerText = "CHILLING"; desc.innerText = "조용한 숲속 같네요. 첫 산행 기록을 남겨보세요!";
+            circleBtn.classList.remove('hot-vibe');
+        }
+        
+        if(circleIcon) circleIcon.innerText = currentEmoji;
+        if(modalIcon) modalIcon.innerText = currentEmoji;
+
+    } catch (e) { console.error("온도 갱신 오류:", e); }
+}
+
 if (!sessionStorage.getItem('visited')) { updateVisitorCount(); sessionStorage.setItem('visited', 'true'); }
 listenVisitors(); initAutoSelection(); startRealtimeSync(); listenSubRooms();
+setTimeout(() => { updateVibeTemp(); setInterval(updateVibeTemp, 60000); }, 2000);
+
 document.getElementById('regDate').valueAsDate = new Date();
 document.getElementById('activityDate').valueAsDate = new Date();
 </script>
