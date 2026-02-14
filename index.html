@@ -403,7 +403,7 @@ background: white;
 .level-msg-name { font-size: 1.5rem; font-weight: 900; color: #1e293b; margin-bottom: 10px; display: block; }
 .level-msg-box { background: #f0f9ff; padding: 15px; border-radius: 20px; border: 2px dashed #3b82f6; margin-bottom: 20px; }
 .level-msg-txt { font-size: 1rem; font-weight: 800; color: #0369a1; line-height: 1.5; }
-.copy-badge { font-size: 10px; background: #3b82f6; color: white; padding: 3px 10px; border-radius: 20px; margin-top: 10px; display: inline-block; }
+
 /* [추가] 활동 온도 스타일 */
 .vibe-temp-card {
     background: linear-gradient(135deg, #fff 0%, #fff5f5 100%);
@@ -1304,17 +1304,12 @@ alert("수정 완료"); startRealtimeSync();
 } catch (e) { alert(e.message); }
 };
 
-// 실시간 감시 및 레벨업 팝업용 변수
-let previousLevels = {};
-let isInitialLoad = true;
-
 let unsubscribe = null;
 function startRealtimeSync() {
 if (unsubscribe) unsubscribe();
 unsubscribe = onSnapshot(collection(db, "sanwoori"), async (snapshot) => {
 const start = Timestamp.fromDate(new Date(selectedYear, (selectedQuarter - 1) * 3, 1));
 const end = Timestamp.fromDate(new Date(selectedYear, selectedQuarter * 3, 1));
-
 const results = await Promise.all(snapshot.docs.map(async (docSnap) => {
 const m = { id: docSnap.id, ...docSnap.data() };
 const allLogs = await getDocs(collection(db, `sanwoori/${m.id}/logs`));
@@ -1322,32 +1317,38 @@ m.qCount = allLogs.docs.filter(l => l.data().date >= start && l.data().date < en
 m.totalHeight = allLogs.docs.reduce((acc, l) => acc + (l.data().height || 0), 0);
 const latestLogSnap = await getDocs(query(collection(db, `sanwoori/${m.id}/logs`), orderBy("date", "desc"), limit(1)));
 if (!latestLogSnap.empty) m.lastDate = latestLogSnap.docs[0].data().date;
+return m;
+}));
+currentData = results;
+updateAdminMemberLists(); 
+renderStatusTable();
+});
+}
 
-// 레벨업 팝업 트리거 함수 (임계점 체크 버전)
-window.triggerLevelupAlert = (name, level) => {
-// 관리자가 아닐 때는 팝업을 띄우지 않음
-if (!isAdminLoggedIn) return;
+// 레벨업 임계점 체크 및 축하 로직
+window.checkLevelUpgrade = (name, oldLevel, newLevel) => {
+    // 임계점에 해당하는 레벨들을 배열로 추출
+    const thresholdLevels = levelThresholds.map(t => t.lv);
+    
+    // 점수가 오르는 구간 중에 임계점이 포함되어 있는지 확인 (ex: 4레벨에서 2점 추가하여 6레벨이 된 경우 5레벨(나무) 포함됨)
+    for (let lv = oldLevel + 1; lv <= newLevel; lv++) {
+        if (thresholdLevels.includes(lv)) {
+            const badge = getLevelBadge(lv);
+            triggerLevelupAlert(name, lv, badge);
+            break; // 한 번에 여러 임계점을 넘어도 가장 높은 것 하나만 띄움
+        }
+    }
+};
 
-// 마크가 변경되는 레벨 임계점 리스트
-const milestones = [1, 3, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100];
-
-// 현재 레벨이 임계점에 해당하지 않으면 종료
-if (!milestones.includes(level)) return;
-
-const badge = getLevelBadge(level);
-const msg = `[산:우리] 🎉 축하합니다! ${name}님이 ${level}레벨을 달성하여 새로운 마크 [${badge}]를 획득하셨습니다! ⛰️✨`;
-
-document.getElementById('levelUpName').innerText = "등급 상승 알림";
-document.getElementById('levelUpMsg').innerText = `${name}님이 ${level}레벨로 상승! [${badge}] 마크를 획득하셨습니다!`;
-
-const overlay = document.getElementById('levelupAlert');
-overlay.style.display = 'flex';
-setTimeout(() => overlay.classList.add('active'), 10);
-
-// 축하 멘트 자동 복사
-navigator.clipboard.writeText(msg).then(() => {
-console.log('관리자용 축하 메시지 복사 완료');
-}).catch(err => console.log('복사 실패', err));
+window.triggerLevelupAlert = (name, level, badge) => {
+    const msg = `${name}님이 ${level}레벨로 [${badge}] 마크를 획득하셨습니다! 축하드립니다 🎉`;
+    document.getElementById('levelUpName').innerText = name;
+    document.getElementById('levelUpMsg').innerText = `${level}레벨 달성!\n[${badge}] 마크를 획득하셨습니다! 축하드립니다 🎉`;
+    
+    const overlay = document.getElementById('levelupAlert');
+    overlay.style.display = 'flex';
+    setTimeout(() => overlay.classList.add('active'), 10);
+    navigator.clipboard.writeText(msg).catch(err => console.log('복사 실패', err));
 };
 
 window.closeLevelupAlert = () => {
@@ -1357,21 +1358,33 @@ window.closeLevelupAlert = () => {
 };
 
 window.addMultiActivity = async () => {
-const dateVal = document.getElementById('activityDate').value;
-const mName = document.getElementById('mountainName').value.trim();
-const height = parseInt(document.getElementById('mountainHeight').value) || 0;
-const isTop100 = document.getElementById('isTop100Check').checked;
-const isBAC = document.getElementById('isBACCheck').checked;
-const region = document.getElementById('adminManualRegionSelect').value;
-if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜 확인");
-const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
-const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
-if(mName && tempCoord) await setDoc(doc(db, "mountains", mName), { x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region }, { merge: true });
-for(const id of selectedMemberIds){
-await updateDoc(doc(db, "sanwoori", id), { level: increment(up), lastDate: ts });
-for(let i=0; i < up; i++) await addDoc(collection(db, `sanwoori/${id}/logs`), { date: ts, mountain: mName, height, coords: tempCoord, isTop100, isBAC, region });
-}
-alert("저장 완료"); selectedMemberIds.clear(); tempCoord = null; updateAdminMemberLists();
+    const dateVal = document.getElementById('activityDate').value;
+    const mName = document.getElementById('mountainName').value.trim();
+    const height = parseInt(document.getElementById('mountainHeight').value) || 0;
+    const isTop100 = document.getElementById('isTop100Check').checked;
+    const isBAC = document.getElementById('isBACCheck').checked;
+    const region = document.getElementById('adminManualRegionSelect').value;
+    if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜 확인");
+    const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
+    const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
+
+    if(mName && tempCoord) await setDoc(doc(db, "mountains", mName), { x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region }, { merge: true });
+
+    for(const id of selectedMemberIds){
+        const member = currentData.find(m => m.id === id);
+        if(!member) continue;
+        const oldLevel = member.level || 0;
+        const newLevel = oldLevel + up;
+        
+        await updateDoc(doc(db, "sanwoori", id), { level: newLevel, lastDate: ts });
+        for(let i=0; i < up; i++) {
+            await addDoc(collection(db, `sanwoori/${id}/logs`), { date: ts, mountain: mName, height, coords: tempCoord, isTop100, isBAC, region });
+        }
+        
+        // 마크 임계점 도달 여부 체크
+        checkLevelUpgrade(member.name, oldLevel, newLevel);
+    }
+    alert("저장 완료"); selectedMemberIds.clear(); tempCoord = null; updateAdminMemberLists();
 };
 
 window.loadMemberLogs = async () => {
@@ -1510,30 +1523,15 @@ const q = document.getElementById('adminSearchInput').value.toLowerCase();
 document.querySelectorAll('.member-chip').forEach(c => { c.style.display = c.innerText.toLowerCase().includes(q) ? "block" : "none"; });
 };
 
-if (!sessionStorage.getItem('visited')) { updateVisitorCount(); sessionStorage.setItem('visited', 'true'); }
-listenVisitors(); initAutoSelection(); startRealtimeSync(); listenSubRooms();
-/* [추가] 통합 활동 온도 로직 */
 async function updateVibeTemp() {
     try {
-        // Firebase Timestamp를 사용하기 위해 전역 객체 확인
-        // module 타입이므로 코드 상단에서 import된 Timestamp를 사용합니다.
         const twentyFourHoursAgo = Timestamp.fromMillis(Date.now() - 86400000);
         let totalRecentActivities = 0;
-        
-        // 1. 산행 기록 집계
         for (const member of currentData) {
-            const logSnap = await getDocs(query(
-                collection(db, `sanwoori/${member.id}/logs`), 
-                where("date", ">=", twentyFourHoursAgo)
-            ));
+            const logSnap = await getDocs(query(collection(db, `sanwoori/${member.id}/logs`), where("date", ">=", twentyFourHoursAgo)));
             totalRecentActivities += logSnap.size;
         }
-
-        // 2. 사이트 방문 기록 집계 (visitor_logs 기준)
-        const visitorSnap = await getDocs(query(
-            collection(db, "visitor_logs"), 
-            where("timestamp", ">=", twentyFourHoursAgo)
-        ));
+        const visitorSnap = await getDocs(query(collection(db, "visitor_logs"), where("timestamp", ">=", twentyFourHoursAgo)));
         totalRecentActivities += visitorSnap.size;
 
         const gauge = document.getElementById('vibeGauge');
@@ -1545,54 +1543,29 @@ async function updateVibeTemp() {
         if(gauge) gauge.style.width = `${tempPercent}%`;
         
         if (tempPercent >= 80) {
-            icon.innerText = "🔥";
-            icon.className = "text-lg hot-vibe";
-            status.innerText = "EXPLOSIVE PASSION";
-            desc.innerText = `현재 활동지수 최고조! (${totalRecentActivities}개의 활동)`;
-            createFireParticles(); 
+            icon.innerText = "🔥"; icon.className = "text-lg hot-vibe"; status.innerText = "EXPLOSIVE PASSION"; desc.innerText = `현재 활동지수 최고조! (${totalRecentActivities}개의 활동)`;
+            const card = document.getElementById('vibeCard');
+            if(card) {
+                const p = document.createElement('span'); p.className = 'flame-particle'; p.innerText = '🔥';
+                p.style.left = (Math.random() * 80 + 10) + '%'; p.style.bottom = '20px'; card.appendChild(p);
+                setTimeout(() => { if (p.parentNode === card) card.removeChild(p); }, 1000);
+            }
         } else if (tempPercent >= 50) {
-            icon.innerText = "☀️";
-            icon.className = "text-lg";
-            status.innerText = "VERY ACTIVE";
-            desc.innerText = "커뮤니티가 아주 활발합니다. 지금 참여해보세요!";
+            icon.innerText = "☀️"; icon.className = "text-lg"; status.innerText = "VERY ACTIVE"; desc.innerText = "커뮤니티가 아주 활발합니다.";
         } else if (tempPercent >= 20) {
-            icon.innerText = "🌱";
-            icon.className = "text-lg";
-            status.innerText = "WARMING UP";
-            desc.innerText = "산행과 방문의 온기가 느껴지기 시작합니다.";
+            icon.innerText = "🌱"; icon.className = "text-lg"; status.innerText = "WARMING UP"; desc.innerText = "산행의 온기가 느껴지기 시작합니다.";
         } else {
-            icon.innerText = "❄️";
-            icon.className = "text-lg";
-            status.innerText = "CHILLING";
-            desc.innerText = "조용한 숲속 같네요. 첫 소식을 들려주세요!";
+            icon.innerText = "❄️"; icon.className = "text-lg"; status.innerText = "CHILLING"; desc.innerText = "조용한 숲속 같네요.";
         }
-    } catch (error) {
-        console.error("온도 업데이트 실패:", error);
-    }
+    } catch (e) { console.error(e); }
 }
 
-function createFireParticles() {
-    const card = document.getElementById('vibeCard');
-    if(!card) return;
-    const p = document.createElement('span');
-    p.className = 'flame-particle';
-    p.innerText = '🔥';
-    p.style.left = (Math.random() * 80 + 10) + '%';
-    p.style.bottom = '20px';
-    card.appendChild(p);
-    setTimeout(() => { if (p.parentNode === card) card.removeChild(p); }, 1000);
-}
-
-// 60초마다 갱신 (데이터가 준비된 후 시작하기 위해 약간의 지연시간을 둠)
-setTimeout(() => {
-    updateVibeTemp();
-    setInterval(updateVibeTemp, 60000);
-}, 2000);
+if (!sessionStorage.getItem('visited')) { updateVisitorCount(); sessionStorage.setItem('visited', 'true'); }
+listenVisitors(); initAutoSelection(); startRealtimeSync(); listenSubRooms();
+setTimeout(() => { updateVibeTemp(); setInterval(updateVibeTemp, 60000); }, 2000);
 
 document.getElementById('regDate').valueAsDate = new Date();
 document.getElementById('activityDate').valueAsDate = new Date();
 </script>
 </body>
 </html>
-
-​
