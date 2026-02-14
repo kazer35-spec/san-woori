@@ -916,6 +916,8 @@ catch (e) { await setDoc(statsRef, { total: 1 }, { merge: true }); }
 const dailyRef = doc(db, "site_stats", `day_${todayStr}`);
 try { await updateDoc(dailyRef, { count: increment(1) }); }
 catch (e) { await setDoc(dailyRef, { count: 1 }, { merge: true }); }
+// 활동 지수용 로그 기록 (최근 24시간)
+await addDoc(collection(db, "visitor_logs"), { timestamp: Timestamp.now() });
 }
 
 function listenVisitors() {
@@ -1327,15 +1329,12 @@ renderStatusTable();
 
 // 레벨업 임계점 체크 및 축하 로직
 window.checkLevelUpgrade = (name, oldLevel, newLevel) => {
-    // 임계점에 해당하는 레벨들을 배열로 추출
     const thresholdLevels = levelThresholds.map(t => t.lv);
-    
-    // 점수가 오르는 구간 중에 임계점이 포함되어 있는지 확인 (ex: 4레벨에서 2점 추가하여 6레벨이 된 경우 5레벨(나무) 포함됨)
     for (let lv = oldLevel + 1; lv <= newLevel; lv++) {
         if (thresholdLevels.includes(lv)) {
             const badge = getLevelBadge(lv);
             triggerLevelupAlert(name, lv, badge);
-            break; // 한 번에 여러 임계점을 넘어도 가장 높은 것 하나만 띄움
+            break;
         }
     }
 };
@@ -1380,11 +1379,10 @@ window.addMultiActivity = async () => {
         for(let i=0; i < up; i++) {
             await addDoc(collection(db, `sanwoori/${id}/logs`), { date: ts, mountain: mName, height, coords: tempCoord, isTop100, isBAC, region });
         }
-        
-        // 마크 임계점 도달 여부 체크
         checkLevelUpgrade(member.name, oldLevel, newLevel);
     }
     alert("저장 완료"); selectedMemberIds.clear(); tempCoord = null; updateAdminMemberLists();
+    updateVibeTemp(); // 저장 직후 온도 즉시 갱신
 };
 
 window.loadMemberLogs = async () => {
@@ -1434,6 +1432,7 @@ if(!confirm("삭제하시겠습니까?")) return;
 await deleteDoc(doc(db, `sanwoori/${mId}/logs`, logId));
 if(shouldDownLevel) await updateDoc(doc(db, "sanwoori", mId), { level: increment(-1) });
 loadMemberLogs();
+updateVibeTemp(); // 기록 삭제 시 온도 즉시 갱신
 };
 
 window.updateMemberName = async () => {
@@ -1523,27 +1522,40 @@ const q = document.getElementById('adminSearchInput').value.toLowerCase();
 document.querySelectorAll('.member-chip').forEach(c => { c.style.display = c.innerText.toLowerCase().includes(q) ? "block" : "none"; });
 };
 
+/* -------------------------------------------------------------------------- */
+/* [수정됨] 열정 온도 로직: 방문자 5명당 20%, 산행기록 1개당 10% */
+/* -------------------------------------------------------------------------- */
 async function updateVibeTemp() {
     try {
         const twentyFourHoursAgo = Timestamp.fromMillis(Date.now() - 86400000);
-        let totalRecentActivities = 0;
+        
+        // 1. 최근 24시간 내 산행 기록 수 조회
+        let recentLogCount = 0;
         for (const member of currentData) {
             const logSnap = await getDocs(query(collection(db, `sanwoori/${member.id}/logs`), where("date", ">=", twentyFourHoursAgo)));
-            totalRecentActivities += logSnap.size;
+            recentLogCount += logSnap.size;
         }
-        const visitorSnap = await getDocs(query(collection(db, "visitor_logs"), where("timestamp", ">=", twentyFourHoursAgo)));
-        totalRecentActivities += visitorSnap.size;
 
+        // 2. 최근 24시간 내 순수 방문 로그 수 조회
+        const visitorSnap = await getDocs(query(collection(db, "visitor_logs"), where("timestamp", ">=", twentyFourHoursAgo)));
+        const recentVisitorCount = visitorSnap.size;
+
+        // 3. 온도 계산식
+        // 방문자 5명당 20% (즉 1명당 4%) + 산행 기록 1개당 10%
+        let visitorScore = (recentVisitorCount / 5) * 20; 
+        let logScore = recentLogCount * 10;
+        let tempPercent = Math.min(visitorScore + logScore, 100);
+
+        // UI 업데이트
         const gauge = document.getElementById('vibeGauge');
         const icon = document.getElementById('vibeIcon');
         const status = document.getElementById('vibeStatusTxt');
         const desc = document.getElementById('vibeDesc');
         
-        let tempPercent = Math.min((totalRecentActivities / 25) * 100, 100);
         if(gauge) gauge.style.width = `${tempPercent}%`;
         
         if (tempPercent >= 80) {
-            icon.innerText = "🔥"; icon.className = "text-lg hot-vibe"; status.innerText = "EXPLOSIVE PASSION"; desc.innerText = `현재 활동지수 최고조! (${totalRecentActivities}개의 활동)`;
+            icon.innerText = "🔥"; icon.className = "text-lg hot-vibe"; status.innerText = "EXPLOSIVE PASSION"; desc.innerText = `현재 활동지수 최고조! (방문 ${recentVisitorCount} / 산행 ${recentLogCount})`;
             const card = document.getElementById('vibeCard');
             if(card) {
                 const p = document.createElement('span'); p.className = 'flame-particle'; p.innerText = '🔥';
@@ -1551,13 +1563,13 @@ async function updateVibeTemp() {
                 setTimeout(() => { if (p.parentNode === card) card.removeChild(p); }, 1000);
             }
         } else if (tempPercent >= 50) {
-            icon.innerText = "☀️"; icon.className = "text-lg"; status.innerText = "VERY ACTIVE"; desc.innerText = "커뮤니티가 아주 활발합니다.";
+            icon.innerText = "☀️"; icon.className = "text-lg"; status.innerText = "VERY ACTIVE"; desc.innerText = `커뮤니티가 아주 활발합니다. (방문 ${recentVisitorCount} / 산행 ${recentLogCount})`;
         } else if (tempPercent >= 20) {
-            icon.innerText = "🌱"; icon.className = "text-lg"; status.innerText = "WARMING UP"; desc.innerText = "산행의 온기가 느껴지기 시작합니다.";
+            icon.innerText = "🌱"; icon.className = "text-lg"; status.innerText = "WARMING UP"; desc.innerText = `산행의 온기가 느껴집니다. (방문 ${recentVisitorCount} / 산행 ${recentLogCount})`;
         } else {
             icon.innerText = "❄️"; icon.className = "text-lg"; status.innerText = "CHILLING"; desc.innerText = "조용한 숲속 같네요.";
         }
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error("온도 갱신 오류:", e); }
 }
 
 if (!sessionStorage.getItem('visited')) { updateVisitorCount(); sessionStorage.setItem('visited', 'true'); }
