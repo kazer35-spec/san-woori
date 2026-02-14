@@ -1323,36 +1323,31 @@ m.totalHeight = allLogs.docs.reduce((acc, l) => acc + (l.data().height || 0), 0)
 const latestLogSnap = await getDocs(query(collection(db, `sanwoori/${m.id}/logs`), orderBy("date", "desc"), limit(1)));
 if (!latestLogSnap.empty) m.lastDate = latestLogSnap.docs[0].data().date;
 
-// 레벨업 체크 (초기 로딩 이후에만 작동)
-if (!isInitialLoad && previousLevels[m.id] !== undefined && m.level > previousLevels[m.id]) {
-    triggerLevelupAlert(m.name, m.level);
-}
-previousLevels[m.id] = m.level;
-
-return m;
-}));
-
-currentData = results;
-isInitialLoad = false; // 초기 로딩 완료 표시
-updateAdminMemberLists(); 
-renderStatusTable();
-});
-}
-
-// 레벨업 팝업 트리거 함수
+// 레벨업 팝업 트리거 함수 (임계점 체크 버전)
 window.triggerLevelupAlert = (name, level) => {
-    const badge = getLevelBadge(level);
-    const msg = `${name}님이 ${level}레벨로 [${badge}] 마크를 획득하셨습니다! 축하드립니다 🎉`;
-    
-    document.getElementById('levelUpName').innerText = name;
-    document.getElementById('levelUpMsg').innerText = `${level}레벨 달성!\n[${badge}] 마크를 획득하셨습니다! 축하드립니다 🎉`;
-    
-    const overlay = document.getElementById('levelupAlert');
-    overlay.style.display = 'flex';
-    setTimeout(() => overlay.classList.add('active'), 10);
+// 관리자가 아닐 때는 팝업을 띄우지 않음
+if (!isAdminLoggedIn) return;
 
-    // 자동 복사
-    navigator.clipboard.writeText(msg).catch(err => console.log('복사 실패', err));
+// 마크가 변경되는 레벨 임계점 리스트
+const milestones = [1, 3, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100];
+
+// 현재 레벨이 임계점에 해당하지 않으면 종료
+if (!milestones.includes(level)) return;
+
+const badge = getLevelBadge(level);
+const msg = `[산:우리] 🎉 축하합니다! ${name}님이 ${level}레벨을 달성하여 새로운 마크 [${badge}]를 획득하셨습니다! ⛰️✨`;
+
+document.getElementById('levelUpName').innerText = "등급 상승 알림";
+document.getElementById('levelUpMsg').innerText = `${name}님이 ${level}레벨로 상승! [${badge}] 마크를 획득하셨습니다!`;
+
+const overlay = document.getElementById('levelupAlert');
+overlay.style.display = 'flex';
+setTimeout(() => overlay.classList.add('active'), 10);
+
+// 축하 멘트 자동 복사
+navigator.clipboard.writeText(msg).then(() => {
+console.log('관리자용 축하 메시지 복사 완료');
+}).catch(err => console.log('복사 실패', err));
 };
 
 window.closeLevelupAlert = () => {
