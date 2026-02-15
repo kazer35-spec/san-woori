@@ -669,13 +669,6 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 <div class="flex gap-2">
 <input type="number" id="bonusDaysInput" placeholder="예: 5 또는 -5" class="h-9 text-xs flex-1 border rounded-lg px-2 outline-none">
 <button onclick="updateBonusDays()" class="bg-red-400 text-white px-3 rounded-lg text-xs font-bold">날짜 적용</button>
-<div class="flex flex-col gap-1">
-    <span class="text-[9px] font-bold text-pink-500 uppercase">Friendship Point</span>
-    <div class="flex gap-1">
-        <input type="number" id="friendshipInput" class="admin-input !mb-0" placeholder="수치">
-        <button onclick="updateFriendshipPoints()" class="bg-pink-600 text-white px-3 rounded-lg text-xs font-bold shrink-0">증감</button>
-    </div>
-</div>
 </div>
 </div>
 <div class="flex gap-2">
@@ -744,20 +737,9 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 
 <div class="flex justify-between items-end mb-2">
 <p class="text-[10px] font-extrabold text-slate-500">🌱 분기 산행 잔디</p>
-<h2 class="text-xl font-black text-slate-800 flex items-center gap-2">
-<span id="timelineMemberName" class="text-sky-600"></span> 님의 산행
-<span id="passionVibeArea"></span>
-<span id="friendshipVibeArea" class="flex items-center gap-1 ml-1"></span> </h2>
-<p class="text-[10px] font-bold text-slate-400 mt-1">Activity Timeline & Stats</p>
-
-<div class="flex items-center gap-2 mb-4 overflow-x-auto pb-2 no-scrollbar">
-<div class="px-3 py-1.5 bg-sky-50 rounded-full border border-sky-100">
-<span id="timelineCountBadge" class="text-[10px] font-black text-sky-600">분기 0회 / 최근 0회</span>
+<div id="passionVibeArea"></div>
 </div>
-<div class="px-3 py-1.5 bg-pink-50 rounded-full border border-pink-100">
-<span id="friendshipCountBadge" class="text-[10px] font-black text-pink-600">🤝 우정 0</span>
-</div>
-</div>
+<div id="grassBoard" class="grass-container mb-4"></div>
 
 <div id="chartBox" class="chart-container-box">
     <div class="chart-header">
@@ -1119,22 +1101,6 @@ listArea.innerHTML = combinedHtml;
 window.toggleVibeModal = (show) => { document.getElementById('vibeModal').style.display = show ? 'flex' : 'none'; };
 
 window.showMemberTimeline = async (mId, mName) => {
-// [찾을 곳] showMemberTimeline 함수 내부 try { 바로 다음 줄
-try {
-// 1. 회원 데이터에서 우정 점수 가져오기
-const memberDoc = await getDoc(doc(db, "sanwoori", mId));
-const fPoints = memberDoc.data().friendship || 0;
-
-// 2. UI 배지에 표시
-document.getElementById('friendshipCountBadge').innerText = `🤝 우정 ${fPoints}`;
-
-// 3. 점수에 따라 HOT 옆에 아이콘 표시
-const friendshipArea = document.getElementById('friendshipVibeArea');
-friendshipArea.innerHTML = ""; // 초기화
-if(fPoints >= 50) friendshipArea.innerHTML = `<span class="text-[9px] font-black text-pink-500 bg-pink-50 px-2 py-0.5 rounded-md border border-pink-100">💞 베프</span>`;
-else if(fPoints >= 10) friendshipArea.innerHTML = `<span class="text-[9px] font-black text-purple-500 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-100">🤝 동료</span>`;
-
-// (이후 기존 코드인 start = new Date... 로직 계속 진행)
 toggleTimelineModal(true);
 const modalContent = document.getElementById('timelineModalContent');
 modalContent.scrollTop = 0; 
@@ -1505,19 +1471,7 @@ await addDoc(collection(db, "sanwoori"), { name, level: 0, gender, lastDate: Tim
 alert("등록 완료");
 }
 };
-// 수동 우정 점수 수정 함수
-window.updateFriendshipPoints = async () => {
-const id = document.getElementById('memberSelectManage').value;
-const points = parseInt(document.getElementById('friendshipInput').value);
-if(id && !isNaN(points)) {
-await updateDoc(doc(db, "sanwoori", id), { friendship: increment(points) });
-alert("우정 수치가 반영되었습니다.");
-document.getElementById('friendshipInput').value = "";
-} else {
-alert("멤버를 선택하고 숫자를 입력해주세요.");
-}
-};
-​
+
 window.updateBonusDays = async () => {
 const id = document.getElementById('memberSelectManage').value;
 const bonus = parseInt(document.getElementById('bonusDaysInput').value);
@@ -1601,3 +1555,37 @@ async function updateVibeTemp() {
         const status = document.getElementById('vibeStatusTxt');
         const desc = document.getElementById('vibeDesc');
         const scoreTxt = document.getElementById('vibeScoreTxt');
+        
+        if(gauge) gauge.style.width = `${tempPercent}%`;
+        if(scoreTxt) scoreTxt.innerText = `${Math.floor(tempPercent)}%`;
+
+        let currentEmoji = "🍀";
+        if (tempPercent >= 80) {
+            currentEmoji = "🔥"; status.innerText = "EXPLOSIVE PASSION"; desc.innerText = "현재 활동지수 최고조! 산행의 열기가 가득합니다.";
+            circleBtn.classList.add('hot-vibe');
+        } else if (tempPercent >= 50) {
+            currentEmoji = "☀️"; status.innerText = "VERY ACTIVE"; desc.innerText = "커뮤니티가 아주 활발합니다. 함께 등산해요!";
+            circleBtn.classList.remove('hot-vibe');
+        } else if (tempPercent >= 20) {
+            currentEmoji = "🍀"; status.innerText = "WARMING UP"; desc.innerText = "산행의 온기가 느껴집니다.";
+            circleBtn.classList.remove('hot-vibe');
+        } else {
+            currentEmoji = "❄️"; status.innerText = "CHILLING"; desc.innerText = "조용한 숲속 같네요. 첫 산행 기록을 남겨보세요!";
+            circleBtn.classList.remove('hot-vibe');
+        }
+        
+        if(circleIcon) circleIcon.innerText = currentEmoji;
+        if(modalIcon) modalIcon.innerText = currentEmoji;
+
+    } catch (e) { console.error("온도 갱신 오류:", e); }
+}
+
+if (!sessionStorage.getItem('visited')) { updateVisitorCount(); sessionStorage.setItem('visited', 'true'); }
+listenVisitors(); initAutoSelection(); startRealtimeSync(); listenSubRooms();
+setTimeout(() => { updateVibeTemp(); setInterval(updateVibeTemp, 60000); }, 2000);
+
+document.getElementById('regDate').valueAsDate = new Date();
+document.getElementById('activityDate').valueAsDate = new Date();
+</script>
+</body>
+</html>
