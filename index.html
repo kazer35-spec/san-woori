@@ -601,6 +601,9 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 </label>
 <label class="flex items-center gap-1 cursor-pointer whitespace-nowrap">
 <input type="checkbox" id="isBACCheck" class="w-3.5 h-3.5">
+<label class="flex items-center gap-1 text-[10px] font-bold text-slate-600">
+    <input type="checkbox" id="isGroupCheck"> 👥 2인 이상(우정P)
+</label>
 <span class="text-[10px] font-black text-red-500">BAC인증지</span>
 </label>
 </div>
@@ -737,7 +740,9 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 
 <div class="flex justify-between items-end mb-2">
 <p class="text-[10px] font-extrabold text-slate-500">🌱 분기 산행 잔디</p>
-<div id="passionVibeArea"></div>
+<div class="flex items-center">
+    <div id="passionVibeArea" class="flex items-center gap-2"></div>
+    <div id="friendshipArea" class="ml-2"></div>
 </div>
 <div id="grassBoard" class="grass-container mb-4"></div>
 
@@ -1138,7 +1143,11 @@ let cl = (c >= 4) ? "grass-active-4" : (c === 3 ? "grass-active-3" : (c === 2 ? 
 grassHtml += `<div class="grass-day ${cl}"></div>`;
 }
 grassBoard.innerHTML = grassHtml;
-document.getElementById('timelineCountBadge').innerText = `분기 ${logsQuarter.length}회 / 최근 ${logsAll.length}회`;
+const friendshipScore = logsAll.filter(l => l.isGroup).length; 
+document.getElementById('friendshipArea').innerHTML = 
+`<span class="text-[9px] font-black text-pink-500 bg-pink-50 px-2 py-0.5 rounded-md border border-pink-100">💞 우정 ${friendshipScore}P</span>`;
+document.getElementById('timelineCountBadge').innerText = 
+    `분기 ${logsQuarter.length}회 / 최근 ${logsAll.length}회`;
 if(logsAll.length === 0) { container.innerHTML = "<p class='text-center text-[10px] py-10 text-gray-400'>기록 없음</p>"; return; }
 container.innerHTML = logsAll.map(log => {
 const dayName = ['일','월','화','수','목','금','토'][log.date.getDay()];
@@ -1368,12 +1377,13 @@ window.addMultiActivity = async () => {
     const height = parseInt(document.getElementById('mountainHeight').value) || 0;
     const isTop100 = document.getElementById('isTop100Check').checked;
     const isBAC = document.getElementById('isBACCheck').checked;
+const isGroup = document.getElementById('isGroupCheck').checked;
     const region = document.getElementById('adminManualRegionSelect').value;
     if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜 확인");
     const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
     const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
 
-    if(mName && tempCoord) await setDoc(doc(db, "mountains", mName), { x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region }, { merge: true });
+    if(mName && tempCoord) await setDoc(doc(db, "mountains", mName), { x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, isGroup, region }, { merge: true });
 
     for(const id of selectedMemberIds){
         const member = currentData.find(m => m.id === id);
@@ -1397,7 +1407,10 @@ snap.forEach(ld => {
 const logData = ld.data(); const d = logData.date.toDate(); const dateStr = `${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()}`;
 const logJson = JSON.stringify({ mountain: logData.mountain || '', height: logData.height || 0, coords: logData.coords || null, isTop100: logData.isTop100 || false, isBAC: logData.isBAC || false, region: logData.region || '기타' }).replace(/"/g, '&quot;');
 area.innerHTML += `<div class="log-item-box" onclick="selectLogToMap('${logJson}')">
-<div class="log-info-group"><span class="log-date-txt">${dateStr}</span><span class="log-mt-txt">${logData.isBAC ? '<span class="bac-txt">BAC</span>' : ''}${logData.mountain || '기록'}</span>
+<div class="log-info-group"><span class="log-date-txt">${dateStr}</span><span`<button onclick="event.stopPropagation(); window.toggleFriendship('${id}', '${ld.id}', ${!logData.isGroup})"
+class="text-[9px] ${logData.isGroup ? 'bg-pink-500 text-white' : 'bg-slate-200 text-slate-500'} px-2 py-1 rounded-md font-bold mx-1">
+${logData.isGroup ? '💞 우정ON' : '👥 우정OFF'}
+</button><span class="log-mt-txt">` class="log-mt-txt">${logData.isBAC ? '<span class="bac-txt">BAC</span>' : ''}${logData.mountain || '기록'}</span>
 <div class="flex items-center gap-1"><input type="number" id="h-${ld.id}" value="${logData.height || 0}" class="log-height-input border rounded-md" onclick="event.stopPropagation()">
 <button onclick="event.stopPropagation(); updateLogHeight('${id}', '${ld.id}')" class="text-[9px] bg-slate-200 px-1 py-1 rounded">높이수정</button>
 <button onclick="event.stopPropagation(); updateLogCoord('${id}', '${ld.id}')" class="text-[9px] bg-emerald-500 text-white px-1 py-1 rounded">좌표수정</button></div></div>
@@ -1586,6 +1599,30 @@ setTimeout(() => { updateVibeTemp(); setInterval(updateVibeTemp, 60000); }, 2000
 
 document.getElementById('regDate').valueAsDate = new Date();
 document.getElementById('activityDate').valueAsDate = new Date();
+// 버튼을 눌렀을 때 실제로 DB를 수정하는 '진짜' 함수입니다.
+window.toggleFriendship = async (memberId, logId, newStatus) => {
+    if(!confirm(newStatus ? "우정 포인트를 부여할까요?" : "우정 포인트를 취소할까요?")) return;
+    
+    try {
+        // Firebase 서버에 있는 데이터를 업데이트합니다.
+        const logRef = doc(db, `sanwoori/${memberId}/logs`, logId);
+        await updateDoc(logRef, { isGroup: newStatus });
+        
+        alert("성공적으로 변경되었습니다!");
+        
+        // 1. 수정 목록 새로고침 (버튼 색깔이 즉시 바뀜)
+        window.loadMemberLogs(); 
+        
+        // 2. 메인 배지 새로고침 (상단 핑크색 점수가 즉시 바뀜)
+        const mName = document.querySelector('.text-xl.font-black')?.innerText.replace(' 님', '') || "";
+        if(typeof showMemberTimeline === 'function') {
+            showMemberTimeline(memberId, mName);
+        }
+    } catch (e) {
+        console.error(e);
+        alert("수정 중 오류가 발생했습니다.");
+    }
+};
 </script>
 </body>
 </html>
