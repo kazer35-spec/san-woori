@@ -1635,50 +1635,33 @@ setTimeout(() => { updateVibeTemp(); setInterval(updateVibeTemp, 60000); }, 2000
 
 document.getElementById('regDate').valueAsDate = new Date();
 document.getElementById('activityDate').valueAsDate = new Date();
-// 버튼을 눌렀을 때 실제로 DB를 수정하는 '진짜' 함수입니다.
+// 버튼을 눌렀을 때 실제로 DB를 수정하는 함수입니다.
 window.toggleFriendship = async (memberId, logId, newStatus) => {
     if(!confirm(newStatus ? "우정 포인트를 부여할까요?" : "우정 포인트를 취소할까요?")) return;
     
     try {
-        // Firebase 서버에 있는 데이터를 업데이트합니다.
         const logRef = doc(db, `sanwoori/${memberId}/logs`, logId);
         await updateDoc(logRef, { isGroup: newStatus });
         
         alert("성공적으로 변경되었습니다!");
         
-        // 1. 수정 목록 새로고침 (버튼 색깔이 즉시 바뀜)
-        window.loadMemberLogs(); 
+        // 1. 관리자 수정 목록 새로고침
+        if(typeof window.loadMemberLogs === 'function') {
+            window.loadMemberLogs(); 
+        }
         
-        // 2. 메인 배지 새로고침 (상단 핑크색 점수가 즉시 바뀜)
-        const mName = document.querySelector('.text-xl.font-black')?.innerText.replace(' 님', '') || "";
+        // 2. 메인 배지 점수 새로고침
+        const mNameEl = document.querySelector('.text-xl.font-black');
+        const mName = mNameEl ? mNameEl.innerText.replace(' 님', '') : "";
         if(typeof showMemberTimeline === 'function') {
             showMemberTimeline(memberId, mName);
         }
     } catch (e) {
-        console.error(e);
-        alert("수정 중 오류가 발생했습니다.");
+        console.error("우정 포인트 수정 오류:", e);
+        alert("수정 중 오류가 발생했습니다: " + e.message);
     }
 };
 
-try {
-// 데이터베이스의 해당 기록을 찾아 isGroup 값을 업데이트합니다.
-const logRef = doc(db, `sanwoori/${memberId}/logs`, logId);
-await updateDoc(logRef, { isGroup: newStatus });
-
-alert("수정되었습니다!");
-
-// 화면을 새로고침하여 바뀐 점수와 버튼 색상을 반영합니다.
-window.loadMemberLogs();
-
-// 메인 화면의 핑크색 배지 점수도 즉시 업데이트합니다.
-const mName = document.querySelector('.text-xl.font-black')?.innerText.replace(' 님', '') || "";
-if(typeof showMemberTimeline === 'function') {
-showMemberTimeline(memberId, mName);
-}
-} catch (e) {
-alert("수정 중 오류가 발생했습니다: " + e.message);
-}
-};
 </script>
 </body>
 </html>
