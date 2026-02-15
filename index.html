@@ -1110,56 +1110,77 @@ listArea.innerHTML = combinedHtml;
 window.toggleVibeModal = (show) => { document.getElementById('vibeModal').style.display = show ? 'flex' : 'none'; };
 
 window.showMemberTimeline = async (mId, mName) => {
-toggleTimelineModal(true);
-const modalContent = document.getElementById('timelineModalContent');
-modalContent.scrollTop = 0; 
-const container = document.getElementById('timelineContent');
-const grassBoard = document.getElementById('grassBoard');
-const vibeArea = document.getElementById('passionVibeArea');
-const chartBox = document.getElementById('chartBox');
+    toggleTimelineModal(true);
+    const modalContent = document.getElementById('timelineModalContent');
+    modalContent.scrollTop = 0; 
+    const container = document.getElementById('timelineContent');
+    const grassBoard = document.getElementById('grassBoard');
+    const vibeArea = document.getElementById('passionVibeArea');
+    const chartBox = document.getElementById('chartBox');
 
-document.getElementById('timelineMemberName').innerText = mName;
-container.innerHTML = "<p class='text-center text-xs py-5 text-gray-400'>조회 중...</p>";
-grassBoard.innerHTML = vibeArea.innerHTML = "";
-chartBox.className = `chart-container-box chart-bg-q${selectedQuarter}`;
+    document.getElementById('timelineMemberName').innerText = mName;
+    container.innerHTML = "<p class='text-center text-xs py-5 text-gray-400'>조회 중...</p>";
+    grassBoard.innerHTML = vibeArea.innerHTML = "";
+    chartBox.className = `chart-container-box chart-bg-q${selectedQuarter}`;
 
-try {
-const start = new Date(selectedYear, (selectedQuarter - 1) * 3, 1);
-const end = new Date(selectedYear, selectedQuarter * 3, 1);
-const totalDaysInQ = Math.floor((end - start) / (1000 * 60 * 60 * 24));
-const snapAll = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc"), limit(30)));
-const logsAll = snapAll.docs.map(doc => ({ ...doc.data(), date: doc.data().date.toDate() }));
-const logsQuarter = logsAll.filter(l => l.date >= start && l.date < end);
-const chartData = await calculateGrowthData(mId);
-renderGrowthChart(chartData);
+    try {
+        const start = new Date(selectedYear, (selectedQuarter - 1) * 3, 1);
+        const end = new Date(selectedYear, selectedQuarter * 3, 1);
+        const totalDaysInQ = Math.floor((end - start) / (1000 * 60 * 60 * 24));
+        
+        const snapAll = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc"), limit(30)));
+        const logsAll = snapAll.docs.map(doc => ({ ...doc.data(), date: doc.data().date.toDate() }));
+        const logsQuarter = logsAll.filter(l => l.date >= start && l.date < end);
+        
+        const chartData = await calculateGrowthData(mId);
+        renderGrowthChart(chartData);
 
-const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-const recentCount = logsAll.filter(l => l.date >= thirtyDaysAgo).length;
-if(recentCount >= 4) vibeArea.innerHTML = `<span class="hot-vibe text-[9px] font-black text-orange-500 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-100">🔥 HOT</span>`;
+        const thirtyDaysAgo = new Date(); 
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const recentCount = logsAll.filter(l => l.date >= thirtyDaysAgo).length;
+        
+        if(recentCount >= 4) {
+            vibeArea.innerHTML = `<span class="hot-vibe text-[9px] font-black text-orange-500 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-100">🔥 HOT</span>`;
+        }
 
-const dateCounts = {}; logsQuarter.forEach(l => { const key = `${l.date.getFullYear()}-${l.date.getMonth() + 1}-${l.date.getDate()}`; dateCounts[key] = (dateCounts[key] || 0) + 1; });
-let grassHtml = "";
-for (let i = 0; i < totalDaysInQ; i++) {
-const cur = new Date(start); cur.setDate(start.getDate() + i);
-const k = `${cur.getFullYear()}-${cur.getMonth() + 1}-${cur.getDate()}`;
-const c = dateCounts[k] || 0;
-let cl = (c >= 4) ? "grass-active-4" : (c === 3 ? "grass-active-3" : (c === 2 ? "grass-active-2" : (c === 1 ? "grass-active-1" : "")));
-grassHtml += `<div class="grass-day ${cl}"></div>`;
-}
-grassBoard.innerHTML = grassHtml;
-const friendshipScore = logsAll.filter(l => l.isGroup).length; 
-document.getElementById('friendshipArea').innerHTML = 
-`<span class="text-[9px] font-black text-pink-500 bg-pink-50 px-2 py-0.5 rounded-md border border-pink-100">💞 우정 ${friendshipScore}P</span>`;
-document.getElementById('timelineCountBadge').innerText = 
-    `분기 ${logsQuarter.length}회 / 최근 ${logsAll.length}회`;
-if(logsAll.length === 0) { container.innerHTML = "<p class='text-center text-[10px] py-10 text-gray-400'>기록 없음</p>"; return; }
-container.innerHTML = logsAll.map(log => {
-const dayName = ['일','월','화','수','목','금','토'][log.date.getDay()];
-const top100Class = log.isTop100 ? 'text-blue-600 font-black' : '';
-const bacTag = log.isBAC ? '<span class="bac-txt">BAC</span>' : '';
-return `<div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-date">${log.date.getFullYear()}.${log.date.getMonth()+1}.${log.date.getDate()} (${dayName})</div><div class="timeline-desc ${top100Class}">${bacTag}${log.mountain || '기록'} (${log.height || 0}m) ${log.isTop100 ? '⭐' : '✔️'}</div></div>`;
-}).join('');
-} catch (e) { container.innerHTML = "<p class='text-center text-xs text-red-400'>실패</p>"; }
+        const dateCounts = {}; 
+        logsQuarter.forEach(l => { 
+            const key = `${l.date.getFullYear()}-${l.date.getMonth() + 1}-${l.date.getDate()}`; 
+            dateCounts[key] = (dateCounts[key] || 0) + 1; 
+        });
+
+        let grassHtml = "";
+        for (let i = 0; i < totalDaysInQ; i++) {
+            const cur = new Date(start); 
+            cur.setDate(start.getDate() + i);
+            const k = `${cur.getFullYear()}-${cur.getMonth() + 1}-${cur.getDate()}`;
+            const c = dateCounts[k] || 0;
+            let cl = (c >= 4) ? "grass-active-4" : (c === 3 ? "grass-active-3" : (c === 2 ? "grass-active-2" : (c === 1 ? "grass-active-1" : "")));
+            grassHtml += `<div class="grass-day ${cl}"></div>`;
+        }
+        grassBoard.innerHTML = grassHtml;
+
+        const friendshipScore = logsAll.filter(l => l.isGroup).length; 
+        document.getElementById('friendshipArea').innerHTML = `<span class="text-[9px] font-black text-pink-500 bg-pink-50 px-2 py-0.5 rounded-md border border-pink-100">💞 우정 ${friendshipScore}P</span>`;
+        
+        document.getElementById('timelineCountBadge').innerText = `분기 ${logsQuarter.length}회 / 최근 ${logsAll.length}회`;
+
+        if(logsAll.length === 0) { 
+            container.innerHTML = "<p class='text-center text-[10px] py-10 text-gray-400'>기록 없음</p>"; 
+            return; 
+        }
+
+        container.innerHTML = logsAll.map(log => {
+            const dayName = ['일','월','화','수','목','금','토'][log.date.getDay()];
+            const top100Class = log.isTop100 ? 'text-blue-600 font-black' : '';
+            const bacTag = log.isBAC ? '<span class="bac-txt">BAC</span>' : '';
+            return `<div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-date">${log.date.getFullYear()}.${log.date.getMonth()+1}.${log.date.getDate()} (${dayName})</div><div class="timeline-desc ${top100Class}">${bacTag}${log.mountain || '기록'} (${log.height || 0}m) ${log.isTop100 ? '⭐' : '✔️'}</div></div>`;
+        }).join('');
+        
+    } catch (e) { 
+        console.error(e);
+        container.innerHTML = "<p class='text-center text-xs text-red-400'>실패</p>"; 
+    }
 };
 
 async function calculateGrowthData(mId) {
