@@ -1406,18 +1406,21 @@ const snap = await getDocs(query(collection(db, `sanwoori/${id}/logs`), orderBy(
 snap.forEach(ld => {
 const logData = ld.data(); const d = logData.date.toDate(); const dateStr = `${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()}`;
 const logJson = JSON.stringify({ mountain: logData.mountain || '', height: logData.height || 0, coords: logData.coords || null, isTop100: logData.isTop100 || false, isBAC: logData.isBAC || false, region: logData.region || '기타' }).replace(/"/g, '&quot;');
-area.innerHTML += `<div class="log-item-box" onclick="selectLogToMap('${logJson}')">
+area.innerHTML += `
+<div class="log-item-box" onclick="selectLogToMap('${logJson}')">
     <div class="log-info-group">
         <span class="log-date-txt">${dateStr}</span>
-        <button onclick="event.stopPropagation(); window.toggleFriendship('${id}', '${ld.id}', ${!ld.isGroup})" 
+        <button onclick="event.stopPropagation(); window.toggleFriendship('${id}', '${ld.id}', ${ld.isGroup ? false : true})" 
             class="text-[9px] ${ld.isGroup ? 'bg-pink-500 text-white' : 'bg-slate-200 text-slate-500'} px-2 py-1 rounded-md font-bold mx-1">
             ${ld.isGroup ? '💞 우정ON' : '👥 우정OFF'}
         </button>
         <span class="log-mt-txt">${ld.isBAC ? '<span class="bac-txt">BAC</span>' : ''}${ld.mountain || '기록'}</span>
     </div>
+    <div class="flex items-center gap-1">
+        <input type="number" id="h-${ld.id}" value="${ld.height || 0}" class="log-height-input border rounded-md" onclick="event.stopPropagation()">
+        <button onclick="event.stopPropagation(); updateLogHeight('${id}', '${ld.id}')" class="text-[9px] bg-slate-200 px-1 py-1 rounded">높이수정</button>
+    </div>
 </div>`;
-<div class="flex items-center gap-1"><input type="number" id="h-${ld.id}" value="${logData.height || 0}" class="log-height-input border rounded-md" onclick="event.stopPropagation()">
-<button onclick="event.stopPropagation(); updateLogHeight('${id}', '${ld.id}')" class="text-[9px] bg-slate-200 px-1 py-1 rounded">높이수정</button>
 <button onclick="event.stopPropagation(); updateLogCoord('${id}', '${ld.id}')" class="text-[9px] bg-emerald-500 text-white px-1 py-1 rounded">좌표수정</button></div></div>
 <div class="log-btn-group" onclick="event.stopPropagation()"><button class="del-btn-mini" onclick="deleteLog('${id}', '${ld.id}', true)">레벨-1 삭제</button>
 <button class="del-only-btn-mini" onclick="deleteLog('${id}', '${ld.id}', false)">기록만 삭제</button></div></div>`;
@@ -1604,6 +1607,30 @@ setTimeout(() => { updateVibeTemp(); setInterval(updateVibeTemp, 60000); }, 2000
 
 document.getElementById('regDate').valueAsDate = new Date();
 document.getElementById('activityDate').valueAsDate = new Date();
+// 버튼을 눌렀을 때 실제로 DB를 수정하는 '진짜' 함수입니다.
+window.toggleFriendship = async (memberId, logId, newStatus) => {
+    if(!confirm(newStatus ? "우정 포인트를 부여할까요?" : "우정 포인트를 취소할까요?")) return;
+    
+    try {
+        // Firebase 서버에 있는 데이터를 업데이트합니다.
+        const logRef = doc(db, `sanwoori/${memberId}/logs`, logId);
+        await updateDoc(logRef, { isGroup: newStatus });
+        
+        alert("성공적으로 변경되었습니다!");
+        
+        // 1. 수정 목록 새로고침 (버튼 색깔이 즉시 바뀜)
+        window.loadMemberLogs(); 
+        
+        // 2. 메인 배지 새로고침 (상단 핑크색 점수가 즉시 바뀜)
+        const mName = document.querySelector('.text-xl.font-black')?.innerText.replace(' 님', '') || "";
+        if(typeof showMemberTimeline === 'function') {
+            showMemberTimeline(memberId, mName);
+        }
+    } catch (e) {
+        console.error(e);
+        alert("수정 중 오류가 발생했습니다.");
+    }
+};
 </script>
 </body>
 </html>
