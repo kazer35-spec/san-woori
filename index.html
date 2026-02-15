@@ -1648,6 +1648,28 @@ window.toggleFriendship = async (memberId, logId, newStatus) => {
         alert("수정 중 오류가 발생했습니다.");
     }
 };
+window.toggleFriendship = async (memberId, logId, newStatus) => {
+if(!confirm(newStatus ? "우정 포인트를 부여할까요?" : "우정 포인트를 취소할까요?")) return;
+
+try {
+// 데이터베이스의 해당 기록을 찾아 isGroup 값을 업데이트합니다.
+const logRef = doc(db, `sanwoori/${memberId}/logs`, logId);
+await updateDoc(logRef, { isGroup: newStatus });
+
+alert("수정되었습니다!");
+
+// 화면을 새로고침하여 바뀐 점수와 버튼 색상을 반영합니다.
+window.loadMemberLogs();
+
+// 메인 화면의 핑크색 배지 점수도 즉시 업데이트합니다.
+const mName = document.querySelector('.text-xl.font-black')?.innerText.replace(' 님', '') || "";
+if(typeof showMemberTimeline === 'function') {
+showMemberTimeline(memberId, mName);
+}
+} catch (e) {
+alert("수정 중 오류가 발생했습니다: " + e.message);
+}
+};
 </script>
 </body>
 </html>
