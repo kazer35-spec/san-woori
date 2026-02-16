@@ -28,6 +28,70 @@ select { -webkit-appearance: none; -moz-appearance: none; appearance: none; back
 .up-amount-group input[type="radio"], .gender-select-group input[type="radio"] { display: none; }
 .up-amount-group label:has(input:checked), .gender-select-group label:has(input:checked) { background: #3b82f6; color: white; }
 
+/* 시상대 전체 컨테이너 */
+.podium-container {
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    gap: 10px;
+    padding: 40px 10px 20px 10px;
+    margin-top: 20px;
+}
+
+/* 개별 단상 기본 스타일 */
+.podium-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    position: relative;
+}
+
+.podium-step {
+    width: 100%;
+    border-radius: 8px 8px 0 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 900;
+    box-shadow: inset 0 2px 5px rgba(255,255,255,0.3);
+}
+
+/* 순위별 높이 및 색상 */
+.rank-1 .podium-step { height: 100px; background: linear-gradient(to top, #eab308, #fde047); border: 2px solid #ca8a04; order: 2; }
+.rank-2 .podium-step { height: 80px; background: linear-gradient(to top, #94a3b8, #e2e8f0); border: 2px solid #64748b; order: 2; }
+.rank-3 .podium-step { height: 60px; background: linear-gradient(to top, #92400e, #d97706); border: 2px solid #78350f; order: 2; }
+
+/* 1위 후광(Glory) 애니메이션 */
+.glory-effect {
+    position: absolute;
+    top: -50px;
+    width: 120px;
+    height: 120px;
+    background: radial-gradient(circle, rgba(254,240,138,0.5) 0%, rgba(254,240,138,0) 70%);
+    border-radius: 50%;
+    animation: pulse-glory 2s infinite;
+    z-index: -1;
+}
+
+@keyframes pulse-glory {
+    0% { transform: scale(1); opacity: 0.5; }
+    50% { transform: scale(1.3); opacity: 0.8; }
+    100% { transform: scale(1); opacity: 0.5; }
+}
+
+/* 메달 반짝임 효과 */
+.sparkle { animation: sparkle-anim 1.5s infinite; font-size: 1.2rem; margin-bottom: 5px; }
+@keyframes sparkle-anim {
+    0%, 100% { opacity: 1; transform: scale(1); filter: drop-shadow(0 0 2px white); }
+    50% { opacity: 0.7; transform: scale(1.2); filter: drop-shadow(0 0 10px gold); }
+}
+
+.podium-name { font-size: 11px; font-weight: 900; margin-bottom: 8px; color: #334155; }
+.podium-label { font-size: 10px; margin-top: 5px; opacity: 0.9; }
+
 /* 성별 전용 컬러 */
 .gender-select-group label:has(input[value="남"]:checked) { background: #3b82f6; }
 .gender-select-group label:has(input[value="여"]:checked) { background: #ec4899; }
@@ -62,37 +126,6 @@ select { -webkit-appearance: none; -moz-appearance: none; appearance: none; back
 }
 .hot-vibe { animation: flame-glow 1s infinite ease-in-out; display: inline-block; }
 
-/* 1. 각 순위별 반짝임(Glow) 효과 */
-.glow-gold { filter: drop-shadow(0 0 15px rgba(253, 224, 71, 0.8)); animation: glow-pulse 2s infinite; }
-.glow-silver { filter: drop-shadow(0 0 15px rgba(226, 232, 240, 0.7)); animation: glow-pulse 2s infinite; }
-.glow-bronze { filter: drop-shadow(0 0 15px rgba(251, 146, 60, 0.7)); animation: glow-pulse 2s infinite; }
-
-@keyframes glow-pulse {
-0% { opacity: 0.6; transform: scale(1); }
-50% { opacity: 1; transform: scale(1.1); }
-100% { opacity: 0.6; transform: scale(1); }
-}
-
-/* 2. 단상 위 텍스트(칭호+이름) 스타일 */
-.podium-label {
-font-size: 14px;
-font-weight: 900;
-margin-bottom: 10px;
-text-align: center;
-word-break: keep-all;
-}
-
-/* 3. 시상대 전체 높이 및 간격 조절 */
-.podium-container {
-display: flex;
-justify-content: center;
-align-items: flex-end;
-gap: 8px;
-height: 200px; /* 전체 높이 확보 */
-margin: 20px 0;
-}
-
-​
 /* 지도 시스템 스타일 */
 .map-container { position: relative; width: 100%; aspect-ratio: 3/4; background: #f8fafc; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; cursor: crosshair; }
 .map-image { width: 100%; height: 100%; object-fit: cover; }
@@ -252,32 +285,34 @@ box-sizing: border-box;
 .dday-orange { background-color: #fed7aa; color: #9a3412; animation: blink-medium 1.2s infinite; }
 .dday-red { background-color: #fecaca; color: #991b1b; animation: blink-fast 0.6s infinite; }
 
-/* 깜빡임 애니메이션 정의 */
+/* 1. 먼저 공통 애니메이션 효과를 정의합니다 */
 @keyframes dday-blink {
-  0% { opacity: 1; }
-  50% { opacity: 0.3; }
-  100% { opacity: 1; }
+0% { opacity: 1; }
+50% { opacity: 0.3; }
+100% { opacity: 1; }
 }
 
-/* 30일 남음: 노란색 + 느린 깜빡임 (2초 간격) */
+/* 2. 각 상황에 맞는 스타일을 정의합니다 */
+
+/* 30일 남음: 노란색 + 느린 깜빡임 (2초) */
 .blink-slow {
-  animation: dday-blink 2s infinite;
-  background-color: #fefce8 !important; /* 노랑 */
-  color: #a16207 !important;
+animation: dday-blink 2s infinite;
+background-color: #fefce8 !important;
+color: #a16207 !important;
 }
 
-/* 20일 남음: 주황색 + 중간 깜빡임 (1초 간격) */
+/* 20일 남음: 주황색 + 중간 깜빡임 (1초) */
 .blink-medium {
-  animation: dday-blink 1s infinite;
-  background-color: #fff7ed !important; /* 주황 */
-  color: #c2410c !important;
+animation: dday-blink 1s infinite;
+background-color: #fff7ed !important;
+color: #c2410c !important;
 }
 
-/* 10일 남음: 빨간색 + 빠른 깜빡임 (0.5초 간격) */
+/* 10일 남음: 빨간색 + 빠른 깜빡임 (0.5초) */
 .blink-fast {
-  animation: dday-blink 0.5s infinite;
-  background-color: #fee2e2 !important; /* 빨강 */
-  color: #991b1b !important;
+animation: dday-blink 0.5s infinite;
+background-color: #fee2e2 !important;
+color: #991b1b !important;
 }
 ​
 @keyframes glow-orange { 0% { border-color: #f97316; } 50% { border-color: #ea580c; box-shadow: 0 0 8px rgba(234, 88, 12, 0.5); } 100% { border-color: #f97316; } }
@@ -1002,19 +1037,20 @@ return { bg: '#ffffff', border: '#e2e8f0', text: '#94a3b8', blink: '' };
 };
 
 const getDDayStyle = (dday, level) => {
-  // 1. 신입(Lv 0)인 경우: 10일 이하일 때만 아주 빠르게 빨간 깜빡임
-  if (level === 0) {
-    if (dday <= 10) return "blink-fast";
-    return "bg-gray-soft"; // 그 외에는 평범한 회색
-  }
+// 1. 신입(Lv 0)인 경우: 10일 이하일 때만 아주 빠르게 빨간 깜빡임
+if (level === 0) {
+if (dday <= 10) return "blink-fast";
+return "bg-gray-soft"; // 그 외에는 평범한 회색
+}
 
-  // 2. 일반 회원인 경우
-  if (dday <= 10) return "blink-fast"; // 10일 이하: 빨강 + 빠름
-  if (dday <= 20) return "blink-medium"; // 20일 이하: 주황 + 중간
-  if (dday <= 30) return "blink-slow"; // 30일 이하: 노랑 + 느림
-  
-  return "bg-gray-soft"; // 30일 넘게 남았으면 평범한 회색
+// 2. 일반 회원인 경우
+if (dday <= 10) return "blink-fast"; // 10일 이하: 빨강 + 빠름
+if (dday <= 20) return "blink-medium"; // 20일 이하: 주황 + 중간
+if (dday <= 30) return "blink-slow"; // 30일 이하: 노랑 + 느림
+
+return "bg-gray-soft"; // 30일 넘게 남았으면 평범한 회색
 };
+​
 
 async function updateVisitorCount() {
 const d = new Date();
@@ -1153,67 +1189,73 @@ ${clickNeonHtml}
 };
 
 window.toggleHallModal = async (show) => {
-  const modal = document.getElementById('hallModal');
-  modal.style.display = show ? 'flex' : 'none';
-  
-  if(show) {
-    const listArea = document.getElementById('hallListArea');
-    let combinedHtml = "";
-    const seasons = [{ year: 2026, quarter: 1 }, { year: 2025, quarter: 4 }];
-    
-    for (const s of seasons) {
-      let top3 = [];
-      let isCurrent = (s.year === 2026 && s.quarter === 1);
+    const modal = document.getElementById('hallModal');
+    if (!modal) return;
+    modal.style.display = show ? 'flex' : 'none';
 
-      if(isCurrent) {
-        // [현재 시즌] 오즈 제외 및 데이터 가져오기
-        const filtered = [...currentData]
-          .filter(m => !m.isHidden && m.name !== "오즈" && m.qCount > 0)
-          .sort((a, b) => b.qCount - a.qCount || b.level - a.level)
-          .slice(0, 3);
+    if (show) {
+        const listArea = document.getElementById('hallListArea');
+        let combinedHtml = "";
         
-        top3 = filtered.map((m, idx) => {
-          let title = idx === 0 ? "🥇산신령" : (idx === 1 ? "🥈심마니" : "🥉나무꾼");
-          return { name: m.name, title: title };
-        });
-      } else if(s.year === 2025 && s.quarter === 4) {
-        // [2025년 4분기] 아랑(산신령/금), 용삼(심마니/은), 우진(나무꾼/동)
-        // 시상대 구조상 0번이 금(중앙), 1번이 은(왼쪽), 2번이 동(오른쪽)입니다.
-        top3 = [
-          { title: "🥇산신령", name: "아랑" }, // 금단상(중앙)에 아랑님
-          { title: "🥈심마니", name: "용삼" }, // 은단상(왼쪽)에 용삼님
-          { title: "🥉나무꾼", name: "우진" } // 동단상(오른쪽)에 우진님
+        // 시즌 데이터 (2026 1Q는 실시간, 2025 4Q는 고정값)
+        const seasons = [
+            { year: 2026, quarter: 1, isLive: true },
+            { year: 2025, quarter: 4, isLive: false }
         ];
-      }
 
-      if(top3.length > 0) {
-        combinedHtml += `
-        <div class="hall-card ${isCurrent ? 'border-blue-100 bg-blue-50/30' : ''}">
-          <div class="hall-season-title">
-            <span>${s.year}년 ${s.quarter}분기 (Season ${s.year === 2025 ? 1 : 2})</span>
-          </div>
+        for (const s of seasons) {
+            let top3 = [];
+            if (s.isLive) {
+                // 현재 데이터에서 오즈 제외 상위 3명 추출
+                top3 = [...currentData]
+                    .filter(m => !m.isHidden && m.name !== "오즈" && m.qCount > 0)
+                    .sort((a, b) => b.qCount - a.qCount || b.level - a.level)
+                    .slice(0, 3)
+                    .map(m => m.name);
+            } else {
+                // 25년 4분기 고정 데이터
+                top3 = ["아랑", "용삼", "우진"];
+            }
 
-          <div class="podium-container">
-            <div class="podium-step">
-              <div class="podium-label glow-silver">${top3[1]?.title || ''}<br>${top3[1]?.name || '-'}</div>
-              <div class="podium-base silver" style="height:70px;">2</div>
-            </div>
-
-            <div class="podium-step">
-              <div class="podium-label glow-gold" style="font-size:16px;">${top3[0]?.title || ''}<br>${top3[0]?.name || '-'}</div>
-              <div class="podium-base gold" style="height:110px;">1</div>
-            </div>
-
-            <div class="podium-step">
-              <div class="podium-label glow-bronze">${top3[2]?.title || ''}<br>${top3[2]?.name || '-'}</div>
-              <div class="podium-base bronze" style="height:50px;">3</div>
-            </div>
-          </div>
-        </div>`;
-      }
+            if (top3.length > 0) {
+                combinedHtml += `
+                <div class="hall-card mb-8">
+                    <div class="flex justify-between items-center mb-2 px-2">
+                        <span class="text-[11px] font-black text-slate-600">${s.year}년 ${s.quarter}분기</span>
+                        ${s.isLive ? '<span class="bg-red-500 text-white text-[8px] px-2 py-0.5 rounded-full animate-pulse">LIVE</span>' : '<span class="bg-gray-400 text-white text-[8px] px-2 py-0.5 rounded-full">종료</span>'}
+                    </div>
+                    
+                    <div class="podium-container">
+                        <div class="podium-item rank-2">
+                            <span class="podium-name">${top3[1] || '-'}</span>
+                            <div class="podium-step">
+                                <span class="sparkle">🥈</span>
+                                <span class="podium-label">심마니</span>
+                            </div>
+                        </div>
+                        
+                        <div class="podium-item rank-1">
+                            <div class="glory-effect"></div>
+                            <span class="podium-name">${top3[0] || '-'}</span>
+                            <div class="podium-step">
+                                <span class="sparkle">🥇</span>
+                                <span class="podium-label">산신령</span>
+                            </div>
+                        </div>
+                        
+                        <div class="podium-item rank-3">
+                            <span class="podium-name">${top3[2] || '-'}</span>
+                            <div class="podium-step">
+                                <span class="sparkle">🥉</span>
+                                <span class="podium-label">나무꾼</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            }
+        }
+        listArea.innerHTML = combinedHtml;
     }
-    listArea.innerHTML = combinedHtml;
-  }
 };
 
 window.toggleVibeModal = (show) => { document.getElementById('vibeModal').style.display = show ? 'flex' : 'none'; };
