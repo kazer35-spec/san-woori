@@ -671,6 +671,10 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 <button onclick="updateBonusDays()" class="bg-red-400 text-white px-3 rounded-lg text-xs font-bold">날짜 적용</button>
 </div>
 </div>
+<div class="flex gap-2 mt-2">
+    <input type="number" id="friendshipInput" placeholder="우정 점수 직접 수정" class="flex-1 border rounded-xl px-3 text-[10px]">
+    <button onclick="updateFriendship()" class="bg-pink-500 text-white px-3 py-2 rounded-xl text-[10px] font-black">우정 반영</button>
+</div>
 <div class="flex gap-2">
 <button onclick="toggleHideMember()" class="flex-1 bg-gray-600 text-white font-bold rounded-lg text-xs h-9">숨기기/보이기</button>
 <button onclick="deleteMember()" class="flex-1 bg-red-500 text-white font-bold rounded-lg text-xs h-9">영구 삭제</button>
@@ -1127,6 +1131,9 @@ renderGrowthChart(chartData);
 const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 const recentCount = logsAll.filter(l => l.date >= thirtyDaysAgo).length;
 if(recentCount >= 4) vibeArea.innerHTML = `<span class="hot-vibe text-[9px] font-black text-orange-500 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-100">🔥 HOT</span>`;
+const memberData = currentData.find(m => m.id === mId);
+const fship = memberData.friendship || 0;
+vibeArea.innerHTML += `<span class="ml-2 text-[9px] font-black text-pink-500 bg-pink-50 px-2 py-0.5 rounded-md border border-pink-100">💞 우정 ${fship}P</span>`;
 
 const dateCounts = {}; logsQuarter.forEach(l => { const key = `${l.date.getFullYear()}-${l.date.getMonth() + 1}-${l.date.getDate()}`; dateCounts[key] = (dateCounts[key] || 0) + 1; });
 let grassHtml = "";
@@ -1375,11 +1382,19 @@ window.addMultiActivity = async () => {
 
     if(mName && tempCoord) await setDoc(doc(db, "mountains", mName), { x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region }, { merge: true });
 
-    for(const id of selectedMemberIds){
-        const member = currentData.find(m => m.id === id);
-        if(!member) continue;
-        const oldLevel = member.level || 0; const newLevel = oldLevel + up;
-        await updateDoc(doc(db, "sanwoori", id), { level: newLevel, lastDate: ts });
+  
+const isTogether = selectedMemberIds.size >= 2;
+
+for(const id of selectedMemberIds){
+const member = currentData.find(m => m.id === id);
+if(!member) continue;
+const oldLevel = member.level || 0; const newLevel = oldLevel + up;
+
+await updateDoc(doc(db, "sanwoori", id), {
+level: newLevel,
+lastDate: ts,
+friendship: increment(isTogether ? 1 : 0)
+});​
         for(let i=0; i < up; i++) {
             await addDoc(collection(db, `sanwoori/${id}/logs`), { date: ts, mountain: mName, height, coords: tempCoord, isTop100, isBAC, region });
         }
@@ -1476,6 +1491,14 @@ window.updateBonusDays = async () => {
 const id = document.getElementById('memberSelectManage').value;
 const bonus = parseInt(document.getElementById('bonusDaysInput').value);
 if(id && !isNaN(bonus)) { await updateDoc(doc(db, "sanwoori", id), { bonusDays: increment(bonus) }); alert("적용 완료"); }
+};
+window.updateFriendship = async () => {
+    const id = document.getElementById('memberSelectManage').value;
+    const points = parseInt(document.getElementById('friendshipInput').value);
+    if(id && !isNaN(points)) { 
+        await updateDoc(doc(db, "sanwoori", id), { friendship: increment(points) }); 
+        alert("우정 포인트가 반영되었습니다."); 
+    }
 };
 
 window.toggleHideMember = async () => {
