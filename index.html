@@ -1213,29 +1213,36 @@ window.toggleHallModal = async (show) => {
 
     if (show) {
         const listArea = document.getElementById('hallListArea');
-        if (!listArea) return; // listArea가 없으면 중단 (오류 방지)
+        if (!listArea) {
+            console.error("hallListArea 요소를 찾을 수 없습니다.");
+            return;
+        }
         
         let combinedHtml = "";
-        
         const seasons = [
             { year: 2026, quarter: 1, isLive: true },
             { year: 2025, quarter: 4, isLive: false }
         ];
 
-        // currentData가 정의되어 있는지 확인하는 안전 장치
-        const safeData = (typeof currentData !== 'undefined') ? currentData : [];
+        // currentData 존재 여부 엄격하게 체크
+        const safeData = (typeof currentData !== 'undefined' && Array.isArray(currentData)) ? currentData : [];
 
         for (const s of seasons) {
             let top3 = [];
             if (s.isLive) {
-                // 실시간 순위 계산
                 top3 = [...safeData]
                     .filter(m => !m.isHidden && m.name !== "오즈" && (m.qCount || 0) > 0)
-                    .sort((a, b) => (b.qCount - a.qCount) || (b.level - a.level))
+                    .sort((a, b) => {
+                        // qCount나 level이 없는 경우를 대비해 0으로 처리
+                        const aQ = a.qCount || 0;
+                        const bQ = b.qCount || 0;
+                        const aL = a.level || 0;
+                        const bL = b.level || 0;
+                        return (bQ - aQ) || (bL - aL);
+                    })
                     .slice(0, 3)
                     .map(m => m.name);
             } else {
-                // 25년 4분기 고정 데이터
                 top3 = ["아랑", "용삼", "우진"];
             }
 
@@ -1244,7 +1251,7 @@ window.toggleHallModal = async (show) => {
                 <div class="hall-card mb-8">
                     <div class="flex justify-between items-center mb-2 px-2">
                         <span style="font-size:11px; font-weight:900; color:#475569;">${s.year}년 ${s.quarter}분기</span>
-                        ${s.isLive ? '<span class="bg-red-500 text-white text-[8px] px-2 py-0.5 rounded-full">LIVE</span>' : '<span class="bg-gray-400 text-white text-[8px] px-2 py-0.5 rounded-full">종료</span>'}
+                        ${s.isLive ? '<span class="bg-red-500 text-white text-[8px] px-2 py-0.5 rounded-full animate-pulse">LIVE</span>' : '<span class="bg-gray-400 text-white text-[8px] px-2 py-0.5 rounded-full">종료</span>'}
                     </div>
                     
                     <div class="podium-container">
