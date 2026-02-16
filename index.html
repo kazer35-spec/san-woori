@@ -1205,7 +1205,80 @@ ${clickNeonHtml}
 });
 };
 
+window.toggleHallModal = async (show) => {
+    const modal = document.getElementById('hallModal');
+    if (!modal) return;
+    
+    modal.style.display = show ? 'flex' : 'none';
 
+    if (show) {
+        const listArea = document.getElementById('hallListArea');
+        if (!listArea) return; // listArea가 없으면 중단 (오류 방지)
+        
+        let combinedHtml = "";
+        
+        const seasons = [
+            { year: 2026, quarter: 1, isLive: true },
+            { year: 2025, quarter: 4, isLive: false }
+        ];
+
+        // currentData가 정의되어 있는지 확인하는 안전 장치
+        const safeData = (typeof currentData !== 'undefined') ? currentData : [];
+
+        for (const s of seasons) {
+            let top3 = [];
+            if (s.isLive) {
+                // 실시간 순위 계산
+                top3 = [...safeData]
+                    .filter(m => !m.isHidden && m.name !== "오즈" && (m.qCount || 0) > 0)
+                    .sort((a, b) => (b.qCount - a.qCount) || (b.level - a.level))
+                    .slice(0, 3)
+                    .map(m => m.name);
+            } else {
+                // 25년 4분기 고정 데이터
+                top3 = ["아랑", "용삼", "우진"];
+            }
+
+            if (top3.length > 0) {
+                combinedHtml += `
+                <div class="hall-card mb-8">
+                    <div class="flex justify-between items-center mb-2 px-2">
+                        <span style="font-size:11px; font-weight:900; color:#475569;">${s.year}년 ${s.quarter}분기</span>
+                        ${s.isLive ? '<span class="bg-red-500 text-white text-[8px] px-2 py-0.5 rounded-full">LIVE</span>' : '<span class="bg-gray-400 text-white text-[8px] px-2 py-0.5 rounded-full">종료</span>'}
+                    </div>
+                    
+                    <div class="podium-container">
+                        <div class="podium-item rank-2">
+                            <span class="podium-name">${top3[1] || '-'}</span>
+                            <div class="podium-step">
+                                <span class="sparkle">🥈</span>
+                                <span class="podium-label">심마니</span>
+                            </div>
+                        </div>
+                        
+                        <div class="podium-item rank-1">
+                            <div class="glory-effect"></div>
+                            <span class="podium-name">${top3[0] || '-'}</span>
+                            <div class="podium-step">
+                                <span class="sparkle">🥇</span>
+                                <span class="podium-label">산신령</span>
+                            </div>
+                        </div>
+                        
+                        <div class="podium-item rank-3">
+                            <span class="podium-name">${top3[2] || '-'}</span>
+                            <div class="podium-step">
+                                <span class="sparkle">🥉</span>
+                                <span class="podium-label">나무꾼</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            }
+        }
+        listArea.innerHTML = combinedHtml;
+    }
+};
 
 window.toggleVibeModal = (show) => { document.getElementById('vibeModal').style.display = show ? 'flex' : 'none'; };
 
