@@ -62,6 +62,82 @@ select { -webkit-appearance: none; -moz-appearance: none; appearance: none; back
 }
 .hot-vibe { animation: flame-glow 1s infinite ease-in-out; display: inline-block; }
 
+/* 시상대 전체 컨테이너 */
+.podium-container {
+display: flex;
+justify-content: center;
+align-items: flex-end;
+gap: 10px;
+margin-top: 40px;
+margin-bottom: 20px;
+height: 180px;
+}
+
+/* 각 단상 공통 스타일 */
+.podium-step {
+display: flex;
+flex-direction: column;
+align-items: center;
+position: relative;
+width: 80px;
+}
+
+/* 단상 기둥 디자인 */
+.podium-base {
+width: 100%;
+display: flex;
+justify-content: center;
+align-items: center;
+font-weight: 900;
+font-size: 24px;
+color: rgba(255,255,255,0.8);
+border-radius: 8px 8px 0 0;
+box-shadow: inset 0 2px 5px rgba(255,255,255,0.3);
+}
+
+/* 순위별 높이와 색상 */
+.gold { height: 100px; background: linear-gradient(to bottom, #fde047, #ca8a04); z-index: 2; }
+.silver { height: 70px; background: linear-gradient(to bottom, #e2e8f0, #475569); z-index: 1; }
+.bronze { height: 50px; background: linear-gradient(to bottom, #fb923c, #9a3412); z-index: 1; }
+
+/* 프로필 이미지 원형 */
+.podium-profile {
+width: 50px;
+height: 50px;
+border-radius: 50%;
+border: 3px solid white;
+margin-bottom: 8px;
+background: white;
+object-fit: cover;
+box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+/* 1등 후광(Glory) 효과 */
+.glory-effect {
+position: absolute;
+top: -20px;
+width: 100px;
+height: 100px;
+background: radial-gradient(circle, rgba(253,224,71,0.6) 0%, rgba(253,224,71,0) 70%);
+border-radius: 50%;
+z-index: -1;
+animation: glory-pulse 2s infinite;
+}
+
+@keyframes glory-pulse {
+0% { transform: scale(1); opacity: 0.5; }
+50% { transform: scale(1.3); opacity: 0.8; }
+100% { transform: scale(1); opacity: 0.5; }
+}
+
+/* 이름 라벨 */
+.podium-name {
+font-size: 11px;
+font-weight: 900;
+color: #334155;
+margin-top: 5px;
+}
+​
 /* 지도 시스템 스타일 */
 .map-container { position: relative; width: 100%; aspect-ratio: 3/4; background: #f8fafc; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; cursor: crosshair; }
 .map-image { width: 100%; height: 100%; object-fit: cover; }
@@ -1122,27 +1198,77 @@ ${clickNeonHtml}
 };
 
 window.toggleHallModal = async (show) => {
-const modal = document.getElementById('hallModal');
-modal.style.display = show ? 'flex' : 'none';
-if(show) {
-const listArea = document.getElementById('hallListArea');
-let combinedHtml = "";
-const seasons = [{ year: 2026, quarter: 1 }, { year: 2025, quarter: 4 }];
-for (const s of seasons) {
-let top3 = [];
-let isCurrent = (s.year === new Date().getFullYear() && s.quarter === Math.ceil((new Date().getMonth()+1)/3));
-if(isCurrent) top3 = [...currentData].filter(m => !m.isHidden && m.name !== "오즈" && m.qCount > 0).sort((a,b) => b.qCount - a.qCount || b.level - a.level).slice(0, 3);
-else if(s.year === 2025 && s.quarter === 4) top3 = [{ name: "아랑" }, { name: "용삼" }, { name: "우진" }];
-if(top3.length > 0) {
-combinedHtml += `<div class="hall-card ${isCurrent ? 'border-blue-100 bg-blue-50/30' : ''}">
-<div class="hall-season-title"><span>${s.year}년 ${s.quarter}분기 (Season ${s.year === 2025 ? 1 : 2})</span>${isCurrent ? '<span class="status-badge-live">LIVE</span>' : '<span class="status-badge-end">종료</span>'}</div>
-<div class="hall-rank-flex"><div class="hall-rank-item"><span class="hall-rank-label glow-gold">🥇산신령</span><span class="hall-rank-name">${top3[0]?.name || '-'}</span></div>
-${top3[1] ? `<div class="hall-rank-item"><span class="hall-rank-label glow-silver">🥈심마니</span><span class="hall-rank-name">${top3[1].name}</span></div>` : ''}
-${top3[2] ? `<div class="hall-rank-item"><span class="hall-rank-label glow-bronze">🥉나무꾼</span><span class="hall-rank-name">${top3[2].name}</span></div>` : ''}</div></div>`;
-}
-}
-listArea.innerHTML = combinedHtml;
-}
+  const modal = document.getElementById('hallModal');
+  modal.style.display = show ? 'flex' : 'none';
+  
+  if(show) {
+    const listArea = document.getElementById('hallListArea');
+    let combinedHtml = "";
+    
+    // 표시할 시즌 설정
+    const seasons = [{ year: 2026, quarter: 1 }, { year: 2025, quarter: 4 }];
+    
+    for (const s of seasons) {
+      let top3 = [];
+      let isCurrent = (s.year === 2026 && s.quarter === 1);
+
+      if(isCurrent) {
+        // [현재 시즌] "오즈" 제외 + 산행 횟수순 정렬
+        const filtered = [...currentData]
+          .filter(m => !m.isHidden && m.name !== "오즈" && m.qCount > 0)
+          .sort((a, b) => b.qCount - a.qCount || b.level - a.level)
+          .slice(0, 3);
+        
+        // 이름 앞에 칭호 붙여주기
+        top3 = filtered.map((m, idx) => {
+          let title = idx === 0 ? "🥇산신령 " : (idx === 1 ? "🥈심마니 " : "🥉나무꾼 ");
+          return { name: title + m.name };
+        });
+      } else if(s.year === 2025 && s.quarter === 4) {
+        // [2025년 4분기] 지정된 멤버와 칭호 (0:금, 1:은, 2:동)
+        top3 = [
+          { name: "🥈심마니 용삼" }, // 실질적 1등석(금단상)에 용삼님 배치
+          { name: "🥇산신령 아랑" }, // 2등석(은단상)에 아랑님 배치
+          { name: "🥉나무꾼 우진" } // 3등석(동단상)에 우진님 배치
+        ];
+        // ※ 주의: 시상대 시각적 배치를 위해 배열 순서를 조정합니다.
+        // top3[0]이 금단상(중앙), top3[1]이 은단상(왼쪽), top3[2]가 동단상(오른쪽)에 들어갑니다.
+        // 따라서 요청하신 대로 용삼님이 중앙(금)에 오도록 0번에 배치했습니다.
+      }
+
+      if(top3.length > 0) {
+        combinedHtml += `
+        <div class="hall-card ${isCurrent ? 'border-blue-100 bg-blue-50/30' : ''}">
+          <div class="hall-season-title">
+            <span>${s.year}년 ${s.quarter}분기 (Season ${s.year === 2025 ? 1 : 2})</span>
+            ${isCurrent ? '<span class="status-badge-live">LIVE</span>' : '<span class="status-badge-end">종료</span>'}
+          </div>
+
+          <div class="podium-container">
+            <div class="podium-step">
+              <img src="https://i.ibb.co/bMLmRYRJ/2-1.jpg" class="podium-profile">
+              <div class="podium-name">${top3[1]?.name || '-'}</div>
+              <div class="podium-base silver">2</div>
+            </div>
+
+            <div class="podium-step">
+              <div class="glory-effect"></div>
+              <img src="https://i.ibb.co/bMLmRYRJ/2-1.jpg" class="podium-profile" style="width:65px; height:65px; border-color:#fde047;">
+              <div class="podium-name" style="font-size:12px; white-space: nowrap;">${top3[0]?.name || '-'}</div>
+              <div class="podium-base gold">1</div>
+            </div>
+
+            <div class="podium-step">
+              <img src="https://i.ibb.co/bMLmRYRJ/2-1.jpg" class="podium-profile">
+              <div class="podium-name">${top3[2]?.name || '-'}</div>
+              <div class="podium-base bronze">3</div>
+            </div>
+          </div>
+        </div>`;
+      }
+    }
+    listArea.innerHTML = combinedHtml;
+  }
 };
 
 window.toggleVibeModal = (show) => { document.getElementById('vibeModal').style.display = show ? 'flex' : 'none'; };
