@@ -432,6 +432,28 @@ overflow: hidden;
 0% { transform: translateY(0) scale(1); opacity: 1; }
 100% { transform: translateY(-30px) scale(0.5); opacity: 0; }
 }
+/* 방문하지 않은 지역을 가릴 안개(구름) 효과 */
+.region-fog {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.4); /* 검은색 안개 (0.6을 조절해서 투명도 변경 가능) */
+  backdrop-filter: blur(2px); /* 흐림 효과 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 8px;
+  font-weight: bold;
+  pointer-events: none; /* 안개를 터치해도 지도가 클릭되게 함 */
+  transition: all 0.5s ease;
+  z-index: 5;
+}
+
+/* 정복된 지역 (안개가 사라짐) */
+.region-unlocked {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  color: transparent !important;
+}
 </style>
 </head>
 <body>
@@ -810,6 +832,8 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 <div class="map-container mb-4">
 <img src="https://i.ibb.co/bMLmRYRJ/2-1.jpg" class="map-image">
 <div id="conquerMapPoints"></div>
+<div id="fogLayer" class="absolute inset-0 overflow-hidden pointer-events-none">
+</div>
 <div class="map-source-txt">출처: 산림청</div>
 </div>
 
@@ -1264,6 +1288,31 @@ document.getElementById('mapGlobalTotalHeight').innerText = globalTotalH.toLocal
 const conquestCount = (globalTotalH / 8848).toFixed(1);
 document.getElementById('everestCount').innerText = conquestCount;
 document.getElementById('everestProgressBar').style.width = `${(conquestCount % 1) * 100}%`;
+// --- 여기서부터 안개 시스템 로직 시작 ---
+const fogLayer = document.getElementById('fogLayer');
+fogLayer.innerHTML = ""; // 초기화
+
+// 우리가 미리 정의한 regionBoundaries(지역 경계)를 기반으로 안개를 만듭니다.
+regionBoundaries.forEach(r => {
+  const fogDiv = document.createElement('div');
+  fogDiv.className = 'region-fog';
+  
+  // 위치와 크기 설정 (x, y 좌표 활용)
+  fogDiv.style.left = r.x[0] + '%';
+  fogDiv.style.top = r.y[0] + '%';
+  fogDiv.style.width = (r.x[1] - r.x[0]) + '%';
+  fogDiv.style.height = (r.y[1] - r.y[0]) + '%';
+  fogDiv.innerText = r.name; // 안개 위에 지역 이름 표시
+
+  // 만약 이 지역(r.name)에 산행 기록(regionCounts)이 있다면? 안개를 걷어냅니다!
+  if (regionCounts[r.name] > 0) {
+    fogDiv.classList.add('region-unlocked');
+    fogDiv.innerText = ""; // 정복된 곳은 이름 지우기
+  }
+
+  fogLayer.appendChild(fogDiv);
+});
+// --- 안개 시스템 로직 끝 ---
 };
 
 window.toggleTimelineModal = (show) => { document.getElementById('timelineModal').style.display = show ? 'flex' : 'none'; };
