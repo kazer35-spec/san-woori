@@ -221,6 +221,36 @@ box-sizing: border-box;
 .dday-orange { background-color: #fed7aa; color: #9a3412; animation: blink-medium 1.2s infinite; }
 .dday-red { background-color: #fecaca; color: #991b1b; animation: blink-fast 0.6s infinite; }
 
+/* 1. 먼저 공통 애니메이션 효과를 정의합니다 */
+@keyframes dday-blink {
+0% { opacity: 1; }
+50% { opacity: 0.3; }
+100% { opacity: 1; }
+}
+
+/* 2. 각 상황에 맞는 스타일을 정의합니다 */
+
+/* 30일 남음: 노란색 + 느린 깜빡임 (2초) */
+.blink-slow {
+animation: dday-blink 2s infinite;
+background-color: #fefce8 !important;
+color: #a16207 !important;
+}
+
+/* 20일 남음: 주황색 + 중간 깜빡임 (1초) */
+.blink-medium {
+animation: dday-blink 1s infinite;
+background-color: #fff7ed !important;
+color: #c2410c !important;
+}
+
+/* 10일 남음: 빨간색 + 빠른 깜빡임 (0.5초) */
+.blink-fast {
+animation: dday-blink 0.5s infinite;
+background-color: #fee2e2 !important;
+color: #991b1b !important;
+}
+​
 @keyframes glow-orange { 0% { border-color: #f97316; } 50% { border-color: #ea580c; box-shadow: 0 0 8px rgba(234, 88, 12, 0.5); } 100% { border-color: #f97316; } }
 @keyframes glow-red { 0% { border-color: #ef4444; } 50% { border-color: #b91c1c; box-shadow: 0 0 10px rgba(185, 28, 28, 0.6); } 100% { border-color: #ef4444; } }
 @keyframes glow-yellow { 0% { border-color: #facc15; } 50% { border-color: #eab308; box-shadow: 0 0 8px rgba(234, 179, 8, 0.5); } 100% { border-color: #facc15; } }
@@ -943,12 +973,20 @@ return { bg: '#ffffff', border: '#e2e8f0', text: '#94a3b8', blink: '' };
 };
 
 const getDDayStyle = (dday, level) => {
-if (dday <= 10) return "dday-red";
-if (level === 0) return "bg-gray-soft";
-if (dday <= 20) return "dday-orange";
-if (dday <= 30) return "dday-yellow";
-return "bg-gray-soft";
+// 1. 신입(Lv 0)인 경우: 10일 이하일 때만 아주 빠르게 빨간 깜빡임
+if (level === 0) {
+if (dday <= 10) return "blink-fast";
+return "bg-gray-soft"; // 그 외에는 평범한 회색
+}
+
+// 2. 일반 회원인 경우
+if (dday <= 10) return "blink-fast"; // 10일 이하: 빨강 + 빠름
+if (dday <= 20) return "blink-medium"; // 20일 이하: 주황 + 중간
+if (dday <= 30) return "blink-slow"; // 30일 이하: 노랑 + 느림
+
+return "bg-gray-soft"; // 30일 넘게 남았으면 평범한 회색
 };
+​
 
 async function updateVisitorCount() {
 const d = new Date();
@@ -1630,4 +1668,4 @@ document.getElementById('regDate').valueAsDate = new Date();
 document.getElementById('activityDate').valueAsDate = new Date();
 </script>
 </body>
-    </html>
+</html>
