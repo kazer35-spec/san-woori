@@ -31,6 +31,64 @@ select { -webkit-appearance: none; -moz-appearance: none; appearance: none; back
 /* 팝업 전체 배경 */
 .scroll-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.85); display: none; justify-content: center; align-items: center; z-index: 9999;
+}
+
+/* 구깃구깃한 종이 + 흔들리는 효과 */
+.fading-scroll {
+    background: #f4e4bc;
+    /* 구깃구깃한 질감 구현 (선형 그라데이션 활용) */
+    background-image: 
+        linear-gradient(135deg, rgba(0,0,0,0.05) 25%, transparent 25%),
+        linear-gradient(225deg, rgba(0,0,0,0.05) 25%, transparent 25%),
+        linear-gradient(45deg, rgba(0,0,0,0.05) 25%, transparent 25%),
+        linear-gradient(315deg, rgba(0,0,0,0.05) 25%, transparent 25%);
+    background-size: 4px 4px;
+    
+    padding: 40px; width: 85%; max-width: 400px;
+    position: relative;
+    box-shadow: 5px 5px 20px rgba(0,0,0,0.5);
+    border-left: 2px solid #8b4513;
+    border-right: 2px solid #8b4513;
+    text-align: center; color: #4a3728;
+    
+    /* 바람에 흔들리는 애니메이션 적용 */
+    animation: paper-shake 4s infinite ease-in-out;
+    transform-origin: center top;
+}
+
+/* 바람에 흔들리는 모서리 효과 */
+@keyframes paper-shake {
+    0%, 100% { transform: rotate(0deg) skew(0deg); }
+    25% { transform: rotate(0.5deg) skew(0.5deg); }
+    75% { transform: rotate(-0.5deg) skew(-0.5deg); }
+}
+
+/* 황금빛으로 빛나는 글자 효과 */
+.gold-glow {
+    font-size: 20px; font-weight: 900;
+    color: #d4af37;
+    text-shadow: 0 0 8px rgba(255, 215, 0, 0.8), 0 0 15px rgba(255, 215, 0, 0.5);
+    animation: gold-shimmer 2s infinite alternate;
+}
+
+@keyframes gold-shimmer {
+    from { filter: brightness(1); }
+    to { filter: brightness(1.5); text-shadow: 0 0 20px rgba(255, 215, 0, 1); }
+}
+
+/* 소멸/흐릿함 효과 */
+.fading-10 { animation: scatter 2s forwards; opacity: 0; filter: blur(2px); }
+.fading-20 { animation: blur-fade 3s infinite alternate; opacity: 0.6; }
+
+@keyframes scatter {
+    0% { transform: translate(0,0); opacity: 1; }
+    100% { transform: translate(30px, -60px) rotate(15deg); opacity: 0; }
+}
+
+/* 팝업 전체 배경 */
+.scroll-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0,0,0,0.8); display: none; justify-content: center; align-items: center; z-index: 1000;
 }
 
@@ -1213,9 +1271,10 @@ window.renderStatusTable = () => {
                 <button onclick="showMemberMap('${m.id}', '${m.name}')" class="height-badge hover:scale-105 active:scale-95 transition-all">🚩${m.totalHeight || 0}m</button>
             </td>
             <td>
-<span class="dday-box ${ddayClass} cursor-pointer" onclick="window.showFadingScroll(${m.ddayVal})">
-        ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
-    </span>
+<span class="dday-box ${ddayClass} cursor-pointer" 
+      onclick="window.showFadingScroll(${m.ddayVal}, ${m.level})">
+    ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
+</span>
 </td>
         </tr>`;
     });
@@ -1829,39 +1888,46 @@ window.showMilkyWay = async (mId, mName) => {
     }
 };
 
-window.showFadingScroll = function(dday) {
+window.showFadingScroll = function(dday, level = 0) {
     const modal = document.getElementById('scrollModal');
     const content = document.getElementById('scrollContent');
     if(!modal || !content) return;
 
+    // 신입(Lv 0)은 10일 이하일 때만 문서를 보여줌
+    if (level === 0 && dday > 10) {
+        return; // 아무 일도 일어나지 않음
+    }
+
     let effectClass = "";
     let statusMsg = "";
-    let mainQuote = "혼자 가면 기록이지만<br>함께 가면 역사";
     let subMsg = "";
+    let isGold = false;
 
     if (dday > 30) {
-        // 30일 초과 : 잘하고 있을 때
+        // 30일 초과: 황금빛 칭찬
+        isGold = true;
         statusMsg = "기록이 황금빛으로 선명하게 빛나고 있습니다.";
         subMsg = "당신의 발자취가 찬란한 역사가 되고 있습니다.<br>지금처럼 소중한 걸음을 계속 이어가세요.";
     } else if (dday <= 10) {
-        // 10일 이하 : 위험할 때
+        // 10일 이하: 소멸 위기
         effectClass = "fading-10";
         statusMsg = "기록이 거의 증발하여 사라지고 있습니다!";
         subMsg = "당신의 역사가 잊혀 가고 있습니다.<br>기록을 지속하여 문장을 완성하세요.";
     } else {
-        // 11일 ~ 30일 : 주의할 때
+        // 11~30일: 흐릿해짐
         effectClass = "fading-20";
         statusMsg = "기록의 온기가 식어가며 흐릿해집니다.";
         subMsg = "조금 더 힘을 내어 당신의 문장을 완성해 보세요.<br>역사는 멈추지 않는 기록으로 완성됩니다.";
     }
 
     content.innerHTML = `
-        <p class="${effectClass}" style="font-size: 18px; font-weight: bold; transition: all 1s;">
-            "${mainQuote}"
+        <p class="${isGold ? 'gold-glow' : effectClass}">
+            "혼자 가면 기록이지만<br>함께 가면 역사"
         </p>
-        <p style="margin-top: 20px; font-size: 10px; line-height: 1.6;"> <span style="font-size: 13px; font-weight: bold;">${statusMsg}</span><br><br>
+        <div style="margin-top: 25px; font-size: 10px; line-height: 1.8; color: #5a4a3a;">
+            <strong style="font-size: 12px; display: block; margin-bottom: 10px;">${statusMsg}</strong>
             ${subMsg}
-        </p>
+        </div>
     `;
 
     modal.style.display = 'flex';
@@ -1869,25 +1935,24 @@ window.showFadingScroll = function(dday) {
 </script> 
 
 <div id="scrollModal" class="scroll-overlay" onclick="this.style.display='none'">
-    <div class="fading-scroll time-flowing" onclick="event.stopPropagation()">
-        <h3 style="margin-bottom: 20px;">📜 고대 예언서</h3>
+    <div class="fading-scroll" onclick="event.stopPropagation()">
+        <h3 style="margin-bottom: 20px; font-size: 16px; letter-spacing: 2px;">📜 고대 예언서</h3>
         
         <div id="scrollContent"></div>
         
-        <hr style="border: 0.5px solid #8b4513; margin: 20px 0;">
+        <hr style="border: 0; border-top: 1px dashed #8b4513; margin: 25px 0;">
         
-        <div style="display: flex; flex-direction: column; align-items: center; gap: 5px;">
-            <p style="font-size: 11px; color: #666; margin: 0;">기록 연장이 필요하면 요청해 주세요.</p>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+            <p style="font-size: 10px; color: #7a6a5a; margin: 0;">기록 연장이 필요하면 요청해 주세요.</p>
             
-            <div style="width: 40px; height: 40px; border: 2px double #8b4513; border-radius: 50%; display: flex; align-items: center; justify-content: center; opacity: 0.7; margin: 5px 0;">
-                <span style="font-size: 10px; color: #8b4513; font-weight: bold; transform: rotate(-15deg);">SAN<br>WR</span>
+            <div style="width: 35px; height: 35px; border: 1px solid #8b4513; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(139, 69, 19, 0.1);">
+                <span style="font-size: 8px; color: #8b4513; font-weight: bold; transform: rotate(-10deg);">SAN<br>WR</span>
             </div>
-            
-            <p style="font-family: 'Cursive', serif; font-size: 12px; color: #8b4513; opacity: 0.6; margin-bottom: 10px;">Guardian of History</p>
+            <p style="font-style: italic; font-size: 11px; color: #8b4513; opacity: 0.7;">Guardian of History</p>
         </div>
 
         <button onclick="document.getElementById('scrollModal').style.display='none'"
-                style="margin-top: 10px; background: #8b4513; color: white; padding: 5px 20px; border: none; border-radius: 3px; cursor: pointer; font-size: 12px;">
+                style="margin-top: 15px; background: #4a3728; color: #f4e4bc; padding: 6px 20px; border: none; border-radius: 2px; cursor: pointer; font-size: 11px; font-weight: bold;">
             닫기
         </button>
     </div>
