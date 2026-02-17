@@ -1104,6 +1104,23 @@ window.renderStatusTable = () => {
     if(!list) return; 
     list.innerHTML = "";
     
+    const levelHeader = document.querySelector('th:nth-child(2)'); // 레벨(Lv)
+    const countHeader = document.querySelector('th:nth-child(3)'); // 분기횟수
+    const mapHeader = document.querySelector('th:nth-child(4)'); // 정복지도
+
+    const clickHtml = `<br><span class="click-neon">CLICK</span>`;
+
+    if(levelHeader && !levelHeader.innerHTML.includes('CLICK')) {
+        levelHeader.innerHTML = `<div class="header-click-unit">레벨(Lv)${clickHtml}</div>`;
+    }
+    if(countHeader && !countHeader.innerHTML.includes('CLICK')) {
+        countHeader.innerHTML = `<div class="header-click-unit">분기횟수${clickHtml}</div>`;
+    }
+    if(mapHeader && !mapHeader.innerHTML.includes('CLICK')) {
+        mapHeader.innerHTML = `<div class="header-click-unit">정복지도${clickHtml}</div>`;
+    }
+
+    // --- 데이터 처리 로직 ---
     const today = new Date(); 
     const todayZero = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
 
@@ -1125,15 +1142,10 @@ window.renderStatusTable = () => {
     });
 
     const topNames = [...processedData].filter(m => !m.isHidden && m.name !== "오즈").sort((a, b) => b.qCount - a.qCount || b.level - a.level).slice(0, 3).map(m => m.name);
-    let isFirstVisible = true;
 
     processedData.forEach((m) => {
         if (!isAdminLoggedIn && m.isHidden) return;
         if (search && !m.name.includes(search)) return;
-        
-        // ✨ [중요] 첫 번째 줄에만 나타나는 CLICK 문구 로직
-        let clickNeonHtml = (isFirstVisible && !m.isHidden) ? `<span class="click-neon">CLICK</span>` : "";
-        if (!m.isHidden) isFirstVisible = false;
 
         let rankT = ""; let rankC = "";
         if (m.name !== "오즈" && m.qCount > 0 && !m.isHidden) {
@@ -1147,6 +1159,7 @@ window.renderStatusTable = () => {
         const ddayClass = getDDayStyle(m.ddayVal, m.level);
         const nameColor = m.gender === '여' ? 'text-pink-600' : (m.gender === '남' ? 'text-blue-600' : 'text-slate-800');
 
+        // ✨ 데이터 줄은 깔끔하게 유지 (CLICK 문구 제거됨)
         list.innerHTML += `<tr class="${m.isHidden ? 'opacity-40' : ''}">
             <td class="text-xs text-center">
                 <div class="flex flex-col items-center justify-center">
@@ -1155,22 +1168,19 @@ window.renderStatusTable = () => {
                 </div>
             </td>
             <td>
-                ${clickNeonHtml}
                 <div class="badge-level">
                     <div class="badge-icon-box ${style.blink} cursor-pointer" 
                          onclick="showMilkyWay('${m.id}', '${m.name}')" 
-                         style="background-color: ${style.bg}; border: 1.5px solid ${style.border} !important;">
+                         style="background-color: ${style.bg}; border: 2.5px solid ${style.border} !important;">
                         <span class="badge-icon-txt" style="color:${style.text}; font-weight: 900;">${getLevelBadge(m.level)}</span>
                     </div>
                     <span class="badge-lv-txt" style="color:${style.text}">Lv ${m.level}</span>
                 </div>
             </td>
             <td>
-                ${clickNeonHtml}
                 <button onclick="showMemberTimeline('${m.id}', '${m.name}')" class="qcount-box bg-gray-soft border-none hover:bg-slate-200 text-slate-600">${m.qCount}회 📈</button>
             </td>
             <td>
-                ${clickNeonHtml}
                 <button onclick="showMemberMap('${m.id}', '${m.name}')" class="height-badge hover:scale-105 active:scale-95 transition-all">🚩${m.totalHeight || 0}m</button>
             </td>
             <td><span class="dday-box ${ddayClass}">${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}</span></td>
