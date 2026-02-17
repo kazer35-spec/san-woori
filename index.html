@@ -12,6 +12,71 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+/* 1. 전체 배경 어둡게 */
+.scroll-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    z-index: 9999; /* 다른 요소보다 위에 오도록 */
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(4px);
+}
+
+/* 2. 예언서 종이 스타일 */
+.fading-scroll {
+    position: relative;
+    width: 90%;
+    max-width: 380px;
+    background: #f4e4bc; /* 낡은 종이색 */
+    padding: 50px 25px 30px;
+    border-radius: 4px;
+    box-shadow: inset 0 0 60px rgba(139, 69, 19, 0.25), 0 20px 40px rgba(0,0,0,0.6);
+    text-align: center;
+    border: 1px solid #d2b48c;
+    overflow: hidden;
+}
+
+/* 3. 🏔️ 산 배경 위치 조절 */
+.ancient-mountain-bg {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 220px;
+    z-index: 0;
+    pointer-events: none;
+}
+
+.scroll-header { position: relative; z-index: 2; margin-bottom: 25px; }
+.scroll-title-sub { font-size: 11px; letter-spacing: 5px; color: #8b4513; opacity: 0.6; font-weight: 800; }
+.scroll-title-main { font-size: 22px; font-weight: 900; color: #3e2723; margin-top: 5px; }
+
+.scroll-body { position: relative; z-index: 2; min-height: 80px; margin-top: 20px; }
+
+/* 4. 장식 요소들 */
+.scroll-divider { border: 0; border-top: 1px dashed #8b4513; margin: 25px 0; opacity: 0.2; }
+.ancient-seal {
+    width: 55px; height: 55px; border: 2px double #8b4513; border-radius: 50%;
+    margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; opacity: 0.5;
+}
+.seal-text { font-size: 9px; font-weight: bold; color: #8b4513; line-height: 1.1; }
+.footer-note { font-size: 10px; color: #5a4a3a; margin-bottom: 4px; opacity: 0.8; }
+.ancient-signature { font-style: italic; font-size: 12px; color: #3e2723; opacity: 0.7; }
+
+.scroll-close-btn {
+    margin-top: 25px; background: #4a3728; color: #f4e4bc;
+    padding: 10px 35px; border: none; border-radius: 2px;
+    cursor: pointer; font-weight: bold; font-size: 13px;
+}
+
+/* 기존 JS에서 쓰던 글자 효과 유지 */
+.gold-glow { color: #b8860b; font-weight: 800; text-shadow: 0 0 8px rgba(218,165,32,0.3); }
+.fading-10 { opacity: 0.25; filter: blur(0.7px); transition: 0.5s; }
+.fading-20 { opacity: 0.5; transition: 0.5s; }
+.fading-normal { opacity: 0.8; }
+
 /* 입력창 및 버튼 공통 스타일 */
 input, select, .btn-submit, .up-amount-group, .gender-select-group {
 width: 100% !important; display: block; padding: 8px 16px; border-radius: 12px;
@@ -1927,27 +1992,38 @@ window.showFadingScroll = function(dday, level = 0) {
 };
 </script> 
 
-<div id="scrollModal" class="scroll-overlay" onclick="this.style.display='none'">
+
+  <div id="scrollModal" class="scroll-overlay" onclick="this.style.display='none'">
     <div class="fading-scroll" onclick="event.stopPropagation()">
-        <h3 style="margin-bottom: 25px; font-size: 18px; font-weight: bold; border-bottom: 1px solid rgba(139,69,19,0.15); display: inline-block; padding-bottom: 5px;">📜 고대 예언서</h3>
         
-        <div id="scrollContent"></div>
-        
-        <hr style="border: 0; border-top: 1px dashed #8b4513; margin: 30px 0; opacity: 0.3;">
-        
-        <div class="ancient-seal">
-            <div class="seal-text">SAN<br>URI</div>
+        <div class="ancient-mountain-bg">
+            <svg viewBox="0 0 500 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M150 180L250 50L350 180" stroke="#8b4513" stroke-width="2" stroke-opacity="0.2"/>
+                <path d="M50 180L180 80L280 180" stroke="#8b4513" stroke-width="2" stroke-opacity="0.1"/>
+                <path d="M280 180L380 90L480 180" stroke="#8b4513" stroke-width="2" stroke-opacity="0.1"/>
+                <path d="M230 75L250 50L270 75" stroke="#8b4513" stroke-width="1" stroke-opacity="0.2"/>
+            </svg>
         </div>
 
-        <div class="footer-area">
-            <p class="footer-text">기록 연장이 필요하면 요청해 주세요.</p>
+        <div class="scroll-header">
+            <div class="scroll-title-sub">SAN WOURI</div>
+            <h3 class="scroll-title-main">📜 고대 예언서</h3>
+        </div>
+        
+        <div id="scrollContent" class="scroll-body"></div>
+        
+        <div class="scroll-footer">
+            <hr class="scroll-divider">
+            <div class="ancient-seal">
+                <div class="seal-text">SAN<br>URI</div>
+            </div>
+            <p class="footer-note">기록 연장이 필요하면 요청해 주세요.</p>
             <p class="ancient-signature">Guardian of History</p>
+            
+            <button onclick="document.getElementById('scrollModal').style.display='none'" class="scroll-close-btn">
+                닫기
+            </button>
         </div>
-
-        <button onclick="document.getElementById('scrollModal').style.display='none'"
-                style="margin-top: 25px; background: #4a3728; color: #f4e4bc; padding: 10px 30px; border: none; border-radius: 3px; cursor: pointer; font-size: 14px; font-weight: bold;">
-            닫기
-        </button>
     </div>
 </div>
 </script>
