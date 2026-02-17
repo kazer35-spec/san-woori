@@ -178,33 +178,26 @@ td { padding: 12px 0; text-align: center; vertical-align: middle; position: rela
 .rank-badge { font-size: 0.65rem; display: block; margin-bottom: -1px; font-weight: 900; }
 .rank-1 { color: #facc15 !important; } .rank-2 { color: #94a3b8 !important; } .rank-3 { color: #a36a00 !important; }
 
-.click-container {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-}
-
-/* CLICK 문구를 중앙으로 정렬하는 설정 */
+/* CLICK 네온 텍스트 */
 .click-neon {
-    position: absolute;
-    top: -12px; /* 버튼과의 간격 (위아래 높이) */
-    left: 50%; /* 🌟 부모의 50% 지점으로 이동 */
-    transform: translateX(-50%); /* 🌟 문구 자체 크기의 절반만큼 왼쪽으로 밀어 정중앙 맞춤 */
-    font-size: 7px !important;
-    padding: 0px 2px !important;
-    white-space: nowrap; /* 줄바꿈 방지 */
-    font-weight: 900;
-    color: #3b82f6;
-    pointer-events: none; /* 클릭 방해 금지 */
-    animation: neon-simple-blink 1.5s infinite;
+font-size: 6px;
+font-weight: 900;
+color: #3b82f6;
+text-transform: uppercase;
+position: absolute;
+top: -2px;
+left: 50%;
+transform: translateX(-50%);
+animation: neon-flicker 1.5s infinite;
+letter-spacing: 0.5px;
+pointer-events: none;
+white-space: nowrap;
+z-index: 5;
 }
 
-@keyframes neon-simple-blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.3; }
+@keyframes neon-flicker {
+0%, 100% { opacity: 1; text-shadow: 0 0 2px #3b82f6, 0 0 5px #3b82f6; }
+50% { opacity: 0.4; text-shadow: none; }
 }
 
 .badge-level { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; }
@@ -906,7 +899,8 @@ San:Woori Total</span>
                 </div>
             
             <p class="mt-6 text-white/40 text-[10px] leading-relaxed">
-               걸어온 궤적은 선이 되고, 마침내 밤하늘의 길이 됩니다.
+               
+걸어온 궤적은 선이 되고, 마침내 밤하늘의 길이 됩니다.
             </p>
         </div>
     </div>
@@ -1133,8 +1127,6 @@ window.renderStatusTable = () => {
     processedData.forEach((m) => {
         if (!isAdminLoggedIn && m.isHidden) return;
         if (search && !m.name.includes(search)) return;
-        
-        // ✨ [중요] 첫 번째 줄에만 나타나는 CLICK 문구 로직
         let clickNeonHtml = (isFirstVisible && !m.isHidden) ? `<span class="click-neon">CLICK</span>` : "";
         if (!m.isHidden) isFirstVisible = false;
 
@@ -1146,10 +1138,12 @@ window.renderStatusTable = () => {
             else if (idx === 2) { rankT = "🥉나무꾼"; rankC = "rank-3"; }
         }
 
+        // 🎨 레벨별 색상 정보를 가져옵니다.
         const style = getLevelStyle(m.level); 
         const ddayClass = getDDayStyle(m.ddayVal, m.level);
         const nameColor = m.gender === '여' ? 'text-pink-600' : (m.gender === '남' ? 'text-blue-600' : 'text-slate-800');
 
+        // ✨ 화면을 구성하는 HTML 코드 시작
         list.innerHTML += `<tr class="${m.isHidden ? 'opacity-40' : ''}">
             <td class="text-xs text-center">
                 <div class="flex flex-col items-center justify-center">
@@ -1158,12 +1152,11 @@ window.renderStatusTable = () => {
                 </div>
             </td>
             <td>
-                ${clickNeonHtml}
                 <div class="badge-level">
                     <div class="badge-icon-box ${style.blink} cursor-pointer" 
                          onclick="showMilkyWay('${m.id}', '${m.name}')" 
-                         style="background-color: ${style.bg}; border: 1.5px solid ${style.border} !important;">
-                        <span class="badge-icon-txt" style="color:${style.text}; font-weight: 900;">${getLevelBadge(m.level)}</span>
+                         style="background-color: ${style.bg}; border: 1.5px solid ${style.border};">
+                        <span class="badge-icon-txt" style="color:${style.text}">${getLevelBadge(m.level)}</span>
                     </div>
                     <span class="badge-lv-txt" style="color:${style.text}">Lv ${m.level}</span>
                 </div>
@@ -1790,4 +1783,4 @@ window.showMilkyWay = async (mId, mName) => {
 };
 </script>
 </body>
-    </html>
+</html>
