@@ -34,62 +34,64 @@ select { -webkit-appearance: none; -moz-appearance: none; appearance: none; back
     background: rgba(0,0,0,0.85); display: none; justify-content: center; align-items: center; z-index: 9999;
 }
 
-/* 구깃구깃한 종이 + 흔들리는 효과 */
+/* 고대 문서 스타일 (질감 및 바람 효과) */
 .fading-scroll {
     background: #f4e4bc;
-    /* 구깃구깃한 질감 구현 (선형 그라데이션 활용) */
+    /* 구깃구깃한 실제 종이 질감 느낌을 위해 노이즈와 그라데이션 추가 */
     background-image: 
-        linear-gradient(135deg, rgba(0,0,0,0.05) 25%, transparent 25%),
-        linear-gradient(225deg, rgba(0,0,0,0.05) 25%, transparent 25%),
-        linear-gradient(45deg, rgba(0,0,0,0.05) 25%, transparent 25%),
-        linear-gradient(315deg, rgba(0,0,0,0.05) 25%, transparent 25%);
-    background-size: 4px 4px;
+        url("https://www.transparenttextures.com/patterns/papyrus.png"), /* 종이 질감 패턴 */
+        linear-gradient(to bottom, rgba(255,255,255,0.2), rgba(0,0,0,0.05));
     
     padding: 40px; width: 85%; max-width: 400px;
     position: relative;
-    box-shadow: 5px 5px 20px rgba(0,0,0,0.5);
-    border-left: 2px solid #8b4513;
-    border-right: 2px solid #8b4513;
+    box-shadow: 10px 10px 30px rgba(0,0,0,0.6);
+    
+    /* 고대 문서 특유의 불규칙한 테두리 표현 */
+    border: 1px solid #d2b48c;
+    border-radius: 2px;
+    
     text-align: center; color: #4a3728;
     
-    /* 바람에 흔들리는 애니메이션 적용 */
-    animation: paper-shake 4s infinite ease-in-out;
+    /* [바람 효과] 전체가 불규칙하게 흔들리는 애니메이션 */
+    animation: wind-move 5s infinite ease-in-out;
     transform-origin: center top;
 }
 
-/* 바람에 흔들리는 모서리 효과 */
-@keyframes paper-shake {
-    0%, 100% { transform: rotate(0deg) skew(0deg); }
-    25% { transform: rotate(0.5deg) skew(0.5deg); }
-    75% { transform: rotate(-0.5deg) skew(-0.5deg); }
+/* [바람 효과] 바람에 펄럭이는 듯한 불규칙한 움직임 */
+@keyframes wind-move {
+    0%, 100% { transform: rotate(0deg) skew(0deg) scale(1); }
+    20% { transform: rotate(1deg) skew(1deg) scale(1.01); }
+    40% { transform: rotate(-0.8deg) skew(-1deg) scale(0.99); }
+    60% { transform: rotate(0.5deg) skew(0.5deg) scale(1.01); }
+    80% { transform: rotate(-0.3deg) skew(-0.2deg) scale(0.99); }
 }
 
-/* 황금빛으로 빛나는 글자 효과 */
+/* 황금빛 텍스트 효과 */
 .gold-glow {
-    font-size: 20px; font-weight: 900;
+    font-size: 22px; font-weight: 900;
     color: #d4af37;
-    text-shadow: 0 0 8px rgba(255, 215, 0, 0.8), 0 0 15px rgba(255, 215, 0, 0.5);
-    animation: gold-shimmer 2s infinite alternate;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
+    display: inline-block;
+    animation: gold-pulse 2s infinite alternate;
 }
 
-@keyframes gold-shimmer {
-    from { filter: brightness(1); }
-    to { filter: brightness(1.5); text-shadow: 0 0 20px rgba(255, 215, 0, 1); }
+@keyframes gold-pulse {
+    from { transform: scale(1); filter: brightness(1); }
+    to { transform: scale(1.05); filter: brightness(1.3); text-shadow: 0 0 20px rgba(255, 215, 0, 1); }
 }
 
-/* 소멸/흐릿함 효과 */
-.fading-10 { animation: scatter 2s forwards; opacity: 0; filter: blur(2px); }
-.fading-20 { animation: blur-fade 3s infinite alternate; opacity: 0.6; }
+/* 소멸 효과들 */
+.fading-10 { animation: scatter 2s forwards; opacity: 0; }
+.fading-20 { animation: blur-fade 3s infinite alternate; opacity: 0.7; }
 
 @keyframes scatter {
-    0% { transform: translate(0,0); opacity: 1; }
-    100% { transform: translate(30px, -60px) rotate(15deg); opacity: 0; }
+    0% { transform: translate(0,0) rotate(0deg); opacity: 1; }
+    100% { transform: translate(40px, -80px) rotate(20deg); opacity: 0; filter: blur(5px); }
 }
 
-/* 팝업 전체 배경 */
-.scroll-overlay {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.8); display: none; justify-content: center; align-items: center; z-index: 1000;
+@keyframes blur-fade {
+    0% { filter: blur(0px); }
+    100% { filter: blur(4px); }
 }
 
 /* 양피지 두루말이 디자인 */
@@ -1893,10 +1895,8 @@ window.showFadingScroll = function(dday, level = 0) {
     const content = document.getElementById('scrollContent');
     if(!modal || !content) return;
 
-    // 신입(Lv 0)은 10일 이하일 때만 문서를 보여줌
-    if (level === 0 && dday > 10) {
-        return; // 아무 일도 일어나지 않음
-    }
+    // 신입(Lv 0) 필터링
+    if (level === 0 && dday > 10) return;
 
     let effectClass = "";
     let statusMsg = "";
@@ -1904,17 +1904,14 @@ window.showFadingScroll = function(dday, level = 0) {
     let isGold = false;
 
     if (dday > 30) {
-        // 30일 초과: 황금빛 칭찬
         isGold = true;
         statusMsg = "기록이 황금빛으로 선명하게 빛나고 있습니다.";
         subMsg = "당신의 발자취가 찬란한 역사가 되고 있습니다.<br>지금처럼 소중한 걸음을 계속 이어가세요.";
     } else if (dday <= 10) {
-        // 10일 이하: 소멸 위기
         effectClass = "fading-10";
         statusMsg = "기록이 거의 증발하여 사라지고 있습니다!";
         subMsg = "당신의 역사가 잊혀 가고 있습니다.<br>기록을 지속하여 문장을 완성하세요.";
     } else {
-        // 11~30일: 흐릿해짐
         effectClass = "fading-20";
         statusMsg = "기록의 온기가 식어가며 흐릿해집니다.";
         subMsg = "조금 더 힘을 내어 당신의 문장을 완성해 보세요.<br>역사는 멈추지 않는 기록으로 완성됩니다.";
@@ -1925,7 +1922,7 @@ window.showFadingScroll = function(dday, level = 0) {
             "혼자 가면 기록이지만<br>함께 가면 역사"
         </p>
         <div style="margin-top: 25px; font-size: 10px; line-height: 1.8; color: #5a4a3a;">
-            <strong style="font-size: 12px; display: block; margin-bottom: 10px;">${statusMsg}</strong>
+            <strong style="font-size: 12px; display: block; margin-bottom: 10px; color: #3e2723;">${statusMsg}</strong>
             ${subMsg}
         </div>
     `;
