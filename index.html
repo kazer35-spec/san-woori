@@ -54,6 +54,47 @@ opacity: 0.3;
 pointer-events: none;
 }
 
+/* 나이테 기본 상태: 처음엔 투명하거나 아주 흐릿하게 시작 */
+.tree-ring {
+    position: absolute;
+    border: 1.5px solid rgba(101, 67, 33, 0); /* 초기 상태 투명 */
+    opacity: 0;
+    transition: opacity 0.5s ease;
+}
+
+/* 빛나며 퍼져나가는 애니메이션 */
+@keyframes ringWave {
+    0% {
+        border-color: rgba(255, 255, 255, 0); /* 시작은 투명 */
+        opacity: 0;
+        transform: rotate(var(--rot)) scale(0.9);
+    }
+    15% {
+        border-color: #fff; /* 중간에 밝게 빛남 */
+        box-shadow: 0 0 15px #fff; /* 빛 번짐 효과 */
+        opacity: 1;
+        transform: rotate(var(--rot)) scale(1.02);
+    }
+    30% {
+        border-color: var(--base-color); /* 원래 나뭇결 색으로 복귀 */
+        box-shadow: none;
+        opacity: 0.6;
+        transform: rotate(var(--rot)) scale(1);
+    }
+    100% {
+        border-color: var(--base-color); /* 마지막 상태 유지 */
+        opacity: 0.6;
+        transform: rotate(var(--rot)) scale(1);
+    }
+}
+
+/* 애니메이션 종료 후 전체가 나타나게 하는 클래스 */
+.rings-complete .tree-ring {
+    opacity: 0.6 !important;
+    border-color: var(--base-color) !important;
+    transition: all 1s ease-in-out;
+}
+
 /* 1. 전체 배경 어둡게 */
 .scroll-overlay {
     display: none;
@@ -2054,61 +2095,61 @@ window.showTreeRings = (mId, mName) => {
     const infoLabel = document.getElementById('treeringInfo');
     
     if(!container) return;
+    container.classList.remove('rings-complete'); // 애니메이션 초기화
     container.innerHTML = '<div class="tree-pith"></div><div class="wood-texture"></div>';
     modal.style.display = 'flex';
     
     const fixedMembers = ["오즈","나스","해수","용삼","지니","아랑","민이","몰랑","길치","등초","무니","식이","구름","뚜벅","윤윤","승이","이구","후후","튜브","피치","사랑","송돌","호프","이제","얌얌","태기","희야","멸치","성민","루이","섭섭"];
     const member = currentData.find(m => m.id === mId);
     
-    // 날짜 로직: 고정 인원은 25.11.24 / 나머지는 lastDate(등록일) 사용
     let joinDate = new Date(2025, 10, 24); 
     if (!fixedMembers.includes(mName)) {
         if (member?.lastDate) {
             joinDate = member.lastDate.toDate ? member.lastDate.toDate() : new Date(member.lastDate);
         } else {
-            joinDate = new Date(); // 최후의 보루
+            joinDate = new Date();
         }
     }
 
     const today = new Date();
     const diffMonths = Math.max(1, (today.getFullYear() - joinDate.getFullYear()) * 12 + (today.getMonth() - joinDate.getMonth()) + 1);
     
-    // 레벨별 색상을 나이테에 미세하게 반영
     const style = getLevelStyle(member?.level || 0);
-    const ringBaseColor = style.border;
+    const ringBaseColor = style.border; // 등급별 고유 색상
 
     nameLabel.innerText = `${mName}님의 세월`;
     infoLabel.innerText = `${joinDate.getFullYear()}년 ${joinDate.getMonth()+1}월 가입 • ${diffMonths}개월의 흔적`;
 
-    // 나이테 생성
+    const interval = 0.15; // 각 줄이 밝아지는 간격 (초)
+
     for (let i = 1; i <= diffMonths; i++) {
         const ring = document.createElement('div');
         const size = (i / diffMonths) * 100;
-        
-        // 자연스러운 비정형 모양을 위한 4개 모서리 랜덤값
         const r = () => (45 + Math.random() * 15) + "%"; 
-        const borderRadius = `${r()} ${r()} ${r()} ${r()}`;
-        
-        // 미세한 회전값 추가 (나뭇결이 겹치지 않게)
         const rotation = Math.random() * 360;
 
         ring.className = `tree-ring ${i % 12 === 0 ? 'year-mark' : ''}`;
-        ring.style.cssText = `
-            width: ${size}%;
-            height: ${size}%;
-            border-radius: ${borderRadius};
-            transform: rotate(${rotation}deg);
-            animation-delay: ${i * 0.03}s;
-            z-index: ${diffMonths - i}; /* 안쪽 선이 위로 오게 */
-        `;
         
-        // 1년 단위는 레벨 색상을 살짝 섞음
-        if(i % 12 === 0) {
-            ring.style.boxShadow = `inset 0 0 10px ${ringBaseColor}22`;
-        }
+        // CSS 변수를 사용해 개별 애니메이션 제어
+        ring.style.setProperty('--rot', `${rotation}deg`);
+        ring.style.setProperty('--base-color', ringBaseColor);
+        
+        ring.style.width = `${size}%`;
+        ring.style.height = `${size}%`;
+        ring.style.borderRadius = `${r()} ${r()} ${r()} ${r()}`;
+        
+        // 애니메이션 설정: 순차적으로 실행
+        ring.style.animation = `ringWave 3s forwards`; 
+        ring.style.animationDelay = `${i * interval}s`;
         
         container.appendChild(ring);
     }
+
+    // 모든 애니메이션이 끝난 후 (diffMonths * interval + 알파) 전체 공개
+    const totalAnimTime = (diffMonths * interval + 1.5) * 1000;
+    setTimeout(() => {
+        container.classList.add('rings-complete');
+    }, totalAnimTime);
 };
 </script> 
 
