@@ -12,6 +12,33 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+/* 나이테 모달 내부의 캔버스 스타일 */
+.tree-ring-container {
+    width: 100%;
+    height: 300px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #fdfbf7; /* 종이 느낌의 배경색 */
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+}
+
+#treeRingCanvas {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+/* 나이테 설명 텍스트 */
+.tree-ring-info {
+    text-align: center;
+    margin-top: 10px;
+    font-size: 0.75rem;
+    color: #6d4c41;
+    font-weight: bold;
+}
+
 /* 1. 전체 배경 어둡게 */
 .scroll-overlay {
     display: none;
@@ -1308,6 +1335,8 @@ window.renderStatusTable = () => {
                  onclick="showMilkyWay('${m.id}', '${m.name}')" 
                  style="background-color: ${style.bg}; border: 1.5px solid ${style.border} !important;">
                 
+<span class="cursor-pointer" onclick="showTreeRings('${m.id}', '${m.name}')"></span>
+
                 <span class="badge-icon-txt" style="color:${style.text}; font-weight: bold;">${getLevelBadge(m.level)}</span>
             </div>
             
@@ -1938,6 +1967,68 @@ window.showMilkyWay = async (mId, mName) => {
         console.error(e);
         alert("성좌를 불러오는데 실패했습니다.");
     }
+};
+
+window.showTreeRings = (mId, mName) => {
+    // 1. 필요한 데이터 준비
+    const member = currentData.find(m => m.id === mId);
+    if (!member) return;
+
+    // 가입일로부터 현재까지 몇 개월 지났는지 계산
+    const joinDate = member.lastDate ? member.lastDate.toDate() : new Date();
+    const today = new Date();
+    const diffMonths = (today.getFullYear() - joinDate.getFullYear()) * 12 + (today.getMonth() - joinDate.getMonth());
+    const totalMonths = Math.max(diffMonths, 1); // 최소 1개월
+
+    // 회원 레벨 스타일에 맞춘 색상 가져오기
+    const style = getLevelStyle(member.level);
+    const ringColor = style.text; // 회원 등급 텍스트 색상을 나이테 색상으로 사용
+
+    // 2. 화면에 그리기 준비 (모달을 띄우거나 특정 영역에 캔버스 생성)
+    // 여기서는 간단히 기존 타임라인 모달이나 별도 영역에 붙인다고 가정합니다.
+    const canvas = document.getElementById('treeRingCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // 캔버스 초기화
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+
+    // 3. 나이테 그리기 로직
+    for (let i = 1; i <= totalMonths; i++) {
+        ctx.beginPath();
+        
+        const radius = i * 8; // 원 사이의 간격
+        const roughness = 2; // 불규칙함 정도 (숫자가 클수록 더 찌그러짐)
+        
+        // 원을 삐뚤삐뚤하게 그리기 위해 360도를 돌며 점을 찍음
+        for (let angle = 0; angle <= Math.PI * 2; angle += 0.1) {
+            // 랜덤 값을 섞어 불규칙한 반지름 생성
+            const randomOffset = (Math.random() - 0.5) * roughness;
+            const x = centerX + (radius + randomOffset) * Math.cos(angle);
+            const y = centerY + (radius + randomOffset) * Math.sin(angle);
+            
+            if (angle === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+
+        // 스타일 결정
+        ctx.closePath();
+        ctx.strokeStyle = ringColor;
+        
+        // 4분기(12개월)마다 선을 굵게 처리 (연차 표시)
+        if (i % 12 === 0) {
+            ctx.lineWidth = 2.5;
+            ctx.globalAlpha = 0.8;
+        } else {
+            ctx.lineWidth = 0.8;
+            ctx.globalAlpha = 0.4;
+        }
+        
+        ctx.stroke();
+    }
+    
+    alert(`${mName}님의 ${Math.floor(totalMonths/12)}년 ${totalMonths%12}개월간의 기록입니다.`);
 };
 
 window.showFadingScroll = function(dday, level = 0) {
