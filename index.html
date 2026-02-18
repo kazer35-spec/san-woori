@@ -12,6 +12,28 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+/* 나이테 카드 슬림 버전 */
+.tree-ring-card {
+    margin-top: 10px;
+    padding: 15px;
+    height: 180px; /* 세로 크기 축소 */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.ring-canvas {
+    width: 100%;
+    height: 110px; /* 내부 나이테 캔버스 높이 축소 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.ring-header {
+    margin-bottom: 5px;
+}
+
 /* 나이테 카드 전체 스타일 */
 .tree-ring-card {
     position: relative;
@@ -2117,26 +2139,26 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
     if(!container) return;
     container.innerHTML = ""; 
 
-    // 1. 가입 개월 수 및 색상 계산
+    // 가입 개월 수 계산
     const fixedList = ["오즈","나스","해수","용삼","지니","아랑","민이","몰랑","길치","등초","무니","식이","구름","뚜벅","윤윤","승이","이구","후후","튜브","피치","사랑","송돌","호프","이제","얌얌","태기","희야","멸치","성민","섭섭"];
     let jDate = fixedList.includes(memberName) ? new Date('2025-11-24') : (regDate?.toDate ? regDate.toDate() : new Date());
     const now = new Date();
     const diffMonths = Math.max(1, (now.getFullYear() - jDate.getFullYear()) * 12 + (now.getMonth() - jDate.getMonth()) + 1);
     
-    // 개월 수 카운트 업 애니메이션
+    // 카운트 업 애니메이션
     let count = 0;
     const countTimer = setInterval(() => {
         if(count >= diffMonths) clearInterval(countTimer);
         monthLabel.innerText = count++;
-    }, 30);
+    }, 20);
 
     const style = getLevelStyle(memberLevel);
     const ringColor = style.border; 
 
-    // 2. SVG 생성
     const svgNS = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(svgNS, "svg");
-    svg.setAttribute("viewBox", "0 0 240 240");
+    // 가로로 긴 비율에 맞춰 viewBox 조정 (가로 300, 세로 120)
+    svg.setAttribute("viewBox", "0 0 300 120");
     svg.style.width = "100%";
     svg.style.height = "100%";
     
@@ -2144,54 +2166,58 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
     const seed = memberName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
 
     for (let i = 1; i <= diffMonths; i++) {
-        const radius = i * (100 / diffMonths); 
+        // 나이테가 가로로 더 퍼지도록 반지름 비율 조정
+        const radiusX = i * (140 / diffMonths); 
+        const radiusY = i * (50 / diffMonths); 
+        
         const path = document.createElementNS(svgNS, "path");
         let d = "";
-        // 불규칙한 자연 나이테 모양 생성
-        for (let a = 0; a <= 360; a += 10) {
+        
+        // 불규칙성 강화: 각도마다 무작위성을 더 많이 부여
+        for (let a = 0; a <= 360; a += 5) { // 정밀도를 위해 5도 단위로 계산
             const angle = (a * Math.PI) / 180;
-            const wobble = Math.sin(angle * 4 + seed + (i * 0.5)) * (radius * 0.06);
-            const r = radius + wobble;
-            const x = 120 + r * Math.cos(angle);
-            const y = 120 + r * Math.sin(angle);
+            
+            // 다중 노이즈 필터 (더 불규칙하게)
+            const noise1 = Math.sin(angle * 3 + seed + i) * (radiusY * 0.15);
+            const noise2 = Math.cos(angle * 7 - seed) * (radiusY * 0.05);
+            const randomWobble = (Math.sin(i * seed) * 2); // 나이테마다 고유한 뒤틀림
+            
+            const rx = radiusX + noise1 + noise2 + randomWobble;
+            const ry = radiusY + (noise1 * 0.5) + noise2 + randomWobble;
+            
+            const x = 150 + rx * Math.cos(angle);
+            const y = 60 + ry * Math.sin(angle);
+            
             d += (a === 0 ? "M" : "L") + `${x},${y} `;
         }
         d += "Z";
+        
         path.setAttribute("d", d);
-        path.setAttribute("class", "ring-path");
+        path.setAttribute("fill", "none");
         path.setAttribute("stroke", ringColor);
-        path.setAttribute("stroke-width", i % 12 === 0 ? "2.5" : "0.7");
-        path.setAttribute("stroke-opacity", "0"); // 처음엔 숨김
+        // 12개월마다 굵은 선, 바깥쪽으로 갈수록 미세하게 굵어짐
+        const baseWidth = i % 12 === 0 ? 1.5 : 0.4;
+        path.setAttribute("stroke-width", baseWidth + (i / diffMonths * 0.3));
+        path.setAttribute("stroke-opacity", "0");
+        path.style.transition = "stroke-opacity 0.5s ease";
+        
         svg.appendChild(path);
         rings.push(path);
     }
     container.appendChild(svg);
 
-    // 3. 나이테 파동 애니메이션 (한 줄씩 밝아졌다 돌아오기)
+    // 파동 애니메이션 실행 (더 빠르게)
     for (let i = 0; i < rings.length; i++) {
         await new Promise(res => {
-            // 현재 줄 밝게 강조
             rings[i].setAttribute("stroke-opacity", "1");
-            rings[i].style.filter = `drop-shadow(0 0 5px ${ringColor}) brightness(2)`;
-            rings[i].style.strokeWidth = i % 12 === 0 ? "4" : "2";
-
+            rings[i].style.filter = `drop-shadow(0 0 3px ${ringColor})`;
             setTimeout(() => {
-                // 다음 줄로 넘어가기 전 원래 투명도로 복구
-                rings[i].setAttribute("stroke-opacity", "0.1");
+                rings[i].setAttribute("stroke-opacity", i % 12 === 0 ? "0.6" : "0.2");
                 rings[i].style.filter = "none";
-                rings[i].style.strokeWidth = i % 12 === 0 ? "2.5" : "0.7";
                 res();
-            }, 60); // 파동 속도
+            }, 30); 
         });
     }
-
-    // 4. 마지막 짠! 전체 나타나기
-    setTimeout(() => {
-        rings.forEach((r, idx) => {
-            r.style.transition = "all 1s ease-out";
-            r.setAttribute("stroke-opacity", idx % 12 === 0 ? "0.8" : "0.4");
-        });
-    }, 200);
 };
 
 window.showMilkyWay = async (mId, mName) => {
