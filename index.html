@@ -2007,11 +2007,147 @@ window.showTreeRings = (mId, mName) => {
 };
 
 window.showFadingScroll = function(dday, level = 0) {
+<div id="scrollModal" class="scroll-overlay" style="display:none;" onclick="this.style.display='none'">
+    <div class="fading-scroll" onclick="event.stopPropagation()">
+        <div class="ancient-mountain-bg">
+            <svg viewBox="0 0 500 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M150 180L250 50L350 180" stroke="#8b4513" stroke-width="2" stroke-opacity="0.2"/>
+                <path d="M50 180L180 80L280 180" stroke="#8b4513" stroke-width="2" stroke-opacity="0.1"/>
+                <path d="M280 180L380 90L480 180" stroke="#8b4513" stroke-width="2" stroke-opacity="0.1"/>
+                <path d="M230 75L250 50L270 75" stroke="#8b4513" stroke-width="1" stroke-opacity="0.2"/>
+            </svg>
+        </div>
+        <div class="scroll-header">
+            <div class="scroll-title-sub">SAN WOORI</div>
+            <h3 class="scroll-title-main">고대 예언서</h3>
+        </div>
+        <div id="scrollContent" class="scroll-body"></div>
+        <div class="scroll-footer">
+            <hr class="scroll-divider">
+            <div class="ancient-seal">
+                <div class="seal-text">SAN<br>URI</div>
+            </div>
+            <p class="footer-note">기록 연장이 필요하면 요청해 주세요.</p>
+            <p class="ancient-signature">Guardian of History</p>
+            <button onclick="document.getElementById('scrollModal').style.display='none'" class="scroll-close-btn">닫기</button>
+        </div>
+    </div>
+</div>
+
+<div id="treeRingModal" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:2000; justify-content:center; align-items:center;" onclick="this.style.display='none'">
+    <div class="tree-ring-card" style="background:#fdfbf7; padding:20px; border-radius:20px; width:90%; max-width:400px;" onclick="event.stopPropagation()">
+        <h3 id="trMemberName" style="text-align:center; color:#3e2723;">사용자님의 나이테</h3>
+        <p id="trDuration" style="text-align:center; font-size:11px; color:#8d6e63; margin-bottom:15px;"></p>
+        <div style="background:#fff; border-radius:15px; padding:10px; border: 1px inset #efebe9;">
+            <canvas id="treeRingCanvas" width="600" height="600" style="width:100%; height:auto;"></canvas>
+        </div>
+        <button onclick="document.getElementById('treeRingModal').style.display='none'" style="width:100%; margin-top:15px; padding:10px; background:#3e2723; color:white; border:none; border-radius:10px; font-weight:bold;">닫기</button>
+    </div>
+</div>
+
+<script>
+/* --- 은하수(별자리) 함수 --- */
+window.showMilkyWay = async (mId, mName) => {
+    const modal = document.getElementById('milkyWayModal');
+    const board = document.getElementById('constellationBoard');
+    const nameLabel = document.getElementById('mwMemberName');
+    
+    if(!modal) return;
+    modal.style.display = 'flex';
+    nameLabel.innerText = `${mName}님의 은하수`;
+    board.innerHTML = "";
+
+    try {
+        const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
+        const logs = snap.docs
+            .map(d => d.data())
+            .filter(l => l.coords)
+            .sort((a, b) => a.date.toDate() - b.date.toDate());
+
+        if (logs.length === 0) {
+            board.innerHTML = "<div class='text-white/20 text-xs h-full flex items-center justify-center'>아직 기록된 별이 없습니다.</div>";
+            return;
+        }
+
+        logs.forEach((log, index) => {
+            const star = document.createElement('div');
+            star.className = 'absolute w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_8px_#fff] z-10';
+            star.style.left = log.coords.x + "%";
+            star.style.top = log.coords.y + "%";
+            star.style.transition = "all 1s ease";
+            star.style.opacity = "0";
+            board.appendChild(star);
+            
+            setTimeout(() => { star.style.opacity = "1"; }, index * 100);
+
+            if (index > 0) {
+                const prev = logs[index - 1];
+                const line = document.createElement('div');
+                const x1 = prev.coords.x, y1 = prev.coords.y;
+                const x2 = log.coords.x, y2 = log.coords.y;
+                const dist = Math.sqrt(Math.pow(x2-x1, 2) + Math.pow(y2-y1, 2));
+                const angle = Math.atan2(y2-y1, x2-x1) * 180 / Math.PI;
+
+                line.className = 'absolute bg-blue-400/20 origin-left z-0';
+                line.style.height = '0.5px';
+                line.style.width = dist + "%";
+                line.style.left = x1 + "%";
+                line.style.top = y1 + "%";
+                line.style.transform = `rotate(${angle}deg)`;
+                board.appendChild(line);
+            }
+        });
+    } catch (e) { console.error(e); }
+};
+
+/* --- 나이테(Tree Rings) 함수 --- */
+window.showTreeRings = (mId, mName) => {
+    const member = currentData.find(m => m.id === mId);
+    if (!member) return;
+
+    const modal = document.getElementById('treeRingModal');
+    if(!modal) return;
+    modal.style.display = 'flex';
+    document.getElementById('trMemberName').innerText = `${mName}님의 성장 나이테`;
+
+    const joinDate = member.lastDate ? member.lastDate.toDate() : new Date();
+    const today = new Date();
+    let diffMonths = (today.getFullYear() - joinDate.getFullYear()) * 12 + (today.getMonth() - joinDate.getMonth());
+    if (diffMonths <= 0) diffMonths = 1;
+    document.getElementById('trDuration').innerText = `커뮤니티와 함께한 지 ${diffMonths}개월째`;
+
+    const canvas = document.getElementById('treeRingCanvas');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const style = getLevelStyle(member.level);
+    const ringColor = style.text;
+
+    for (let i = 1; i <= diffMonths; i++) {
+        ctx.beginPath();
+        const radius = i * 10;
+        for (let angle = 0; angle <= Math.PI * 2.1; angle += 0.1) {
+            const jitter = (Math.random() - 0.5) * 4;
+            const x = centerX + (radius + jitter) * Math.cos(angle);
+            const y = centerY + (radius + jitter) * Math.sin(angle);
+            if (angle === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+        ctx.strokeStyle = ringColor;
+        if (i % 12 === 0) { ctx.lineWidth = 5; ctx.globalAlpha = 0.8; }
+        else { ctx.lineWidth = 1.5; ctx.globalAlpha = 0.3; }
+        ctx.stroke();
+    }
+};
+
+/* --- 예언서 스크롤 함수 --- */
+window.showFadingScroll = function(dday, level = 0) {
     const modal = document.getElementById('scrollModal');
     const content = document.getElementById('scrollContent');
     if(!modal || !content) return;
 
-    // 신입(Lv 0) 보호 로직
     if (level === 0 && dday > 10) return;
 
     let effectClass = "";
@@ -2019,25 +2155,21 @@ window.showFadingScroll = function(dday, level = 0) {
     let subMsg = "";
     let isGold = false;
 
-    // 1. 30일 초과 (매우 안전)
     if (dday > 30) {
         isGold = true;
         statusMsg = "기록이 황금빛으로 선명하게 빛나고 있습니다.";
         subMsg = "당신의 발자취가 찬란한 역사가 되고 있습니다.<br>지금처럼 소중한 걸음을 계속 이어가세요.";
     } 
-    // 2. 딱 30일 ~ 21일 사이 (경고 시작) - 새로 추가된 구간
     else if (dday <= 30 && dday > 20) {
-        effectClass = "fading-normal"; // 서서히 흐려지기 시작하는 클래스 (필요시 CSS 추가)
+        effectClass = "fading-normal";
         statusMsg = "기록의 빛이 조금씩 약해지기 시작합니다.";
         subMsg = "완벽했던 기록에 미세한 균열이 생기고 있습니다.<br>역사의 페이지가 넘어가기 전에 새로운 기록을 새겨주세요.";
     }
-    // 3. 20일 이하 ~ 11일 사이 (주의)
     else if (dday <= 20 && dday > 10) {
         effectClass = "fading-20";
         statusMsg = "기록의 온기가 식어가며 흐릿해집니다.";
         subMsg = "조금 더 힘을 내어 당신의 문장을 완성해 보세요.<br>역사는 멈추지 않는 기록으로 완성됩니다.";
     } 
-    // 4. 10일 이하 (위험)
     else {
         effectClass = "fading-10";
         statusMsg = "기록이 거의 증발하여 사라지고 있습니다!";
@@ -2053,44 +2185,8 @@ window.showFadingScroll = function(dday, level = 0) {
             ${subMsg}
         </div>
     `;
-
     modal.style.display = 'flex';
 };
-</div>
-    </div>
-
-  <div id="scrollModal" class="scroll-overlay" onclick="this.style.display='none'">
-    <div class="fading-scroll" onclick="event.stopPropagation()">
-        
-        <div class="ancient-mountain-bg">
-            <svg viewBox="0 0 500 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M150 180L250 50L350 180" stroke="#8b4513" stroke-width="2" stroke-opacity="0.2"/>
-                <path d="M50 180L180 80L280 180" stroke="#8b4513" stroke-width="2" stroke-opacity="0.1"/>
-                <path d="M280 180L380 90L480 180" stroke="#8b4513" stroke-width="2" stroke-opacity="0.1"/>
-                <path d="M230 75L250 50L270 75" stroke="#8b4513" stroke-width="1" stroke-opacity="0.2"/>
-            </svg>
-        </div>
-
-        <div class="scroll-header">
-            <div class="scroll-title-sub">SAN WOORI</div>
-            <h3 class="scroll-title-main">고대 예언서</h3>
-        </div>
-        
-        <div id="scrollContent" class="scroll-body"></div>
-        
-        <div class="scroll-footer">
-            <hr class="scroll-divider">
-            <div class="ancient-seal">
-                <div class="seal-text">SAN<br>URI</div>
-            </div>
-            <p class="footer-note">기록 연장이 필요하면 요청해 주세요.</p>
-            <p class="ancient-signature">Guardian of History</p>
-            
-            <button onclick="document.getElementById('scrollModal').style.display='none'" class="scroll-close-btn">
-                닫기
-            </button>
-        </div>
-    </div>
 </script>
 </body>
 </html>
