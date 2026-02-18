@@ -2145,13 +2145,11 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
     if(!container) return;
     container.innerHTML = ""; 
 
-    // 가입 개월 수 계산
     const fixedList = ["오즈","나스","해수","용삼","지니","아랑","민이","몰랑","길치","등초","무니","식이","구름","뚜벅","윤윤","승이","이구","후후","튜브","피치","사랑","송돌","호프","이제","얌얌","태기","희야","멸치","성민","섭섭"];
     let jDate = fixedList.includes(memberName) ? new Date('2025-11-24') : (regDate?.toDate ? regDate.toDate() : new Date());
     const now = new Date();
     const diffMonths = Math.max(1, (now.getFullYear() - jDate.getFullYear()) * 12 + (now.getMonth() - jDate.getMonth()) + 1);
     
-    // 카운트 업 애니메이션
     let count = 0;
     const countTimer = setInterval(() => {
         if(count >= diffMonths) clearInterval(countTimer);
@@ -2161,82 +2159,33 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
     const style = getLevelStyle(memberLevel);
     const ringColor = style.border; 
 
-    container.appendChild(svg);const svgNS = "http://www.w3.org/2000/svg";
+    const svgNS = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(svgNS, "svg");
-    
-    // viewBox의 높이를 120에서 140으로 살짝 높여 여유 공간 확보
     svg.setAttribute("viewBox", "0 0 300 140");
     svg.style.width = "100%";
     svg.style.height = "100%";
+    svg.style.overflow = "visible"; // 짤림 방지
     
     const seed = memberName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
     const rings = [];
 
     for (let i = 1; i <= diffMonths; i++) {
         const radiusX = i * (130 / diffMonths); 
-        const radiusY = i * (55 / diffMonths); // Y축 반경 최적화
+        const radiusY = i * (55 / diffMonths); 
         
         const path = document.createElementNS(svgNS, "path");
         let d = "";
         
         for (let a = 0; a <= 360; a += 5) {
             const angle = (a * Math.PI) / 180;
-            
-            // 불규칙성 (Wobble) 계산
-            const noise = Math.sin(angle * 3 + seed + i) * (radiusY * 0.12);
-            const rX = radiusX + noise;
-            const rY = radiusY + (noise * 0.5);
-            
-            // 중심점을 70(140의 절반)으로 이동
-            const x = 150 + rX * Math.cos(angle);
-            const y = 70 + rY * Math.sin(angle);
-            
-            d += (a === 0 ? "M" : "L") + `${x},${y} `;
-        }
-        d += "Z";
-        
-        path.setAttribute("d", d);
-        path.setAttribute("fill", "none");
-        path.setAttribute("stroke", ringColor);
-        path.setAttribute("stroke-width", i % 12 === 0 ? "1.2" : "0.5");
-        path.setAttribute("stroke-opacity", "0.2"); // 기본 투명도
-        
-        svg.appendChild(path);
-        rings.push(path);
-    }
-    container.appendChild(svg);const svgNS = "http://www.w3.org/2000/svg";
-    const svg = document.createElementNS(svgNS, "svg");
-    // 가로로 긴 비율에 맞춰 viewBox 조정 (가로 300, 세로 120)
-    svg.setAttribute("viewBox", "0 0 300 120");
-    svg.style.width = "100%";
-    svg.style.height = "100%";
-    
-    const rings = [];
-    const seed = memberName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-
-    for (let i = 1; i <= diffMonths; i++) {
-        // 나이테가 가로로 더 퍼지도록 반지름 비율 조정
-        const radiusX = i * (140 / diffMonths); 
-        const radiusY = i * (50 / diffMonths); 
-        
-        const path = document.createElementNS(svgNS, "path");
-        let d = "";
-        
-        // 불규칙성 강화: 각도마다 무작위성을 더 많이 부여
-        for (let a = 0; a <= 360; a += 5) { // 정밀도를 위해 5도 단위로 계산
-            const angle = (a * Math.PI) / 180;
-            
-            // 다중 노이즈 필터 (더 불규칙하게)
             const noise1 = Math.sin(angle * 3 + seed + i) * (radiusY * 0.15);
             const noise2 = Math.cos(angle * 7 - seed) * (radiusY * 0.05);
-            const randomWobble = (Math.sin(i * seed) * 2); // 나이테마다 고유한 뒤틀림
             
-            const rx = radiusX + noise1 + noise2 + randomWobble;
-            const ry = radiusY + (noise1 * 0.5) + noise2 + randomWobble;
+            const rX = radiusX + noise1 + noise2;
+            const rY = radiusY + (noise1 * 0.5) + noise2;
             
-            const x = 150 + rx * Math.cos(angle);
-            const y = 60 + ry * Math.sin(angle);
-            
+            const x = 150 + rX * Math.cos(angle);
+            const y = 70 + rY * Math.sin(angle);
             d += (a === 0 ? "M" : "L") + `${x},${y} `;
         }
         d += "Z";
@@ -2244,25 +2193,20 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
         path.setAttribute("d", d);
         path.setAttribute("fill", "none");
         path.setAttribute("stroke", ringColor);
-        // 12개월마다 굵은 선, 바깥쪽으로 갈수록 미세하게 굵어짐
-        const baseWidth = i % 12 === 0 ? 1.5 : 0.4;
-        path.setAttribute("stroke-width", baseWidth + (i / diffMonths * 0.3));
+        path.setAttribute("stroke-width", i % 12 === 0 ? "1.5" : "0.5");
         path.setAttribute("stroke-opacity", "0");
         path.style.transition = "stroke-opacity 0.5s ease";
         
         svg.appendChild(path);
         rings.push(path);
     }
+    container.appendChild(svg);
    
-
-    // 파동 애니메이션 실행 (더 빠르게)
     for (let i = 0; i < rings.length; i++) {
         await new Promise(res => {
             rings[i].setAttribute("stroke-opacity", "1");
-            rings[i].style.filter = `drop-shadow(0 0 3px ${ringColor})`;
             setTimeout(() => {
                 rings[i].setAttribute("stroke-opacity", i % 12 === 0 ? "0.6" : "0.2");
-                rings[i].style.filter = "none";
                 res();
             }, 30); 
         });
