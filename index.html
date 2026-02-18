@@ -1970,65 +1970,55 @@ window.showMilkyWay = async (mId, mName) => {
 };
 
 window.showTreeRings = (mId, mName) => {
-    // 1. 필요한 데이터 준비
+    // 1. 회원 정보 찾기
     const member = currentData.find(m => m.id === mId);
     if (!member) return;
 
-    // 가입일로부터 현재까지 몇 개월 지났는지 계산
+    // 2. 가입일로부터 몇 개월 지났는지 계산
     const joinDate = member.lastDate ? member.lastDate.toDate() : new Date();
     const today = new Date();
-    const diffMonths = (today.getFullYear() - joinDate.getFullYear()) * 12 + (today.getMonth() - joinDate.getMonth());
-    const totalMonths = Math.max(diffMonths, 1); // 최소 1개월
+    let diffMonths = (today.getFullYear() - joinDate.getFullYear()) * 12 + (today.getMonth() - joinDate.getMonth());
+    if (diffMonths <= 0) diffMonths = 1; // 가입 첫 달은 최소 1줄
 
-    // 회원 레벨 스타일에 맞춘 색상 가져오기
-    const style = getLevelStyle(member.level);
-    const ringColor = style.text; // 회원 등급 텍스트 색상을 나이테 색상으로 사용
+    // 3. 팝업창 띄우기
+    document.getElementById('treeRingModal').style.display = 'flex';
+    document.getElementById('trMemberName').innerText = `${mName}님의 성장 나이테`;
+    document.getElementById('trDuration').innerText = `커뮤니티와 함께한 지 ${diffMonths}개월째`;
 
-    // 2. 화면에 그리기 준비 (모달을 띄우거나 특정 영역에 캔버스 생성)
-    // 여기서는 간단히 기존 타임라인 모달이나 별도 영역에 붙인다고 가정합니다.
+    // 4. 나이테 그리기 시작
     const canvas = document.getElementById('treeRingCanvas');
     const ctx = canvas.getContext('2d');
-    
-    // 캔버스 초기화
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height); // 도화지 청소
+
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
+    const ringColor = getLevelStyle(member.level).text; // 내 레벨 색상 가져오기
 
-    // 3. 나이테 그리기 로직
-    for (let i = 1; i <= totalMonths; i++) {
+    // 개월 수만큼 원 그리기
+    for (let i = 1; i <= diffMonths; i++) {
         ctx.beginPath();
-        
-        const radius = i * 8; // 원 사이의 간격
-        const roughness = 2; // 불규칙함 정도 (숫자가 클수록 더 찌그러짐)
-        
-        // 원을 삐뚤삐뚤하게 그리기 위해 360도를 돌며 점을 찍음
-        for (let angle = 0; angle <= Math.PI * 2; angle += 0.1) {
-            // 랜덤 값을 섞어 불규칙한 반지름 생성
-            const randomOffset = (Math.random() - 0.5) * roughness;
-            const x = centerX + (radius + randomOffset) * Math.cos(angle);
-            const y = centerY + (radius + randomOffset) * Math.sin(angle);
-            
+        const radius = i * 10; // 원 사이의 간격
+
+        // 나이테를 삐뚤삐뚤하게 그리는 마법 (불규칙 원)
+        for (let angle = 0; angle <= Math.PI * 2.1; angle += 0.1) {
+            const jitter = (Math.random() - 0.5) * 4; // 찌그러짐 정도
+            const x = centerX + (radius + jitter) * Math.cos(angle);
+            const y = centerY + (radius + jitter) * Math.sin(angle);
             if (angle === 0) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
         }
 
-        // 스타일 결정
-        ctx.closePath();
         ctx.strokeStyle = ringColor;
-        
-        // 4분기(12개월)마다 선을 굵게 처리 (연차 표시)
+        // 12개월(1년)마다 선을 아주 굵게!
         if (i % 12 === 0) {
-            ctx.lineWidth = 2.5;
+            ctx.lineWidth = 5;
             ctx.globalAlpha = 0.8;
         } else {
-            ctx.lineWidth = 0.8;
-            ctx.globalAlpha = 0.4;
+            ctx.lineWidth = 1.5;
+            ctx.globalAlpha = 0.3; // 일반 달은 흐릿하게
         }
-        
         ctx.stroke();
     }
-    
-    alert(`${mName}님의 ${Math.floor(totalMonths/12)}년 ${totalMonths%12}개월간의 기록입니다.`);
 };
 
 window.showFadingScroll = function(dday, level = 0) {
