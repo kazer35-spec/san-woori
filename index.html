@@ -12,6 +12,54 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+/* 나이테 카드: 산맥창과 가로/디자인 완전 일치 */
+.tree-ring-card {
+    width: 100%; /* 부모 모달 안에서 꽉 차게 */
+    max-width: 100%; /* 삐져나감 방지 */
+    height: 160px; /* 산맥창(180px)보다 조금 더 슬림하게 설정 */
+    margin-top: 12px; /* 산맥창과의 간격 */
+    background: #0f172a; /* 산맥창과 동일한 배경색 */
+    border-radius: 24px; /* 산맥창과 동일한 곡률 */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    position: relative;
+    overflow: hidden; /* 내부 발광 효과가 밖으로 안 넘치게 */
+    box-sizing: border-box;
+}
+
+/* 레벨별 전체 창 발광(Glow) 애니메이션 */
+@keyframes ring-pulse {
+    0% { box-shadow: 0 0 5px var(--glow-color); border-color: rgba(255,255,255,0.1); }
+    50% { box-shadow: 0 0 25px var(--glow-color); border-color: var(--glow-color); }
+    100% { box-shadow: 0 0 5px var(--glow-color); border-color: rgba(255,255,255,0.1); }
+}
+
+.ring-active-glow {
+    animation: ring-pulse 2.5s infinite ease-in-out;
+}
+
+/* 내부 레이아웃 */
+.ring-header {
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    position: absolute;
+    top: 0; left: 0; width: 100%;
+    z-index: 10;
+    box-sizing: border-box;
+}
+
+.ring-canvas {
+    width: 100%;
+    height: 100%; /* 카드 전체를 캔버스로 사용 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* 문구 및 불필요 요소 제거 */
+.ring-footer, .ring-desc { display: none !important; }
+
 /* 산맥 컨테이너와 동일한 규격으로 통일 */
 .tree-ring-card {
     margin-top: 10px;
@@ -2185,55 +2233,53 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
     const card = document.querySelector('.tree-ring-card');
     const container = document.getElementById('treeRingContainer');
     const monthLabel = document.getElementById('activityMonths');
-    if(!container) return;
+    if(!container || !card) return;
     
-    // 초기화
+    // 1. 초기화 및 레벨 스타일 적용
     container.innerHTML = ""; 
     const style = getLevelStyle(memberLevel);
     const ringColor = style.border;
     
-    // 카드 전체에 레벨 색상 광원 효과 적용
-    card.style.setProperty('--ring-glow', ringColor + '44'); // 44는 투명도
+    // 카드 전체 발광 효과 색상 지정
+    card.style.setProperty('--glow-color', ringColor + '55'); // 투명도 33%
     card.classList.add('ring-active-glow');
 
-    // 개월 수 계산
+    // 2. 가입 개월 수 계산
     const fixedList = ["오즈","나스","해수","용삼","지니","아랑","민이","몰랑","길치","등초","무니","식이","구름","뚜벅","윤윤","승이","이구","후후","튜브","피치","사랑","송돌","호프","이제","얌얌","태기","희야","멸치","성민","섭섭"];
     let jDate = fixedList.includes(memberName) ? new Date('2025-11-24') : (regDate?.toDate ? regDate.toDate() : new Date());
-    const now = new Date();
-    const diffMonths = Math.max(1, (now.getFullYear() - jDate.getFullYear()) * 12 + (now.getMonth() - jDate.getMonth()) + 1);
+    const diffMonths = Math.max(1, (new Date().getFullYear() - jDate.getFullYear()) * 12 + (new Date().getMonth() - jDate.getMonth()) + 1);
     
-    // 숫자 카운트
+    // 개월 수 카운트 업
     let count = 0;
     const countTimer = setInterval(() => {
         if(count >= diffMonths) clearInterval(countTimer);
         monthLabel.innerText = count++;
     }, 30);
 
+    // 3. SVG 생성
     const svgNS = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(svgNS, "svg");
     svg.setAttribute("viewBox", "0 0 300 120");
-    svg.style.width = "90%"; // 창 크기에 맞게 살짝 축소
+    svg.style.width = "100%";
+    svg.style.height = "100%";
     svg.style.overflow = "visible";
     
     const seed = memberName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
     const rings = [];
 
-    // 나이테 경로 생성 (불규칙성 강화)
+    // 나이테 레이어 생성
     for (let i = 1; i <= diffMonths; i++) {
-        const radiusX = i * (130 / diffMonths); 
-        const radiusY = i * (45 / diffMonths); // 높이에 맞춰 Y축 조정
+        const radiusX = i * (135 / diffMonths); 
+        const radiusY = i * (45 / diffMonths); 
         
         const path = document.createElementNS(svgNS, "path");
         let d = "";
         
         for (let a = 0; a <= 360; a += 10) {
             const angle = (a * Math.PI) / 180;
-            const wobble = Math.sin(angle * 4 + seed + i) * (radiusY * 0.15);
-            const rX = radiusX + wobble;
-            const rY = radiusY + (wobble * 0.4);
-            
-            const x = 150 + rX * Math.cos(angle);
-            const y = 60 + rY * Math.sin(angle);
+            const noise = Math.sin(angle * 4 + seed + i) * (radiusY * 0.15);
+            const x = 150 + (radiusX + noise) * Math.cos(angle);
+            const y = 60 + (radiusY + noise * 0.4) * Math.sin(angle);
             d += (a === 0 ? "M" : "L") + `${x},${y} `;
         }
         d += "Z";
@@ -2241,28 +2287,31 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
         path.setAttribute("d", d);
         path.setAttribute("fill", "none");
         path.setAttribute("stroke", ringColor);
-        path.setAttribute("stroke-width", i % 12 === 0 ? "1.5" : "0.5");
-        path.setAttribute("stroke-opacity", "0"); // 시작은 투명하게
-        path.style.transition = "all 0.6s ease";
+        path.setAttribute("stroke-width", i % 12 === 0 ? "1.2" : "0.5");
+        path.setAttribute("stroke-opacity", "0"); 
+        path.style.transition = "stroke-opacity 0.8s ease, stroke-width 0.8s ease";
         
         svg.appendChild(path);
         rings.push(path);
     }
     container.appendChild(svg);
 
-    // ✨ 순차적 파동 애니메이션 (사라졌던 부분 복구)
+    // 4. ✨ 순차 파동 애니메이션 (중심부터 하나씩)
     for (let i = 0; i < rings.length; i++) {
         await new Promise(res => {
-            // 1. 선명하게 밝아짐
-            rings[i].setAttribute("stroke-opacity", "1");
-            rings[i].style.filter = `drop-shadow(0 0 5px ${ringColor})`;
-            
             setTimeout(() => {
-                // 2. 파동이 지나간 후 은은한 상태로 고정
-                rings[i].setAttribute("stroke-opacity", i % 12 === 0 ? "0.7" : "0.3");
-                rings[i].style.filter = "none";
+                // 한 줄씩 밝아지며 파동 발생
+                rings[i].setAttribute("stroke-opacity", "1");
+                rings[i].style.filter = `drop-shadow(0 0 3px ${ringColor})`;
+                
+                // 잠시 후 은은한 상태로 안착
+                setTimeout(() => {
+                    rings[i].setAttribute("stroke-opacity", i % 12 === 0 ? "0.6" : "0.2");
+                    rings[i].style.filter = "none";
+                }, 300);
+                
                 res();
-            }, 50); // 파동 속도
+            }, 40); // 퍼져나가는 속도
         });
     }
 };
