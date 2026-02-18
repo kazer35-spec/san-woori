@@ -2034,29 +2034,45 @@ window.showTreeRings = (mId, mName) => {
     const nameLabel = document.getElementById('treeringName');
     const infoLabel = document.getElementById('treeringInfo');
     
+    if(!container) return;
     container.innerHTML = "";
-    if(modal) modal.style.display = 'flex';
+    modal.style.display = 'flex';
     
+    // 1. 가입일 고정 대상자 명단 (알려주신 30명)
     const fixedMembers = ["오즈","나스","해수","용삼","지니","아랑","민이","몰랑","길치","등초","무니","식이","구름","뚜벅","윤윤","승이","이구","후후","튜브","피치","사랑","송돌","호프","이제","얌얌","태기","희야","멸치","성민","섭섭"];
+    
     const member = currentData.find(m => m.id === mId);
     
-    let joinDate = new Date(2025, 10, 24); 
-    if (!fixedMembers.includes(mName) && member?.regDate) {
-        joinDate = member.regDate.toDate ? member.regDate.toDate() : new Date(member.regDate);
+    // 기본 가입일 (고정 멤버용): 2025년 11월 24일
+    let joinDate = new Date(2025, 11, 24); 
+    
+    // [중요 로직] 고정 명단에 없는 사람만 데이터베이스의 가입일(regDate)을 사용
+    if (!fixedMembers.includes(mName)) {
+        if (member?.regDate) {
+            // Firestore Timestamp인 경우 toDate() 호출, 아니면 일반 날짜 객체화
+            joinDate = member.regDate.toDate ? member.regDate.toDate() : new Date(member.regDate);
+        } else {
+            // 혹시라도 regDate 데이터가 없는 신규 회원을 위한 방어 코드 (오늘 날짜)
+            joinDate = new Date();
+        }
     }
 
     const today = new Date();
+    // 가입일로부터 현재까지 몇 개월이 지났는지 계산 (최소 1개월 보장)
     const diffMonths = Math.max(1, (today.getFullYear() - joinDate.getFullYear()) * 12 + (today.getMonth() - joinDate.getMonth()) + 1);
     
     const style = getLevelStyle(member?.level || 0);
     const ringColor = style.border;
 
-    if(nameLabel) nameLabel.innerText = `${mName}님의 나이테`;
-    if(infoLabel) infoLabel.innerText = `${joinDate.getFullYear()}. ${joinDate.getMonth()+1}. ${joinDate.getDate()} 가입 (현재 ${diffMonths}개월차)`;
+    nameLabel.innerText = `${mName}님의 나이테`;
+    infoLabel.innerText = `${joinDate.getFullYear()}. ${joinDate.getMonth()+1}. ${joinDate.getDate()} 가입 (현재 ${diffMonths}개월차)`;
 
+    // 나이테 생성 루프
     for (let i = 1; i <= diffMonths; i++) {
         const ring = document.createElement('div');
-        const size = (i / diffMonths) * 100;
+        const size = (i / diffMonths) * 100; // 바깥쪽으로 갈수록 커짐
+        
+        // 나무 특유의 불규칙한 원형 모양 생성
         const r1 = 40 + Math.random() * 20;
         const r2 = 40 + Math.random() * 20;
         const r3 = 40 + Math.random() * 20;
@@ -2065,11 +2081,11 @@ window.showTreeRings = (mId, mName) => {
         ring.className = `tree-ring ${i % 12 === 0 ? 'year-mark' : ''}`;
         ring.style.width = `${size}%`;
         ring.style.height = `${size}%`;
-        ring.style.borderColor = ringColor;
+        ring.style.borderColor = ringColor; // 등급별 테두리 색상 적용
         ring.style.borderRadius = `${r1}% ${r2}% ${r3}% ${r4}%`;
-        ring.style.animationDelay = `${i * 0.05}s`;
+        ring.style.animationDelay = `${i * 0.05}s`; 
         
-        if(container) container.appendChild(ring);
+        container.appendChild(ring);
     }
 };
 </script> 
