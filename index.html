@@ -12,6 +12,34 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+/* 나이테 모달 스타일 */
+.treering-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8);
+    z-index: 3000; justify-content: center; align-items: center; backdrop-filter: blur(5px);
+}
+.treering-card {
+    background: #fdf6e3; width: 90%; max-width: 400px; padding: 20px;
+    border-radius: 20px; text-align: center; position: relative;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 2px solid #d4a373;
+}
+.treering-container {
+    width: 300px; height: 300px; margin: 20px auto; position: relative;
+    display: flex; justify-content: center; align-items: center;
+}
+.tree-ring {
+    position: absolute; border: 1.2px solid; border-radius: 50%;
+    animation: ring-grow 1.5s ease-out forwards; opacity: 0;
+}
+/* 1년(4분기) 마다 굵은 선 */
+.tree-ring.year-mark { border-width: 3px !important; }
+
+@keyframes ring-grow {
+    0% { transform: scale(0); opacity: 0; }
+    100% { transform: scale(1); opacity: 0.6; }
+}
+.treering-name { font-size: 1.2rem; font-weight: 900; color: #3e2723; margin-top: 10px; }
+.treering-info { font-size: 0.8rem; color: #8b4513; margin-bottom: 10px; }
+
 /* 1. 전체 배경 어둡게 */
 .scroll-overlay {
     display: none;
@@ -1037,6 +1065,16 @@ San:Woori Total</span>
 </div>
 </div>
 </div>
+<div id="treeRingModal" class="treering-overlay" onclick="this.style.display='none'">
+    <div class="treering-card" onclick="event.stopPropagation()">
+        <h3 class="text-brown-800 font-black text-sm">HISTORY TREE RINGS</h3>
+        <div id="treeRingContainer" class="treering-container"></div>
+        <div id="treeringName" class="treering-name"></div>
+        <div id="treeringInfo" class="treering-info"></div>
+        <button onclick="document.getElementById('treeRingModal').style.display='none'" 
+                class="mt-4 px-6 py-2 bg-[#d4a373] text-white rounded-full font-bold text-xs">닫기</button>
+    </div>
+</div>
 
 ​<div id="milkyWayModal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/80 backdrop-blur-sm">
     <div class="relative w-[90%] max-w-md bg-[#050b18] rounded-3xl overflow-hidden border border-blue-900/50 shadow-[0_0_50px_rgba(30,58,138,0.5)]">
@@ -1203,7 +1241,7 @@ const defaultSubRooms = [
 { id: "stable", name: "승마장", emoji: "🐎", url: "승마장 톡방📢 https://open.kakao.com/o/gYiVoN3h" }
 ];
 
-function listenSubRooms() {
+    function listenSubRooms() {
 onSnapshot(collection(db, "sub_rooms"), (snapshot) => {
 const rooms = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 subRoomsData = defaultSubRooms.map(def => {
@@ -1298,7 +1336,7 @@ window.renderStatusTable = () => {
     <td class="text-xs text-center">
         <div class="flex flex-col items-center justify-center">
             ${rankT ? `<span class="rank-badge ${rankC}">${rankT}</span>` : ''}
-            <span class="font-bold ${nameColor}">${m.name}</span>
+            <span class="font-bold ${nameColor} cursor-pointer hover:underline" onclick="showTreeRings('${m.id}', '${m.name}')">${m.name}</span>
         </div>
     </td>
     <td>
@@ -2025,6 +2063,57 @@ window.showFadingScroll = function(dday, level = 0) {
             </button>
         </div>
     </div>
+window.showTreeRings = (mId, mName) => {
+    const modal = document.getElementById('treeRingModal');
+    const container = document.getElementById('treeRingContainer');
+    const nameLabel = document.getElementById('treeringName');
+    const infoLabel = document.getElementById('treeringInfo');
+    
+    container.innerHTML = "";
+    modal.style.display = 'flex';
+    
+    // 1. 가입일 설정
+    const fixedMembers = ["오즈","나스","해수","용삼","지니","아랑","민이","몰랑","길치","등초","무니","식이","구름","뚜벅","윤윤","승이","이구","후후","튜브","피치","사랑","송돌","호프","이제","얌얌","태기","희야","멸치","성민","섭섭"];
+    const member = currentData.find(m => m.id === mId);
+    let joinDate = new Date(2025, 10, 24); // 기본값 (11월은 index 10)
+    
+    if (!fixedMembers.includes(mName) && member?.regDate) {
+        joinDate = member.regDate.toDate();
+    }
+
+    // 2. 활동 개월 수 계산
+    const today = new Date();
+    const diffMonths = (today.getFullYear() - joinDate.getFullYear()) * 12 + (today.getMonth() - joinDate.getMonth()) + 1;
+    
+    // 3. 색상 결정 (회원 등급 스타일 활용)
+    const style = getLevelStyle(member?.level || 0);
+    const ringColor = style.border;
+
+    nameLabel.innerText = `${mName}님의 나이테`;
+    infoLabel.innerText = `${joinDate.getFullYear()}. ${joinDate.getMonth()+1}. ${joinDate.getDate()} 가입 (현재 ${diffMonths}개월차)`;
+
+    // 4. 나이테 생성
+    for (let i = 1; i <= diffMonths; i++) {
+        const ring = document.createElement('div');
+        const size = (i / diffMonths) * 100; // 크기 비율
+        
+        // 랜덤한 불규칙 모양 생성 (border-radius를 조절)
+        const r1 = 45 + Math.random() * 10;
+        const r2 = 45 + Math.random() * 10;
+        const r3 = 45 + Math.random() * 10;
+        const r4 = 45 + Math.random() * 10;
+
+        ring.className = `tree-ring ${i % 12 === 0 ? 'year-mark' : ''}`;
+        ring.style.width = `${size}%`;
+        ring.style.height = `${size}%`;
+        ring.style.borderColor = ringColor;
+        ring.style.borderRadius = `${r1}% ${r2}% ${r3}% ${r4}%`;
+        ring.style.animationDelay = `${i * 0.1}s`; // 안쪽부터 순차적으로 커짐
+        
+        container.appendChild(ring);
+    }
+};
+</div>
 </div>
 </script>
 </body>
