@@ -12,33 +12,47 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-/* 나이테 모달 스타일 */
-.treering-overlay {
-    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8);
-    z-index: 3000; justify-content: center; align-items: center; backdrop-filter: blur(5px);
+/* 나이테 카드 배경 (나무 단면 느낌) */
+.tree-ring-card {
+background: #f4ece1 !important; /* 부드러운 나무 속살 색상 */
+box-shadow: inset 0 0 50px rgba(139, 69, 19, 0.1), 0 10px 30px rgba(0,0,0,0.2);
+border: 8px solid #5d4037 !important; /* 나무 껍질 느낌의 테두리 */
+position: relative;
+overflow: hidden;
 }
-.treering-card {
-    background: #fdf6e3; width: 90%; max-width: 400px; padding: 20px;
-    border-radius: 20px; text-align: center; position: relative;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 2px solid #d4a373;
-}
-.treering-container {
-    width: 300px; height: 300px; margin: 20px auto; position: relative;
-    display: flex; justify-content: center; align-items: center;
-}
-.tree-ring {
-    position: absolute; border: 1.2px solid; border-radius: 50%;
-    animation: ring-grow 1.5s ease-out forwards; opacity: 0;
-}
-/* 1년(4분기) 마다 굵은 선 */
-.tree-ring.year-mark { border-width: 3px !important; }
 
-@keyframes ring-grow {
-    0% { transform: scale(0); opacity: 0; }
-    100% { transform: scale(1); opacity: 0.6; }
+/* 나이테 개별 스타일 */
+.tree-ring {
+position: absolute;
+border: 1.2px solid rgba(101, 67, 33, 0.3); /* 나뭇결 선 */
+transition: all 1s cubic-bezier(0.22, 1, 0.36, 1);
 }
-.treering-name { font-size: 1.2rem; font-weight: 900; color: #3e2723; margin-top: 10px; }
-.treering-info { font-size: 0.8rem; color: #8b4513; margin-bottom: 10px; }
+
+/* 1년 주기의 굵은 선 */
+.year-mark {
+border-width: 2.5px !important;
+border-color: rgba(62, 39, 35, 0.5) !important;
+}
+
+/* 나무의 정중앙 (심재) */
+.tree-pith {
+position: absolute;
+width: 8px;
+height: 8px;
+background: #3e2723;
+border-radius: 50%;
+z-index: 5;
+box-shadow: 0 0 5px rgba(0,0,0,0.5);
+}
+
+/* 배경에 깔리는 나무 질감 효과 */
+.wood-texture {
+position: absolute;
+top: 0; left: 0; width: 100%; height: 100%;
+background-image: url('https://www.transparenttextures.com/patterns/wood-pattern.png');
+opacity: 0.3;
+pointer-events: none;
+}
 
 /* 1. 전체 배경 어둡게 */
 .scroll-overlay {
@@ -1065,14 +1079,19 @@ San:Woori Total</span>
 </div>
 </div>
 </div>
-<div id="treeRingModal" class="treering-overlay" onclick="this.style.display='none'">
-    <div class="treering-card" onclick="event.stopPropagation()">
-        <h3 class="text-brown-800 font-black text-sm">HISTORY TREE RINGS</h3>
-        <div id="treeRingContainer" class="treering-container"></div>
-        <div id="treeringName" class="treering-name"></div>
-        <div id="treeringInfo" class="treering-info"></div>
-        <button onclick="document.getElementById('treeRingModal').style.display='none'" 
-                class="mt-4 px-6 py-2 bg-[#d4a373] text-white rounded-full font-bold text-xs">닫기</button>
+<div id="treeRingModal" class="modal-overlay" style="display:none; align-items:center; justify-content:center;" onclick="this.style.display='none'">
+    <div class="tree-ring-card" onclick="event.stopPropagation()" style="padding: 30px; border-radius: 40px; width: 320px; text-align: center; font-family: 'Pretendard', sans-serif;">
+        <div style="margin-bottom: 20px;">
+            <h3 id="treeringName" style="margin: 0; font-size: 18px; font-weight: 800; color: #3e2723;"></h3>
+            <p id="treeringInfo" style="font-size: 11px; color: #8b7355; margin-top: 4px;"></p>
+        </div>
+        
+        <div id="treeRingContainer" style="position: relative; width: 220px; height: 220px; margin: 0 auto; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.2); border-radius: 50%;">
+        </div>
+        
+        <button onclick="document.getElementById('treeRingModal').style.display='none'" style="margin-top: 25px; background: #5d4037; color: #f4ece1; border: none; padding: 8px 25px; border-radius: 20px; font-size: 13px; font-weight: bold; cursor: pointer; transition: 0.3s;">
+            숲으로 돌아가기
+        </button>
     </div>
 </div>
 
@@ -2035,57 +2054,58 @@ window.showTreeRings = (mId, mName) => {
     const infoLabel = document.getElementById('treeringInfo');
     
     if(!container) return;
-    container.innerHTML = "";
+    container.innerHTML = '<div class="tree-pith"></div><div class="wood-texture"></div>';
     modal.style.display = 'flex';
     
-    // 1. 가입일 고정 인원 (30명)
-    const fixedMembers = ["오즈","나스","해수","용삼","지니","아랑","민이","몰랑","길치","등초","무니","식이","구름","뚜벅","윤윤","승이","이구","후후","튜브","피치","사랑","송돌","호프","이제","얌얌","태기","희야","멸치","성민","섭섭"];
-    
+    const fixedMembers = ["오즈","나스","해수","용삼","지니","아랑","민이","몰랑","길치","등초","무니","식이","구름","뚜벅","윤윤","승이","이구","후후","튜브","피치","사랑","송돌","호프","이제","얌얌","태기","희야","멸치","성민","루이""섭섭"];
     const member = currentData.find(m => m.id === mId);
     
-    // 2. 날짜 결정 로직
-    let joinDate;
-    
-    if (fixedMembers.includes(mName)) {
-        // 고정 인원은 2025-11-24로 고정
-        joinDate = new Date(2025, 10, 24); 
-    } else {
-        // 나머지 인원은 DB에 저장된 lastDate(등록 시점의 날짜)를 기준으로 사용
-        // 보통 등록일 정보가 lastDate 필드에 담기므로 이를 활용합니다.
+    // 날짜 로직: 고정 인원은 25.11.24 / 나머지는 lastDate(등록일) 사용
+    let joinDate = new Date(2025, 11, 24); 
+    if (!fixedMembers.includes(mName)) {
         if (member?.lastDate) {
             joinDate = member.lastDate.toDate ? member.lastDate.toDate() : new Date(member.lastDate);
         } else {
-            // DB에 날짜 정보가 아예 없는 경우에만 현재 날짜를 사용 (오류 방지용)
-            joinDate = new Date();
+            joinDate = new Date(); // 최후의 보루
         }
     }
 
     const today = new Date();
-    // 개월 수 계산: (올해-가입년)*12 + (이번달-가입달) + 1
     const diffMonths = Math.max(1, (today.getFullYear() - joinDate.getFullYear()) * 12 + (today.getMonth() - joinDate.getMonth()) + 1);
     
+    // 레벨별 색상을 나이테에 미세하게 반영
     const style = getLevelStyle(member?.level || 0);
-    const ringColor = style.border;
+    const ringBaseColor = style.border;
 
-    nameLabel.innerText = `${mName}님의 나이테`;
-    infoLabel.innerText = `${joinDate.getFullYear()}. ${joinDate.getMonth()+1}. ${joinDate.getDate()} 가입 (${diffMonths}개월차)`;
+    nameLabel.innerText = `${mName}님의 세월`;
+    infoLabel.innerText = `${joinDate.getFullYear()}년 ${joinDate.getMonth()+1}월 가입 • ${diffMonths}개월의 흔적`;
 
-    // 나이테 그리기
+    // 나이테 생성
     for (let i = 1; i <= diffMonths; i++) {
         const ring = document.createElement('div');
         const size = (i / diffMonths) * 100;
         
-        // 자연스러운 나무 질감을 위한 불규칙 곡률
-        const r = () => 40 + Math.random() * 20;
+        // 자연스러운 비정형 모양을 위한 4개 모서리 랜덤값
+        const r = () => (45 + Math.random() * 15) + "%"; 
+        const borderRadius = `${r()} ${r()} ${r()} ${r()}`;
+        
+        // 미세한 회전값 추가 (나뭇결이 겹치지 않게)
+        const rotation = Math.random() * 360;
 
         ring.className = `tree-ring ${i % 12 === 0 ? 'year-mark' : ''}`;
         ring.style.cssText = `
             width: ${size}%;
             height: ${size}%;
-            border-color: ${ringColor};
-            border-radius: ${r()}% ${r()}% ${r()}% ${r()}%;
-            animation-delay: ${i * 0.05}s;
+            border-radius: ${borderRadius};
+            transform: rotate(${rotation}deg);
+            animation-delay: ${i * 0.03}s;
+            z-index: ${diffMonths - i}; /* 안쪽 선이 위로 오게 */
         `;
+        
+        // 1년 단위는 레벨 색상을 살짝 섞음
+        if(i % 12 === 0) {
+            ring.style.boxShadow = `inset 0 0 10px ${ringBaseColor}22`;
+        }
         
         container.appendChild(ring);
     }
