@@ -12,87 +12,68 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-/* 나이테 카드 배경 (나무 단면 느낌) */
-.tree-ring-card {
-background: #f4ece1 !important; /* 부드러운 나무 속살 색상 */
-box-shadow: inset 0 0 50px rgba(139, 69, 19, 0.1), 0 10px 30px rgba(0,0,0,0.2);
-border: 8px solid #5d4037 !important; /* 나무 껍질 느낌의 테두리 */
-position: relative;
-overflow: hidden;
+/* 산맥 모달 스타일 수정 */
+.mountain-modal {
+    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.9); z-index: 2000; align-items: center; justify-content: center;
+}
+.mountain-container {
+    width: 95%; max-width: 800px; height: 260px; /* 높이를 2/3로 축소 */
+    background: #070b14; border-radius: 15px; position: relative; overflow: hidden;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.8); border: 1px solid #1e293b;
 }
 
-/* 나이테 개별 스타일 */
-.tree-ring {
-position: absolute;
-border: 1.2px solid rgba(101, 67, 33, 0.3); /* 나뭇결 선 */
-transition: all 1s cubic-bezier(0.22, 1, 0.36, 1);
+/* 밤하늘 별 */
+.sky-star {
+    position: absolute; background: white; border-radius: 50%; opacity: 0.4;
+    animation: twinkle var(--duration) infinite;
+}
+@keyframes twinkle { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.8; } }
+
+/* 산맥 공통 */
+.mountain-layer {
+    position: absolute; bottom: 45px; /* 글씨 공간 확보를 위해 바닥에서 띄움 */
+    left: 0; width: 100%; display: flex; align-items: flex-end; pointer-events: none;
+}
+.peak {
+    position: relative; flex: 1; clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+    background: linear-gradient(to bottom, #1e293b, #070b14); margin-left: -3%;
+    transition: height 1s ease;
 }
 
-/* 1년 주기의 굵은 선 */
-.year-mark {
-border-width: 2.5px !important;
-border-color: rgba(62, 39, 35, 0.5) !important;
+/* ✨ 최고봉 골든 이펙트 (강화) */
+.peak.max-height {
+    background: linear-gradient(to bottom, #f59e0b, #78350f) !important;
+    z-index: 100 !important; /* 산맥 중 최상단 */
+    overflow: visible !important;
 }
 
-/* 나무의 정중앙 (심재) */
-.tree-pith {
-position: absolute;
-width: 8px;
-height: 8px;
-background: #3e2723;
-border-radius: 50%;
-z-index: 5;
-box-shadow: 0 0 5px rgba(0,0,0,0.5);
+/* 방사형 광채 + 화이트 스타 */
+.golden-glow-effect {
+    position: absolute; top: 0; left: 50%; transform: translate(-50%, -50%);
+    width: 60px; height: 60px;
+    background: radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(245,158,11,0.4) 30%, transparent 70%);
+    border-radius: 50%; z-index: 110;
+}
+.white-star-core {
+    position: absolute; top: 0; left: 50%; transform: translate(-50%, -50%);
+    width: 6px; height: 6px; background: white; border-radius: 50%;
+    box-shadow: 0 0 10px 2px white, 0 0 20px 5px #fbbf24; z-index: 120;
 }
 
-/* 배경에 깔리는 나무 질감 효과 */
-.wood-texture {
-position: absolute;
-top: 0; left: 0; width: 100%; height: 100%;
-background-image: url('https://www.transparenttextures.com/patterns/wood-pattern.png');
-opacity: 0.3;
-pointer-events: none;
+/* 하단 정보 바 (산맥에 가려지지 않게 격리) */
+.mountain-info-bar {
+    position: absolute; bottom: 0; left: 0; width: 100%; height: 45px;
+    background: rgba(15, 23, 42, 0.9); border-top: 1px solid #1e293b;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0 20px; z-index: 200; /* 모든 산맥보다 위 */
 }
+.info-item { color: #94a3b8; font-size: 11px; font-weight: 600; }
+.info-val { color: #fbbf24; margin-left: 5px; }
 
-/* 나이테 기본 상태: 처음엔 투명하거나 아주 흐릿하게 시작 */
-.tree-ring {
-    position: absolute;
-    border: 1.5px solid rgba(101, 67, 33, 0); /* 초기 상태 투명 */
-    opacity: 0;
-    transition: opacity 0.5s ease;
-}
-
-/* 빛나며 퍼져나가는 애니메이션 */
-@keyframes ringWave {
-    0% {
-        border-color: rgba(255, 255, 255, 0); /* 시작은 투명 */
-        opacity: 0;
-        transform: rotate(var(--rot)) scale(0.9);
-    }
-    15% {
-        border-color: #fff; /* 중간에 밝게 빛남 */
-        box-shadow: 0 0 15px #fff; /* 빛 번짐 효과 */
-        opacity: 1;
-        transform: rotate(var(--rot)) scale(1.02);
-    }
-    30% {
-        border-color: var(--base-color); /* 원래 나뭇결 색으로 복귀 */
-        box-shadow: none;
-        opacity: 0.6;
-        transform: rotate(var(--rot)) scale(1);
-    }
-    100% {
-        border-color: var(--base-color); /* 마지막 상태 유지 */
-        opacity: 0.6;
-        transform: rotate(var(--rot)) scale(1);
-    }
-}
-
-/* 애니메이션 종료 후 전체가 나타나게 하는 클래스 */
-.rings-complete .tree-ring {
-    opacity: 0.6 !important;
-    border-color: var(--base-color) !important;
-    transition: all 1s ease-in-out;
+/* 헤더 글씨 */
+.mountain-header {
+    position: absolute; top: 15px; left: 20px; z-index: 200; color: white;
 }
 
 /* 1. 전체 배경 어둡게 */
@@ -1120,21 +1101,6 @@ San:Woori Total</span>
 </div>
 </div>
 </div>
-<div id="treeRingModal" class="modal-overlay" style="display:none; align-items:center; justify-content:center;" onclick="this.style.display='none'">
-    <div class="tree-ring-card" onclick="event.stopPropagation()" style="padding: 30px; border-radius: 40px; width: 320px; text-align: center; font-family: 'Pretendard', sans-serif;">
-        <div style="margin-bottom: 20px;">
-            <h3 id="treeringName" style="margin: 0; font-size: 18px; font-weight: 800; color: #3e2723;"></h3>
-            <p id="treeringInfo" style="font-size: 11px; color: #8b7355; margin-top: 4px;"></p>
-        </div>
-        
-        <div id="treeRingContainer" style="position: relative; width: 220px; height: 220px; margin: 0 auto; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.2); border-radius: 50%;">
-        </div>
-        
-        <button onclick="document.getElementById('treeRingModal').style.display='none'" style="margin-top: 25px; background: #5d4037; color: #f4ece1; border: none; padding: 8px 25px; border-radius: 20px; font-size: 13px; font-weight: bold; cursor: pointer; transition: 0.3s;">
-            숲으로 돌아가기
-        </button>
-    </div>
-</div>
 
 ​<div id="milkyWayModal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/80 backdrop-blur-sm">
     <div class="relative w-[90%] max-w-md bg-[#050b18] rounded-3xl overflow-hidden border border-blue-900/50 shadow-[0_0_50px_rgba(30,58,138,0.5)]">
@@ -1300,7 +1266,6 @@ const defaultSubRooms = [
 { id: "bank", name: "은행", emoji: "💰", url: "은행 톡방📢 https://open.kakao.com/o/gIiWrz6h" },
 { id: "stable", name: "승마장", emoji: "🐎", url: "승마장 톡방📢 https://open.kakao.com/o/gYiVoN3h" }
 ];
-
 function listenSubRooms() {
 onSnapshot(collection(db, "sub_rooms"), (snapshot) => {
 const rooms = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -1396,7 +1361,7 @@ window.renderStatusTable = () => {
     <td class="text-xs text-center">
         <div class="flex flex-col items-center justify-center">
             ${rankT ? `<span class="rank-badge ${rankC}">${rankT}</span>` : ''}
-            <span class="font-bold ${nameColor} cursor-pointer hover:underline" onclick="showTreeRings('${m.id}', '${m.name}')">${m.name}</span>
+            <span class="font-bold ${nameColor} cursor-pointer hover:underline" onclick="showMemberMountain('${m.id}', '${m.name}')">${m.name}</span>
         </div>
     </td>
     <td>
@@ -1973,6 +1938,80 @@ setTimeout(() => { updateVibeTemp(); setInterval(updateVibeTemp, 60000); }, 2000
 document.getElementById('regDate').valueAsDate = new Date();
 document.getElementById('activityDate').valueAsDate = new Date();
 
+window.showMemberMountain = async (mId, mName) => {
+    const modal = document.getElementById('mountainViewModal');
+    const peakLayer = document.getElementById('peakLayer');
+    const bgContainer = document.getElementById('bgLayersContainer');
+    const sky = document.getElementById('starrySky');
+    
+    document.getElementById('mwMountainName').innerText = `${mName}님의 산맥`;
+    modal.style.display = 'flex';
+    peakLayer.innerHTML = bgContainer.innerHTML = sky.innerHTML = "";
+
+    // 1. 별밤 (50개로 최적화)
+    for(let i=0; i<50; i++) {
+        const star = document.createElement('div');
+        star.className = 'sky-star';
+        star.style.width = star.style.height = `${Math.random()*2}px`;
+        star.style.left = `${Math.random()*100}%`;
+        star.style.top = `${Math.random()*60}%`;
+        star.style.setProperty('--duration', `${Math.random()*3+2}s`);
+        sky.appendChild(star);
+    }
+
+    try {
+        const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
+        const logs = snap.docs.map(d => d.data()).filter(l => (l.height || 0) > 0);
+        if (logs.length === 0) return;
+
+        const heights = logs.map(l => l.height);
+        const maxHeight = Math.max(...heights);
+        document.getElementById('myTotalH').innerText = heights.reduce((a,b)=>a+b,0).toLocaleString();
+
+        // 2. 산우리 합산 고도 배경 산맥 (전체 산 높이 낮춤)
+        const globalH = currentData.reduce((acc, m) => acc + (m.totalHeight || 0), 0);
+        document.getElementById('globalTotalH').innerText = globalH.toLocaleString();
+        
+        const layerCount = Math.min(Math.floor(globalH / 15000) + 2, 5);
+        for(let i = 1; i <= layerCount; i++) {
+            const layer = document.createElement('div');
+            layer.className = 'mountain-layer';
+            layer.style.height = `${20 + (i * 8)}%`; // 배경산 높이 축소
+            layer.style.opacity = 0.15;
+            for(let j=0; j<10; j++) {
+                const p = document.createElement('div');
+                p.className = 'peak';
+                p.style.height = `${Math.random()*30+70}%`;
+                layer.appendChild(p);
+            }
+            bgContainer.appendChild(layer);
+        }
+
+        // 3. 개인 봉우리 (최대 높이를 60%로 제한하여 세로 단축)
+        peakLayer.style.height = "60%"; 
+        logs.forEach((log) => {
+            const hRatio = (log.height / maxHeight) * 100;
+            const isMax = log.height === maxHeight;
+            const peakDiv = document.createElement('div');
+            peakDiv.className = `peak ${isMax ? 'max-height' : ''}`;
+            peakDiv.style.height = `${hRatio}%`;
+            
+            if (isMax) {
+                // 광채와 화이트 스타 삽입
+                peakDiv.innerHTML = `
+                    <div class="golden-glow-effect"></div>
+                    <div class="white-star-core"></div>
+                    <span style="position:absolute; top:-25px; left:50%; transform:translateX(-50%); color:#fbbf24; font-size:9px; font-weight:800; white-space:nowrap; z-index:200;">
+                        ${log.mountain}
+                    </span>
+                `;
+            }
+            peakLayer.appendChild(peakDiv);
+        });
+
+    } catch (e) { console.error(e); }
+};
+
 window.showMilkyWay = async (mId, mName) => {
     const modal = document.getElementById('milkyWayModal');
     const board = document.getElementById('constellationBoard');
@@ -2088,71 +2127,29 @@ window.showFadingScroll = function(dday, level = 0) {
 
     modal.style.display = 'flex';
 };
-window.showTreeRings = (mId, mName) => {
-    const modal = document.getElementById('treeRingModal');
-    const container = document.getElementById('treeRingContainer');
-    const nameLabel = document.getElementById('treeringName');
-    const infoLabel = document.getElementById('treeringInfo');
-    
-    if(!container) return;
-    container.classList.remove('rings-complete'); // 애니메이션 초기화
-    container.innerHTML = '<div class="tree-pith"></div><div class="wood-texture"></div>';
-    modal.style.display = 'flex';
-    
-    const fixedMembers = ["오즈","나스","해수","용삼","지니","아랑","민이","몰랑","길치","등초","무니","식이","구름","뚜벅","윤윤","승이","이구","후후","튜브","피치","사랑","송돌","호프","이제","얌얌","태기","희야","멸치","성민","루이","섭섭"];
-    const member = currentData.find(m => m.id === mId);
-    
-    let joinDate = new Date(2025, 10, 24); 
-    if (!fixedMembers.includes(mName)) {
-        if (member?.lastDate) {
-            joinDate = member.lastDate.toDate ? member.lastDate.toDate() : new Date(member.lastDate);
-        } else {
-            joinDate = new Date();
-        }
-    }
-
-    const today = new Date();
-    const diffMonths = Math.max(1, (today.getFullYear() - joinDate.getFullYear()) * 12 + (today.getMonth() - joinDate.getMonth()) + 1);
-    
-    const style = getLevelStyle(member?.level || 0);
-    const ringBaseColor = style.border; // 등급별 고유 색상
-
-    nameLabel.innerText = `${mName}님의 세월`;
-    infoLabel.innerText = `${joinDate.getFullYear()}년 ${joinDate.getMonth()+1}월 가입 • ${diffMonths}개월의 흔적`;
-
-    const interval = 0.15; // 각 줄이 밝아지는 간격 (초)
-
-    for (let i = 1; i <= diffMonths; i++) {
-        const ring = document.createElement('div');
-        const size = (i / diffMonths) * 100;
-        const r = () => (45 + Math.random() * 15) + "%"; 
-        const rotation = Math.random() * 360;
-
-        ring.className = `tree-ring ${i % 12 === 0 ? 'year-mark' : ''}`;
-        
-        // CSS 변수를 사용해 개별 애니메이션 제어
-        ring.style.setProperty('--rot', `${rotation}deg`);
-        ring.style.setProperty('--base-color', ringBaseColor);
-        
-        ring.style.width = `${size}%`;
-        ring.style.height = `${size}%`;
-        ring.style.borderRadius = `${r()} ${r()} ${r()} ${r()}`;
-        
-        // 애니메이션 설정: 순차적으로 실행
-        ring.style.animation = `ringWave 3s forwards`; 
-        ring.style.animationDelay = `${i * interval}s`;
-        
-        container.appendChild(ring);
-    }
-
-    // 모든 애니메이션이 끝난 후 (diffMonths * interval + 알파) 전체 공개
-    const totalAnimTime = (diffMonths * interval + 1.5) * 1000;
-    setTimeout(() => {
-        container.classList.add('rings-complete');
-    }, totalAnimTime);
-};
 </script> 
 
+<div id="mountainViewModal" class="mountain-modal" onclick="this.style.display='none'">
+    <div class="mountain-container" onclick="event.stopPropagation()">
+        <div id="starrySky"></div>
+        
+        <div class="mountain-header">
+            <h2 id="mwMountainName" style="font-size: 16px; margin: 0;"></h2>
+            <p style="font-size: 10px; color: #64748b; margin: 0;">가상 산맥 전경</p>
+        </div>
+
+        <div id="bgLayersContainer"></div>
+        <div id="peakLayer" class="mountain-layer"></div>
+
+        <div class="mountain-info-bar">
+            <div class="info-item">개인 누적 <span id="myTotalH" class="info-val">0</span>m</div>
+            <div class="info-item">산우리 합산 <span id="globalTotalH" class="info-val">0</span>m</div>
+        </div>
+        
+        <button onclick="document.getElementById('mountainViewModal').style.display='none'" 
+                style="position:absolute; top:15px; right:15px; color:white; background:none; border:none; font-size:20px; cursor:pointer; z-index:201;">&times;</button>
+    </div>
+</div>
 
   <div id="scrollModal" class="scroll-overlay" onclick="this.style.display='none'">
     <div class="fading-scroll" onclick="event.stopPropagation()">
@@ -2186,8 +2183,8 @@ window.showTreeRings = (mId, mName) => {
             </button>
         </div>
     </div>
+</div>
 </script>
 </body>
 </html>
-​
 ​
