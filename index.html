@@ -12,26 +12,32 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-/* 나이테 카드 슬림 버전 */
+/* 1. 나이테 카드 스타일 수정 */
 .tree-ring-card {
     margin-top: 10px;
-    padding: 15px;
-    height: 180px; /* 세로 크기 축소 */
+    padding: 20px 15px; /* 상하 여백 확보 */
+    min-height: 140px; /* 최소 높이만 지정 */
+    height: auto; /* 내용물(SVG)에 따라 늘어나도록 설정 */
     display: flex;
     flex-direction: column;
     justify-content: center;
+    overflow: visible; /* 내부 요소가 삐져나와도 잘리지 않게 함 */
 }
 
+/* 2. 나이테 컨테이너 수정 */
 .ring-canvas {
     width: 100%;
-    height: 110px; /* 내부 나이테 캔버스 높이 축소 */
+    height: 120px; /* 나이테가 그려질 충분한 세로 공간 */
     display: flex;
     justify-content: center;
     align-items: center;
+    position: relative;
 }
 
-.ring-header {
-    margin-bottom: 5px;
+/* 3. SVG가 짤리지 않도록 설정 */
+.ring-canvas svg {
+    overflow: visible; /* 타원이 위아래로 커져도 잘리지 않음 */
+    max-height: 100%;
 }
 
 /* 나이테 카드 전체 스타일 */
@@ -2155,7 +2161,50 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
     const style = getLevelStyle(memberLevel);
     const ringColor = style.border; 
 
-    const svgNS = "http://www.w3.org/2000/svg";
+    container.appendChild(svg);const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS, "svg");
+    
+    // viewBox의 높이를 120에서 140으로 살짝 높여 여유 공간 확보
+    svg.setAttribute("viewBox", "0 0 300 140");
+    svg.style.width = "100%";
+    svg.style.height = "100%";
+    
+    const seed = memberName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const rings = [];
+
+    for (let i = 1; i <= diffMonths; i++) {
+        const radiusX = i * (130 / diffMonths); 
+        const radiusY = i * (55 / diffMonths); // Y축 반경 최적화
+        
+        const path = document.createElementNS(svgNS, "path");
+        let d = "";
+        
+        for (let a = 0; a <= 360; a += 5) {
+            const angle = (a * Math.PI) / 180;
+            
+            // 불규칙성 (Wobble) 계산
+            const noise = Math.sin(angle * 3 + seed + i) * (radiusY * 0.12);
+            const rX = radiusX + noise;
+            const rY = radiusY + (noise * 0.5);
+            
+            // 중심점을 70(140의 절반)으로 이동
+            const x = 150 + rX * Math.cos(angle);
+            const y = 70 + rY * Math.sin(angle);
+            
+            d += (a === 0 ? "M" : "L") + `${x},${y} `;
+        }
+        d += "Z";
+        
+        path.setAttribute("d", d);
+        path.setAttribute("fill", "none");
+        path.setAttribute("stroke", ringColor);
+        path.setAttribute("stroke-width", i % 12 === 0 ? "1.2" : "0.5");
+        path.setAttribute("stroke-opacity", "0.2"); // 기본 투명도
+        
+        svg.appendChild(path);
+        rings.push(path);
+    }
+    container.appendChild(svg);const svgNS = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(svgNS, "svg");
     // 가로로 긴 비율에 맞춰 viewBox 조정 (가로 300, 세로 120)
     svg.setAttribute("viewBox", "0 0 300 120");
@@ -2204,7 +2253,7 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
         svg.appendChild(path);
         rings.push(path);
     }
-    container.appendChild(svg);
+   
 
     // 파동 애니메이션 실행 (더 빠르게)
     for (let i = 0; i < rings.length; i++) {
