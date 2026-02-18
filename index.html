@@ -1241,7 +1241,7 @@ const defaultSubRooms = [
 { id: "stable", name: "승마장", emoji: "🐎", url: "승마장 톡방📢 https://open.kakao.com/o/gYiVoN3h" }
 ];
 
-    function listenSubRooms() {
+function listenSubRooms() {
 onSnapshot(collection(db, "sub_rooms"), (snapshot) => {
 const rooms = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 subRoomsData = defaultSubRooms.map(def => {
@@ -2028,6 +2028,50 @@ window.showFadingScroll = function(dday, level = 0) {
 
     modal.style.display = 'flex';
 };
+window.showTreeRings = (mId, mName) => {
+    const modal = document.getElementById('treeRingModal');
+    const container = document.getElementById('treeRingContainer');
+    const nameLabel = document.getElementById('treeringName');
+    const infoLabel = document.getElementById('treeringInfo');
+    
+    container.innerHTML = "";
+    if(modal) modal.style.display = 'flex';
+    
+    const fixedMembers = ["오즈","나스","해수","용삼","지니","아랑","민이","몰랑","길치","등초","무니","식이","구름","뚜벅","윤윤","승이","이구","후후","튜브","피치","사랑","송돌","호프","이제","얌얌","태기","희야","멸치","성민","섭섭"];
+    const member = currentData.find(m => m.id === mId);
+    
+    let joinDate = new Date(2025, 10, 24); 
+    if (!fixedMembers.includes(mName) && member?.regDate) {
+        joinDate = member.regDate.toDate ? member.regDate.toDate() : new Date(member.regDate);
+    }
+
+    const today = new Date();
+    const diffMonths = Math.max(1, (today.getFullYear() - joinDate.getFullYear()) * 12 + (today.getMonth() - joinDate.getMonth()) + 1);
+    
+    const style = getLevelStyle(member?.level || 0);
+    const ringColor = style.border;
+
+    if(nameLabel) nameLabel.innerText = `${mName}님의 나이테`;
+    if(infoLabel) infoLabel.innerText = `${joinDate.getFullYear()}. ${joinDate.getMonth()+1}. ${joinDate.getDate()} 가입 (현재 ${diffMonths}개월차)`;
+
+    for (let i = 1; i <= diffMonths; i++) {
+        const ring = document.createElement('div');
+        const size = (i / diffMonths) * 100;
+        const r1 = 40 + Math.random() * 20;
+        const r2 = 40 + Math.random() * 20;
+        const r3 = 40 + Math.random() * 20;
+        const r4 = 40 + Math.random() * 20;
+
+        ring.className = `tree-ring ${i % 12 === 0 ? 'year-mark' : ''}`;
+        ring.style.width = `${size}%`;
+        ring.style.height = `${size}%`;
+        ring.style.borderColor = ringColor;
+        ring.style.borderRadius = `${r1}% ${r2}% ${r3}% ${r4}%`;
+        ring.style.animationDelay = `${i * 0.05}s`;
+        
+        if(container) container.appendChild(ring);
+    }
+};
 </script> 
 
 
@@ -2053,7 +2097,7 @@ window.showFadingScroll = function(dday, level = 0) {
         <div class="scroll-footer">
             <hr class="scroll-divider">
             <div class="ancient-seal">
-                <div class="seal-text">SAN<br>URI</div>
+                <div class="seal-text">SAN<br>WOORI</div>
             </div>
             <p class="footer-note">기록 연장이 필요하면 요청해 주세요.</p>
             <p class="ancient-signature">Guardian of History</p>
@@ -2063,59 +2107,8 @@ window.showFadingScroll = function(dday, level = 0) {
             </button>
         </div>
     </div>
-window.showTreeRings = (mId, mName) => {
-    const modal = document.getElementById('treeRingModal');
-    const container = document.getElementById('treeRingContainer');
-    const nameLabel = document.getElementById('treeringName');
-    const infoLabel = document.getElementById('treeringInfo');
-    
-    container.innerHTML = "";
-    modal.style.display = 'flex';
-    
-    // 1. 가입일 설정
-    const fixedMembers = ["오즈","나스","해수","용삼","지니","아랑","민이","몰랑","길치","등초","무니","식이","구름","뚜벅","윤윤","승이","이구","후후","튜브","피치","사랑","송돌","호프","이제","얌얌","태기","희야","멸치","성민","섭섭"];
-    const member = currentData.find(m => m.id === mId);
-    let joinDate = new Date(2025, 10, 24); // 기본값 (11월은 index 10)
-    
-    if (!fixedMembers.includes(mName) && member?.regDate) {
-        joinDate = member.regDate.toDate();
-    }
-
-    // 2. 활동 개월 수 계산
-    const today = new Date();
-    const diffMonths = (today.getFullYear() - joinDate.getFullYear()) * 12 + (today.getMonth() - joinDate.getMonth()) + 1;
-    
-    // 3. 색상 결정 (회원 등급 스타일 활용)
-    const style = getLevelStyle(member?.level || 0);
-    const ringColor = style.border;
-
-    nameLabel.innerText = `${mName}님의 나이테`;
-    infoLabel.innerText = `${joinDate.getFullYear()}. ${joinDate.getMonth()+1}. ${joinDate.getDate()} 가입 (현재 ${diffMonths}개월차)`;
-
-    // 4. 나이테 생성
-    for (let i = 1; i <= diffMonths; i++) {
-        const ring = document.createElement('div');
-        const size = (i / diffMonths) * 100; // 크기 비율
-        
-        // 랜덤한 불규칙 모양 생성 (border-radius를 조절)
-        const r1 = 45 + Math.random() * 10;
-        const r2 = 45 + Math.random() * 10;
-        const r3 = 45 + Math.random() * 10;
-        const r4 = 45 + Math.random() * 10;
-
-        ring.className = `tree-ring ${i % 12 === 0 ? 'year-mark' : ''}`;
-        ring.style.width = `${size}%`;
-        ring.style.height = `${size}%`;
-        ring.style.borderColor = ringColor;
-        ring.style.borderRadius = `${r1}% ${r2}% ${r3}% ${r4}%`;
-        ring.style.animationDelay = `${i * 0.1}s`; // 안쪽부터 순차적으로 커짐
-        
-        container.appendChild(ring);
-    }
-};
-</div>
-</div>
 </script>
 </body>
 </html>
+​
 ​
