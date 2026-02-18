@@ -12,6 +12,52 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+/* 나이테 카드 전체 스타일 */
+.tree-ring-card {
+    position: relative;
+    width: 100%; /* 산맥 컨테이너와 동일한 너비 */
+    max-width: 450px;
+    margin-top: 15px;
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 24px;
+    padding: 20px;
+    overflow: hidden;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.ring-glass-effect {
+    position: absolute;
+    top: -50%; left: -50%; width: 200%; height: 200%;
+    background: radial-gradient(circle at center, rgba(255,255,255,0.03) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.ring-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; }
+.ring-label { font-size: 9px; color: #64748b; font-weight: 800; letter-spacing: 2px; }
+.ring-main-title { font-size: 16px; color: #f1f5f9; margin: 4px 0 0 0; }
+.ring-months-val { font-size: 22px; color: #3b82f6; font-weight: 900; }
+.ring-unit { font-size: 10px; color: #94a3b8; margin-left: 4px; }
+
+.ring-canvas {
+    width: 100%;
+    height: 180px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.ring-footer { margin-top: 15px; text-align: center; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px; }
+.ring-desc { font-size: 10px; color: #475569; }
+
+/* 나이테 선 기본 스타일 */
+.ring-path {
+    fill: none;
+    stroke-linecap: round;
+    transition: all 0.4s ease;
+}
+
 /* 모달 설정: 내부 요소들을 세로로 정렬 */
 .mountain-modal {
     display: none;
@@ -2065,68 +2111,87 @@ window.showMemberMountain = async (mId, mName) => {
     } catch (e) { console.error("나이테 로딩 에러:", e); }
 };
 
-// [나이테 엔진 - 별도 영역에 그리기]
 window.renderTreeRings = async (memberName, regDate, memberLevel) => {
     const container = document.getElementById('treeRingContainer');
     const monthLabel = document.getElementById('activityMonths');
     if(!container) return;
     container.innerHTML = ""; 
 
-    // 가입 개월 수 계산 (고정 리스트)
+    // 1. 가입 개월 수 및 색상 계산
     const fixedList = ["오즈","나스","해수","용삼","지니","아랑","민이","몰랑","길치","등초","무니","식이","구름","뚜벅","윤윤","승이","이구","후후","튜브","피치","사랑","송돌","호프","이제","얌얌","태기","희야","멸치","성민","섭섭"];
     let jDate = fixedList.includes(memberName) ? new Date('2025-11-24') : (regDate?.toDate ? regDate.toDate() : new Date());
-    
     const now = new Date();
     const diffMonths = Math.max(1, (now.getFullYear() - jDate.getFullYear()) * 12 + (now.getMonth() - jDate.getMonth()) + 1);
-    monthLabel.innerText = `${diffMonths} Months`;
+    
+    // 개월 수 카운트 업 애니메이션
+    let count = 0;
+    const countTimer = setInterval(() => {
+        if(count >= diffMonths) clearInterval(countTimer);
+        monthLabel.innerText = count++;
+    }, 30);
 
     const style = getLevelStyle(memberLevel);
     const ringColor = style.border; 
 
+    // 2. SVG 생성
     const svgNS = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(svgNS, "svg");
-    svg.setAttribute("viewBox", "0 0 200 200");
+    svg.setAttribute("viewBox", "0 0 240 240");
+    svg.style.width = "100%";
     svg.style.height = "100%";
     
     const rings = [];
     const seed = memberName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
 
     for (let i = 1; i <= diffMonths; i++) {
-        const radius = i * (80 / diffMonths); 
+        const radius = i * (100 / diffMonths); 
         const path = document.createElementNS(svgNS, "path");
         let d = "";
-        for (let a = 0; a <= 360; a += 15) {
+        // 불규칙한 자연 나이테 모양 생성
+        for (let a = 0; a <= 360; a += 10) {
             const angle = (a * Math.PI) / 180;
-            const wobble = Math.sin(angle * 3 + seed + i) * (radius * 0.08);
+            const wobble = Math.sin(angle * 4 + seed + (i * 0.5)) * (radius * 0.06);
             const r = radius + wobble;
-            const x = 100 + r * Math.cos(angle);
-            const y = 100 + r * Math.sin(angle);
+            const x = 120 + r * Math.cos(angle);
+            const y = 120 + r * Math.sin(angle);
             d += (a === 0 ? "M" : "L") + `${x},${y} `;
         }
         d += "Z";
         path.setAttribute("d", d);
         path.setAttribute("class", "ring-path");
         path.setAttribute("stroke", ringColor);
-        path.setAttribute("stroke-width", i % 12 === 0 ? "2.5" : "0.6"); // 1년마다 굵게
-        path.setAttribute("stroke-opacity", "0");
+        path.setAttribute("stroke-width", i % 12 === 0 ? "2.5" : "0.7");
+        path.setAttribute("stroke-opacity", "0"); // 처음엔 숨김
         svg.appendChild(path);
         rings.push(path);
     }
     container.appendChild(svg);
 
-    // 애니메이션 효과
+    // 3. 나이테 파동 애니메이션 (한 줄씩 밝아졌다 돌아오기)
     for (let i = 0; i < rings.length; i++) {
         await new Promise(res => {
+            // 현재 줄 밝게 강조
             rings[i].setAttribute("stroke-opacity", "1");
-            rings[i].style.filter = "brightness(2) drop-shadow(0 0 2px white)";
+            rings[i].style.filter = `drop-shadow(0 0 5px ${ringColor}) brightness(2)`;
+            rings[i].style.strokeWidth = i % 12 === 0 ? "4" : "2";
+
             setTimeout(() => {
-                rings[i].setAttribute("stroke-opacity", "0.4");
+                // 다음 줄로 넘어가기 전 원래 투명도로 복구
+                rings[i].setAttribute("stroke-opacity", "0.1");
                 rings[i].style.filter = "none";
+                rings[i].style.strokeWidth = i % 12 === 0 ? "2.5" : "0.7";
                 res();
-            }, 50); 
+            }, 60); // 파동 속도
         });
     }
-    rings.forEach(r => r.setAttribute("stroke-opacity", "0.5"));
+
+    // 4. 마지막 짠! 전체 나타나기
+    setTimeout(() => {
+        rings.forEach((r, idx) => {
+            r.style.transition = "all 1s ease-out";
+            r.setAttribute("stroke-opacity", idx % 12 === 0 ? "0.8" : "0.4");
+        });
+    }, 200);
 };
 
 window.showMilkyWay = async (mId, mName) => {
@@ -2251,6 +2316,26 @@ window.showFadingScroll = function(dday, level = 0) {
 <div id="starrySky"></div>
 <div id="bgLayersContainer"></div>
 <div id="peakLayer" class="mountain-layer"></div>
+
+<div class="tree-ring-card" onclick="event.stopPropagation()">
+    <div class="ring-glass-effect"></div>
+    <div class="ring-header">
+        <div class="ring-title-group">
+            <span class="ring-label">ACTIVITY HISTORY</span>
+            <h3 class="ring-main-title">활동 나이테</h3>
+        </div>
+        <div class="ring-stats">
+            <span id="activityMonths" class="ring-months-val">0</span>
+            <span class="ring-unit">Months</span>
+        </div>
+    </div>
+    
+    <div id="treeRingContainer" class="ring-canvas"></div>
+    
+    <div class="ring-footer">
+        <span class="ring-desc">가입 이후 현재까지의 활동 궤적입니다.</span>
+    </div>
+</div>
 
 <div class="mountain-header">
 <h2 id="mwMountainName" style="font-size: 16px; margin: 0;"></h2>
