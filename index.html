@@ -12,6 +12,28 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+/* 나이테 디자인용 CSS */
+.tree-ring-section {
+    margin-top: 15px;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.03); /* 아주 살짝 밝은 배경 */
+    border-radius: 15px;
+}
+.tree-ring-header { display: flex; justify-content: space-between; margin-bottom: 5px; }
+.tree-ring-title { font-size: 10px; color: #94a3b8; font-weight: 800; }
+.tree-ring-months { font-size: 10px; color: #60a5fa; font-weight: 800; }
+.tree-ring-container { width: 100%; height: 120px; display: flex; justify-content: center; }
+
+.ring-path { fill: none; stroke-linecap: round; }
+
+/* 나이테가 하나씩 반짝이며 나타나는 애니메이션 */
+@keyframes ring-glow {
+    0% { stroke-opacity: 0.2; filter: brightness(1); }
+    50% { stroke-opacity: 1; filter: brightness(2.5); stroke-width: 2px; }
+    100% { stroke-opacity: 0.6; filter: brightness(1); }
+}
+.ring-animating { animation: ring-glow 0.8s ease-in-out; }
+
 /* 산맥 모달 스타일 수정 */
 .mountain-modal {
     display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -1087,7 +1109,6 @@ San:Woori Total</span>
 </div>
 </div>
 </div>
-
 <div id="mapViewStats" class="hidden-view">
 <div class="conquer-dark-card !mt-0 !min-h-[400px]">
 <div class="conquer-header-box">
@@ -1938,6 +1959,7 @@ setTimeout(() => { updateVibeTemp(); setInterval(updateVibeTemp, 60000); }, 2000
 document.getElementById('regDate').valueAsDate = new Date();
 document.getElementById('activityDate').valueAsDate = new Date();
 
+// [통합 함수] 기존 산맥 로직 + 나이테 로직
 window.showMemberMountain = async (mId, mName) => {
     const modal = document.getElementById('mountainViewModal');
     const peakLayer = document.getElementById('peakLayer');
@@ -1962,54 +1984,130 @@ window.showMemberMountain = async (mId, mName) => {
     try {
         const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
         const logs = snap.docs.map(d => d.data()).filter(l => (l.height || 0) > 0);
-        if (logs.length === 0) return;
-
-        const heights = logs.map(l => l.height);
-        const maxHeight = Math.max(...heights);
-        document.getElementById('myTotalH').innerText = heights.reduce((a,b)=>a+b,0).toLocaleString();
-
-        // 2. 산우리 합산 고도 배경 산맥 (전체 산 높이 낮춤)
-        const globalH = currentData.reduce((acc, m) => acc + (m.totalHeight || 0), 0);
-        document.getElementById('globalTotalH').innerText = globalH.toLocaleString();
         
-        const layerCount = Math.min(Math.floor(globalH / 15000) + 2, 5);
-        for(let i = 1; i <= layerCount; i++) {
-            const layer = document.createElement('div');
-            layer.className = 'mountain-layer';
-            layer.style.height = `${20 + (i * 8)}%`; // 배경산 높이 축소
-            layer.style.opacity = 0.15;
-            for(let j=0; j<10; j++) {
-                const p = document.createElement('div');
-                p.className = 'peak';
-                p.style.height = `${Math.random()*30+70}%`;
-                layer.appendChild(p);
+        // 데이터가 없어도 나이테는 보여주기 위해 return 위치 변경
+        if (logs.length > 0) {
+            const heights = logs.map(l => l.height);
+            const maxHeight = Math.max(...heights);
+            document.getElementById('myTotalH').innerText = heights.reduce((a,b)=>a+b,0).toLocaleString();
+
+            // 2. 산우리 합산 고도 배경 산맥
+            const globalH = currentData.reduce((acc, m) => acc + (m.totalHeight || 0), 0);
+            document.getElementById('globalTotalH').innerText = globalH.toLocaleString();
+            
+            const layerCount = Math.min(Math.floor(globalH / 15000) + 2, 5);
+            for(let i = 1; i <= layerCount; i++) {
+                const layer = document.createElement('div');
+                layer.className = 'mountain-layer';
+                layer.style.height = `${20 + (i * 8)}%`; 
+                layer.style.opacity = 0.15;
+                for(let j=0; j<10; j++) {
+                    const p = document.createElement('div');
+                    p.className = 'peak';
+                    p.style.height = `${Math.random()*30+70}%`;
+                    layer.appendChild(p);
+                }
+                bgContainer.appendChild(layer);
             }
-            bgContainer.appendChild(layer);
+
+            // 3. 개인 봉우리
+            peakLayer.style.height = "60%"; 
+            logs.forEach((log) => {
+                const hRatio = (log.height / maxHeight) * 100;
+                const isMax = log.height === maxHeight;
+                const peakDiv = document.createElement('div');
+                peakDiv.className = `peak ${isMax ? 'max-height' : ''}`;
+                peakDiv.style.height = `${hRatio}%`;
+                
+                if (isMax) {
+                    peakDiv.innerHTML = `
+                        <div class="golden-glow-effect"></div>
+                        <div class="white-star-core"></div>
+                        <span style="position:absolute; top:-25px; left:50%; transform:translateX(-50%); color:#fbbf24; font-size:9px; font-weight:800; white-space:nowrap; z-index:200;">
+                            ${log.mountain}
+                        </span>
+                    `;
+                }
+                peakLayer.appendChild(peakDiv);
+            });
         }
 
-        // 3. 개인 봉우리 (최대 높이를 60%로 제한하여 세로 단축)
-        peakLayer.style.height = "60%"; 
-        logs.forEach((log) => {
-            const hRatio = (log.height / maxHeight) * 100;
-            const isMax = log.height === maxHeight;
-            const peakDiv = document.createElement('div');
-            peakDiv.className = `peak ${isMax ? 'max-height' : ''}`;
-            peakDiv.style.height = `${hRatio}%`;
-            
-            if (isMax) {
-                // 광채와 화이트 스타 삽입
-                peakDiv.innerHTML = `
-                    <div class="golden-glow-effect"></div>
-                    <div class="white-star-core"></div>
-                    <span style="position:absolute; top:-25px; left:50%; transform:translateX(-50%); color:#fbbf24; font-size:9px; font-weight:800; white-space:nowrap; z-index:200;">
-                        ${log.mountain}
-                    </span>
-                `;
-            }
-            peakLayer.appendChild(peakDiv);
-        });
+        // --- [추가] 4. 나이테 실행부 ---
+        const memberInfo = currentData.find(m => m.id === mId);
+        if (memberInfo) {
+            // 가입일이 없으면 현재 시간으로 대체
+            const joinDate = memberInfo.regDate || memberInfo.lastDate;
+            window.renderTreeRings(mName, joinDate, memberInfo.level || 0);
+        }
 
     } catch (e) { console.error(e); }
+};
+
+// [나이테 엔진] 실제 그림을 그리는 독립 함수
+window.renderTreeRings = async (memberName, regDate, memberLevel) => {
+    const container = document.getElementById('treeRingContainer');
+    const monthLabel = document.getElementById('activityMonths');
+    if(!container) return;
+    container.innerHTML = ""; 
+
+    // 가입 개월 수 계산
+    const fixedList = ["오즈","나스","해수","용삼","지니","아랑","민이","몰랑","길치","등초","무니","식이","구름","뚜벅","윤윤","승이","이구","후후","튜브","피치","사랑","송돌","호프","이제","얌얌","태기","희야","멸치","성민","섭섭"];
+    let jDate = fixedList.includes(memberName) ? new Date('2025-11-24') : (regDate?.toDate ? regDate.toDate() : new Date());
+    
+    const now = new Date();
+    const diffMonths = Math.max(1, (now.getFullYear() - jDate.getFullYear()) * 12 + (now.getMonth() - jDate.getMonth()) + 1);
+    monthLabel.innerText = `${diffMonths} Months`;
+
+    // 회원 색상 (레벨 스타일 적용)
+    const style = getLevelStyle(memberLevel);
+    const ringColor = style.border; 
+
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("viewBox", "0 0 200 200");
+    svg.style.width = "100%";
+    svg.style.height = "100%";
+    
+    const rings = [];
+    const seed = memberName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+
+    for (let i = 1; i <= diffMonths; i++) {
+        const radius = i * (85 / diffMonths); 
+        const path = document.createElementNS(svgNS, "path");
+        let d = "";
+        for (let a = 0; a <= 360; a += 15) {
+            const angle = (a * Math.PI) / 180;
+            const wobble = Math.sin(angle * 3 + seed + i) * (radius * 0.08);
+            const r = radius + wobble;
+            const x = 100 + r * Math.cos(angle);
+            const y = 100 + r * Math.sin(angle);
+            d += (a === 0 ? "M" : "L") + `${x},${y} `;
+        }
+        d += "Z";
+        path.setAttribute("d", d);
+        path.setAttribute("fill", "none");
+        path.setAttribute("stroke", ringColor);
+        path.setAttribute("stroke-width", i % 12 === 0 ? "2" : "0.5"); // 4분기(12개월)마다 선 굵게
+        path.setAttribute("stroke-opacity", "0");
+        svg.appendChild(path);
+        rings.push(path);
+    }
+    container.appendChild(svg);
+
+    // 애니메이션: 한줄씩 밝아졌다가 돌아오기
+    for (let i = 0; i < rings.length; i++) {
+        await new Promise(res => {
+            rings[i].setAttribute("stroke-opacity", "1");
+            rings[i].style.filter = "brightness(2.5) drop-shadow(0 0 3px white)"; 
+            setTimeout(() => {
+                rings[i].setAttribute("stroke-opacity", "0.4");
+                rings[i].style.filter = "none";
+                res();
+            }, 60); 
+        });
+    }
+    // 마지막 전체 등장
+    rings.forEach(r => r.setAttribute("stroke-opacity", "0.5"));
 };
 
 window.showMilkyWay = async (mId, mName) => {
@@ -2142,6 +2240,14 @@ window.showFadingScroll = function(dday, level = 0) {
         <div id="peakLayer" class="mountain-layer"></div>
 
         <div class="mountain-info-bar">
+<div class="tree-ring-section">
+<div class="tree-ring-header">
+<span class="tree-ring-title">활동 나이테</span>
+<span id="activityMonths" class="tree-ring-months">0 months</span>
+</div>
+<div id="treeRingContainer" class="tree-ring-container">
+</div>
+</div>
             <div class="info-item">개인 누적 <span id="myTotalH" class="info-val">0</span>m</div>
             <div class="info-item">산우리 합산 <span id="globalTotalH" class="info-val">0</span>m</div>
         </div>
@@ -2187,4 +2293,3 @@ window.showFadingScroll = function(dday, level = 0) {
 </script>
 </body>
 </html>
-​
