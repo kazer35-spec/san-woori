@@ -12,6 +12,32 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+/* 산맥 이름 및 활동 나이테 공통 네온 스타일 */
+.cosmic-neon-text {
+    font-size: 1rem !important; /* 기존 크기의 절반 수준으로 조정 */
+    color: #00f2ff; /* 밝은 시안 네온 컬러 */
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    /* 푸른 네온 광원 효과 */
+    text-shadow: 
+        0 0 5px #00f2ff,
+        0 0 10px #00f2ff,
+        0 0 20px #00d4ff,
+        0 0 40px #004cff;
+    transition: all 0.3s ease;
+}
+
+/* 활동 나이테 전용 (더 작게) */
+.ring-main-title.cosmic-neon-text {
+    font-size: 0.8rem !important;
+    font-weight: bold;
+}
+
+/* ㅇㅇ님의 산맥 전용 */
+#mwMountainName.cosmic-neon-text {
+    font-size: 1.1rem !important;
+}
+
 /* 우주적인 타이틀 텍스트 효과 */
 .cosmic-title {
     background: linear-gradient(to bottom, #fff 30%, #94a3b8 100%);
@@ -2295,34 +2321,38 @@ window.showMemberMountain = async (mId, mName) => {
 window.renderTreeRings = async (memberName, regDate, memberLevel) => {
     const container = document.getElementById('treeRingContainer');
     const monthLabel = document.getElementById('activityMonths');
-    const mainTitle = document.querySelector('.ring-main-title'); // 타이틀 선택
+    const mainTitle = document.querySelector('.ring-main-title');
     const mountainName = document.getElementById('mwMountainName');
 
     if(!container) return;
     container.innerHTML = ""; 
 
-    // 1. 텍스트 우주 스타일 적용
-    mainTitle.classList.add('cosmic-title');
-    mountainName.style.textShadow = "0 0 20px rgba(255,255,255,0.5)";
-    mountainName.style.letterSpacing = "1px";
+    // 1. 텍스트 스타일 통합 적용 (크기 축소 + 푸른 네온)
+    if (mainTitle) {
+        mainTitle.classList.add('cosmic-neon-text');
+    }
+    if (mountainName) {
+        mountainName.classList.add('cosmic-neon-text');
+    }
 
-    // 2. 나이테 배경에 촘촘한 별빛 추가 (기존보다 훨씬 많게)
+    // 2. 나이테 배경에 촘촘한 별빛 추가 (80개 생성)
     for(let i=0; i<80; i++) {
         const star = document.createElement('div');
         star.className = 'tree-ring-star';
-        const size = Math.random() * 2;
+        const size = Math.random() * 1.8 + 0.5; // 별 크기 다양화
         star.style.width = size + 'px';
         star.style.height = size + 'px';
         star.style.left = Math.random() * 100 + '%';
         star.style.top = Math.random() * 100 + '%';
-        star.style.setProperty('--duration', (Math.random() * 3 + 2) + 's');
+        // 깜빡임 속도 랜덤
+        star.style.setProperty('--duration', (Math.random() * 3 + 1.5) + 's');
         star.style.opacity = Math.random();
-        // 별의 색상을 약간 푸른빛/흰빛 섞음
-        star.style.backgroundColor = Math.random() > 0.8 ? '#93c5fd' : '#ffffff';
+        // 푸른빛 별과 흰색 별 혼합
+        star.style.backgroundColor = Math.random() > 0.7 ? '#a5f3fc' : '#ffffff';
         container.appendChild(star);
     }
 
-    // 3. 기간 계산
+    // 3. 기간 계산 로직
     const fixedList = ["오즈","나스","해수","용삼","지니","아랑","민이","몰랑","길치","등초","무니","식이","구름","뚜벅","윤윤","승이","이구","후후","튜브","피치","사랑","송돌","호프","이제","얌얌","태기","희야","멸치","성민","섭섭"];
     let jDate = fixedList.includes(memberName) ? new Date('2025-11-24') : (regDate?.toDate ? regDate.toDate() : new Date());
     const now = new Date();
@@ -2331,13 +2361,13 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
     let count = 0;
     const countTimer = setInterval(() => {
         if(count >= diffMonths) clearInterval(countTimer);
-        monthLabel.innerText = count++;
+        if(monthLabel) monthLabel.innerText = count++;
     }, 30);
 
     const style = getLevelStyle(memberLevel);
     const ringColor = style.border; 
 
-    // 4. SVG 생성
+    // 4. SVG 나이테 생성
     const svgNS = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(svgNS, "svg");
     svg.setAttribute("viewBox", "0 0 240 240");
@@ -2346,7 +2376,7 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
     svg.style.position = "relative";
     svg.style.zIndex = "10";
     
-    // 중앙 코어
+    // 중앙 코어 (네온 효과 추가)
     const core = document.createElementNS(svgNS, "circle");
     core.setAttribute("cx", "120"); core.setAttribute("cy", "120"); core.setAttribute("r", "3");
     core.setAttribute("fill", ringColor);
@@ -2379,11 +2409,11 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
     }
     container.appendChild(svg);
 
-    // 나이테 순차 애니메이션
+    // 나이테 순차 애니메이션 (부드럽게 등장)
     for (let i = 0; i < rings.length; i++) {
         await new Promise(res => {
             rings[i].setAttribute("stroke-opacity", i % 12 === 0 ? "0.7" : "0.2");
-            setTimeout(res, 30);
+            setTimeout(res, 20); // 속도 살짝 상향
         });
     }
 };
