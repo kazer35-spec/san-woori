@@ -12,6 +12,53 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+/* 빛 줄기 효과 */
+.light-beam {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 2px;
+    height: 0;
+    background: linear-gradient(to top, transparent, #fff, transparent);
+    box-shadow: 0 0 15px #fff;
+    z-index: 150;
+    opacity: 0;
+    transform: translateX(-50%);
+}
+
+/* 최고봉 이름 스타일 */
+.highest-peak-label {
+    position: absolute;
+    bottom: 55px; /* 정보 바 위쪽 */
+    left: 0;
+    width: 100%;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 900;
+    color: #fbbf24;
+    text-shadow: 0 0 8px rgba(251, 191, 36, 0.6);
+    z-index: 160;
+}
+
+/* 테두리 빛 애니메이션 */
+@keyframes borderGlow {
+    0% { box-shadow: 0 0 5px var(--glow-color); }
+    50% { box-shadow: 0 0 25px var(--glow-color); }
+    100% { box-shadow: 0 0 5px var(--glow-color); }
+}
+
+.integrated-member-card.glow-active {
+    border: 2px solid var(--glow-color) !important;
+    animation: borderGlow 2s infinite;
+}
+
+/* 나이테 정중앙 시작점 강조 */
+.ring-center-flash {
+    filter: brightness(3) !important;
+    stroke-width: 5 !important;
+    transition: all 0.5s;
+}
+
 /* 통합 카드 스타일 */
 .integrated-member-card {
     position: relative;
@@ -2073,16 +2120,29 @@ document.getElementById('activityDate').valueAsDate = new Date();
 
 window.showMemberMountain = async (mId, mName) => {
     const modal = document.getElementById('mountainViewModal');
+    const card = document.getElementById('integratedCard');
     const peakLayer = document.getElementById('peakLayer');
     const bgContainer = document.getElementById('bgLayersContainer');
     const sky = document.getElementById('starrySky');
+    const beam = document.getElementById('lightBeam');
+    const peakLabel = document.getElementById('highestPeakLabel');
     
-    // 초기화
+    // 1. 초기화 및 준비
     document.getElementById('mwMountainName').innerText = `${mName}님의 산맥`;
     modal.style.display = 'flex';
+    card.classList.remove('glow-active'); 
+    if(beam) { beam.style.opacity = '0'; beam.style.height = '0'; }
+    if(peakLabel) peakLabel.innerText = "";
+    
     peakLayer.innerHTML = bgContainer.innerHTML = sky.innerHTML = "";
+    document.getElementById('treeRingContainer').innerHTML = ""; 
 
-    // 1. 별밤 생성
+    // 멤버 정보 및 레벨 기반 색상 설정
+    const memberInfo = currentData.find(m => m.id === mId);
+    const style = getLevelStyle(memberInfo ? memberInfo.level : 0);
+    card.style.setProperty('--glow-color', style.border);
+
+    // 2. 별밤 생성
     for(let i=0; i<50; i++) {
         const star = document.createElement('div');
         star.className = 'sky-star';
@@ -2097,16 +2157,16 @@ window.showMemberMountain = async (mId, mName) => {
         const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
         const logs = snap.docs.map(d => d.data()).filter(l => (l.height || 0) > 0);
         
-        // 산맥 데이터 처리
         if (logs.length > 0) {
             const heights = logs.map(l => l.height);
             const maxHeight = Math.max(...heights);
-            document.getElementById('myTotalH').innerText = heights.reduce((a,b)=>a+b,0).toLocaleString();
+            const maxLog = logs.find(l => l.height === maxHeight);
 
+            document.getElementById('myTotalH').innerText = heights.reduce((a,b)=>a+b,0).toLocaleString();
             const globalH = currentData.reduce((acc, m) => acc + (m.totalHeight || 0), 0);
             document.getElementById('globalTotalH').innerText = globalH.toLocaleString();
             
-            // 배경 산맥
+            // 3. 배경 산맥 생성
             const layerCount = Math.min(Math.floor(globalH / 15000) + 2, 5);
             for(let i = 1; i <= layerCount; i++) {
                 const layer = document.createElement('div');
@@ -2122,7 +2182,7 @@ window.showMemberMountain = async (mId, mName) => {
                 bgContainer.appendChild(layer);
             }
 
-            // 개인 봉우리
+            // 4. 개인 봉우리 생성 (기존 골든 글로우 유지)
             peakLayer.style.height = "60%"; 
             logs.forEach((log) => {
                 const hRatio = (log.height / maxHeight) * 100;
@@ -2134,20 +2194,41 @@ window.showMemberMountain = async (mId, mName) => {
                     peakDiv.innerHTML = `
                         <div class="golden-glow-effect"></div>
                         <div class="white-star-core"></div>
-                        <span style="position:absolute; top:-25px; left:50%; transform:translateX(-50%); color:#fbbf24; font-size:9px; font-weight:800; white-space:nowrap; z-index:200;">${log.mountain}</span>
                     `;
                 }
                 peakLayer.appendChild(peakDiv);
             });
+
+            // 5. [연출] 최고봉 하단 이름 표시
+            if(maxLog && peakLabel) {
+                peakLabel.innerHTML = `<span style="opacity:0.6; font-weight:400;">최고봉:</span> ${maxLog.mountain} (${maxLog.height}m)`;
+            }
+
+            // 6. [연출] 빛 줄기 발사 시퀀스
+            setTimeout(() => {
+                if(beam) {
+                    beam.style.opacity = '1';
+                    beam.style.transition = 'height 0.8s ease-in, opacity 0.3s';
+                    beam.style.height = '120%'; 
+                }
+
+                setTimeout(async () => {
+                    if(beam) beam.style.opacity = '0';
+                    // 7. 나이테 애니메이션 실행 (기존 로직)
+                    if (memberInfo) {
+                        await window.renderTreeRings(mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
+                    }
+                    // 8. 테두리 빛 활성화
+                    card.classList.add('glow-active');
+                }, 800);
+            }, 500);
+        } else {
+            // 산맥 데이터가 없을 때도 나이테는 보여줌
+            if (memberInfo) await window.renderTreeRings(mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
+            card.classList.add('glow-active');
         }
 
-        // 2. 나이테 별도 창 실행 (산맥 데이터 유무와 상관없이 실행)
-        const memberInfo = currentData.find(m => m.id === mId);
-        if (memberInfo) {
-            window.renderTreeRings(mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
-        }
-
-    } catch (e) { console.error("나이테 로딩 에러:", e); }
+    } catch (e) { console.error("통합 로딩 에러:", e); }
 };
 
 window.renderTreeRings = async (memberName, regDate, memberLevel) => {
@@ -2351,7 +2432,7 @@ window.showFadingScroll = function(dday, level = 0) {
 </script> 
 
 <div id="mountainViewModal" class="mountain-modal" onclick="this.style.display='none'">
-    <div class="integrated-member-card" onclick="event.stopPropagation()">
+    <div id="integratedCard" class="integrated-member-card" onclick="event.stopPropagation()">
         
         <div class="tree-ring-section">
             <div class="ring-header">
@@ -2370,12 +2451,15 @@ window.showFadingScroll = function(dday, level = 0) {
         <div class="mountain-section">
             <div id="starrySky"></div>
             <div id="bgLayersContainer"></div>
+            <div id="lightBeam" class="light-beam"></div>
             <div id="peakLayer" class="mountain-layer"></div>
 
             <div class="mountain-header">
                 <h2 id="mwMountainName" style="font-size: 16px; margin: 0; font-weight: 900; color: white;"></h2>
                 <p style="font-size: 10px; color: #94a3b8; margin: 0;">가상 산맥 전경</p>
             </div>
+
+            <div id="highestPeakLabel" class="highest-peak-label"></div>
 
             <div class="mountain-info-bar">
                 <div class="info-item">개인 누적 <span id="myTotalH" class="info-val">0</span>m</div>
