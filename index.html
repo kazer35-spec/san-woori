@@ -1736,16 +1736,21 @@ else { main.classList.add('hidden-view'); stats.classList.remove('hidden-view');
 
 window.showMemberMap = async (mId, mName) => {
     toggleMapModal(true);
+    // 모달 스크롤 초기화 (안전하게 처리)
     const modalContent = document.getElementById('mapModalContent');
     if (modalContent) modalContent.scrollTop = 0;
     
+    // 뷰 전환
     document.getElementById('mapViewMain').classList.remove('hidden-view');
     document.getElementById('mapViewStats').classList.add('hidden-view');
     document.getElementById('mapMemberName').innerText = mName;
     
     const pointsBoard = document.getElementById('conquerMapPoints');
     const regionBoard = document.getElementById('conquerRegionGrid');
-    pointsBoard.innerHTML = regionBoard.innerHTML = "";
+    
+    // 로딩 전 초기화
+    pointsBoard.innerHTML = "";
+    regionBoard.innerHTML = "<p class='text-center text-[10px] py-10 text-slate-400'>데이터 분석 중...</p>";
 
     try {
         const snapAll = await getDocs(collection(db, `sanwoori/${mId}/logs`));
@@ -1757,22 +1762,26 @@ window.showMemberMap = async (mId, mName) => {
         snapAll.forEach(doc => {
             const log = doc.data(); 
             totalH += (log.height || 0);
+            
+            // 좌표 데이터가 있는 경우에만 지도와 지역 통계에 반영
             if(log.coords) {
                 validLogsCount++; 
                 mapHtml += `<div class="map-point ${log.isTop100 ? 'top-100' : ''}" style="left:${log.coords.x}%; top:${log.coords.y}%;"></div>`;
+                
+                // 지역 명칭 결정 (로그에 기록된 지역 우선, 없으면 좌표로 추적)
                 const rName = log.region || getRegionFromCoord(log.coords); 
                 regionCounts[rName] = (regionCounts[rName] || 0) + 1;
             }
         });
 
-        // 1. 지도에 포인트 찍기
+        // 1. 지도에 포인트 표시
         pointsBoard.innerHTML = mapHtml;
 
-        // 2. 지역별 통계 계산 및 화면 표시
+        // 2. 지역별 통계 계산 및 화면 표시 (에러 발생 전 실행)
         const sortedRegions = Object.entries(regionCounts).sort((a,b) => b[1] - a[1]);
         
         if(sortedRegions.length === 0) {
-            regionBoard.innerHTML = "<p class='text-center text-[10px] py-10 text-slate-400'>좌표 기록 없음</p>";
+            regionBoard.innerHTML = "<p class='text-center text-[10px] py-10 text-slate-400'>좌표 기록이 없습니다.</p>";
         } else {
             regionBoard.innerHTML = sortedRegions.map(([name, count]) => {
                 const percent = ((count / validLogsCount) * 100).toFixed(1);
@@ -1799,12 +1808,14 @@ window.showMemberMap = async (mId, mName) => {
         if (evCountEl) evCountEl.innerText = conquestCount;
         if (evBarEl) evBarEl.style.width = `${(conquestCount % 1) * 100}%`;
 
-        // 4. [중요] 삭제된 ID들은 Optional Chaining(?.)을 사용하여 에러 방지
+        // 4. 삭제된 HTML 요소들 안전 처리 (Optional Chaining ?. 사용)
+        // 이 부분이 에러를 막아주는 핵심입니다.
         document.getElementById('mapTotalHeight')?.setAttribute('data-val', totalH); 
         document.getElementById('mapGlobalTotalHeight')?.setAttribute('data-val', globalTotalH);
 
     } catch (e) {
-        console.error("정복지도 로딩 에러:", e);
+        console.error("통계 산출 에러:", e);
+        regionBoard.innerHTML = "<p class='text-center text-[10px] py-10 text-red-400'>통계를 불러오지 못했습니다.</p>";
     }
 };
 
