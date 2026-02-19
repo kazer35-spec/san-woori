@@ -1333,7 +1333,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 </div>
 </div>
 
-<button onclick="toggleLogPopup(true)" class="btn-open-log">
+    <button onclick="toggleLogPopup(true)" class="btn-open-log">
 <span>📜 최근 산행 일지 자세히 보기</span>
 <span class="text-sky-300">▶</span>
 </button>
@@ -1962,84 +1962,34 @@ currentData = results; updateAdminMemberLists(); renderStatusTable();
 });
 }
 
-<div id="levelupAlert" style="display:none;">
-<div class="content">
-<h2 id="levelUpName"></h2>
-<p id="levelUpMsg"></p>
-<button onclick="window.copyAndCloseAlert()" style="padding: 10px 20px; cursor: pointer;">
-메시지 복사하고 닫기
-</button>
-</div>
-</div>
-
-// 1. 레벨 기준을 window 객체에 등록 (중요!)
-window.levelThresholds = [
-    { lv: 100, name: "🌌 은하수" }, { lv: 90, name: "🌠 별똥별" }, { lv: 80, name: "💫 타원별" },
-    { lv: 70, name: "🌟 황금별" }, { lv: 60, name: "⭐️ 별" }, { lv: 50, name: "☀️ 해" },
-    { lv: 45, name: "🌕 달" }, { lv: 40, name: "🌙 초승달" }, { lv: 35, name: "☄️ 운석" },
-    { lv: 30, name: "🌈 무지개" }, { lv: 25, name: "🌀 태풍" }, { lv: 20, name: "🌋 화산" },
-    { lv: 15, name: "🏔️ 설산" }, { lv: 10, name: "⛰️ 산" }, { lv: 5, name: "🌳 나무" },
-    { lv: 3, name: "🌿 풀잎" }, { lv: 1, name: "🌱 새싹" }, { lv: 0, name: "🫘 신입" }
-];
-
-// 2. 메시지 바구니
-window.gatheredLevelUpMessages = [];
-
 window.checkLevelUpgrade = (name, oldLevel, newLevel) => {
-    const thresholds = window.levelThresholds.map(t => t.lv);
-    
-    for (let lv = oldLevel + 1; lv <= newLevel; lv++) {
-        if (thresholds.includes(lv)) {
-            const badge = typeof window.getLevelBadge === 'function' ? window.getLevelBadge(lv) : "마크";
-            
-            // 알림창 데이터 세팅
-            document.getElementById('levelUpName').innerText = name;
-            document.getElementById('levelUpMsg').innerText = `${name}님 포함 레벨업 대상자가 있습니다! \n아래 버튼을 눌러 메시지를 복사하세요.`;
-            
-            // 메시지 저장
-            const msg = `${name}님이 ${lv}레벨로 [${badge}] 마크를 획득하셨습니다! 축하드립니다 🎉`;
-            window.gatheredLevelUpMessages.push(msg);
-
-            // 팝업 표시
-            const overlay = document.getElementById('levelupAlert');
-            if(overlay) overlay.style.display = 'flex';
-        }
-    }
+const thresholdLevels = levelThresholds.map(t => t.lv);
+for (let lv = oldLevel + 1; lv <= newLevel; lv++) {
+if (thresholdLevels.includes(lv)) {
+const badge = getLevelBadge(lv);
+triggerLevelupAlert(name, lv, badge); break;
+}
+}
 };
 
-window.copyAndCloseAlert = () => {
-    if (window.gatheredLevelUpMessages.length === 0) {
-        window.closeOverlay();
-        return;
-    }
-
-    const uniqueMessages = [...new Set(window.gatheredLevelUpMessages)];
-    const finalMsg = uniqueMessages.join('\n');
-
-    // 가장 확실한 복사 방법 (Textarea 방식)
-    const textArea = document.createElement("textarea");
-    textArea.value = finalMsg;
-    document.body.appendChild(textArea);
-    textArea.select();
-    try {
-        document.execCommand('copy');
-        alert("모든 메시지가 복사되었습니다! 채팅방에 붙여넣으세요.");
-    } catch (err) {
-        console.error('복사 실패', err);
-    }
-    document.body.removeChild(textArea);
-
-    window.gatheredLevelUpMessages = []; 
-    window.closeOverlay();
+window.triggerLevelupAlert = (name, level, badge) => {
+const msg = `${name}님이 ${level}레벨로 [${badge}] 마크를 획득하셨습니다! 축하드립니다 🎉`;
+document.getElementById('levelUpName').innerText = name;
+document.getElementById('levelUpMsg').innerText = `${level}레벨 달성! [${badge}] 마크를 획득하셨습니다! 축하드립니다 🎉`;
+const overlay = document.getElementById('levelupAlert');
+overlay.style.display = 'flex';
+setTimeout(() => overlay.classList.add('active'), 10);
+navigator.clipboard.writeText(msg).catch(err => console.log('복사 실패', err));
 };
 
-window.closeOverlay = () => {
-    const overlay = document.getElementById('levelupAlert');
-    if (overlay) overlay.style.display = 'none';
+window.closeLevelupAlert = () => {
+const overlay = document.getElementById('levelupAlert');
+overlay.classList.remove('active');
+setTimeout(() => overlay.style.display = 'none', 500);
 };
 
 window.addMultiActivity = async () => {
-const dateVal = document.getElementById('activityDate').vㅇalue;
+const dateVal = document.getElementById('activityDate').value;
 const mName = document.getElementById('mountainName').value.trim();
 const height = parseInt(document.getElementById('mountainHeight').value) || 0;
 const isTop100 = document.getElementById('isTop100Check').checked;
@@ -2700,16 +2650,8 @@ window.showFadingScroll = function(dday, level = 0) {
             <button onclick="document.getElementById('scrollModal').style.display='none'" class="scroll-close-btn">
                 닫기
             </button>
-
-<div id="levelupAlert" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:10000; justify-content:center; align-items:center;">
-    <div style="background:white; padding:30px; border-radius:20px; text-align:center; max-width:90%; box-shadow:0 0 20px rgba(0,0,0,0.5);">
-        <h2 id="levelUpName" style="color:#0284c7; font-weight:900; margin-bottom:10px;"></h2>
-        <p id="levelUpMsg" style="color:#475569; font-size:14px; line-height:1.6; margin-bottom:20px; white-space:pre-wrap;"></p>
-        <button onclick="window.copyAndCloseAlert()" style="width:100%; padding:15px; background:#0284c7; color:white; border:none; border-radius:12px; font-weight:bold; cursor:pointer;">
-            메시지 복사하고 닫기
-        </button>
+        </div>
     </div>
-</div>
 </div>
 </script>
 </body>
