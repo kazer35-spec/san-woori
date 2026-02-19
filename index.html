@@ -1247,7 +1247,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 <button onclick="toggleLogPopup(true)" class="btn-open-log">
 <span>📜 최근 산행 일지 자세히 보기</span>
 <span class="text-sky-300">▶</span>
-</button>
+    </button>
 
     <button onclick="toggleTimelineModal(false)" class="w-full mt-4 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold text-sm">닫기</button>
 </div>
@@ -1283,29 +1283,17 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 </div>
 
 <div id="mapViewMain">
-<div class="map-container mb-4">
-<img src="https://i.ibb.co/bMLmRYRJ/2-1.jpg" class="map-image">
-<div id="conquerMapPoints"></div>
-<div class="map-source-txt">출처: 산림청</div>
-</div>
+    <div class="map-container mb-4">
+        <img src="https://i.ibb.co/bMLmRYRJ/2-1.jpg" class="map-image">
+        <div id="conquerMapPoints"></div>
+        <div class="map-source-txt">출처: 산림청</div>
+    </div>
 
-<div class="conquer-dark-card cursor-pointer" onclick="toggleMapView()">
-<div class="conquer-header-box">
-<div class="conquer-title">🎖 지역 점유율 및 정복 통계</div>
-<div class="text-[10px] font-black text-sky-600">지역별 상세 &gt;</div>
-</div>
-<div class="grid grid-cols-2 gap-4">
-<div class="flex flex-col">
-<span class="text-[8px] font-bold text-emerald-500 uppercase">Personal Height</span>
-<span class="text-sm font-black text-emerald-700"><span id="mapTotalHeight">0</span> m</span>
-</div>
-<div class="flex flex-col text-right">
-<span class="text-[8px] font-bold text-blue-500 uppercase">
-San:Woori Total</span>
-<span class="text-sm font-black text-blue-700"><span id="mapGlobalTotalHeight">0</span> m</span>
-</div>
-</div>
-</div>
+    <div class="conquer-dark-card cursor-pointer" onclick="toggleMapView()">
+        <div class="conquer-header-box !mb-0"> <div class="conquer-title">🎖 지역 점유율 및 정복 통계</div>
+            <div class="text-[10px] font-black text-sky-600">지역별 상세 ></div>
+        </div>
+        </div>
 </div>
 <div id="mapViewStats" class="hidden-view">
 <div class="conquer-dark-card !mt-0 !min-h-[400px]">
@@ -1879,30 +1867,96 @@ currentData = results; updateAdminMemberLists(); renderStatusTable();
 });
 }
 
+// 1. 레벨업 메시지들을 담을 임시 배열
+let pendingLevelUpMessages = [];
+
+// [수정] 레벨업 체크 함수 (메시지를 배열에 쌓도록 변경)
 window.checkLevelUpgrade = (name, oldLevel, newLevel) => {
-const thresholdLevels = levelThresholds.map(t => t.lv);
-for (let lv = oldLevel + 1; lv <= newLevel; lv++) {
-if (thresholdLevels.includes(lv)) {
-const badge = getLevelBadge(lv);
-triggerLevelupAlert(name, lv, badge); break;
-}
-}
+    const thresholdLevels = levelThresholds.map(t => t.lv);
+    for (let lv = oldLevel + 1; lv <= newLevel; lv++) {
+        if (thresholdLevels.includes(lv)) {
+            const badge = getLevelBadge(lv);
+            const msg = `${name}님이 ${lv}레벨로 [${badge}] 마크를 획득하셨습니다! 축하드립니다 🎉`;
+            pendingLevelUpMessages.push(msg); // 메시지 쌓기
+            break;
+        }
+    }
 };
 
-window.triggerLevelupAlert = (name, level, badge) => {
-const msg = `${name}님이 ${level}레벨로 [${badge}] 마크를 획득하셨습니다! 축하드립니다 🎉`;
-document.getElementById('levelUpName').innerText = name;
-document.getElementById('levelUpMsg').innerText = `${level}레벨 달성! [${badge}] 마크를 획득하셨습니다! 축하드립니다 🎉`;
-const overlay = document.getElementById('levelupAlert');
-overlay.style.display = 'flex';
-setTimeout(() => overlay.classList.add('active'), 10);
-navigator.clipboard.writeText(msg).catch(err => console.log('복사 실패', err));
+// [수정] 여러 명의 활동을 저장하는 함수
+window.addMultiActivity = async () => {
+    const dateVal = document.getElementById('activityDate').value;
+    const mName = document.getElementById('mountainName').value.trim();
+    const height = parseInt(document.getElementById('mountainHeight').value) || 0;
+    const isTop100 = document.getElementById('isTop100Check').checked;
+    const isBAC = document.getElementById('isBACCheck').checked;
+    const region = document.getElementById('adminManualRegionSelect').value;
+    
+    if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜 확인");
+    
+    const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
+    const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
+
+    // 메시지 배열 초기화
+    pendingLevelUpMessages = [];
+
+    if(mName && tempCoord) {
+        await setDoc(doc(db, "mountains", mName), { x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region }, { merge: true });
+    }
+
+    for(const id of selectedMemberIds){
+        const member = currentData.find(m => m.id === id);
+        if(!member) continue;
+        
+        const oldLevel = member.level || 0; 
+        const newLevel = oldLevel + up;
+        
+        await updateDoc(doc(db, "sanwoori", id), { level: newLevel, lastDate: ts });
+        
+        // 우정 포인트 로직
+        if (selectedMemberIds.size >= 2) {
+            await updateDoc(doc(db, "sanwoori", id), { friendshipPoint: increment(10 * up) });
+        }
+        
+        for(let i=0; i < up; i++) {
+            await addDoc(collection(db, `sanwoori/${id}/logs`), { date: ts, mountain: mName, height, coords: tempCoord, isTop100, isBAC, region });
+        }
+        
+        // 레벨업 대상인지 확인 (메시지가 쌓임)
+        checkLevelUpgrade(member.name, oldLevel, newLevel);
+    }
+
+    // 모든 처리가 끝난 후 레벨업한 사람이 있다면 통합 메시지 띄우기
+    if (pendingLevelUpMessages.length > 0) {
+        const combinedMsg = pendingLevelUpMessages.join('\n'); // 여러 줄로 합치기
+        triggerCombinedLevelupAlert(combinedMsg);
+    } else {
+        alert("저장 완료");
+    }
+
+    selectedMemberIds.clear(); 
+    tempCoord = null; 
+    updateAdminMemberLists();
+    updateVibeTemp();
 };
 
-window.closeLevelupAlert = () => {
-const overlay = document.getElementById('levelupAlert');
-overlay.classList.remove('active');
-setTimeout(() => overlay.style.display = 'none', 500);
+// [신규] 통합 레벨업 알림창 띄우기 및 복사
+window.triggerCombinedLevelupAlert = (fullText) => {
+    // 알림창 UI 업데이트 (HTML에 해당 ID들이 있어야 함)
+    const overlay = document.getElementById('levelupAlert');
+    const msgElement = document.getElementById('levelUpMsg');
+    
+    // 알림창에 표시 (너무 길면 '외 N명' 등으로 표시하거나 전체 표시)
+    document.getElementById('levelUpName').innerText = "Level Up!";
+    msgElement.innerText = fullText;
+    
+    overlay.style.display = 'flex';
+    setTimeout(() => overlay.classList.add('active'), 10);
+
+    // [핵심] 클립보드에 전체 메시지 복사
+    navigator.clipboard.writeText(fullText).then(() => {
+        console.log("전체 메시지 복사 완료");
+    }).catch(err => alert("복사 실패: " + err));
 };
 
 window.addMultiActivity = async () => {
@@ -2277,7 +2331,7 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
     container.innerHTML = ""; 
 
     // 1. 기간 및 색상 설정
-    const fixedList = ["오즈","나스","해수","용삼","지니","아랑","민이","몰랑","길치","등초","무니","식이","구름","뚜벅","윤윤","승이","이구","후후","튜브","피치","사랑","송돌","호프","이제","얌얌","태기","희야","멸치","성민","섭섭"];
+    const fixedList = ["오즈","나스","해수","용삼","지니","아랑","민이","몰랑","길치","등초","무니","식이","구름","뚜벅","윤윤","승이","이구","후후","튜브","피치","사랑","송돌","호프","이제","얌얌","태기","희야","멸치","루이","성민","섭섭"];
     let jDate = fixedList.includes(memberName) ? new Date('2025-11-24') : (regDate?.toDate ? regDate.toDate() : new Date());
     const now = new Date();
     const diffMonths = Math.max(1, (now.getFullYear() - jDate.getFullYear()) * 12 + (now.getMonth() - jDate.getMonth()) + 1);
