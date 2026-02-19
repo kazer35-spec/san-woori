@@ -12,6 +12,83 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+/* 통합 카드 및 섹션 높이 조절 */
+.integrated-member-card {
+    background: #050b18 !important; /* 더 깊은 우주색 */
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.tree-ring-section, .mountain-section {
+    height: 380px !important; /* 두 섹션의 높이를 통일 */
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 우주적인 글씨 색상 */
+.ring-main-title, #mwMountainName {
+    color: #e0f2fe !important;
+    text-shadow: 0 0 10px rgba(56, 189, 248, 0.8), 0 0 20px rgba(56, 189, 248, 0.4);
+    font-family: 'Pretendard', sans-serif;
+}
+
+.ring-label, .mountain-header p {
+    color: #7dd3fc !important;
+    letter-spacing: 0.1em;
+    font-weight: 800;
+}
+
+/* 활동 개월수 우측 배치 */
+.ring-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 20px;
+    z-index: 10;
+}
+
+.ring-stats {
+    text-align: right;
+    background: rgba(15, 23, 42, 0.6);
+    padding: 8px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(56, 189, 248, 0.2);
+}
+
+.ring-months-val {
+    color: #38bdf8 !important;
+    font-size: 20px;
+    font-weight: 900;
+    text-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+}
+
+.ring-unit {
+    color: #94a3b8;
+    font-size: 10px;
+    margin-left: 4px;
+}
+
+/* 나이테창 별 효과 */
+.ring-canvas {
+    flex: 1;
+    position: relative;
+    background: radial-gradient(circle at center, #0a192f 0%, #050b18 100%);
+}
+
+.space-star {
+    position: absolute;
+    background: white;
+    border-radius: 50%;
+    opacity: 0;
+    animation: space-blink var(--duration) infinite;
+}
+
+@keyframes space-blink {
+    0%, 100% { opacity: 0; transform: scale(0.5); }
+    50% { opacity: 0.8; transform: scale(1.2); }
+}
+
 /* 나이테 섹션 배경을 별밤 느낌으로 */
 .tree-ring-section {
     position: relative;
@@ -1223,18 +1300,27 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 </div>
 
 <div id="mapViewMain">
-    <div class="map-container mb-4">
-        <img src="https://i.ibb.co/bMLmRYRJ/2-1.jpg" class="map-image">
-        <div id="conquerMapPoints"></div>
-        <div class="map-source-txt">출처: 산림청</div>
-    </div>
+<div class="map-container mb-4">
+<img src="https://i.ibb.co/bMLmRYRJ/2-1.jpg" class="map-image">
+<div id="conquerMapPoints"></div>
+<div class="map-source-txt">출처: 산림청</div>
+</div>
 
-    <div class="conquer-dark-card cursor-pointer" onclick="toggleMapView()">
-        <div class="conquer-header-box" style="margin-bottom: 0;">
-            <div class="conquer-title">🎖 지역 점유율 및 정복 통계</div>
-            <div class="text-[10px] font-black text-sky-600">지역별 상세 보러가기 &gt;</div>
-        </div>
-    </div>
+<div class="conquer-dark-card cursor-pointer" onclick="toggleMapView()">
+<div class="conquer-header-box">
+<div class="conquer-title">🎖 지역 점유율 및 정복 통계</div>
+<div class="text-[10px] font-black text-sky-600">지역별 상세 &gt;</div>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div class="flex flex-col">
+<span class="text-[8px] font-bold text-emerald-500 uppercase">Personal Height</span>
+<span class="text-sm font-black text-emerald-700"><span id="mapTotalHeight">0</span> m</span>
+</div>
+<div class="flex flex-col text-right">
+<span class="text-[8px] font-bold text-blue-500 uppercase">
+San:Woori Total</span>
+<span class="text-sm font-black text-blue-700"><span id="mapGlobalTotalHeight">0</span> m</span>
+</div>
 </div>
 </div>
 </div>
@@ -1689,84 +1775,40 @@ else { main.classList.add('hidden-view'); stats.classList.remove('hidden-view');
 };
 
 window.showMemberMap = async (mId, mName) => {
-    toggleMapModal(true);
-    
-    // 1. 초기 뷰 설정 및 UI 초기화
-    const modalContent = document.getElementById('mapModalContent');
-    if (modalContent) modalContent.scrollTop = 0;
-    
-    document.getElementById('mapViewMain').classList.remove('hidden-view');
-    document.getElementById('mapViewStats').classList.add('hidden-view');
-    document.getElementById('mapMemberName').innerText = mName;
-    
-    const pointsBoard = document.getElementById('conquerMapPoints');
-    const regionBoard = document.getElementById('conquerRegionGrid');
-    
-    pointsBoard.innerHTML = "";
-    regionBoard.innerHTML = "<p class='text-center text-[10px] py-10 text-slate-400'>데이터 분석 중...</p>";
+toggleMapModal(true);
+document.getElementById('mapModalContent').scrollTop = 0;
+document.getElementById('mapViewMain').classList.remove('hidden-view');
+document.getElementById('mapViewStats').classList.add('hidden-view');
+document.getElementById('mapMemberName').innerText = mName;
+const pointsBoard = document.getElementById('conquerMapPoints');
+const regionBoard = document.getElementById('conquerRegionGrid');
+pointsBoard.innerHTML = regionBoard.innerHTML = "";
 
-    try {
-        const snapAll = await getDocs(collection(db, `sanwoori/${mId}/logs`));
-        let totalH = 0; 
-        let mapHtml = ""; 
-        let regionCounts = {}; 
-        let totalValidLogs = 0;
+const snapAll = await getDocs(collection(db, `sanwoori/${mId}/logs`));
+let totalH = 0; let mapHtml = ""; let regionCounts = {}; let validLogsCount = 0;
 
-        snapAll.forEach(doc => {
-            const log = doc.data(); 
-            totalH += (log.height || 0);
-            
-            // [개선] 좌표가 없더라도 '지역(region)' 정보가 있다면 통계에 포함
-            let rName = log.region;
-            
-            // 좌표가 있다면 지도에 표시하고, 지역명이 없다면 좌표로 역추적
-            if(log.coords) {
-                mapHtml += `<div class="map-point ${log.isTop100 ? 'top-100' : ''}" style="left:${log.coords.x}%; top:${log.coords.y}%;"></div>`;
-                if(!rName) rName = getRegionFromCoord(log.coords);
-            }
+snapAll.forEach(doc => {
+const log = doc.data(); totalH += (log.height || 0);
+if(log.coords) {
+validLogsCount++; mapHtml += `<div class="map-point ${log.isTop100 ? 'top-100' : ''}" style="left:${log.coords.x}%; top:${log.coords.y}%;"></div>`;
+const rName = log.region || getRegionFromCoord(log.coords); regionCounts[rName] = (regionCounts[rName] || 0) + 1;
+}
+});
+document.getElementById('mapTotalHeight').innerText = totalH.toLocaleString();
+pointsBoard.innerHTML = mapHtml;
+const sortedRegions = Object.entries(regionCounts).sort((a,b) => b[1] - a[1]);
+if(sortedRegions.length === 0) regionBoard.innerHTML = "<p class='text-center text-[10px] py-10 text-slate-400'>좌표 기록 없음</p>";
+else regionBoard.innerHTML = sortedRegions.map(([name, count]) => {
+const percent = ((count / validLogsCount) * 100).toFixed(1);
+return `<div class="conquer-item-dark"><div class="flex justify-between items-center"><span class="conquer-region-name-dark">${name} <span class="opacity-40 ml-1 text-[8px]">${count}회</span></span><span class="conquer-region-percent-dark">${percent}%</span></div>
+<div class="conquer-bar-bg-dark"><div class="conquer-bar-fill-dark" style="width:${percent}%"></div></div></div>`;
+}).join('');
 
-            // 지역명이 결정되었다면 카운트 (좌표가 없어도 지역 선택만 되어있으면 나옴)
-            if(rName && rName !== "기타") {
-                regionCounts[rName] = (regionCounts[rName] || 0) + 1;
-                totalValidLogs++;
-            }
-        });
-
-        // 지도 업데이트
-        pointsBoard.innerHTML = mapHtml;
-
-        // 2. 지역별 통계 생성
-        const sortedRegions = Object.entries(regionCounts).sort((a,b) => b[1] - a[1]);
-        
-        if(sortedRegions.length === 0) {
-            regionBoard.innerHTML = "<p class='text-center text-[10px] py-10 text-slate-400'>등록된 지역 정보가 없습니다.</p>";
-        } else {
-            regionBoard.innerHTML = sortedRegions.map(([name, count]) => {
-                const percent = ((count / totalValidLogs) * 100).toFixed(1);
-                return `
-                <div class="conquer-item-dark" style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 12px; margin-bottom: 8px;">
-                    <div class="flex justify-between items-center mb-1">
-                        <span style="font-size: 11px; font-weight: 800; color: #f1f5f9;">${name} <span style="color: #64748b; font-weight: 400; margin-left: 4px;">${count}회</span></span>
-                        <span style="font-size: 11px; font-weight: 900; color: #3b82f6;">${percent}%</span>
-                    </div>
-                    <div style="width: 100%; height: 4px; background: rgba(0,0,0,0.3); border-radius: 2px; overflow: hidden;">
-                        <div style="width: ${percent}%; height: 100%; background: #3b82f6; border-radius: 2px;"></div>
-                    </div>
-                </div>`;
-            }).join('');
-        }
-
-        // 3. 에베레스트/고도 관련 안전 처리
-        const globalTotalH = currentData.reduce((acc, m) => acc + (m.totalHeight || 0), 0);
-        const conquestCount = (globalTotalH / 8848).toFixed(1);
-        
-        if (document.getElementById('everestCount')) document.getElementById('everestCount').innerText = conquestCount;
-        if (document.getElementById('everestProgressBar')) document.getElementById('everestProgressBar').style.width = `${(conquestCount % 1) * 100}%`;
-
-    } catch (e) {
-        console.error("통계 산출 에러:", e);
-        regionBoard.innerHTML = "<p class='text-center text-[10px] py-10 text-red-400'>데이터를 불러오지 못했습니다.</p>";
-    }
+const globalTotalH = currentData.reduce((acc, m) => acc + (m.totalHeight || 0), 0);
+document.getElementById('mapGlobalTotalHeight').innerText = globalTotalH.toLocaleString();
+const conquestCount = (globalTotalH / 8848).toFixed(1);
+document.getElementById('everestCount').innerText = conquestCount;
+document.getElementById('everestProgressBar').style.width = `${(conquestCount % 1) * 100}%`;
 };
 
 window.toggleTimelineModal = (show) => { document.getElementById('timelineModal').style.display = show ? 'flex' : 'none'; };
@@ -2251,13 +2293,23 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
     if(!container) return;
     container.innerHTML = ""; 
 
-    // 1. 기간 및 색상 설정
+    // 1. 나이테창에 우주 별 뿌리기 (더 많고 반짝이게)
+    for(let i=0; i<80; i++) {
+        const star = document.createElement('div');
+        star.className = 'space-star';
+        const size = Math.random() * 2 + 0.5;
+        star.style.width = star.style.height = `${size}px`;
+        star.style.left = `${Math.random() * 100}%`;
+        star.style.top = `${Math.random() * 100}%`;
+        star.style.setProperty('--duration', `${Math.random() * 3 + 1.5}s`);
+        container.appendChild(star);
+    }
+
     const fixedList = ["오즈","나스","해수","용삼","지니","아랑","민이","몰랑","길치","등초","무니","식이","구름","뚜벅","윤윤","승이","이구","후후","튜브","피치","사랑","송돌","호프","이제","얌얌","태기","희야","멸치","성민","섭섭"];
     let jDate = fixedList.includes(memberName) ? new Date('2025-11-24') : (regDate?.toDate ? regDate.toDate() : new Date());
     const now = new Date();
     const diffMonths = Math.max(1, (now.getFullYear() - jDate.getFullYear()) * 12 + (now.getMonth() - jDate.getMonth()) + 1);
     
-    // 개월 수 카운트 애니메이션
     let count = 0;
     const countTimer = setInterval(() => {
         if(count >= diffMonths) clearInterval(countTimer);
@@ -2267,39 +2319,32 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
     const style = getLevelStyle(memberLevel);
     const ringColor = style.border; 
 
-    // 2. SVG 생성
     const svgNS = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(svgNS, "svg");
     svg.setAttribute("viewBox", "0 0 240 240");
     svg.style.width = "100%";
     svg.style.height = "100%";
+    svg.style.position = "relative";
+    svg.style.zIndex = "5";
     
-    // [추가] 중앙에 빛나는 행성(Core) 만들기
-    const core = document.createElementNS(svgNS, "circle");
-    core.setAttribute("cx", "120");
-    core.setAttribute("cy", "120");
-    core.setAttribute("r", "4"); // 작은 원형 구체
-    core.setAttribute("fill", ringColor);
-    core.setAttribute("class", "core-planet");
-    core.style.boxShadow = `0 0 15px ${ringColor}`;
-    svg.appendChild(core);
-
-    const rings = [];
-    // 이름별로 고유한 랜덤성을 주기 위한 시드값
     const seed = memberName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
 
+    const rings = [];
     for (let i = 1; i <= diffMonths; i++) {
-        const radius = 10 + (i * (90 / diffMonths)); // 중심 행성 밖으로 생성
+        const radius = 15 + (i * (85 / diffMonths)); 
         const path = document.createElementNS(svgNS, "path");
         let d = "";
         
-        // [수정] 나이테를 더 불규칙하고 일렁이게 (은하수 느낌)
-        for (let a = 0; a <= 360; a += 5) { // 더 촘촘하게 꺾임 발생
+        // [수정] 나이테 불규칙성 대폭 강화 (Perlin Noise 느낌)
+        const segments = 72; // 더 부드럽고 세밀한 곡선
+        for (let a = 0; a <= 360; a += (360/segments)) {
             const angle = (a * Math.PI) / 180;
             
-            // 랜덤 수치 조절: 이름 시드와 현재 개월수(i)를 조합해 불규칙성 생성
-            const randomFactor = Math.sin(angle * (seed % 5 + 3) + i) * (5 + (seed % 5));
-            const r = radius + (randomFactor * 0.5); 
+            // 더 크고 불규칙한 흔들림 적용
+            const noise = Math.sin(angle * (seed % 4 + 2) + i * 0.5) * (3 + (seed % 7)) +
+                          Math.cos(angle * 5 - i) * 2;
+            
+            const r = radius + noise; 
             
             const x = 120 + r * Math.cos(angle);
             const y = 120 + r * Math.sin(angle);
@@ -2310,21 +2355,25 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
         path.setAttribute("d", d);
         path.setAttribute("fill", "none");
         path.setAttribute("stroke", ringColor);
-        path.setAttribute("stroke-width", i % 12 === 0 ? "1.5" : "0.4");
+        path.setAttribute("stroke-width", i % 12 === 0 ? "1.2" : "0.3");
         path.setAttribute("stroke-opacity", "0");
-        path.style.filter = `blur(${i % 12 === 0 ? '0px' : '0.5px'})`; // 살짝 몽환적인 느낌
+        path.style.transition = "stroke-opacity 1s ease";
         
+        // 12개월 단위 나이테에 우주적인 글로우 효과
+        if(i % 12 === 0) {
+            path.style.filter = `drop-shadow(0 0 3px ${ringColor})`;
+        }
+
         svg.appendChild(path);
         rings.push(path);
     }
     container.appendChild(svg);
 
-    // 3. 순차적 생성 애니메이션
+    // 순차 생성
     for (let i = 0; i < rings.length; i++) {
-        await new Promise(res => {
-            rings[i].setAttribute("stroke-opacity", i % 12 === 0 ? "0.8" : "0.3");
-            setTimeout(res, 40); // 생성 속도
-        });
+        setTimeout(() => {
+            rings[i].setAttribute("stroke-opacity", i % 12 === 0 ? "0.8" : "0.25");
+        }, i * 50);
     }
 };
 
