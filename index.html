@@ -1962,60 +1962,68 @@ currentData = results; updateAdminMemberLists(); renderStatusTable();
 });
 }
 
+// [1] 전역 바구니
 let gatheredLevelUpMessages = [];
 
 window.checkLevelUpgrade = (name, oldLevel, newLevel) => {
-    const thresholdLevels = levelThresholds.map(t => t.lv);
+    // levelThresholds가 정의되어 있는지 확인 (없으면 에러 방지를 위해 빈 배열)
+    const thresholds = (window.levelThresholds || []).map(t => t.lv);
     
     for (let lv = oldLevel + 1; lv <= newLevel; lv++) {
-        if (thresholdLevels.includes(lv)) {
-            const badge = getLevelBadge(lv);
+        if (thresholds.includes(lv)) {
+            // getLevelBadge 함수가 있는지 확인 후 호출
+            const badge = typeof window.getLevelBadge === 'function' ? window.getLevelBadge(lv) : "마크";
             
-            // 1. 화면 알림
-            triggerLevelupAlert(name, lv, badge); 
+            // 1. 화면 알림 띄우기 호출
+            window.triggerLevelupAlert(name, lv, badge); 
             
-            // 2. 메시지 수집 (break를 제거해야 여러 단계 레벨업도 체크됨)
+            // 2. 메시지 수집 (break 제거)
             const msg = `${name}님이 ${lv}레벨로 [${badge}] 마크를 획득하셨습니다! 축하드립니다 🎉`;
             gatheredLevelUpMessages.push(msg);
         }
     }
 };
 
-// [핵심] 자동 복사를 실행하는 함수
+window.triggerLevelupAlert = (name, level, badge) => {
+    const nameElem = document.getElementById('levelUpName');
+    const msgElem = document.getElementById('levelUpMsg');
+    const overlay = document.getElementById('levelupAlert');
+
+    // 요소들이 실제로 존재할 때만 실행 (에러 방지)
+    if (nameElem && msgElem && overlay) {
+        nameElem.innerText = name;
+        msgElem.innerText = `${level}레벨 달성! [${badge}] 마크를 획득하셨습니다! 축하드립니다 🎉`;
+        
+        overlay.style.display = 'flex';
+        // 강제 리플로우를 통해 애니메이션 적용
+        overlay.offsetHeight; 
+        overlay.classList.add('active');
+    } else {
+        console.error("레벨업 알림창(HTML 요소)을 찾을 수 없습니다.");
+    }
+};
+
 window.copyAllLevelUpMessages = () => {
     if (gatheredLevelUpMessages.length === 0) return;
 
     const finalMsg = gatheredLevelUpMessages.join('\n');
 
-    // 방법 A: 최신 방식 (사용자 인터렉션이 있어야 함)
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(finalMsg).then(() => {
-            console.log("자동 복사 완료");
-            gatheredLevelUpMessages = []; 
-        }).catch(err => {
-            // 실패 시 방법 B로 전환
-            fallbackCopyText(finalMsg);
-        });
-    } else {
-        fallbackCopyText(finalMsg);
-    }
-};
-
-// 방법 B: 구형 방식 (textarea를 이용한 강제 복사 - 자동 복사 확률이 더 높음)
-function fallbackCopyText(text) {
+    // 자동 복사 성공률이 높은 구형 방식(textarea) 먼저 시도
     const textArea = document.createElement("textarea");
-    textArea.value = text;
+    textArea.value = finalMsg;
     document.body.appendChild(textArea);
     textArea.select();
     try {
-        document.execCommand('copy');
-        console.log("구형 방식으로 복사 성공");
+        const successful = document.execCommand('copy');
+        if (successful) console.log("통합 메시지 자동 복사 완료!");
     } catch (err) {
-        console.error('복사 실패', err);
+        console.log('복사 중 오류 발생', err);
     }
     document.body.removeChild(textArea);
+    
+    // 복사 후 바구니 비우기
     gatheredLevelUpMessages = []; 
-}
+};
 
 window.copyAllLevelUpMessages = () => {
     if (gatheredLevelUpMessages.length === 0) {
