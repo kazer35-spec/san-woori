@@ -12,6 +12,74 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+/* 전체 카드 배경 통일 */
+.integrated-member-card {
+    background: #050b18 !important; /* 산맥창과 동일한 배경색 */
+    border: 1px solid rgba(56, 189, 248, 0.2);
+    overflow: hidden;
+}
+
+/* 나이테창: 산맥창보다 1.5배 크게 (300px) */
+.tree-ring-section {
+    height: 300px !important;
+    position: relative;
+    border-bottom: 1px solid rgba(56, 189, 248, 0.1);
+}
+
+/* 산맥창: 기존 절반 크기 유지 (200px) */
+.mountain-section {
+    height: 200px !important;
+    position: relative;
+}
+
+/* 글씨 크기 최소화 및 우주색 적용 */
+.ring-main-title, #mwMountainName {
+    font-size: 11px !important; /* 아주 작게 */
+    color: #a5f3fc !important;
+    text-shadow: 0 0 8px rgba(34, 211, 238, 0.6);
+    opacity: 0.8;
+}
+
+/* 활동 개월수: 별도 창 없이 텍스트만 우측 배치 */
+.ring-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    position: absolute;
+    top: 0;
+    width: 100%;
+    z-index: 20;
+}
+
+.ring-stats {
+    background: none !important; /* 박스 제거 */
+    border: none !important; /* 테두리 제거 */
+    padding: 0 !important;
+}
+
+.ring-months-val {
+    color: #38bdf8 !important;
+    font-size: 18px !important;
+    font-weight: 800;
+    text-shadow: 0 0 10px rgba(56, 189, 248, 0.8);
+}
+
+.ring-unit {
+    color: #7dd3fc;
+    font-size: 12px;
+    margin-left: 2px;
+}
+
+/* 별 효과 유지 */
+.space-star {
+    position: absolute;
+    background: #fff;
+    border-radius: 50%;
+    filter: blur(0.5px);
+    animation: space-blink var(--duration) infinite;
+}
+
 /* 통합 카드 및 섹션 높이 축소 조정 */
 .integrated-member-card {
     background: #050b18 !important;
@@ -61,6 +129,20 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .mountain-info-bar {
     padding: 5px 15px;
     font-size: 9px;
+}
+
+/* 통합 카드 및 섹션 높이 조절 */
+.integrated-member-card {
+    background: #050b18 !important; /* 더 깊은 우주색 */
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.tree-ring-section, .mountain-section {
+    height: 380px !important; /* 두 섹션의 높이를 통일 */
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
 /* 우주적인 글씨 색상 */
@@ -2330,15 +2412,15 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
     if(!container) return;
     container.innerHTML = ""; 
 
-    // 우주 별 뿌리기
-    for(let i=0; i<60; i++) { // 공간이 좁아졌으므로 별 개수 최적화
+    // 별 생성 (더 미세하고 많게)
+    for(let i=0; i<100; i++) {
         const star = document.createElement('div');
         star.className = 'space-star';
-        const size = Math.random() * 1.5 + 0.5;
+        const size = Math.random() * 1.8;
         star.style.width = star.style.height = `${size}px`;
         star.style.left = `${Math.random() * 100}%`;
         star.style.top = `${Math.random() * 100}%`;
-        star.style.setProperty('--duration', `${Math.random() * 3 + 1.5}s`);
+        star.style.setProperty('--duration', `${Math.random() * 4 + 2}s`);
         container.appendChild(star);
     }
 
@@ -2347,11 +2429,16 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
     const now = new Date();
     const diffMonths = Math.max(1, (now.getFullYear() - jDate.getFullYear()) * 12 + (now.getMonth() - jDate.getMonth()) + 1);
     
+    // 카운트 애니메이션
     let count = 0;
     const countTimer = setInterval(() => {
-        if(count >= diffMonths) clearInterval(countTimer);
-        monthLabel.innerText = count++;
-    }, 30);
+        if(count >= diffMonths) {
+            monthLabel.innerText = diffMonths;
+            clearInterval(countTimer);
+        } else {
+            monthLabel.innerText = count++;
+        }
+    }, 20);
 
     const style = getLevelStyle(memberLevel);
     const ringColor = style.border; 
@@ -2366,16 +2453,18 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
     const rings = [];
 
     for (let i = 1; i <= diffMonths; i++) {
-        // 높이가 줄어들었으므로 최대 반지름을 110에서 80정도로 축소
-        const radius = 10 + (i * (75 / diffMonths)); 
+        // [수정] 나이테 반지름을 300px 창에 맞춰 약 100까지 확장
+        const radius = 10 + (i * (90 / diffMonths)); 
         const path = document.createElementNS(svgNS, "path");
         let d = "";
         
-        const segments = 60; 
+        const segments = 80; 
         for (let a = 0; a <= 360; a += (360/segments)) {
             const angle = (a * Math.PI) / 180;
-            const noise = Math.sin(angle * (seed % 4 + 2) + i * 0.5) * (2 + (seed % 5)) +
-                          Math.cos(angle * 5 - i) * 1.5;
+            // 불규칙성 강화: 사인파를 여러 개 섞음
+            const noise = Math.sin(angle * (seed % 5 + 3)) * (2 + (seed % 4)) +
+                          Math.cos(angle * 7) * 2 +
+                          Math.sin(i * 0.2) * 1.5;
             
             const r = radius + noise; 
             const x = 120 + r * Math.cos(angle);
@@ -2387,20 +2476,23 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
         path.setAttribute("d", d);
         path.setAttribute("fill", "none");
         path.setAttribute("stroke", ringColor);
-        path.setAttribute("stroke-width", i % 12 === 0 ? "1.0" : "0.25");
+        path.setAttribute("stroke-width", i % 12 === 0 ? "0.8" : "0.2");
         path.setAttribute("stroke-opacity", "0");
-        if(i % 12 === 0) path.style.filter = `drop-shadow(0 0 2px ${ringColor})`;
+        
+        if(i % 12 === 0) {
+            path.style.filter = `drop-shadow(0 0 4px ${ringColor})`;
+        }
 
         svg.appendChild(path);
         rings.push(path);
     }
     container.appendChild(svg);
 
-    for (let i = 0; i < rings.length; i++) {
+    rings.forEach((ring, idx) => {
         setTimeout(() => {
-            rings[i].setAttribute("stroke-opacity", i % 12 === 0 ? "0.7" : "0.2");
-        }, i * 30);
-    }
+            ring.setAttribute("stroke-opacity", idx % 12 === 0 ? "0.7" : "0.2");
+        }, idx * 40);
+    });
 };
 
 // 산맥 높이 비율도 좁아진 창에 맞게 조정 (showMemberMountain 내 일부 수정)
