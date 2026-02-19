@@ -2010,26 +2010,39 @@ window.triggerLevelupAlert = (name, level, badge) => {
 };
 
 window.copyAllLevelUpMessages = () => {
-    if (gatheredLevelUpMessages.length > 0) {
-        const finalMsg = gatheredLevelUpMessages.join('\n');
-        
-        // 자동 복사 성공률이 높은 textarea 방식 사용
-        const textArea = document.createElement("textarea");
-        textArea.value = finalMsg;
-        document.body.appendChild(textArea);
-        textArea.select();
-        
-        try {
-            document.execCommand('copy');
-            console.log("통합 메시지 복사 완료!");
-            // 복사 후 바구니 비우기
-            gatheredLevelUpMessages = []; 
-        } catch (err) {
-            console.error('복사 실패', err);
+    if (gatheredLevelUpMessages.length === 0) return;
+
+    const finalMsg = gatheredLevelUpMessages.join('\n');
+
+    // [방법 1] 보이지 않는 textarea를 생성하여 강제로 복사 (가장 확실한 방법)
+    const textArea = document.createElement("textarea");
+    
+    // 화면에서 보이지 않도록 설정
+    textArea.style.position = "fixed";
+    textArea.style.left = "-9999px";
+    textArea.style.top = "0";
+    textArea.value = finalMsg;
+    
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+
+    try {
+        // 구형 방식이지만 자동 복사 성공률이 훨씬 높습니다.
+        const successful = document.execCommand('copy');
+        if (successful) {
+            console.log("메시지 통합 복사 성공!");
+        } else {
+            console.log("복사 명령이 거부되었습니다.");
         }
-        
-        document.body.removeChild(textArea);
+    } catch (err) {
+        console.error("복사 중 에러 발생:", err);
     }
+
+    document.body.removeChild(textArea);
+    
+    // 복사 완료 후 바구니 비우기
+    gatheredLevelUpMessages = []; 
 };
 
 window.closeLevelupAlert = () => {
