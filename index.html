@@ -12,124 +12,6 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-/* 나이테 카드: 산맥창과 가로/디자인 완전 일치 */
-.tree-ring-card {
-    width: 100%; /* 부모 모달 안에서 꽉 차게 */
-    max-width: 100%; /* 삐져나감 방지 */
-    height: 160px; /* 산맥창(180px)보다 조금 더 슬림하게 설정 */
-    margin-top: 12px; /* 산맥창과의 간격 */
-    background: #0f172a; /* 산맥창과 동일한 배경색 */
-    border-radius: 24px; /* 산맥창과 동일한 곡률 */
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    position: relative;
-    overflow: hidden; /* 내부 발광 효과가 밖으로 안 넘치게 */
-    box-sizing: border-box;
-}
-
-/* 레벨별 전체 창 발광(Glow) 애니메이션 */
-@keyframes ring-pulse {
-    0% { box-shadow: 0 0 5px var(--glow-color); border-color: rgba(255,255,255,0.1); }
-    50% { box-shadow: 0 0 25px var(--glow-color); border-color: var(--glow-color); }
-    100% { box-shadow: 0 0 5px var(--glow-color); border-color: rgba(255,255,255,0.1); }
-}
-
-.ring-active-glow {
-    animation: ring-pulse 2.5s infinite ease-in-out;
-}
-
-/* 내부 레이아웃 */
-.ring-header {
-    padding: 15px 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    position: absolute;
-    top: 0; left: 0; width: 100%;
-    z-index: 10;
-    box-sizing: border-box;
-}
-
-.ring-canvas {
-    width: 100%;
-    height: 100%; /* 카드 전체를 캔버스로 사용 */
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-/* 문구 및 불필요 요소 제거 */
-.ring-footer, .ring-desc { display: none !important; }
-
-/* 산맥 컨테이너와 동일한 규격으로 통일 */
-.tree-ring-card {
-    margin-top: 10px;
-    padding: 0; 
-    height: 180px; /* 가상 산맥창과 동일한 높이 */
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    overflow: hidden;
-    background: #0f172a; /* 산맥창과 유사한 어두운 배경 */
-    border-radius: 20px;
-    border: 1px solid rgba(255,255,255,0.1);
-    /* 레벨별 발광 효과를 위한 변수 설정 */
-    --ring-glow: rgba(255,255,255,0.2); 
-}
-
-/* 나이테 전용 캔버스 */
-.ring-canvas {
-    width: 100%;
-    height: 120px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 2;
-}
-
-/* 나이테 전체 창이 울리듯 빛나는 효과 (애니메이션) */
-@keyframes card-pulse {
-    0% { box-shadow: 0 0 10px var(--ring-glow); border-color: rgba(255,255,255,0.1); }
-    50% { box-shadow: 0 0 30px var(--ring-glow); border-color: var(--ring-glow); }
-    100% { box-shadow: 0 0 10px var(--ring-glow); border-color: rgba(255,255,255,0.1); }
-}
-
-.ring-active-glow {
-    animation: card-pulse 2s infinite ease-in-out;
-}
-
-/* 불필요한 문구 및 여백 제거 */
-.ring-footer, .ring-desc { display: none !important; }
-.ring-header { padding: 15px 20px 0 20px; position: absolute; top: 0; left: 0; width: 100%; z-index: 3; }
-
-/* 1. 나이테 카드 스타일 수정 */
-.tree-ring-card {
-    margin-top: 10px;
-    padding: 20px 15px; /* 상하 여백 확보 */
-    min-height: 140px; /* 최소 높이만 지정 */
-    height: auto; /* 내용물(SVG)에 따라 늘어나도록 설정 */
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    overflow: visible; /* 내부 요소가 삐져나와도 잘리지 않게 함 */
-}
-
-/* 2. 나이테 컨테이너 수정 */
-.ring-canvas {
-    width: 100%;
-    height: 120px; /* 나이테가 그려질 충분한 세로 공간 */
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    position: relative;
-}
-
-/* 3. SVG가 짤리지 않도록 설정 */
-.ring-canvas svg {
-    overflow: visible; /* 타원이 위아래로 커져도 잘리지 않음 */
-    max-height: 100%;
-}
-
 /* 나이테 카드 전체 스타일 */
 .tree-ring-card {
     position: relative;
@@ -2230,90 +2112,86 @@ window.showMemberMountain = async (mId, mName) => {
 };
 
 window.renderTreeRings = async (memberName, regDate, memberLevel) => {
-    const card = document.querySelector('.tree-ring-card');
     const container = document.getElementById('treeRingContainer');
     const monthLabel = document.getElementById('activityMonths');
-    if(!container || !card) return;
-    
-    // 1. 초기화 및 레벨 스타일 적용
+    if(!container) return;
     container.innerHTML = ""; 
-    const style = getLevelStyle(memberLevel);
-    const ringColor = style.border;
-    
-    // 카드 전체 발광 효과 색상 지정
-    card.style.setProperty('--glow-color', ringColor + '55'); // 투명도 33%
-    card.classList.add('ring-active-glow');
 
-    // 2. 가입 개월 수 계산
+    // 1. 가입 개월 수 및 색상 계산
     const fixedList = ["오즈","나스","해수","용삼","지니","아랑","민이","몰랑","길치","등초","무니","식이","구름","뚜벅","윤윤","승이","이구","후후","튜브","피치","사랑","송돌","호프","이제","얌얌","태기","희야","멸치","성민","섭섭"];
     let jDate = fixedList.includes(memberName) ? new Date('2025-11-24') : (regDate?.toDate ? regDate.toDate() : new Date());
-    const diffMonths = Math.max(1, (new Date().getFullYear() - jDate.getFullYear()) * 12 + (new Date().getMonth() - jDate.getMonth()) + 1);
+    const now = new Date();
+    const diffMonths = Math.max(1, (now.getFullYear() - jDate.getFullYear()) * 12 + (now.getMonth() - jDate.getMonth()) + 1);
     
-    // 개월 수 카운트 업
+    // 개월 수 카운트 업 애니메이션
     let count = 0;
     const countTimer = setInterval(() => {
         if(count >= diffMonths) clearInterval(countTimer);
         monthLabel.innerText = count++;
     }, 30);
 
-    // 3. SVG 생성
+    const style = getLevelStyle(memberLevel);
+    const ringColor = style.border; 
+
+    // 2. SVG 생성
     const svgNS = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(svgNS, "svg");
-    svg.setAttribute("viewBox", "0 0 300 120");
+    svg.setAttribute("viewBox", "0 0 240 240");
     svg.style.width = "100%";
     svg.style.height = "100%";
-    svg.style.overflow = "visible";
     
-    const seed = memberName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
     const rings = [];
+    const seed = memberName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
 
-    // 나이테 레이어 생성
     for (let i = 1; i <= diffMonths; i++) {
-        const radiusX = i * (135 / diffMonths); 
-        const radiusY = i * (45 / diffMonths); 
-        
+        const radius = i * (100 / diffMonths); 
         const path = document.createElementNS(svgNS, "path");
         let d = "";
-        
+        // 불규칙한 자연 나이테 모양 생성
         for (let a = 0; a <= 360; a += 10) {
             const angle = (a * Math.PI) / 180;
-            const noise = Math.sin(angle * 4 + seed + i) * (radiusY * 0.15);
-            const x = 150 + (radiusX + noise) * Math.cos(angle);
-            const y = 60 + (radiusY + noise * 0.4) * Math.sin(angle);
+            const wobble = Math.sin(angle * 4 + seed + (i * 0.5)) * (radius * 0.06);
+            const r = radius + wobble;
+            const x = 120 + r * Math.cos(angle);
+            const y = 120 + r * Math.sin(angle);
             d += (a === 0 ? "M" : "L") + `${x},${y} `;
         }
         d += "Z";
-        
         path.setAttribute("d", d);
-        path.setAttribute("fill", "none");
+        path.setAttribute("class", "ring-path");
         path.setAttribute("stroke", ringColor);
-        path.setAttribute("stroke-width", i % 12 === 0 ? "1.2" : "0.5");
-        path.setAttribute("stroke-opacity", "0"); 
-        path.style.transition = "stroke-opacity 0.8s ease, stroke-width 0.8s ease";
-        
+        path.setAttribute("stroke-width", i % 12 === 0 ? "2.5" : "0.7");
+        path.setAttribute("stroke-opacity", "0"); // 처음엔 숨김
         svg.appendChild(path);
         rings.push(path);
     }
     container.appendChild(svg);
 
-    // 4. ✨ 순차 파동 애니메이션 (중심부터 하나씩)
+    // 3. 나이테 파동 애니메이션 (한 줄씩 밝아졌다 돌아오기)
     for (let i = 0; i < rings.length; i++) {
         await new Promise(res => {
+            // 현재 줄 밝게 강조
+            rings[i].setAttribute("stroke-opacity", "1");
+            rings[i].style.filter = `drop-shadow(0 0 5px ${ringColor}) brightness(2)`;
+            rings[i].style.strokeWidth = i % 12 === 0 ? "4" : "2";
+
             setTimeout(() => {
-                // 한 줄씩 밝아지며 파동 발생
-                rings[i].setAttribute("stroke-opacity", "1");
-                rings[i].style.filter = `drop-shadow(0 0 3px ${ringColor})`;
-                
-                // 잠시 후 은은한 상태로 안착
-                setTimeout(() => {
-                    rings[i].setAttribute("stroke-opacity", i % 12 === 0 ? "0.6" : "0.2");
-                    rings[i].style.filter = "none";
-                }, 300);
-                
+                // 다음 줄로 넘어가기 전 원래 투명도로 복구
+                rings[i].setAttribute("stroke-opacity", "0.1");
+                rings[i].style.filter = "none";
+                rings[i].style.strokeWidth = i % 12 === 0 ? "2.5" : "0.7";
                 res();
-            }, 40); // 퍼져나가는 속도
+            }, 60); // 파동 속도
         });
     }
+
+    // 4. 마지막 짠! 전체 나타나기
+    setTimeout(() => {
+        rings.forEach((r, idx) => {
+            r.style.transition = "all 1s ease-out";
+            r.setAttribute("stroke-opacity", idx % 12 === 0 ? "0.8" : "0.4");
+        });
+    }, 200);
 };
 
 window.showMilkyWay = async (mId, mName) => {
@@ -2434,41 +2312,51 @@ window.showFadingScroll = function(dday, level = 0) {
 </script> 
 
 <div id="mountainViewModal" class="mountain-modal" onclick="this.style.display='none'">
-    <div class="mountain-container" onclick="event.stopPropagation()">
-        <div id="starrySky"></div>
-        <div id="bgLayersContainer"></div>
-        <div id="peakLayer" class="mountain-layer"></div>
+<div class="mountain-container" onclick="event.stopPropagation()">
+<div id="starrySky"></div>
+<div id="bgLayersContainer"></div>
+<div id="peakLayer" class="mountain-layer"></div>
 
-        <div class="mountain-header">
-            <h2 id="mwMountainName" style="font-size: 16px; margin: 0; font-weight: 900; color: white;"></h2>
-            <p style="font-size: 10px; color: #94a3b8; margin: 0;">가상 산맥 전경</p>
+<div class="tree-ring-card" onclick="event.stopPropagation()">
+    <div class="ring-glass-effect"></div>
+    <div class="ring-header">
+        <div class="ring-title-group">
+            <span class="ring-label">ACTIVITY HISTORY</span>
+            <h3 class="ring-main-title">활동 나이테</h3>
         </div>
-
-        <div class="mountain-info-bar">
-            <div class="info-item">개인 누적 <span id="myTotalH" class="info-val">0</span>m</div>
-            <div class="info-item">산우리 합산 <span id="globalTotalH" class="info-val">0</span>m</div>
+        <div class="ring-stats">
+            <span id="activityMonths" class="ring-months-val">0</span>
+            <span class="ring-unit">Months</span>
         </div>
     </div>
-
-    <div class="tree-ring-card" onclick="event.stopPropagation()">
-        <div class="ring-glass-effect"></div>
-        <div class="ring-header">
-            <div class="ring-title-group">
-                <span class="ring-label">ACTIVITY HISTORY</span>
-                <h3 class="ring-main-title">활동 나이테</h3>
-            </div>
-            <div class="ring-stats">
-                <span id="activityMonths" class="ring-months-val">0</span>
-                <span class="ring-unit">Months</span>
-            </div>
-        </div>
-        
-        <div id="treeRingContainer" class="ring-canvas"></div>
-        
-        <div class="ring-footer">
-            <span class="ring-desc">가입 이후 현재까지의 활동 궤적입니다.</span>
-        </div>
+    
+    <div id="treeRingContainer" class="ring-canvas"></div>
+    
+    <div class="ring-footer">
+        <span class="ring-desc">가입 이후 현재까지의 활동 궤적입니다.</span>
     </div>
+</div>
+
+<div class="mountain-header">
+<h2 id="mwMountainName" style="font-size: 16px; margin: 0;"></h2>
+<p style="font-size: 10px; color: #64748b; margin: 0;">가상 산맥 전경</p>
+</div>
+
+<div class="mountain-info-bar">
+<div class="info-item">개인 누적 <span id="myTotalH" class="info-val">0</span>m</div>
+<div class="info-item">산우리 합산 <span id="globalTotalH" class="info-val">0</span>m</div>
+</div>
+</div>
+
+<div class="tree-ring-window" onclick="event.stopPropagation()" style="width: 90%; max-width: 400px; margin-top: 15px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 15px; backdrop-filter: blur(10px);">
+<div class="tree-ring-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+<span style="font-size: 11px; color: #94a3b8; font-weight: 800;">ACTIVITY TREE-RING</span>
+<span id="activityMonths" style="font-size: 11px; color: #60a5fa; font-weight: 800;">0 months</span>
+</div>
+<div id="treeRingContainer" style="width: 100%; height: 150px; display: flex; justify-content: center; align-items: center;">
+</div>
+</div>
+</div>
         
         <button onclick="document.getElementById('mountainViewModal').style.display='none'" 
                 style="position:absolute; top:15px; right:15px; color:white; background:none; border:none; font-size:20px; cursor:pointer; z-index:201;">&times;</button>
