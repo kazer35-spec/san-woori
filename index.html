@@ -12,6 +12,36 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+/* 우주적인 타이틀 텍스트 효과 */
+.cosmic-title {
+    background: linear-gradient(to bottom, #fff 30%, #94a3b8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 0 15px rgba(255,255,255,0.3);
+    letter-spacing: 2px;
+}
+
+.ring-label-cosmic {
+    color: #60a5fa;
+    text-shadow: 0 0 8px rgba(96, 165, 250, 0.5);
+    font-size: 8px;
+    letter-spacing: 3px;
+}
+
+/* 별빛 배경 애니메이션 */
+@keyframes star-twinkle {
+    0%, 100% { opacity: 0.3; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.2); }
+}
+
+.tree-ring-star {
+    position: absolute;
+    background: white;
+    border-radius: 50%;
+    pointer-events: none;
+    animation: star-twinkle var(--duration) infinite ease-in-out;
+}
+
 /* 나이테 섹션 배경을 별밤 느낌으로 */
 .tree-ring-section {
     position: relative;
@@ -2265,16 +2295,39 @@ window.showMemberMountain = async (mId, mName) => {
 window.renderTreeRings = async (memberName, regDate, memberLevel) => {
     const container = document.getElementById('treeRingContainer');
     const monthLabel = document.getElementById('activityMonths');
+    const mainTitle = document.querySelector('.ring-main-title'); // 타이틀 선택
+    const mountainName = document.getElementById('mwMountainName');
+
     if(!container) return;
     container.innerHTML = ""; 
 
-    // 1. 기간 및 색상 설정
+    // 1. 텍스트 우주 스타일 적용
+    mainTitle.classList.add('cosmic-title');
+    mountainName.style.textShadow = "0 0 20px rgba(255,255,255,0.5)";
+    mountainName.style.letterSpacing = "1px";
+
+    // 2. 나이테 배경에 촘촘한 별빛 추가 (기존보다 훨씬 많게)
+    for(let i=0; i<80; i++) {
+        const star = document.createElement('div');
+        star.className = 'tree-ring-star';
+        const size = Math.random() * 2;
+        star.style.width = size + 'px';
+        star.style.height = size + 'px';
+        star.style.left = Math.random() * 100 + '%';
+        star.style.top = Math.random() * 100 + '%';
+        star.style.setProperty('--duration', (Math.random() * 3 + 2) + 's');
+        star.style.opacity = Math.random();
+        // 별의 색상을 약간 푸른빛/흰빛 섞음
+        star.style.backgroundColor = Math.random() > 0.8 ? '#93c5fd' : '#ffffff';
+        container.appendChild(star);
+    }
+
+    // 3. 기간 계산
     const fixedList = ["오즈","나스","해수","용삼","지니","아랑","민이","몰랑","길치","등초","무니","식이","구름","뚜벅","윤윤","승이","이구","후후","튜브","피치","사랑","송돌","호프","이제","얌얌","태기","희야","멸치","성민","섭섭"];
     let jDate = fixedList.includes(memberName) ? new Date('2025-11-24') : (regDate?.toDate ? regDate.toDate() : new Date());
     const now = new Date();
     const diffMonths = Math.max(1, (now.getFullYear() - jDate.getFullYear()) * 12 + (now.getMonth() - jDate.getMonth()) + 1);
     
-    // 개월 수 카운트 애니메이션
     let count = 0;
     const countTimer = setInterval(() => {
         if(count >= diffMonths) clearInterval(countTimer);
@@ -2284,63 +2337,53 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
     const style = getLevelStyle(memberLevel);
     const ringColor = style.border; 
 
-    // 2. SVG 생성
+    // 4. SVG 생성
     const svgNS = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(svgNS, "svg");
     svg.setAttribute("viewBox", "0 0 240 240");
     svg.style.width = "100%";
     svg.style.height = "100%";
+    svg.style.position = "relative";
+    svg.style.zIndex = "10";
     
-    // [추가] 중앙에 빛나는 행성(Core) 만들기
+    // 중앙 코어
     const core = document.createElementNS(svgNS, "circle");
-    core.setAttribute("cx", "120");
-    core.setAttribute("cy", "120");
-    core.setAttribute("r", "4"); // 작은 원형 구체
+    core.setAttribute("cx", "120"); core.setAttribute("cy", "120"); core.setAttribute("r", "3");
     core.setAttribute("fill", ringColor);
-    core.setAttribute("class", "core-planet");
-    core.style.boxShadow = `0 0 15px ${ringColor}`;
+    core.style.filter = `drop-shadow(0 0 8px ${ringColor})`;
     svg.appendChild(core);
 
     const rings = [];
-    // 이름별로 고유한 랜덤성을 주기 위한 시드값
     const seed = memberName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
 
     for (let i = 1; i <= diffMonths; i++) {
-        const radius = 10 + (i * (90 / diffMonths)); // 중심 행성 밖으로 생성
+        const radius = 10 + (i * (95 / diffMonths));
         const path = document.createElementNS(svgNS, "path");
         let d = "";
-        
-        // [수정] 나이테를 더 불규칙하고 일렁이게 (은하수 느낌)
-        for (let a = 0; a <= 360; a += 5) { // 더 촘촘하게 꺾임 발생
+        for (let a = 0; a <= 360; a += 5) {
             const angle = (a * Math.PI) / 180;
-            
-            // 랜덤 수치 조절: 이름 시드와 현재 개월수(i)를 조합해 불규칙성 생성
-            const randomFactor = Math.sin(angle * (seed % 5 + 3) + i) * (5 + (seed % 5));
-            const r = radius + (randomFactor * 0.5); 
-            
+            const randomFactor = Math.sin(angle * (seed % 5 + 3) + i) * (4 + (seed % 5) * 0.5);
+            const r = radius + (randomFactor * 0.4);
             const x = 120 + r * Math.cos(angle);
             const y = 120 + r * Math.sin(angle);
             d += (a === 0 ? "M" : "L") + `${x},${y} `;
         }
         d += "Z";
-        
         path.setAttribute("d", d);
         path.setAttribute("fill", "none");
         path.setAttribute("stroke", ringColor);
-        path.setAttribute("stroke-width", i % 12 === 0 ? "1.5" : "0.4");
+        path.setAttribute("stroke-width", i % 12 === 0 ? "1.2" : "0.3");
         path.setAttribute("stroke-opacity", "0");
-        path.style.filter = `blur(${i % 12 === 0 ? '0px' : '0.5px'})`; // 살짝 몽환적인 느낌
-        
         svg.appendChild(path);
         rings.push(path);
     }
     container.appendChild(svg);
 
-    // 3. 순차적 생성 애니메이션
+    // 나이테 순차 애니메이션
     for (let i = 0; i < rings.length; i++) {
         await new Promise(res => {
-            rings[i].setAttribute("stroke-opacity", i % 12 === 0 ? "0.8" : "0.3");
-            setTimeout(res, 40); // 생성 속도
+            rings[i].setAttribute("stroke-opacity", i % 12 === 0 ? "0.7" : "0.2");
+            setTimeout(res, 30);
         });
     }
 };
