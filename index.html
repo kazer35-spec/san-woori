@@ -1962,42 +1962,60 @@ currentData = results; updateAdminMemberLists(); renderStatusTable();
 });
 }
 
-// [1] 전역 바구니
 let gatheredLevelUpMessages = [];
 
 window.checkLevelUpgrade = (name, oldLevel, newLevel) => {
-    // levelThresholds가 외부에서 잘 로드되었다고 가정합니다.
     const thresholdLevels = levelThresholds.map(t => t.lv);
     
     for (let lv = oldLevel + 1; lv <= newLevel; lv++) {
         if (thresholdLevels.includes(lv)) {
             const badge = getLevelBadge(lv);
             
-            // 화면 알림
+            // 1. 화면 알림
             triggerLevelupAlert(name, lv, badge); 
             
-            // 메시지 수집 (break를 없애야 모든 구간 메시지가 쌓입니다)
+            // 2. 메시지 수집 (break를 제거해야 여러 단계 레벨업도 체크됨)
             const msg = `${name}님이 ${lv}레벨로 [${badge}] 마크를 획득하셨습니다! 축하드립니다 🎉`;
             gatheredLevelUpMessages.push(msg);
         }
     }
-    
-    // [중요] 모든 체크가 끝난 직후 자동으로 복사하고 싶다면 여기서 호출
-    // if (gatheredLevelUpMessages.length > 0) window.copyAllLevelUpMessages();
 };
 
-window.triggerLevelupAlert = (name, level, badge) => {
-    const nameElem = document.getElementById('levelUpName');
-    const msgElem = document.getElementById('levelUpMsg');
-    const overlay = document.getElementById('levelupAlert');
+// [핵심] 자동 복사를 실행하는 함수
+window.copyAllLevelUpMessages = () => {
+    if (gatheredLevelUpMessages.length === 0) return;
 
-    if (nameElem && msgElem && overlay) {
-        nameElem.innerText = name;
-        msgElem.innerText = `${level}레벨 달성! [${badge}] 마크를 획득하셨습니다!`;
-        overlay.style.display = 'flex';
-        setTimeout(() => overlay.classList.add('active'), 10);
+    const finalMsg = gatheredLevelUpMessages.join('\n');
+
+    // 방법 A: 최신 방식 (사용자 인터렉션이 있어야 함)
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(finalMsg).then(() => {
+            console.log("자동 복사 완료");
+            gatheredLevelUpMessages = []; 
+        }).catch(err => {
+            // 실패 시 방법 B로 전환
+            fallbackCopyText(finalMsg);
+        });
+    } else {
+        fallbackCopyText(finalMsg);
     }
 };
+
+// 방법 B: 구형 방식 (textarea를 이용한 강제 복사 - 자동 복사 확률이 더 높음)
+function fallbackCopyText(text) {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    document.body.appendChild(textArea);
+    textArea.select();
+    try {
+        document.execCommand('copy');
+        console.log("구형 방식으로 복사 성공");
+    } catch (err) {
+        console.error('복사 실패', err);
+    }
+    document.body.removeChild(textArea);
+    gatheredLevelUpMessages = []; 
+}
 
 window.copyAllLevelUpMessages = () => {
     if (gatheredLevelUpMessages.length === 0) {
