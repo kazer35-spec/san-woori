@@ -1247,7 +1247,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 <button onclick="toggleLogPopup(true)" class="btn-open-log">
 <span>📜 최근 산행 일지 자세히 보기</span>
 <span class="text-sky-300">▶</span>
-    </button>
+</button>
 
     <button onclick="toggleTimelineModal(false)" class="w-full mt-4 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold text-sm">닫기</button>
 </div>
@@ -1266,46 +1266,51 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 </div>
 
 <div id="mapModal" class="modal-overlay" onclick="toggleMapModal(false)">
-<div id="mapModalContent" class="modal-content !p-5 !rounded-3xl" onclick="event.stopPropagation()">
-<div class="flex justify-between items-center mb-4 gap-3">
-<div class="flex-shrink-0">
-<h2 class="text-lg font-black text-slate-800"><span id="mapMemberName" class="text-emerald-600"></span> 님</h2>
-<p class="text-[10px] font-bold text-slate-400">Conquest Map</p>
-</div>
-<div class="everest-card-mini flex-1">
-<div id="everestTextLine" class="everest-count-mini">
-우리는 🏔️ 에베레스트를 <span id="everestCount" class="text-sky-600">0.0</span>회 정복하였습니다
-</div>
-<div class="everest-progress-bg-mini">
-<div id="everestProgressBar" class="everest-progress-bar-mini" style="width: 0%"></div>
-</div>
-</div>
-</div>
+    <div id="mapModalContent" class="modal-content !p-5 !rounded-3xl" onclick="event.stopPropagation()">
+        
+        <div class="flex justify-between items-center mb-4 gap-3">
+            <div class="flex-shrink-0">
+                <h2 class="text-lg font-black text-slate-800"><span id="mapMemberName" class="text-emerald-600"></span> 님</h2>
+                <p class="text-[10px] font-bold text-slate-400">Conquest Map</p>
+            </div>
+            <div class="everest-card-mini flex-1">
+                <div id="everestTextLine" class="everest-count-mini">
+                    🏔️ 에베레스트 <span id="everestCount" class="text-sky-600">0.0</span>회 정복
+                </div>
+                <div class="everest-progress-bg-mini">
+                    <div id="everestProgressBar" class="everest-progress-bar-mini" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
 
-<div id="mapViewMain">
-    <div class="map-container mb-4">
-        <img src="https://i.ibb.co/bMLmRYRJ/2-1.jpg" class="map-image">
-        <div id="conquerMapPoints"></div>
-        <div class="map-source-txt">출처: 산림청</div>
+        <div id="mapViewMain">
+            <div class="map-container mb-4">
+                <img src="https://i.ibb.co/bMLmRYRJ/2-1.jpg" class="map-image">
+                <div id="conquerMapPoints"></div>
+                <div class="map-source-txt">출처: 산림청</div>
+            </div>
+
+            <div class="conquer-dark-card cursor-pointer" onclick="toggleMapView()">
+                <div class="conquer-header-box !mb-0">
+                    <div class="conquer-title">🎖 지역 점유율 및 정복 통계</div>
+                    <div class="text-[10px] font-black text-sky-600">지역별 상세 &gt;</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="mapViewStats" class="hidden-view">
+            <div class="conquer-dark-card !mt-0 !min-h-[400px]">
+                <div class="conquer-header-box">
+                    <div class="conquer-title">🎖 상세 지역별 점유율</div>
+                    <button onclick="toggleMapView()" class="text-[9px] bg-sky-100 text-sky-600 px-2 py-1 rounded-md font-black border border-sky-200">뒤로가기</button>
+                </div>
+                <div id="conquerRegionGrid" class="conquer-grid max-h-[380px] overflow-y-auto pr-1">
+                    </div>
+            </div>
+        </div>
+
+        <button onclick="toggleMapModal(false)" class="w-full py-3 mt-5 bg-gray-100 text-gray-600 rounded-2xl font-black text-sm transition-colors hover:bg-gray-200">닫기</button>
     </div>
-
-    <div class="conquer-dark-card cursor-pointer" onclick="toggleMapView()">
-        <div class="conquer-header-box !mb-0"> <div class="conquer-title">🎖 지역 점유율 및 정복 통계</div>
-            <div class="text-[10px] font-black text-sky-600">지역별 상세 ></div>
-        </div>
-        </div>
-</div>
-<div id="mapViewStats" class="hidden-view">
-<div class="conquer-dark-card !mt-0 !min-h-[400px]">
-<div class="conquer-header-box">
-<div class="conquer-title">🎖 상세 지역별 점유율</div>
-<button onclick="toggleMapView()" class="text-[9px] bg-sky-100 text-sky-600 px-2 py-1 rounded-md font-black border border-sky-200">뒤로가기</button>
-</div>
-<div id="conquerRegionGrid" class="conquer-grid max-h-[380px] overflow-y-auto pr-1"></div>
-</div>
-</div>
-<button onclick="toggleMapModal(false)" class="w-full py-3 mt-5 bg-gray-100 text-gray-600 rounded-2xl font-black text-sm transition-colors hover:bg-gray-200">닫기</button>
-</div>
 </div>
 </div>
 
@@ -2211,7 +2216,33 @@ setTimeout(() => { updateVibeTemp(); setInterval(updateVibeTemp, 60000); }, 2000
 document.getElementById('regDate').valueAsDate = new Date();
 document.getElementById('activityDate').valueAsDate = new Date();
 
-window.showMemberMountain = async (mId, mName) => {
+document.getElementById('highestPeakLabel');window.showMemberMountain = async (mId, mName) => {
+    // 1. 에베레스트 정복 횟수 및 고도 데이터 계산
+    // 전체 멤버의 totalHeight를 합산합니다.
+    const globalTotalH = currentData.reduce((acc, m) => acc + (m.totalHeight || 0), 0);
+    // 에베레스트 높이(8848m)로 나누어 정복 횟수 계산 (소수점 1자리)
+    const conquestCount = (globalTotalH / 8848).toFixed(1);
+
+    // 개인별 고도 데이터 찾기
+    const myData = currentData.find(m => m.id === mId);
+    const myTotalH = (myData ? myData.totalHeight || 0 : 0);
+
+    // 2. 화면(UI) 업데이트
+    // 에베레스트 정복 횟수 텍스트 업데이트
+    const everestElement = document.getElementById('everestCountText');
+    if (everestElement) {
+        everestElement.innerText = `우리는 에베레스트를 ${conquestCount}번 정복했습니다`;
+    }
+
+    // 개인 및 팀 고도 수치 업데이트
+    if (document.getElementById('personalTotalHeight')) {
+        document.getElementById('personalTotalHeight').innerText = `${myTotalH.toLocaleString()}m`;
+    }
+    if (document.getElementById('teamTotalHeight')) {
+        document.getElementById('teamTotalHeight').innerText = `${globalTotalH.toLocaleString()}m`;
+    }
+
+    // 3. 기존 변수 및 모달 제어 로직
     const modal = document.getElementById('mountainViewModal');
     const card = document.getElementById('integratedCard');
     const peakLayer = document.getElementById('peakLayer');
@@ -2219,6 +2250,23 @@ window.showMemberMountain = async (mId, mName) => {
     const sky = document.getElementById('starrySky');
     const beam = document.getElementById('lightBeam');
     const peakLabel = document.getElementById('highestPeakLabel');
+
+    // --- 여기서부터는 기존에 있던 애니메이션 및 렌더링 코드를 그대로 두시면 됩니다 ---
+    
+    modal.style.display = 'flex';
+    setTimeout(() => modal.classList.add('active'), 10);
+    
+    // 만약 renderTreeRings 등을 호출한다면 아래에 이어서 작성
+    // renderTreeRings(mName, myData.regDate, myData.level);
+};
+window.showMemberMountain = async (mId, mName) => {
+    const modal = document.getElementById('mountainViewModal');
+    const card = document.getElementById('integratedCard');
+    const peakLayer = document.getElementById('peakLayer');
+    const bgContainer = document.getElementById('bgLayersContainer');
+    const sky = document.getElementById('starrySky');
+    const beam = document.getElementById('lightBeam');
+    const peakLabel =
     
     // 1. 초기화 및 준비
     document.getElementById('mwMountainName').innerText = `${mName}님의 산맥`;
