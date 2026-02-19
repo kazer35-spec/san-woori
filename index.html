@@ -12,6 +12,30 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+/* 1. 중앙 행성(코어)이 부드럽게 원을 그리며 움직임 */
+@keyframes planetOrbit {
+    0% { transform: translate(0, 0); }
+    25% { transform: translate(1.5px, 1.5px); }
+    50% { transform: translate(0, 2.5px); }
+    75% { transform: translate(-1.5px, 1.5px); }
+    100% { transform: translate(0, 0); }
+}
+
+.planet-core-group {
+    animation: planetOrbit 5s ease-in-out infinite;
+    transform-origin: 120px 120px; /* SVG의 정중앙 기준 */
+}
+
+/* 2. 나이테가 나타날 때 투명도가 부드럽게 변함 */
+.tree-ring-path {
+    transition: stroke-opacity 1s ease-out, stroke-width 0.5s ease;
+}
+
+/* 3. 우주 느낌의 네온 텍스트 */
+.cosmic-neon-text {
+    text-shadow: 0 0 8px rgba(255, 255, 255, 0.6), 0 0 15px currentColor;
+}
+
 /* 중앙 행성(코어) 애니메이션 */
 @keyframes planetFloat {
     0% { transform: translate(0, 0); }
@@ -111,6 +135,17 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
     right: 20px !important;
     font-size: 28px !important;
     text-shadow: 0 0 10px rgba(0,0,0,0.5);
+}
+
+/* 중앙 행성 글로우 효과 */
+.core-planet {
+    filter: blur(2px);
+    animation: pulse 3s infinite ease-in-out;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 0.8; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.1); }
 }
 
 /* 빛 줄기 효과 */
@@ -278,6 +313,14 @@ to { opacity: 1; transform: translateY(0); }
 fill: none;
 transition: stroke-opacity 0.5s;
 }
+
+/* 나이테가 하나씩 반짝이며 나타나는 애니메이션 */
+@keyframes ring-glow {
+0% { stroke-opacity: 0.2; filter: brightness(1); }
+50% { stroke-opacity: 1; filter: brightness(2.5); stroke-width: 2px; }
+100% { stroke-opacity: 0.6; filter: brightness(1); }
+}
+.ring-animating { animation: ring-glow 0.8s ease-in-out; }
 
 /* 산맥 모달 스타일 수정 */
 .mountain-modal {
@@ -2317,24 +2360,29 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
     const mountainName = document.getElementById('mwMountainName');
 
     if(!container) return;
-    container.innerHTML = ""; 
+    container.innerHTML = ""; // 기존 내용 싹 비우기
 
-    // 1. 스타일 및 배경 별빛 생성
+    // [1] 텍스트 및 별빛 배경 설정
     if (mainTitle) mainTitle.classList.add('cosmic-neon-text');
     if (mountainName) mountainName.classList.add('cosmic-neon-text');
 
     for(let i=0; i<80; i++) {
         const star = document.createElement('div');
         star.className = 'tree-ring-star';
-        const size = Math.random() * 1.8 + 0.5;
-        star.style.width = size + 'px'; star.style.height = size + 'px';
-        star.style.left = Math.random() * 100 + '%'; star.style.top = Math.random() * 100 + '%';
-        star.style.setProperty('--duration', (Math.random() * 3 + 1.5) + 's');
-        star.style.backgroundColor = Math.random() > 0.7 ? '#a5f3fc' : '#ffffff';
+        star.style.cssText = `
+            position: absolute;
+            width: ${Math.random() * 2}px;
+            height: ${Math.random() * 2}px;
+            left: ${Math.random() * 100}%;
+            top: ${Math.random() * 100}%;
+            background: white;
+            opacity: ${Math.random()};
+            border-radius: 50%;
+        `;
         container.appendChild(star);
     }
 
-    // 2. 기간 계산
+    // [2] 기간 계산 (가입일 기준)
     const fixedList = ["오즈","나스","해수","용삼","지니","아랑","민이","몰랑","길치","등초","무니","식이","구름","뚜벅","윤윤","승이","이구","후후","튜브","피치","사랑","송돌","호프","이제","얌얌","태기","희야","멸치","성민","섭섭"];
     let jDate = fixedList.includes(memberName) ? new Date('2025-11-24') : (regDate?.toDate ? regDate.toDate() : new Date());
     const now = new Date();
@@ -2343,13 +2391,13 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
     const style = getLevelStyle(memberLevel);
     const ringColor = style.border; 
 
-    // 3. SVG 컨테이너 생성
+    // [3] SVG 생성
     const svgNS = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(svgNS, "svg");
     svg.setAttribute("viewBox", "0 0 240 240");
-    svg.style.cssText = "width:100%; height:100%; position:relative; z-index:10;";
-    
-    // 4. 중앙 행성(코어) 생성 - 그룹으로 묶어 애니메이션 적용
+    svg.style.cssText = "width:100%; height:100%; overflow:visible;";
+
+    // [4] 중앙 행성 그룹 (애니메이션 적용)
     const coreGroup = document.createElementNS(svgNS, "g");
     coreGroup.setAttribute("class", "planet-core-group");
 
@@ -2361,20 +2409,20 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
     coreGroup.appendChild(core);
     svg.appendChild(coreGroup);
 
+    // [5] 나이테 경로 생성 (초기엔 투명)
     const rings = [];
     const seed = memberName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
 
-    // 5. 나이테 경로 미리 생성 (숨김 상태)
     for (let i = 1; i <= diffMonths; i++) {
         const radius = 10 + (i * (95 / diffMonths));
         const path = document.createElementNS(svgNS, "path");
         path.setAttribute("class", "tree-ring-path");
         
         let d = "";
-        for (let a = 0; a <= 360; a += 5) {
+        for (let a = 0; a <= 360; a += 6) {
             const angle = (a * Math.PI) / 180;
-            const randomFactor = Math.sin(angle * (seed % 5 + 3) + i) * (4 + (seed % 5) * 0.5);
-            const r = radius + (randomFactor * 0.4);
+            const wave = Math.sin(angle * (seed % 4 + 3) + i) * 2.5;
+            const r = radius + wave;
             const x = 120 + r * Math.cos(angle);
             const y = 120 + r * Math.sin(angle);
             d += (a === 0 ? "M" : "L") + `${x},${y} `;
@@ -2384,32 +2432,33 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
         path.setAttribute("d", d);
         path.setAttribute("fill", "none");
         path.setAttribute("stroke", ringColor);
-        path.setAttribute("stroke-width", i % 12 === 0 ? "1.2" : "0.3");
-        path.setAttribute("stroke-opacity", "0"); // 초기 상태 투명
+        path.setAttribute("stroke-width", i % 12 === 0 ? "1.5" : "0.4");
+        path.setAttribute("stroke-opacity", "0"); // 시작은 투명
         
         svg.appendChild(path);
         rings.push(path);
     }
     container.appendChild(svg);
 
-    // 6. 안쪽부터 바깥으로 퍼지는 순차 애니메이션 실행
-    // 1.5초(1500ms) 동안 모든 나이테가 차례대로 나타나도록 설정
-    const intervalTime = Math.min(50, 1500 / diffMonths); 
+    // [6] 핵심: 안쪽부터 순차적으로 밝아지는 애니메이션
+    // 전체 애니메이션 시간을 1.2초 정도로 맞춤
+    const delayStep = Math.min(60, 1200 / diffMonths); 
 
     rings.forEach((ring, index) => {
         setTimeout(() => {
-            // 나이테 표시
-            const opacity = (index + 1) % 12 === 0 ? "0.7" : "0.2";
-            ring.setAttribute("stroke-opacity", opacity);
+            // 밝기 적용
+            const targetOpacity = (index + 1) % 12 === 0 ? "0.8" : "0.25";
+            ring.setAttribute("stroke-opacity", targetOpacity);
             
-            // 중앙 숫자 카운트 업데이트
+            // 숫자 카운트 동기화
             if(monthLabel) monthLabel.innerText = index + 1;
-
-            // 마지막 고리라면 살짝 더 밝게 강조하는 효과 (선택사항)
+            
+            // 마지막 링은 더 환하게 강조
             if(index === rings.length - 1) {
-                ring.setAttribute("stroke-width", "1.5");
+                ring.style.strokeWidth = "2px";
+                ring.style.filter = `drop-shadow(0 0 5px ${ringColor})`;
             }
-        }, index * intervalTime);
+        }, index * delayStep);
     });
 };
 
