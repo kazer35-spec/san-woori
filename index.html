@@ -211,20 +211,6 @@ fill: none;
 transition: stroke-opacity 0.5s;
 }
 
-/* 나이테 디자인용 CSS */
-.tree-ring-section {
-margin-top: 15px;
-padding: 10px;
-background: rgba(255, 255, 255, 0.03); /* 아주 살짝 밝은 배경 */
-border-radius: 15px;
-}
-.tree-ring-header { display: flex; justify-content: space-between; margin-bottom: 5px; }
-.tree-ring-title { font-size: 10px; color: #94a3b8; font-weight: 800; }
-.tree-ring-months { font-size: 10px; color: #60a5fa; font-weight: 800; }
-.tree-ring-container { width: 100%; height: 120px; display: flex; justify-content: center; }
-
-.ring-path { fill: none; stroke-linecap: round; }
-
 /* 나이테가 하나씩 반짝이며 나타나는 애니메이션 */
 @keyframes ring-glow {
 0% { stroke-opacity: 0.2; filter: brightness(1); }
@@ -1750,52 +1736,76 @@ else { main.classList.add('hidden-view'); stats.classList.remove('hidden-view');
 
 window.showMemberMap = async (mId, mName) => {
     toggleMapModal(true);
-    document.getElementById('mapModalContent').scrollTop = 0;
+    const modalContent = document.getElementById('mapModalContent');
+    if (modalContent) modalContent.scrollTop = 0;
+    
     document.getElementById('mapViewMain').classList.remove('hidden-view');
     document.getElementById('mapViewStats').classList.add('hidden-view');
     document.getElementById('mapMemberName').innerText = mName;
+    
     const pointsBoard = document.getElementById('conquerMapPoints');
     const regionBoard = document.getElementById('conquerRegionGrid');
     pointsBoard.innerHTML = regionBoard.innerHTML = "";
 
-    const snapAll = await getDocs(collection(db, `sanwoori/${mId}/logs`));
-    let totalH = 0; let mapHtml = ""; let regionCounts = {}; let validLogsCount = 0;
+    try {
+        const snapAll = await getDocs(collection(db, `sanwoori/${mId}/logs`));
+        let totalH = 0; 
+        let mapHtml = ""; 
+        let regionCounts = {}; 
+        let validLogsCount = 0;
 
-    snapAll.forEach(doc => {
-        const log = doc.data(); 
-        totalH += (log.height || 0);
-        if(log.coords) {
-            validLogsCount++; 
-            mapHtml += `<div class="map-point ${log.isTop100 ? 'top-100' : ''}" style="left:${log.coords.x}%; top:${log.coords.y}%;"></div>`;
-            const rName = log.region || getRegionFromCoord(log.coords); 
-            regionCounts[rName] = (regionCounts[rName] || 0) + 1;
+        snapAll.forEach(doc => {
+            const log = doc.data(); 
+            totalH += (log.height || 0);
+            if(log.coords) {
+                validLogsCount++; 
+                mapHtml += `<div class="map-point ${log.isTop100 ? 'top-100' : ''}" style="left:${log.coords.x}%; top:${log.coords.y}%;"></div>`;
+                const rName = log.region || getRegionFromCoord(log.coords); 
+                regionCounts[rName] = (regionCounts[rName] || 0) + 1;
+            }
+        });
+
+        // 1. 지도에 포인트 찍기
+        pointsBoard.innerHTML = mapHtml;
+
+        // 2. 지역별 통계 계산 및 화면 표시
+        const sortedRegions = Object.entries(regionCounts).sort((a,b) => b[1] - a[1]);
+        
+        if(sortedRegions.length === 0) {
+            regionBoard.innerHTML = "<p class='text-center text-[10px] py-10 text-slate-400'>좌표 기록 없음</p>";
+        } else {
+            regionBoard.innerHTML = sortedRegions.map(([name, count]) => {
+                const percent = ((count / validLogsCount) * 100).toFixed(1);
+                return `
+                <div class="conquer-item-dark">
+                    <div class="flex justify-between items-center">
+                        <span class="conquer-region-name-dark">${name} <span class="opacity-40 ml-1 text-[8px]">${count}회</span></span>
+                        <span class="conquer-region-percent-dark">${percent}%</span>
+                    </div>
+                    <div class="conquer-bar-bg-dark">
+                        <div class="conquer-bar-fill-dark" style="width:${percent}%"></div>
+                    </div>
+                </div>`;
+            }).join('');
         }
-    });
 
-    // [중요] 아래 줄이 문제를 일으킵니다. ID가 삭제되었으므로 아래처럼 '?'를 붙이거나 삭제해야 합니다.
-    // document.getElementById('mapTotalHeight')?.innerText = totalH.toLocaleString(); 
-    
-    pointsBoard.innerHTML = mapHtml;
-    const sortedRegions = Object.entries(regionCounts).sort((a,b) => b[1] - a[1]);
-    
-    if(sortedRegions.length === 0) {
-        regionBoard.innerHTML = "<p class='text-center text-[10px] py-10 text-slate-400'>좌표 기록 없음</p>";
-    } else {
-        regionBoard.innerHTML = sortedRegions.map(([name, count]) => {
-            const percent = ((count / validLogsCount) * 100).toFixed(1);
-            return `<div class="conquer-item-dark"><div class="flex justify-between items-center"><span class="conquer-region-name-dark">${name} <span class="opacity-40 ml-1 text-[8px]">${count}회</span></span><span class="conquer-region-percent-dark">${percent}%</span></div>
-            <div class="conquer-bar-bg-dark"><div class="conquer-bar-fill-dark" style="width:${percent}%"></div></div></div>`;
-        }).join('');
+        // 3. 에베레스트 정복 횟수 업데이트
+        const globalTotalH = currentData.reduce((acc, m) => acc + (m.totalHeight || 0), 0);
+        const conquestCount = (globalTotalH / 8848).toFixed(1);
+        
+        const evCountEl = document.getElementById('everestCount');
+        const evBarEl = document.getElementById('everestProgressBar');
+        
+        if (evCountEl) evCountEl.innerText = conquestCount;
+        if (evBarEl) evBarEl.style.width = `${(conquestCount % 1) * 100}%`;
+
+        // 4. [중요] 삭제된 ID들은 Optional Chaining(?.)을 사용하여 에러 방지
+        document.getElementById('mapTotalHeight')?.setAttribute('data-val', totalH); 
+        document.getElementById('mapGlobalTotalHeight')?.setAttribute('data-val', globalTotalH);
+
+    } catch (e) {
+        console.error("정복지도 로딩 에러:", e);
     }
-
-    const globalTotalH = currentData.reduce((acc, m) => acc + (m.totalHeight || 0), 0);
-    
-    // [중요] 여기도 마찬가지로 ID가 없으므로 주석 처리하거나 '?'를 붙여야 합니다.
-    // document.getElementById('mapGlobalTotalHeight')?.innerText = globalTotalH.toLocaleString();
-
-    const conquestCount = (globalTotalH / 8848).toFixed(1);
-    document.getElementById('everestCount').innerText = conquestCount;
-    document.getElementById('everestProgressBar').style.width = `${(conquestCount % 1) * 100}%`;
 };
 
 window.toggleTimelineModal = (show) => { document.getElementById('timelineModal').style.display = show ? 'flex' : 'none'; };
