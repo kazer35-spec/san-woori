@@ -1982,10 +1982,10 @@ window.checkLevelUpgrade = (name, oldLevel, newLevel) => {
         if (thresholds.includes(lv)) {
             const badge = typeof window.getLevelBadge === 'function' ? window.getLevelBadge(lv) : "마크";
             
-            // 1. 화면 알림 띄우기
+            // 1. 화면 알림 띄우기 (가장 마지막에 체크된 사람 정보가 화면에 보임)
             window.triggerLevelupAlert(name, lv, badge); 
             
-            // 2. 메시지 수집
+            // 2. 메시지 수집 (중복 추가 방지를 원한다면 여기서 체크 로직을 넣을 수 있음)
             const msg = `${name}님이 ${lv}레벨로 [${badge}] 마크를 획득하셨습니다! 축하드립니다 🎉`;
             gatheredLevelUpMessages.push(msg);
         }
@@ -1999,8 +1999,11 @@ window.triggerLevelupAlert = (name, level, badge) => {
 
     if (nameElem && msgElem && overlay) {
         nameElem.innerText = name;
-        msgElem.innerText = `${level}레벨 달성! [${badge}] 마크를 획득하셨습니다!`;
+        // 여러 명일 경우를 대비해 문구를 약간 수정
+        msgElem.innerText = `${name}님 포함 레벨업 대상자가 있습니다! 아래 버튼을 눌러 메시지를 복사하세요.`;
+        
         overlay.style.display = 'flex';
+        // active 클래스 추가 전 짧은 지연 (CSS 애니메이션용)
         setTimeout(() => overlay.classList.add('active'), 10);
     }
 };
@@ -2008,40 +2011,51 @@ window.triggerLevelupAlert = (name, level, badge) => {
 // [핵심] 버튼을 눌렀을 때 실행될 함수
 window.copyAndCloseAlert = () => {
     if (gatheredLevelUpMessages.length === 0) {
-        // 모인 메시지가 없을 경우 창만 닫기
         closeOverlay();
         return;
     }
 
-    const finalMsg = gatheredLevelUpMessages.join('\n');
+    // Set을 이용해 혹시 모를 중복 메시지 제거 후 줄바꿈으로 합치기
+    const uniqueMessages = [...new Set(gatheredLevelUpMessages)];
+    const finalMsg = uniqueMessages.join('\n');
 
-    // 최신 클립보드 API 시도
-    navigator.clipboard.writeText(finalMsg).then(() => {
-        alert("모든 메시지가 복사되었습니다!");
-        finishProcess();
-    }).catch(err => {
-        // 실패 시 구형 방식(textarea)으로 시도
-        const textArea = document.createElement("textarea");
-        textArea.value = finalMsg;
-        document.body.appendChild(textArea);
-        textArea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textArea);
-        alert("메시지가 복사되었습니다!");
-        finishProcess();
-    });
+    // 클립보드 복사 실행
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(finalMsg)
+            .then(() => {
+                alert("성공적으로 복사되었습니다!");
+                finishProcess();
+            })
+            .catch(() => fallbackCopy(finalMsg)); // 실패 시 구형 방식 호출
+    } else {
+        fallbackCopy(finalMsg);
+    }
 };
 
+// 구형 복사 방식 (textarea)
+function fallbackCopy(text) {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    document.body.appendChild(textArea);
+    textArea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textArea);
+    alert("메시지가 복사되었습니다!");
+    finishProcess();
+}
+
 function finishProcess() {
-    gatheredLevelUpMessages = []; // 메시지 비우기
-    closeOverlay(); // 창 닫기
+    gatheredLevelUpMessages = []; // 복사 후 바구니 비우기
+    closeOverlay();
 }
 
 function closeOverlay() {
     const overlay = document.getElementById('levelupAlert');
     if (overlay) {
         overlay.classList.remove('active');
-        setTimeout(() => overlay.style.display = 'none', 300);
+        setTimeout(() => {
+            overlay.style.display = 'none';
+        }, 300);
     }
 }
 
