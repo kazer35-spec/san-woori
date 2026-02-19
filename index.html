@@ -1962,52 +1962,61 @@ currentData = results; updateAdminMemberLists(); renderStatusTable();
 });
 }
 
-// [1] 메시지를 담아둘 전역 바구니 (함수 밖에 선언)
+// [1] 전역 바구니
 let gatheredLevelUpMessages = [];
 
 window.checkLevelUpgrade = (name, oldLevel, newLevel) => {
+    // levelThresholds가 외부에서 잘 로드되었다고 가정합니다.
     const thresholdLevels = levelThresholds.map(t => t.lv);
+    
     for (let lv = oldLevel + 1; lv <= newLevel; lv++) {
         if (thresholdLevels.includes(lv)) {
             const badge = getLevelBadge(lv);
             
-            // 1. 화면 알림 띄우기 (기존 기능)
+            // 화면 알림
             triggerLevelupAlert(name, lv, badge); 
             
-            // 2. [핵심] 메시지를 바구니에 차곡차곡 쌓기
+            // 메시지 수집 (break를 없애야 모든 구간 메시지가 쌓입니다)
             const msg = `${name}님이 ${lv}레벨로 [${badge}] 마크를 획득하셨습니다! 축하드립니다 🎉`;
             gatheredLevelUpMessages.push(msg);
-            
-            break;
         }
     }
+    
+    // [중요] 모든 체크가 끝난 직후 자동으로 복사하고 싶다면 여기서 호출
+    // if (gatheredLevelUpMessages.length > 0) window.copyAllLevelUpMessages();
 };
 
 window.triggerLevelupAlert = (name, level, badge) => {
-    // 화면에 팝업 띄우는 로직만 유지
-    document.getElementById('levelUpName').innerText = name;
-    document.getElementById('levelUpMsg').innerText = `${level}레벨 달성! [${badge}] 마크를 획득하셨습니다! 축하드립니다 🎉`;
+    const nameElem = document.getElementById('levelUpName');
+    const msgElem = document.getElementById('levelUpMsg');
     const overlay = document.getElementById('levelupAlert');
-    overlay.style.display = 'flex';
-    setTimeout(() => overlay.classList.add('active'), 10);
-    
-    // 개별 복사 기능은 삭제 (마지막에 한꺼번에 할 거예요!)
+
+    if (nameElem && msgElem && overlay) {
+        nameElem.innerText = name;
+        msgElem.innerText = `${level}레벨 달성! [${badge}] 마크를 획득하셨습니다!`;
+        overlay.style.display = 'flex';
+        setTimeout(() => overlay.classList.add('active'), 10);
+    }
 };
 
-// [추가] 모든 작업이 끝난 후 메시지를 한 번에 복사하는 기능
 window.copyAllLevelUpMessages = () => {
-    if (gatheredLevelUpMessages.length > 0) {
-        // 바구니에 담긴 메시지들을 줄바꿈(\n)으로 합치기
-        const finalMsg = gatheredLevelUpMessages.join('\n');
-        
-        navigator.clipboard.writeText(finalMsg)
-            .then(() => {
-                console.log("통합 메시지 복사 완료!");
-                // 메시지 복사 후 바구니 비우기
-                gatheredLevelUpMessages = []; 
-            })
-            .catch(err => console.log('복사 실패', err));
+    if (gatheredLevelUpMessages.length === 0) {
+        console.log("복사할 메시지가 없습니다.");
+        return;
     }
+
+    const finalMsg = gatheredLevelUpMessages.join('\n');
+    
+    // 최신 브라우저 클립보드 API
+    navigator.clipboard.writeText(finalMsg)
+        .then(() => {
+            alert("모든 레벨업 메시지가 복사되었습니다!");
+            gatheredLevelUpMessages = []; // 복사 후 비우기
+        })
+        .catch(err => {
+            console.error('복사 실패:', err);
+            // 구형 브라우저 대응이 필요하다면 여기에 fallback 추가
+        });
 };
 
 window.closeLevelupAlert = () => {
