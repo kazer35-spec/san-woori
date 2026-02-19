@@ -12,6 +12,33 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+/* 나이테 애니메이션: 투명도 0에서 1로 확실하게 변경 */
+@keyframes ringFadeIn {
+    0% { opacity: 0; stroke-width: 2px; filter: brightness(2); }
+    100% { opacity: 1; stroke-width: inherit; filter: brightness(1); }
+}
+
+.ring-path-anim {
+    /* 초기 투명도를 0으로 두고 애니메이션으로 나타나게 함 */
+    opacity: 0;
+    animation: ringFadeIn 1.5s ease-out forwards;
+}
+
+/* 중앙 행성(점) 궤도 운동 */
+@keyframes planetOrbit {
+    0% { transform: translate(-50%, -50%) rotate(0deg) translateX(5px) rotate(0deg); }
+    100% { transform: translate(-50%, -50%) rotate(360deg) translateX(5px) rotate(-360deg); }
+}
+
+/* 컨테이너 크기 강제 지정 (나이테가 안 보일 경우 대비) */
+#treeRingContainer {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-height: 240px; /* 최소 높이 확보 */
+    overflow: visible;
+}
+
 /* 1. 최고봉 꼭대기 광채 애니메이션 */
 @keyframes peakGlow {
     0%, 100% { filter: drop-shadow(0 0 5px #fff) brightness(1); transform: scale(1); }
@@ -296,6 +323,14 @@ to { opacity: 1; transform: translateY(0); }
 fill: none;
 transition: stroke-opacity 0.5s;
 }
+
+/* 나이테가 하나씩 반짝이며 나타나는 애니메이션 */
+@keyframes ring-glow {
+0% { stroke-opacity: 0.2; filter: brightness(1); }
+50% { stroke-opacity: 1; filter: brightness(2.5); stroke-width: 2px; }
+100% { stroke-opacity: 0.6; filter: brightness(1); }
+}
+.ring-animating { animation: ring-glow 0.8s ease-in-out; }
 
 /* 산맥 모달 스타일 수정 */
 .mountain-modal {
@@ -2330,27 +2365,13 @@ window.showMemberMountain = async (mId, mName) => {
 window.renderTreeRings = async (memberName, regDate, memberLevel) => {
     const container = document.getElementById('treeRingContainer');
     const monthLabel = document.getElementById('activityMonths');
-    const mainTitle = document.querySelector('.ring-main-title');
-    const mountainName = document.getElementById('mwMountainName');
-
     if(!container) return;
-    container.innerHTML = ""; 
+    
+    container.innerHTML = ""; // 초기화
 
-    // [스타일 설정]
-    if (mainTitle) mainTitle.classList.add('cosmic-neon-text');
-    if (mountainName) mountainName.classList.add('cosmic-neon-text');
-
-    // 1. 배경 별빛 생성 (80개)
-    for(let i=0; i<80; i++) {
-        const star = document.createElement('div');
-        star.className = 'tree-ring-star';
-        const size = Math.random() * 1.8 + 0.5;
-        star.style.width = size + 'px'; star.style.height = size + 'px';
-        star.style.left = Math.random() * 100 + '%'; star.style.top = Math.random() * 100 + '%';
-        star.style.setProperty('--duration', (Math.random() * 3 + 1.5) + 's');
-        star.style.backgroundColor = Math.random() > 0.7 ? '#a5f3fc' : '#ffffff';
-        container.appendChild(star);
-    }
+    // 1. 레벨에 따른 스타일 및 색상 가져오기
+    const style = getLevelStyle(memberLevel);
+    const ringColor = style.border; // 레벨 테두리 색상과 동일하게 설정
 
     // 2. 기간 계산
     const fixedList = ["오즈","나스","해수","용삼","지니","아랑","민이","몰랑","길치","등초","무니","식이","구름","뚜벅","윤윤","승이","이구","후후","튜브","피치","사랑","송돌","호프","이제","얌얌","태기","희야","멸치","성민","섭섭"];
@@ -2358,65 +2379,68 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
     const now = new Date();
     const diffMonths = Math.max(1, (now.getFullYear() - jDate.getFullYear()) * 12 + (now.getMonth() - jDate.getMonth()) + 1);
     
+    // 월수 카운팅 애니메이션
     let count = 0;
     const countTimer = setInterval(() => {
         if(count >= diffMonths) clearInterval(countTimer);
         if(monthLabel) monthLabel.innerText = count++;
     }, 30);
 
-    const style = getLevelStyle(memberLevel);
-    const ringColor = style.border; 
-
-    // 3. SVG 및 중앙 코어(행성) 설정
+    // 3. SVG 생성
     const svgNS = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(svgNS, "svg");
     svg.setAttribute("viewBox", "0 0 240 240");
-    svg.style.cssText = "width:100%; height:100%; position:relative; z-index:10;";
-
-    // 움직이는 중앙 행성 (Planet)
+    svg.style.cssText = "width:100%; height:100%; overflow:visible; position:relative; z-index:10;";
+    
+    // 4. 중앙 행성 (Planet) 추가 - 레벨 색상 반영
     const planet = document.createElement('div');
     planet.style.cssText = `
         position: absolute; left: 50%; top: 50%;
-        width: 6px; height: 6px;
+        width: 8px; height: 8px;
         background: white; border-radius: 50%;
-        box-shadow: 0 0 12px ${ringColor}, 0 0 5px white;
+        box-shadow: 0 0 15px ${ringColor}, 0 0 5px white;
         z-index: 100; transform: translate(-50%, -50%);
         animation: planetOrbit 4s linear infinite;
     `;
     container.appendChild(planet);
 
-    // 4. 불규칙한 랜덤 나이테 생성
+    // 5. 불규칙 나이테 생성
+    // 회원 이름의 각 글자 코드를 합쳐 고유한 랜덤 시드 생성
     const seed = memberName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
 
     for (let i = 1; i <= diffMonths; i++) {
-        const radius = 10 + (i * (95 / diffMonths));
+        const radius = 15 + (i * (90 / diffMonths)); // 반지름 설정
         const path = document.createElementNS(svgNS, "path");
         let d = "";
         
-        // 각 회원마다 고유하게 뒤틀린 모양 생성
+        // 원을 그리되, 각 점에 불규칙한 변화(Noise)를 줌
         for (let a = 0; a <= 360; a += 10) {
             const angle = (a * Math.PI) / 180;
-            // 랜덤성 부여: 회원별 시드값과 나이테 번호를 조합하여 불규칙한 굴곡 생성
-            const randomFactor = Math.sin(angle * (seed % 5 + 3) + i) * (3 + (seed % 4));
-            const r = radius + (randomFactor * 0.4);
+            
+            // 핵심: 회원별 시드와 나이테 번호 i를 사용하여 모양을 불규칙하게 뒤틂
+            const waveFreq = (seed % 4) + 2; // 물결 횟수
+            const waveAmp = (seed % 5) + 2; // 물결 높이
+            const noise = Math.sin(angle * waveFreq + i) * waveAmp;
+            
+            const r = radius + noise;
             const x = 120 + r * Math.cos(angle);
             const y = 120 + r * Math.sin(angle);
             d += (a === 0 ? "M" : "L") + `${x},${y} `;
         }
-        d += "Z";
+        d += "Z"; // 경로 닫기
 
         path.setAttribute("d", d);
         path.setAttribute("fill", "none");
-        path.setAttribute("stroke", ringColor);
-        path.setAttribute("stroke-width", i % 12 === 0 ? "1.2" : "0.3");
-        path.setAttribute("stroke-opacity", "0");
-        
-        // [핵심] 안쪽부터 차례대로 나타나게 하는 클래스와 딜레이 추가
+        path.setAttribute("stroke", ringColor); // 레벨 색상 적용
+        path.setAttribute("stroke-width", i % 12 === 0 ? "1.5" : "0.5"); // 1년 단위는 굵게
         path.setAttribute("class", "ring-path-anim");
-        path.style.animationDelay = `${i * 0.04}s`; 
+        
+        // 안쪽부터 순차적으로 밝아지게 딜레이 설정
+        path.style.animationDelay = `${i * 0.05}s`; 
 
         svg.appendChild(path);
     }
+    
     container.appendChild(svg);
 };
 
