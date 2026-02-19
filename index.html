@@ -1962,32 +1962,32 @@ currentData = results; updateAdminMemberLists(); renderStatusTable();
 });
 }
 
-// [1] 전역 바구니
+<div id="levelupAlert" style="display:none;">
+<div class="content">
+<h2 id="levelUpName"></h2>
+<p id="levelUpMsg"></p>
+<button onclick="window.copyAndCloseAlert()" style="padding: 10px 20px; cursor: pointer;">
+메시지 복사하고 닫기
+</button>
+</div>
+</div>
+
+// [1] 메시지를 담아둘 전역 바구니
 let gatheredLevelUpMessages = [];
 
 window.checkLevelUpgrade = (name, oldLevel, newLevel) => {
-    // levelThresholds가 정의되어 있는지 안전하게 확인
-    if (typeof levelThresholds === 'undefined') {
-        console.error("levelThresholds가 정의되지 않았습니다.");
-        return;
-    }
-
-    const thresholdLevels = levelThresholds.map(t => t.lv);
+    const thresholds = (window.levelThresholds || []).map(t => t.lv);
     
-    // oldLevel부터 newLevel까지 사이의 모든 레벨업 구간을 체크
     for (let lv = oldLevel + 1; lv <= newLevel; lv++) {
-        if (thresholdLevels.includes(lv)) {
-            // getLevelBadge 함수가 있는지 확인 후 호출
-            const badge = typeof getLevelBadge === 'function' ? getLevelBadge(lv) : "마크";
+        if (thresholds.includes(lv)) {
+            const badge = typeof window.getLevelBadge === 'function' ? window.getLevelBadge(lv) : "마크";
             
-            // 1. 화면 알림 띄우기 (마지막 인원 기준으로 팝업 갱신)
+            // 1. 화면 알림 띄우기
             window.triggerLevelupAlert(name, lv, badge); 
             
-            // 2. [핵심] 메시지를 바구니에 차곡차곡 쌓기
+            // 2. 메시지 수집
             const msg = `${name}님이 ${lv}레벨로 [${badge}] 마크를 획득하셨습니다! 축하드립니다 🎉`;
             gatheredLevelUpMessages.push(msg);
-            
-            // 여기서 break를 지워야 여러 레벨을 한 번에 뛰어넘을 때도 다 수집됩니다.
         }
     }
 };
@@ -1999,57 +1999,51 @@ window.triggerLevelupAlert = (name, level, badge) => {
 
     if (nameElem && msgElem && overlay) {
         nameElem.innerText = name;
-        msgElem.innerText = `${level}레벨 달성! [${badge}] 마크를 획득하셨습니다! 축하드립니다 🎉`;
-        
-        // 스타일 적용 및 표시
+        msgElem.innerText = `${level}레벨 달성! [${badge}] 마크를 획득하셨습니다!`;
         overlay.style.display = 'flex';
         setTimeout(() => overlay.classList.add('active'), 10);
-    } else {
-        console.warn("HTML 요소를 찾을 수 없어 팝업을 띄우지 못했습니다. (id: levelupAlert 등)");
     }
 };
 
-window.copyAllLevelUpMessages = () => {
-    if (gatheredLevelUpMessages.length === 0) return;
+// [핵심] 버튼을 눌렀을 때 실행될 함수
+window.copyAndCloseAlert = () => {
+    if (gatheredLevelUpMessages.length === 0) {
+        // 모인 메시지가 없을 경우 창만 닫기
+        closeOverlay();
+        return;
+    }
 
     const finalMsg = gatheredLevelUpMessages.join('\n');
 
-    // [방법 1] 보이지 않는 textarea를 생성하여 강제로 복사 (가장 확실한 방법)
-    const textArea = document.createElement("textarea");
-    
-    // 화면에서 보이지 않도록 설정
-    textArea.style.position = "fixed";
-    textArea.style.left = "-9999px";
-    textArea.style.top = "0";
-    textArea.value = finalMsg;
-    
-    document.body.appendChild(textArea);
-    textArea.focus();
-    textArea.select();
-
-    try {
-        // 구형 방식이지만 자동 복사 성공률이 훨씬 높습니다.
-        const successful = document.execCommand('copy');
-        if (successful) {
-            console.log("메시지 통합 복사 성공!");
-        } else {
-            console.log("복사 명령이 거부되었습니다.");
-        }
-    } catch (err) {
-        console.error("복사 중 에러 발생:", err);
-    }
-
-    document.body.removeChild(textArea);
-    
-    // 복사 완료 후 바구니 비우기
-    gatheredLevelUpMessages = []; 
+    // 최신 클립보드 API 시도
+    navigator.clipboard.writeText(finalMsg).then(() => {
+        alert("모든 메시지가 복사되었습니다!");
+        finishProcess();
+    }).catch(err => {
+        // 실패 시 구형 방식(textarea)으로 시도
+        const textArea = document.createElement("textarea");
+        textArea.value = finalMsg;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        alert("메시지가 복사되었습니다!");
+        finishProcess();
+    });
 };
 
-window.closeLevelupAlert = () => {
+function finishProcess() {
+    gatheredLevelUpMessages = []; // 메시지 비우기
+    closeOverlay(); // 창 닫기
+}
+
+function closeOverlay() {
     const overlay = document.getElementById('levelupAlert');
-    overlay.classList.remove('active');
-    setTimeout(() => overlay.style.display = 'none', 500);
-};
+    if (overlay) {
+        overlay.classList.remove('active');
+        setTimeout(() => overlay.style.display = 'none', 300);
+    }
+}
 
 window.addMultiActivity = async () => {
 const dateVal = document.getElementById('activityDate').value;
