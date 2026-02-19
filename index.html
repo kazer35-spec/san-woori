@@ -1966,20 +1966,28 @@ currentData = results; updateAdminMemberLists(); renderStatusTable();
 let gatheredLevelUpMessages = [];
 
 window.checkLevelUpgrade = (name, oldLevel, newLevel) => {
-    // levelThresholds가 정의되어 있는지 확인 (없으면 에러 방지를 위해 빈 배열)
-    const thresholds = (window.levelThresholds || []).map(t => t.lv);
+    // levelThresholds가 정의되어 있는지 안전하게 확인
+    if (typeof levelThresholds === 'undefined') {
+        console.error("levelThresholds가 정의되지 않았습니다.");
+        return;
+    }
+
+    const thresholdLevels = levelThresholds.map(t => t.lv);
     
+    // oldLevel부터 newLevel까지 사이의 모든 레벨업 구간을 체크
     for (let lv = oldLevel + 1; lv <= newLevel; lv++) {
-        if (thresholds.includes(lv)) {
+        if (thresholdLevels.includes(lv)) {
             // getLevelBadge 함수가 있는지 확인 후 호출
-            const badge = typeof window.getLevelBadge === 'function' ? window.getLevelBadge(lv) : "마크";
+            const badge = typeof getLevelBadge === 'function' ? getLevelBadge(lv) : "마크";
             
-            // 1. 화면 알림 띄우기 호출
+            // 1. 화면 알림 띄우기 (마지막 인원 기준으로 팝업 갱신)
             window.triggerLevelupAlert(name, lv, badge); 
             
-            // 2. 메시지 수집 (break 제거)
+            // 2. [핵심] 메시지를 바구니에 차곡차곡 쌓기
             const msg = `${name}님이 ${lv}레벨로 [${badge}] 마크를 획득하셨습니다! 축하드립니다 🎉`;
             gatheredLevelUpMessages.push(msg);
+            
+            // 여기서 break를 지워야 여러 레벨을 한 번에 뛰어넘을 때도 다 수집됩니다.
         }
     }
 };
@@ -1989,60 +1997,39 @@ window.triggerLevelupAlert = (name, level, badge) => {
     const msgElem = document.getElementById('levelUpMsg');
     const overlay = document.getElementById('levelupAlert');
 
-    // 요소들이 실제로 존재할 때만 실행 (에러 방지)
     if (nameElem && msgElem && overlay) {
         nameElem.innerText = name;
         msgElem.innerText = `${level}레벨 달성! [${badge}] 마크를 획득하셨습니다! 축하드립니다 🎉`;
         
+        // 스타일 적용 및 표시
         overlay.style.display = 'flex';
-        // 강제 리플로우를 통해 애니메이션 적용
-        overlay.offsetHeight; 
-        overlay.classList.add('active');
+        setTimeout(() => overlay.classList.add('active'), 10);
     } else {
-        console.error("레벨업 알림창(HTML 요소)을 찾을 수 없습니다.");
+        console.warn("HTML 요소를 찾을 수 없어 팝업을 띄우지 못했습니다. (id: levelupAlert 등)");
     }
 };
 
 window.copyAllLevelUpMessages = () => {
-    if (gatheredLevelUpMessages.length === 0) return;
-
-    const finalMsg = gatheredLevelUpMessages.join('\n');
-
-    // 자동 복사 성공률이 높은 구형 방식(textarea) 먼저 시도
-    const textArea = document.createElement("textarea");
-    textArea.value = finalMsg;
-    document.body.appendChild(textArea);
-    textArea.select();
-    try {
-        const successful = document.execCommand('copy');
-        if (successful) console.log("통합 메시지 자동 복사 완료!");
-    } catch (err) {
-        console.log('복사 중 오류 발생', err);
+    if (gatheredLevelUpMessages.length > 0) {
+        const finalMsg = gatheredLevelUpMessages.join('\n');
+        
+        // 자동 복사 성공률이 높은 textarea 방식 사용
+        const textArea = document.createElement("textarea");
+        textArea.value = finalMsg;
+        document.body.appendChild(textArea);
+        textArea.select();
+        
+        try {
+            document.execCommand('copy');
+            console.log("통합 메시지 복사 완료!");
+            // 복사 후 바구니 비우기
+            gatheredLevelUpMessages = []; 
+        } catch (err) {
+            console.error('복사 실패', err);
+        }
+        
+        document.body.removeChild(textArea);
     }
-    document.body.removeChild(textArea);
-    
-    // 복사 후 바구니 비우기
-    gatheredLevelUpMessages = []; 
-};
-
-window.copyAllLevelUpMessages = () => {
-    if (gatheredLevelUpMessages.length === 0) {
-        console.log("복사할 메시지가 없습니다.");
-        return;
-    }
-
-    const finalMsg = gatheredLevelUpMessages.join('\n');
-    
-    // 최신 브라우저 클립보드 API
-    navigator.clipboard.writeText(finalMsg)
-        .then(() => {
-            alert("모든 레벨업 메시지가 복사되었습니다!");
-            gatheredLevelUpMessages = []; // 복사 후 비우기
-        })
-        .catch(err => {
-            console.error('복사 실패:', err);
-            // 구형 브라우저 대응이 필요하다면 여기에 fallback 추가
-        });
 };
 
 window.closeLevelupAlert = () => {
