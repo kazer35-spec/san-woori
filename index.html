@@ -12,6 +12,34 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+/* 잔디 컨테이너 */
+#grassContainer {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 20px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-around;
+    z-index: 160; /* 산맥보다 앞에 위치 */
+    pointer-events: none;
+}
+
+/* 개별 잔디 블레이드 */
+.grass-blade {
+    width: 2px;
+    background: linear-gradient(to top, #134e4a, #2dd4bf); /* 청록색 계열 잔디 */
+    border-radius: 1px 1px 0 0;
+    transform-origin: bottom;
+    animation: grass-sway 3s ease-in-out infinite alternate;
+}
+
+@keyframes grass-sway {
+    from { transform: rotate(-5deg); }
+    to { transform: rotate(5deg); }
+}
+
 /* 광선(Beam) 스타일 강화 */
 .light-beam {
     position: absolute;
@@ -20,7 +48,7 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
     transform: translateX(-50%);
     width: 50px; /* 더 넓은 광선 */
     background: linear-gradient(to top, var(--beam-color), transparent);
-    filter: blur(1px);
+    filter: blur(8px);
     opacity: 0;
     z-index: 150;
     pointer-events: none;
@@ -2289,6 +2317,33 @@ setTimeout(() => { updateVibeTemp(); setInterval(updateVibeTemp, 60000); }, 2000
 document.getElementById('regDate').valueAsDate = new Date();
 document.getElementById('activityDate').valueAsDate = new Date();
 
+// 1. 잔디 생성 함수 (메인 함수 밖이나 위에 배치)
+const renderGrass = (logCount) => {
+    const grassContainer = document.getElementById('grassContainer');
+    if (!grassContainer) return;
+    grassContainer.innerHTML = ""; // 초기화
+
+    // 로그 수에 비례하여 잔디 개수 결정 (활동량에 따른 보상)
+    const grassCount = Math.min(20 + (logCount * 5), 150);
+
+    for (let i = 0; i < grassCount; i++) {
+        const blade = document.createElement('div');
+        blade.className = 'grass-blade';
+        
+        // 잔디 높이 및 애니메이션 랜덤 설정
+        const baseHeight = 5 + Math.random() * 10;
+        blade.style.height = `${baseHeight}px`;
+        blade.style.animationDelay = `${Math.random() * 2}s`;
+        
+        // 자연스러운 색상 변주
+        const greenVariations = ['#134e4a', '#115e59', '#0d9488', '#2dd4bf'];
+        blade.style.backgroundColor = greenVariations[Math.floor(Math.random() * greenVariations.length)];
+        
+        grassContainer.appendChild(blade);
+    }
+};
+
+// 2. 통합된 메인 함수
 window.showMemberMountain = async (mId, mName) => {
     const modal = document.getElementById('mountainViewModal');
     const card = document.getElementById('integratedCard');
@@ -2297,33 +2352,34 @@ window.showMemberMountain = async (mId, mName) => {
     const sky = document.getElementById('starrySky');
     const beam = document.getElementById('lightBeam');
     const peakLabel = document.getElementById('highestPeakLabel');
+    const grassContainer = document.getElementById('grassContainer');
     
-    // 1. 초기화 및 준비
+    // [초기화]
     document.getElementById('mwMountainName').innerText = `${mName}님의 산맥`;
     modal.style.display = 'flex';
     card.classList.remove('glow-active'); 
     
-    // 광선 초기화: 너비 넓게 설정 및 투명화
     if(beam) { 
         beam.style.opacity = '0'; 
         beam.style.height = '0';
-        beam.style.width = '60px'; // 더 넓은 광선
-        beam.style.filter = 'blur(10px)'; // 부드러운 효과
+        beam.style.width = '20px'; // 넓은 광선
+        beam.style.filter = 'blur(10px)';
     }
     if(peakLabel) peakLabel.innerText = "";
     
     peakLayer.innerHTML = bgContainer.innerHTML = sky.innerHTML = "";
+    if(grassContainer) grassContainer.innerHTML = ""; // 잔디 초기화
     document.getElementById('treeRingContainer').innerHTML = ""; 
 
-    // 멤버 정보 및 레벨 기반 색상 설정
+    // 레벨 스타일 가져오기
     const memberInfo = currentData.find(m => m.id === mId);
     const style = getLevelStyle(memberInfo ? memberInfo.level : 0);
     
-    // [수정] 카드 테두리와 광선 색상을 레벨색으로 통일
+    // 레벨 색상 적용 (테두리 및 광선)
     card.style.setProperty('--glow-color', style.border);
     if(beam) beam.style.setProperty('--beam-color', style.border);
 
-    // 2. 별밤 생성 (기존 로직 유지)
+    // [별밤 생성]
     for(let i=0; i<50; i++) {
         const star = document.createElement('div');
         star.className = 'sky-star';
@@ -2338,23 +2394,27 @@ window.showMemberMountain = async (mId, mName) => {
         const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
         const logs = snap.docs.map(d => d.data()).filter(l => (l.height || 0) > 0);
         
+        // [잔디 생성] 활동 로그 수에 맞춰 바닥을 채움
+        renderGrass(logs.length);
+
         if (logs.length > 0) {
             const heights = logs.map(l => l.height);
             const maxHeight = Math.max(...heights);
             const maxLog = logs.find(l => l.height === maxHeight);
 
+            // 고도 합계 계산
             document.getElementById('myTotalH').innerText = heights.reduce((a,b)=>a+b,0).toLocaleString();
             const globalH = currentData.reduce((acc, m) => acc + (m.totalHeight || 0), 0);
             document.getElementById('globalTotalH').innerText = globalH.toLocaleString();
             
-            // 3. [수정] 배경 산맥 (산우리 누적고도 바탕) - 더 밝게 처리
+            // [배경 산맥] 산우리 누적 고도 기준 (더 밝게 조정됨)
             const layerCount = Math.min(Math.floor(globalH / 15000) + 2, 5);
             for(let i = 1; i <= layerCount; i++) {
                 const layer = document.createElement('div');
                 layer.className = 'mountain-layer';
                 layer.style.height = `${20 + (i * 8)}%`; 
-                layer.style.opacity = 0.4; // [변경] 기존 0.15에서 상향 (가시성 확보)
-                layer.style.filter = 'brightness(0.8)'; // 배경 느낌 유지하되 밝게
+                layer.style.opacity = 0.4; 
+                layer.style.filter = 'brightness(0.8)';
                 for(let j=0; j<10; j++) {
                     const p = document.createElement('div');
                     p.className = 'peak';
@@ -2364,19 +2424,17 @@ window.showMemberMountain = async (mId, mName) => {
                 bgContainer.appendChild(layer);
             }
 
-            // 4. [수정] 개인 봉우리 (내가 간 산) - 가장 밝게 & 최고봉 광원
+            // [개인 산맥] 내가 간 산 (최대 밝기 + 최고봉 광원)
             peakLayer.style.height = "60%"; 
             logs.forEach((log) => {
                 const hRatio = (log.height / maxHeight) * 100;
                 const isMax = log.height === maxHeight;
                 const peakDiv = document.createElement('div');
-                // 최고봉일 때 max-height 클래스 추가 (CSS에서 광원 처리)
                 peakDiv.className = `peak ${isMax ? 'max-height' : ''}`;
                 peakDiv.style.height = `${hRatio}%`;
-                peakDiv.style.filter = 'brightness(1.5)'; // [변경] 내 산맥은 아주 밝게
+                peakDiv.style.filter = 'brightness(1.5)';
                 
                 if (isMax) {
-                    // 최고봉 꼭대기 광원 레이어 추가
                     peakDiv.innerHTML = `
                         <div class="peak-glow-core"></div>
                         <div class="golden-glow-effect"></div>
@@ -2385,12 +2443,11 @@ window.showMemberMountain = async (mId, mName) => {
                 peakLayer.appendChild(peakDiv);
             });
 
-            // 5. 최고봉 이름 표시
             if(maxLog && peakLabel) {
                 peakLabel.innerHTML = `${maxLog.mountain} (${maxLog.height}m)`;
             }
 
-            // 6. [수정] 연출: 레벨색 광선 발사 (폭이 넓고 색상이 연동됨)
+            // [광선 및 나이테 시퀀스]
             setTimeout(() => {
                 if(beam) {
                     beam.style.background = `linear-gradient(to top, ${style.border}, transparent)`;
@@ -2401,7 +2458,6 @@ window.showMemberMountain = async (mId, mName) => {
 
                 setTimeout(async () => {
                     if(beam) beam.style.opacity = '0';
-                    // 7. 나이테 애니메이션 실행
                     if (memberInfo) {
                         await window.renderTreeRings(mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
                     }
@@ -2409,13 +2465,13 @@ window.showMemberMountain = async (mId, mName) => {
                 }, 1000);
             }, 500);
         } else {
+            // 산행 데이터가 없어도 나이테와 카드 활성화
             if (memberInfo) await window.renderTreeRings(mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
             card.classList.add('glow-active');
         }
 
     } catch (e) { console.error("통합 로딩 에러:", e); }
 };
-
 
 window.renderTreeRings = async (memberName, regDate, memberLevel) => {
     const container = document.getElementById('treeRingContainer');
@@ -2646,7 +2702,17 @@ window.showFadingScroll = function(dday, level = 0) {
 <div id="mountainViewModal" class="mountain-modal" onclick="this.style.display='none'">
     <div id="integratedCard" class="integrated-member-card" onclick="event.stopPropagation()">
         
-        <div class="tree-ring-section">
+        <div id="starrySky"></div>
+        <div id="bgLayersContainer"></div>
+        <div id="peakLayer" class="mountain-layer"></div>
+        <div id="grassContainer"></div> <div id="lightBeam" class="light-beam"></div>
+
+        <div class="mountain-header" style="position: relative; z-index: 10; padding: 20px 20px 0;">
+            <h2 id="mwMountainName" style="font-size: 16px; margin: 0; font-weight: 900; color: white;"></h2>
+            <div id="highestPeakLabel" class="highest-peak-label" style="font-size: 11px; color: #cbd5e1; margin-top: 4px;"></div>
+        </div>
+
+        <div class="tree-ring-section" style="position: relative; z-index: 10;">
             <div class="ring-header">
                 <div class="ring-title-group">
                     <span class="ring-label">ACTIVITY HISTORY</span>
@@ -2660,24 +2726,12 @@ window.showFadingScroll = function(dday, level = 0) {
             <div id="treeRingContainer" class="ring-canvas"></div>
         </div>
 
-        <div class="mountain-section">
-            <div id="starrySky"></div>
-            <div id="bgLayersContainer"></div>
-            <div id="lightBeam" class="light-beam"></div>
-            <div id="peakLayer" class="mountain-layer"></div>
-
-            <div class="mountain-header">
-                <h2 id="mwMountainName" style="font-size: 16px; margin: 0; font-weight: 900; color: white;"></h2>
-                <p style="font-size: 10px; color: #94a3b8; margin: 0;"></p>
-            </div>
-
-            <div id="highestPeakLabel" class="highest-peak-label"></div>
-
-            <div class="mountain-info-bar">
-                <div class="info-item">개인 누적 <span id="myTotalH" class="info-val">0</span>m</div>
-                <div class="info-item">산우리 합산 <span id="globalTotalH" class="info-val">0</span>m</div>
-            </div>
-        </div>
+        <div class="mountain-info-bar" style="position: relative; z-index: 10;">
+            <div class="info-item">개인 누적 <span id="myTotalH" class="info-val">0</span>m</div>
+            <div class="info-item">산우리 합산 <span id="globalTotalH" class="info-val">0</span>m</div>
+        </div>   
+    </div>
+</div>
 
         <button onclick="document.getElementById('mountainViewModal').style.display='none'" 
                 style="position:absolute; top:15px; right:15px; color:white; background:none; border:none; font-size:24px; cursor:pointer; z-index:201;">&times;</button>
