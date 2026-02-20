@@ -12,6 +12,28 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+/* 우주적인 네온 텍스트 스타일 통일 */
+.cosmic-neon-text {
+    font-family: 'Pretendard', sans-serif; /* 혹은 사용 중인 폰트 */
+    color: #fff !important;
+    text-shadow: 0 0 10px var(--glow-color, #3b82f6), 
+                 0 0 20px var(--glow-color, #3b82f6);
+    transition: all 0.5s ease;
+    letter-spacing: 1px;
+}
+
+/* 빛줄기 애니메이션 수정 */
+.light-beam {
+    pointer-events: none;
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(to top, var(--beam-color), transparent);
+    filter: blur(5px); /* 두께가 얇아지므로 블러도 약간 줄임 */
+    z-index: 100;
+}
+
 /* 광선(Beam) 스타일 강화 */
 .light-beam {
     position: absolute;
@@ -2357,34 +2379,44 @@ window.showMemberMountain = async (mId, mName) => {
     const sky = document.getElementById('starrySky');
     const beam = document.getElementById('lightBeam');
     const peakLabel = document.getElementById('highestPeakLabel');
+    const ringMainTitle = document.querySelector('.ring-main-title'); 
+    const mwMountainName = document.getElementById('mwMountainName'); 
     
-    // 1. 초기화 및 준비
-    document.getElementById('mwMountainName').innerText = `${mName}님의 산맥`;
+    // 1. [수정] 텍스트 스타일 즉시 통일 (우주적 네온 효과)
+    if(mwMountainName) {
+        mwMountainName.innerText = `${mName}님의 산맥`;
+        mwMountainName.classList.add('cosmic-neon-text');
+    }
+    if(ringMainTitle) {
+        ringMainTitle.classList.add('cosmic-neon-text');
+    }
+
     modal.style.display = 'flex';
     card.classList.remove('glow-active'); 
     
-    // 광선 초기화: 너비 넓게 설정 및 투명화
+    // 2. [수정] 빛줄기 슬림하게 설정 (두께 10px)
     if(beam) { 
         beam.style.opacity = '0'; 
         beam.style.height = '0';
-        beam.style.width = '20px'; // 더 넓은 광선
-        beam.style.filter = 'blur(10px)'; // 부드러운 효과
+        beam.style.width = '10px'; 
+        beam.style.left = '50%';
+        beam.style.transform = 'translateX(-50%)';
+        beam.style.filter = 'blur(6px)';
     }
-    if(peakLabel) peakLabel.innerText = "";
     
+    // 레이어 초기화
+    if(peakLabel) peakLabel.innerText = "";
     peakLayer.innerHTML = bgContainer.innerHTML = sky.innerHTML = "";
     document.getElementById('treeRingContainer').innerHTML = ""; 
 
-    // 멤버 정보 및 레벨 기반 색상 설정
     const memberInfo = currentData.find(m => m.id === mId);
     const style = getLevelStyle(memberInfo ? memberInfo.level : 0);
     
-    // [수정] 카드 테두리와 광선 색상을 레벨색으로 통일
     card.style.setProperty('--glow-color', style.border);
     if(beam) beam.style.setProperty('--beam-color', style.border);
 
-    // 2. 별밤 생성 (기존 로직 유지)
-    for(let i=0; i<50; i++) {
+    // 3. 별밤 생성 (기존 로직 유지)
+    for(let i=0; i<60; i++) {
         const star = document.createElement('div');
         star.className = 'sky-star';
         star.style.width = star.style.height = `${Math.random()*2}px`;
@@ -2403,18 +2435,20 @@ window.showMemberMountain = async (mId, mName) => {
             const maxHeight = Math.max(...heights);
             const maxLog = logs.find(l => l.height === maxHeight);
 
-            document.getElementById('myTotalH').innerText = heights.reduce((a,b)=>a+b,0).toLocaleString();
+            // 전체 고도 텍스트 업데이트
+            const myTotalH = heights.reduce((a,b)=>a+b,0);
             const globalH = currentData.reduce((acc, m) => acc + (m.totalHeight || 0), 0);
-            document.getElementById('globalTotalH').innerText = globalH.toLocaleString();
+            if(document.getElementById('myTotalH')) document.getElementById('myTotalH').innerText = myTotalH.toLocaleString();
+            if(document.getElementById('globalTotalH')) document.getElementById('globalTotalH').innerText = globalH.toLocaleString();
             
-            // 3. [수정] 배경 산맥 (산우리 누적고도 바탕) - 더 밝게 처리
+            // 4. 배경 산맥 레이어 생성 (가시성 확보 버전)
             const layerCount = Math.min(Math.floor(globalH / 15000) + 2, 5);
             for(let i = 1; i <= layerCount; i++) {
                 const layer = document.createElement('div');
                 layer.className = 'mountain-layer';
                 layer.style.height = `${20 + (i * 8)}%`; 
-                layer.style.opacity = 0.4; // [변경] 기존 0.15에서 상향 (가시성 확보)
-                layer.style.filter = 'brightness(0.8)'; // 배경 느낌 유지하되 밝게
+                layer.style.opacity = 0.4; 
+                layer.style.filter = 'brightness(0.8)';
                 for(let j=0; j<10; j++) {
                     const p = document.createElement('div');
                     p.className = 'peak';
@@ -2424,58 +2458,58 @@ window.showMemberMountain = async (mId, mName) => {
                 bgContainer.appendChild(layer);
             }
 
-            // 4. [수정] 개인 봉우리 (내가 간 산) - 가장 밝게 & 최고봉 광원
+            // 5. 개인 봉우리 (밝기 강화 및 최고봉 효과)
             peakLayer.style.height = "60%"; 
             logs.forEach((log) => {
                 const hRatio = (log.height / maxHeight) * 100;
                 const isMax = log.height === maxHeight;
                 const peakDiv = document.createElement('div');
-                // 최고봉일 때 max-height 클래스 추가 (CSS에서 광원 처리)
                 peakDiv.className = `peak ${isMax ? 'max-height' : ''}`;
                 peakDiv.style.height = `${hRatio}%`;
-                peakDiv.style.filter = 'brightness(1.5)'; // [변경] 내 산맥은 아주 밝게
-                
+                peakDiv.style.filter = 'brightness(1.5)';
                 if (isMax) {
-                    // 최고봉 꼭대기 광원 레이어 추가
-                    peakDiv.innerHTML = `
-                        <div class="peak-glow-core"></div>
-                        <div class="golden-glow-effect"></div>
-                    `;
+                    peakDiv.innerHTML = `<div class="peak-glow-core"></div><div class="golden-glow-effect"></div>`;
                 }
                 peakLayer.appendChild(peakDiv);
             });
 
-            // 5. 최고봉 이름 표시
-            if(maxLog && peakLabel) {
-                peakLabel.innerHTML = `${maxLog.mountain} (${maxLog.height}m)`;
-            }
+            if(maxLog && peakLabel) peakLabel.innerHTML = `${maxLog.mountain} (${maxLog.height}m)`;
 
-            // 6. [수정] 연출: 레벨색 광선 발사 (폭이 넓고 색상이 연동됨)
+            // 6. [수정] 최종 연출: 얇은 빛줄기 발사 -> 행성 타격
             setTimeout(() => {
                 if(beam) {
                     beam.style.background = `linear-gradient(to top, ${style.border}, transparent)`;
-                    beam.style.opacity = '0.7';
-                    beam.style.transition = 'height 1s ease-in, opacity 0.5s';
-                    beam.style.height = '120%'; 
+                    beam.style.opacity = '0.8';
+                    beam.style.transition = 'height 0.7s cubic-bezier(0.15, 0, 0.15, 1)';
+                    beam.style.height = '175%'; // 나이테 중앙 행성까지 상승
                 }
 
                 setTimeout(async () => {
                     if(beam) beam.style.opacity = '0';
-                    // 7. 나이테 애니메이션 실행
+                    
                     if (memberInfo) {
                         await window.renderTreeRings(mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
+                        
+                        // 7. 행성 번쩍임 효과 적용
+                        const planet = document.querySelector('.tree-ring-core');
+                        if(planet) {
+                            planet.classList.remove('planet-impact');
+                            void planet.offsetWidth; // 리플로우
+                            planet.classList.add('planet-impact');
+                        }
                     }
                     card.classList.add('glow-active');
-                }, 1000);
-            }, 500);
+                }, 700); 
+            }, 400);
+
         } else {
+            // 로그 없을 때 기본 나이테만 표시
             if (memberInfo) await window.renderTreeRings(mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
             card.classList.add('glow-active');
         }
 
     } catch (e) { console.error("통합 로딩 에러:", e); }
 };
-
 
 window.renderTreeRings = async (memberName, regDate, memberLevel) => {
     const container = document.getElementById('treeRingContainer');
