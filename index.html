@@ -12,58 +12,62 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-/* 1. 카드 크기 조정 (기존 대비 약 10% 확대 적용) */
-    /* 가로: 약 293px, 세로: 약 500px */
+//* 1. 카드 크기 재조정 (가로 322px, 세로 550px) - 10% 추가 확대 */
     .integrated-member-card {
-        width: 293px !important; 
-        height: 500px !important;
+        width: 322px !important; 
+        height: 550px !important;
         position: relative;
         background: #0f172a;
-        border-radius: 22px !important;
+        border-radius: 24px !important;
         overflow: hidden;
         display: flex;
         flex-direction: column;
-        box-shadow: 0 0 45px rgba(0,0,0,0.7);
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        transition: all 0.3s ease;
+        box-shadow: 0 0 50px rgba(0,0,0,0.8);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        transition: transform 0.3s ease;
     }
 
-    /* 닫기 버튼 (X) - 가독성을 위해 살짝 키움 */
+    /* 2. 닫기 버튼 (X) - 가시성 최우선 확보 */
     .btn-close-mountain {
         position: absolute;
-        top: 14px;
-        right: 14px;
-        width: 30px;
-        height: 30px;
-        background: rgba(255, 255, 255, 0.12);
-        border: 1px solid rgba(255, 255, 255, 0.25);
+        top: 16px;
+        right: 16px;
+        width: 34px;
+        height: 34px;
+        background: rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.3);
         border-radius: 50%;
         color: white;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 20px;
+        font-size: 22px;
         cursor: pointer;
-        z-index: 10000 !important;
-        transition: background 0.2s;
+        z-index: 99999 !important; /* 모든 요소의 최상단 */
+        transition: all 0.2s;
+        line-height: 1;
     }
-    .btn-close-mountain:hover { background: rgba(255, 255, 255, 0.35); }
+    .btn-close-mountain:hover { 
+        background: rgba(255, 255, 255, 0.4); 
+        transform: rotate(90deg) scale(1.1); 
+    }
 
-    /* 행성 충격 효과 애니메이션 (더 선명하게 수정) */
-    @keyframes planet-hit {
+    /* 3. 행성 충격 효과 (임팩트 애니메이션) */
+    @keyframes planet-hit-heavy {
         0% { transform: scale(1); filter: brightness(1); }
-        20% { transform: scale(1.6); filter: brightness(2.5) drop-shadow(0 0 15px white); }
+        15% { transform: scale(1.7); filter: brightness(3) drop-shadow(0 0 20px #fff); }
         100% { transform: scale(1); filter: brightness(1); }
     }
     .planet-impact {
-        animation: planet-hit 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards !important;
+        animation: planet-hit-heavy 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards !important;
     }
 
-    /* 레이아웃 비율 미세 조정 */
-    .tree-ring-section { height: 180px !important; padding: 18px !important; }
-    .ring-canvas { height: 145px !important; }
-    .mountain-section { height: 230px !important; flex: 1; }
-    .mountain-header h2 { font-size: 16px !important; }
+    /* 내부 레이아웃 비율 (커진 크기에 맞춰 재설정) */
+    .tree-ring-section { height: 200px !important; padding: 20px !important; }
+    .ring-canvas { height: 160px !important; }
+    .mountain-section { height: 260px !important; flex: 1; }
+    .mountain-header h2 { font-size: 18px !important; letter-spacing: -0.5px; }
+    .mountain-info-bar { font-size: 12px !important; padding: 12px !important; }
 
 /* 우주적인 네온 텍스트 스타일 통일 */
 .cosmic-neon-text {
@@ -2574,6 +2578,15 @@ window.showMemberMountain = async (mId, mName) => {
 
         } else {
             if (memberInfo) await window.renderTreeRings(mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
+// 행성 부딪히는 효과가 필요할 때 호출하세요
+    function triggerPlanetImpact() {
+        const target = document.querySelector('#treeRingContainer svg circle') || document.getElementById('treeRingContainer');
+        if (target) {
+            target.classList.remove('planet-impact-active');
+            void target.offsetWidth; // 리셋 효과
+            target.classList.add('planet-impact-active');
+        }
+    }
             card.classList.add('glow-active');
         }
     } catch (e) { console.error("에러:", e); }
@@ -2805,39 +2818,47 @@ window.showFadingScroll = function(dday, level = 0) {
 };
 </script> 
 
-<div id="mountainViewModal" class="mountain-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:9999; align-items:center; justify-content:center;" onclick="this.style.display='none'">
-    <div id="integratedCard" class="integrated-member-card" onclick="event.stopPropagation()">
+<div id="mountainViewModal" class="mountain-modal" onclick="this.style.display='none'">
+    
+    <div id="integratedCard" class="integrated-member-card" onclick="event.stopPropagation()" 
+         style="position: relative; width: 380px; height: 650px; background: #0f172a; border-radius: 24px; overflow: hidden; display: flex; flex-direction: column;">
         
         <div class="btn-close-mountain" onclick="document.getElementById('mountainViewModal').style.display='none'">&times;</div>
 
         <div id="starrySky" style="position: absolute; top:0; left:0; width:100%; height:100%; z-index:1;"></div>
         <div id="lightBeam" class="light-beam"></div>
 
-        <div class="tree-ring-section">
-            <div class="ring-header" style="display:flex; justify-content:space-between; align-items:center;">
-                <h3 class="ring-main-title cosmic-neon-text" style="font-size:15px; margin:0;">활동 나이테</h3>
-                <div style="font-size:13px; color:#fff;">
-                    <span id="activityMonths">0</span> <span style="font-size:10px; opacity:0.6;">Mos</span>
+        <div class="tree-ring-section" style="position: relative; z-index: 10; flex: 1; padding: 20px;">
+            <div class="ring-header">
+                <div class="ring-title-group">
+                    <span class="ring-label" style="opacity: 0.6; font-size: 10px;">ACTIVITY HISTORY</span>
+                    <h3 class="ring-main-title cosmic-neon-text">활동 나이테</h3>
+                </div>
+                <div class="ring-stats">
+                    <span id="activityMonths" class="ring-months-val">0</span>
+                    <span class="ring-unit">Months</span>
                 </div>
             </div>
-            <div id="treeRingContainer" class="ring-canvas"></div>
+            <div id="treeRingContainer" class="ring-canvas" style="height: 200px;"></div>
         </div>
 
-        <div class="mountain-section">
+        <div class="mountain-section" style="position: relative; z-index: 5; height: 300px;">
             <div id="bgLayersContainer"></div>
             <div id="peakLayer" class="mountain-layer"></div>
-            <div class="mountain-header" style="padding: 0 18px; margin-top: 8px;">
-                <h2 id="mwMountainName" class="cosmic-neon-text"></h2>
+
+            <div class="mountain-header" style="padding: 0 20px;">
+                <h2 id="mwMountainName" class="cosmic-neon-text" style="font-size: 18px; margin: 0; font-weight: 900;"></h2>
             </div>
-            <div id="highestPeakLabel" style="font-size:11px; color:#fff; text-align:center; margin-top:6px; opacity:0.9;"></div>
-            
-            <div class="mountain-info-bar" style="position:absolute; bottom:8px; width:100%; display:flex; justify-content:space-around; font-size:11px;">
-                <div>개인 누적<span id="myTotalH" style="color:#fff; font-weight:bold;">0</span>m</div>
-                <div>산우리 합산 <span id="globalTotalH" style="color:#fff; font-weight:bold;">0</span>m</div>
+
+            <div id="highestPeakLabel" class="highest-peak-label"></div>
+
+            <div class="mountain-info-bar">
+                <div class="info-item">개인 누적 <span id="myTotalH" class="info-val">0</span>m</div>
+                <div class="info-item">산우리 합산 <span id="globalTotalH" class="info-val">0</span>m</div>
             </div>
         </div>
     </div>
-</div>
+
         <button onclick="document.getElementById('mountainViewModal').style.display='none'" 
                 style="position:absolute; top:15px; right:15px; color:white; background:none; border:none; font-size:24px; cursor:pointer; z-index:201;">&times;</button>
     </div>
