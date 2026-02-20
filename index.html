@@ -12,37 +12,44 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-//* 1. 카드 크기 재조정 (가로 322px, 세로 550px) - 10% 추가 확대 */
-    .integrated-member-card {
-        width: 322px !important; 
-        height: 550px !important;
-        position: relative;
-        background: #0f172a;
-        border-radius: 24px !important;
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-        box-shadow: 0 0 50px rgba(0,0,0,0.8);
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        transition: transform 0.3s ease;
-    }
+/* 1. 크기: 별자리 창과 동일하게 설정 (가로 380px, 세로 650px 복구) */
+#integratedCard {
+width: 380px !important;
+height: 650px !important;
+position: relative;
+background: #0f172a;
+border-radius: 24px !important;
+overflow: hidden;
+display: flex;
+flex-direction: column;
+box-shadow: 0 0 50px rgba(0,0,0,0.8);
+}
 
-    /* 3. 행성 충격 효과 (임팩트 애니메이션) */
-    @keyframes planet-hit-heavy {
-        0% { transform: scale(1); filter: brightness(1); }
-        15% { transform: scale(1.7); filter: brightness(3) drop-shadow(0 0 20px #fff); }
-        100% { transform: scale(1); filter: brightness(1); }
-    }
-    .planet-impact {
-        animation: planet-hit-heavy 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards !important;
-    }
+/* 2. 레이어 순서 강제 고정 */
+#bgLayersContainer {
+position: absolute;
+bottom: 0;
+width: 100%;
+z-index: 5; /* 뒤쪽: 산우리 누적 배경 */
+opacity: 0.5;
+}
 
-    /* 내부 레이아웃 비율 (커진 크기에 맞춰 재설정) */
-    .tree-ring-section { height: 200px !important; padding: 20px !important; }
-    .ring-canvas { height: 160px !important; }
-    .mountain-section { height: 260px !important; flex: 1; }
-    .mountain-header h2 { font-size: 18px !important; letter-spacing: -0.5px; }
-    .mountain-info-bar { font-size: 12px !important; padding: 12px !important; }
+#peakLayer {
+position: absolute;
+bottom: 0;
+width: 100%;
+z-index: 10; /* 앞쪽: 내 산맥 고도 */
+}
+
+/* 행성 충격 효과 애니메이션 */
+@keyframes planet-impact-hit {
+0% { transform: scale(1); filter: brightness(1); }
+20% { transform: scale(1.5); filter: brightness(2.5) drop-shadow(0 0 15px #fff); }
+100% { transform: scale(1); filter: brightness(1); }
+}
+.planet-impact-active {
+animation: planet-impact-hit 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards !important;
+}​
 
 /* 우주적인 네온 텍스트 스타일 통일 */
 .cosmic-neon-text {
@@ -2452,7 +2459,24 @@ setTimeout(() => { updateVibeTemp(); setInterval(updateVibeTemp, 60000); }, 2000
 document.getElementById('regDate').valueAsDate = new Date();
 document.getElementById('activityDate').valueAsDate = new Date();
 
-window.showMemberMountain = async (mId, mName) => {
+/**
+ * 1. 행성 충격 애니메이션 함수 (최상단 배치)
+ */
+function triggerPlanetImpact() {
+    const target = document.querySelector('#treeRingContainer svg circle') || 
+                   document.querySelector('.tree-ring-core') ||
+                   document.getElementById('treeRingContainer');
+    if (target) {
+        target.classList.remove('planet-impact-active');
+        void target.offsetWidth; // 리셋 효과 (Reflow)
+        target.classList.add('planet-impact-active');
+    }
+}
+
+/**
+ * 2. 산맥 보기 통합 함수
+ */
+Window.showMemberMountain = async (mId, mName) => {
     const modal = document.getElementById('mountainViewModal');
     const card = document.getElementById('integratedCard');
     const peakLayer = document.getElementById('peakLayer');
@@ -2463,21 +2487,26 @@ window.showMemberMountain = async (mId, mName) => {
     const ringMainTitle = document.querySelector('.ring-main-title'); 
     const mwMountainName = document.getElementById('mwMountainName'); 
     
-    // UI 초기화
+    // UI 초기화 및 텍스트 설정
     if(mwMountainName) {
         mwMountainName.innerText = `${mName}님의 산맥`;
         mwMountainName.classList.add('cosmic-neon-text');
     }
+    if(ringMainTitle) ringMainTitle.classList.add('cosmic-neon-text');
+
     modal.style.display = 'flex';
     card.classList.remove('glow-active'); 
     
-    // 빛줄기 초기 세팅 (축소된 크기에 맞춰 두께 조절)
+    // 빛줄기 초기화 (중앙 정렬 및 두께 고정)
     if(beam) { 
         beam.style.opacity = '0'; 
         beam.style.height = '0';
-        beam.style.width = '6px'; 
+        beam.style.width = '8px'; 
+        beam.style.left = '50%';
+        beam.style.transform = 'translateX(-50%)';
     }
     
+    // 레이어 비우기
     peakLayer.innerHTML = bgContainer.innerHTML = sky.innerHTML = "";
     document.getElementById('treeRingContainer').innerHTML = ""; 
 
@@ -2485,13 +2514,14 @@ window.showMemberMountain = async (mId, mName) => {
     const style = getLevelStyle(memberInfo ? memberInfo.level : 0);
     card.style.setProperty('--glow-color', style.border);
 
-    // 별밤 생성
-    for(let i=0; i<40; i++) { // 밀도 최적화
+    // 1. 별밤 생성
+    for(let i=0; i<50; i++) {
         const star = document.createElement('div');
         star.className = 'sky-star';
-        star.style.width = star.style.height = `${Math.random()*1.5}px`;
+        star.style.width = star.style.height = `${Math.random()*2}px`;
         star.style.left = `${Math.random()*100}%`;
         star.style.top = `${Math.random()*100}%`;
+        star.style.setProperty('--duration', `${Math.random()*3+2}s`);
         sky.appendChild(star);
     }
 
@@ -2499,41 +2529,55 @@ window.showMemberMountain = async (mId, mName) => {
         const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
         const logs = snap.docs.map(d => d.data()).filter(l => (l.height || 0) > 0);
         
+        // 2. [뒤쪽 레이어] 산우리 합산 누적 고도 (배경)
+        const globalH = currentData.reduce((acc, m) => acc + (m.totalHeight || 0), 0);
+        if(document.getElementById('globalTotalH')) document.getElementById('globalTotalH').innerText = globalH.toLocaleString();
+
+        const bgLayerCount = Math.min(Math.floor(globalH / 20000) + 2, 4);
+        for(let i = 1; i <= bgLayerCount; i++) {
+            const layer = document.createElement('div');
+            layer.className = 'mountain-layer background-blur';
+            layer.style.height = `${15 + (i * 10)}%`; 
+            layer.style.opacity = '0.3';
+            layer.style.zIndex = '5'; // 뒤로 배치
+            for(let j=0; j<10; j++) {
+                const p = document.createElement('div');
+                p.className = 'peak';
+                p.style.height = `${Math.random()*30+70}%`;
+                layer.appendChild(p);
+            }
+            bgContainer.appendChild(layer);
+        }
+
+        // 3. [앞쪽 레이어] 개인 다녀온 산 고도 (주인공)
         if (logs.length > 0) {
             const heights = logs.map(l => l.height);
             const maxHeight = Math.max(...heights);
-            
-            // 데이터 텍스트 삽입
-            document.getElementById('myTotalH').innerText = heights.reduce((a,b)=>a+b,0).toLocaleString();
-            document.getElementById('globalTotalH').innerText = currentData.reduce((acc, m) => acc + (m.totalHeight || 0), 0).toLocaleString();
-            
-            // 배경 산맥 (비율 조정)
-            const layerCount = 3;
-            for(let i = 1; i <= layerCount; i++) {
-                const layer = document.createElement('div');
-                layer.className = 'mountain-layer';
-                layer.style.height = `${15 + (i * 10)}%`; 
-                layer.style.opacity = 0.3; 
-                bgContainer.appendChild(layer);
-            }
+            const maxLog = logs.find(l => l.height === maxHeight);
 
-            // 개인 봉우리
-            peakLayer.style.height = "55%"; 
+            if(document.getElementById('myTotalH')) document.getElementById('myTotalH').innerText = heights.reduce((a,b)=>a+b,0).toLocaleString();
+            
+            peakLayer.style.height = "60%"; 
+            peakLayer.style.zIndex = "10"; // 앞으로 배치
             logs.forEach((log) => {
                 const hRatio = (log.height / maxHeight) * 100;
+                const isMax = log.height === maxHeight;
                 const peakDiv = document.createElement('div');
-                peakDiv.className = `peak ${log.height === maxHeight ? 'max-height' : ''}`;
+                peakDiv.className = `peak ${isMax ? 'max-height' : ''}`;
                 peakDiv.style.height = `${hRatio}%`;
+                if (isMax) peakDiv.innerHTML = `<div class="peak-glow-core"></div><div class="golden-glow-effect"></div>`;
                 peakLayer.appendChild(peakDiv);
             });
 
-            // 연출: 빛줄기 발사 -> 행성 타격
+            if(maxLog && peakLabel) peakLabel.innerHTML = `${maxLog.mountain} (${maxLog.height}m)`;
+
+            // 4. 연출: 빛줄기 발사 -> 행성 타격
             setTimeout(() => {
                 if(beam) {
                     beam.style.background = `linear-gradient(to top, ${style.border}, #fff)`;
                     beam.style.opacity = '0.8';
-                    beam.style.transition = 'height 0.6s ease-in';
-                    beam.style.height = '75%'; // 나이테 행성 위치까지
+                    beam.style.transition = 'height 0.7s cubic-bezier(0.15, 0, 0.15, 1)';
+                    beam.style.height = '72%'; // 나이테 행성 위치
                 }
 
                 setTimeout(async () => {
@@ -2541,30 +2585,19 @@ window.showMemberMountain = async (mId, mName) => {
                     if (memberInfo) {
                         await window.renderTreeRings(mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
                         
-                        // [핵심] 행성 타격 번쩍임 효과 강제 적용
-                        const planet = document.querySelector('.tree-ring-core') || document.querySelector('#treeRingContainer svg circle');
-                        if(planet) {
-                            planet.classList.add('planet-impact');
-                        }
+                        // [충격 효과 실행]
+                        triggerPlanetImpact();
                     }
                     card.classList.add('glow-active');
-                }, 600); 
-            }, 300);
+                }, 750); 
+            }, 400);
 
         } else {
+            // 기록 없을 시 나이테만 렌더링
             if (memberInfo) await window.renderTreeRings(mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
-// 행성 부딪히는 효과가 필요할 때 호출하세요
-    function triggerPlanetImpact() {
-        const target = document.querySelector('#treeRingContainer svg circle') || document.getElementById('treeRingContainer');
-        if (target) {
-            target.classList.remove('planet-impact-active');
-            void target.offsetWidth; // 리셋 효과
-            target.classList.add('planet-impact-active');
-        }
-    }
             card.classList.add('glow-active');
         }
-    } catch (e) { console.error("에러:", e); }
+    } catch (e) { console.error("통합 로딩 에러:", e); }
 };
 
 window.renderTreeRings = async (memberName, regDate, memberLevel) => {
