@@ -1404,8 +1404,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 <button onclick="toggleVibeModal(false)" class="w-full mt-6 py-4 bg-slate-800 text-white rounded-2xl font-black text-sm">확인</button>
 </div>
 </div>
-
-    <div id="hallModal" class="modal-overlay" onclick="toggleHallModal(false)">
+<div id="hallModal" class="modal-overlay" onclick="toggleHallModal(false)">
 <div class="modal-content !p-5 !max-w-[440px]" onclick="event.stopPropagation()">
 <div class="text-center mb-6">
 <h2 class="text-xl font-black text-slate-800 flex items-center justify-center gap-2">
@@ -2432,7 +2431,7 @@ window.showMemberMountain = async (mId, mName) => {
     const ringMainTitle = document.querySelector('.ring-main-title'); 
     const mwMountainName = document.getElementById('mwMountainName'); 
     
-    // 1. 텍스트 스타일 즉시 통일 (우주적 네온 효과)
+    // 1. 텍스트 스타일 즉시 통일 (새로고침 시에도 우주적 네온 효과 유지)
     if(mwMountainName) {
         mwMountainName.innerText = `${mName}님의 산맥`;
         mwMountainName.classList.add('cosmic-neon-text');
@@ -2453,7 +2452,7 @@ window.showMemberMountain = async (mId, mName) => {
         beam.style.left = '50%';
         beam.style.transform = 'translateX(-50%)';
         beam.style.filter = 'blur(6px)';
-        beam.style.zIndex = '100'; // 모든 섹션보다 위에 위치
+        beam.style.zIndex = '100'; 
     }
     
     // 레이어 초기화
@@ -2482,20 +2481,17 @@ window.showMemberMountain = async (mId, mName) => {
         const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
         const logs = snap.docs.map(d => d.data()).filter(l => (l.height || 0) > 0);
         
+        // 산맥 데이터 렌더링 (기존 로직 유지)
         if (logs.length > 0) {
             const heights = logs.map(l => l.height);
             const maxHeight = Math.max(...heights);
             const maxLog = logs.find(l => l.height === maxHeight);
 
-            if(document.getElementById('myTotalH')) {
-                document.getElementById('myTotalH').innerText = heights.reduce((a,b)=>a+b,0).toLocaleString();
-            }
+            if(document.getElementById('myTotalH')) document.getElementById('myTotalH').innerText = heights.reduce((a,b)=>a+b,0).toLocaleString();
             const globalH = currentData.reduce((acc, m) => acc + (m.totalHeight || 0), 0);
-            if(document.getElementById('globalTotalH')) {
-                document.getElementById('globalTotalH').innerText = globalH.toLocaleString();
-            }
+            if(document.getElementById('globalTotalH')) document.getElementById('globalTotalH').innerText = globalH.toLocaleString();
             
-            // 배경 산맥 생성
+            // 배경 산맥
             const layerCount = Math.min(Math.floor(globalH / 15000) + 2, 5);
             for(let i = 1; i <= layerCount; i++) {
                 const layer = document.createElement('div');
@@ -2512,7 +2508,7 @@ window.showMemberMountain = async (mId, mName) => {
                 bgContainer.appendChild(layer);
             }
 
-            // 개인 봉우리 생성
+            // 개인 봉우리
             peakLayer.style.height = "60%"; 
             logs.forEach((log) => {
                 const hRatio = (log.height / maxHeight) * 100;
@@ -2521,22 +2517,20 @@ window.showMemberMountain = async (mId, mName) => {
                 peakDiv.className = `peak ${isMax ? 'max-height' : ''}`;
                 peakDiv.style.height = `${hRatio}%`;
                 peakDiv.style.filter = 'brightness(1.5)';
-                if (isMax) {
-                    peakDiv.innerHTML = `<div class="peak-glow-core"></div><div class="golden-glow-effect"></div>`;
-                }
+                if (isMax) peakDiv.innerHTML = `<div class="peak-glow-core"></div><div class="golden-glow-effect"></div>`;
                 peakLayer.appendChild(peakDiv);
             });
 
             if(maxLog && peakLabel) peakLabel.innerHTML = `${maxLog.mountain} (${maxLog.height}m)`;
 
-            // 6. 통합 연출: 빛줄기 발사 -> 행성 타격 -> 번쩍임
+            // 6. 통합 연출: 빛줄기 발사 -> 행성 타격
             setTimeout(() => {
                 if(beam) {
                     beam.style.background = `linear-gradient(to top, ${style.border}, transparent)`;
                     beam.style.opacity = '0.8';
                     beam.style.transition = 'height 0.8s cubic-bezier(0.15, 0, 0.15, 1)';
-                    // 통합 레이어 기준 나이테 중앙(행성)까지의 높이
-                    beam.style.height = '78%'; 
+                    // 창 전체 높이 대비 나이테 중앙(행성) 위치까지 조절 (약 72%)
+                    beam.style.height = '72%'; 
                 }
 
                 setTimeout(async () => {
@@ -2545,11 +2539,11 @@ window.showMemberMountain = async (mId, mName) => {
                     if (memberInfo) {
                         await window.renderTreeRings(mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
                         
-                        // 7. 행성 타격 효과 (나이테 생성 후 바로 실행)
+                        // 7. 행성 타격 번쩍임 효과
                         const planet = document.querySelector('.tree-ring-core');
                         if(planet) {
                             planet.classList.remove('planet-impact');
-                            void planet.offsetWidth; // 리플로우 강제 발생
+                            void planet.offsetWidth; 
                             planet.classList.add('planet-impact');
                         }
                     }
@@ -2791,15 +2785,16 @@ window.showFadingScroll = function(dday, level = 0) {
 </script> 
 
 <div id="mountainViewModal" class="mountain-modal" onclick="this.style.display='none'">
-    <div id="integratedCard" class="integrated-member-card" onclick="event.stopPropagation()">
+    <div id="integratedCard" class="integrated-member-card" onclick="event.stopPropagation()" 
+         style="position: relative; width: 380px; height: 650px; background: #0f172a; border-radius: 24px; overflow: hidden; display: flex; flex-direction: column;">
         
         <div id="starrySky" style="position: absolute; top:0; left:0; width:100%; height:100%; z-index:1;"></div>
         <div id="lightBeam" class="light-beam"></div>
 
-        <div class="tree-ring-section" style="position: relative; z-index: 10; height: 50%;">
+        <div class="tree-ring-section" style="position: relative; z-index: 10; flex: 1; padding: 20px;">
             <div class="ring-header">
                 <div class="ring-title-group">
-                    <span class="ring-label">ACTIVITY HISTORY</span>
+                    <span class="ring-label" style="opacity: 0.6; font-size: 10px;">ACTIVITY HISTORY</span>
                     <h3 class="ring-main-title cosmic-neon-text">활동 나이테</h3>
                 </div>
                 <div class="ring-stats">
@@ -2807,16 +2802,15 @@ window.showFadingScroll = function(dday, level = 0) {
                     <span class="ring-unit">Months</span>
                 </div>
             </div>
-            <div id="treeRingContainer" class="ring-canvas"></div>
+            <div id="treeRingContainer" class="ring-canvas" style="height: 200px;"></div>
         </div>
 
-        <div class="mountain-section" style="position: relative; z-index: 5; height: 50%;">
+        <div class="mountain-section" style="position: relative; z-index: 5; height: 300px;">
             <div id="bgLayersContainer"></div>
             <div id="peakLayer" class="mountain-layer"></div>
 
-            <div class="mountain-header">
-                <h2 id="mwMountainName" class="cosmic-neon-text" style="font-size: 16px; margin: 0; font-weight: 900;"></h2>
-                <p style="font-size: 10px; color: #94a3b8; margin: 0;"></p>
+            <div class="mountain-header" style="padding: 0 20px;">
+                <h2 id="mwMountainName" class="cosmic-neon-text" style="font-size: 18px; margin: 0; font-weight: 900;"></h2>
             </div>
 
             <div id="highestPeakLabel" class="highest-peak-label"></div>
@@ -2869,4 +2863,4 @@ window.showFadingScroll = function(dday, level = 0) {
 </div>
 </script>
 </body>
-</html>
+  </html>
