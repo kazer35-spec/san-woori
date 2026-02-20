@@ -12,28 +12,6 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-/* 우주적인 네온 글씨 스타일 고정 */
-.cosmic-neon-text {
-    font-size: 16px !important; /* 원하는 크기로 고정 (예: 16px) */
-    font-weight: 900 !important;
-    color: #fff !important;
-    text-shadow: 0 0 10px rgba(0, 150, 255, 0.8), 0 0 20px rgba(0, 150, 255, 0.4) !important;
-    letter-spacing: 1px !important;
-    transition: none !important; /* 크기 변화 애니메이션 제거 */
-    margin: 0 !important;
-}
-
-/* 나이테 제목 전용 */
-.ring-main-title {
-    font-size: 18px !important; 
-    margin-bottom: 5px !important;
-}
-
-/* 산맥 이름 전용 */
-#mwMountainName {
-    font-size: 16px !important;
-}
-
 /* 광선(Beam) 스타일 강화 */
 .light-beam {
     position: absolute;
@@ -2384,8 +2362,6 @@ window.showMemberMountain = async (mId, mName) => {
     // 1. 초기화 및 준비
     document.getElementById('mwMountainName').innerText = `${mName}님의 산맥`;
     modal.style.display = 'flex';
-if (mainTitle) mainTitle.classList.add('cosmic-neon-text');
-if (mountainName) mountainName.classList.add('cosmic-neon-text');
     card.classList.remove('glow-active'); 
     
     // 광선 초기화: 너비 넓게 설정 및 투명화
@@ -2508,30 +2484,30 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
     const mainTitle = document.querySelector('.ring-main-title');
     const mountainName = document.getElementById('mwMountainName');
 
-    // [1] 디자인 고정 (글씨 크기 깜빡임 방지)
-    if (mainTitle) mainTitle.className = 'ring-main-title cosmic-neon-text';
-    if (mountainName) mountainName.className = 'cosmic-neon-text';
-
     if(!container) return;
-    container.innerHTML = ""; 
+    container.innerHTML = ""; // 기존 내용 싹 비우기
 
-    // [2] 우주적인 배경(별빛) 생성
-    const starFragment = document.createDocumentFragment();
+    // [1] 텍스트 및 별빛 배경 설정
+    if (mainTitle) mainTitle.classList.add('cosmic-neon-text');
+    if (mountainName) mountainName.classList.add('cosmic-neon-text');
+
     for(let i=0; i<80; i++) {
         const star = document.createElement('div');
         star.className = 'tree-ring-star';
         star.style.cssText = `
             position: absolute;
-            width: ${Math.random() * 2}px; height: ${Math.random() * 2}px;
-            left: ${Math.random() * 100}%; top: ${Math.random() * 100}%;
-            background: white; opacity: ${Math.random()}; border-radius: 50%;
-            pointer-events: none;
+            width: ${Math.random() * 2}px;
+            height: ${Math.random() * 2}px;
+            left: ${Math.random() * 100}%;
+            top: ${Math.random() * 100}%;
+            background: white;
+            opacity: ${Math.random()};
+            border-radius: 50%;
         `;
-        starFragment.appendChild(star);
+        container.appendChild(star);
     }
-    container.appendChild(starFragment);
 
-    // [3] 기간 계산 (가입일 기준)
+    // [2] 기간 계산 (가입일 기준)
     const fixedList = ["오즈","나스","해수","용삼","지니","아랑","민이","몰랑","길치","등초","무니","식이","구름","뚜벅","윤윤","승이","이구","후후","튜브","피치","사랑","송돌","호프","이제","얌얌","태기","희야","멸치","성민","루이","섭섭"];
     let jDate = fixedList.includes(memberName) ? new Date('2025-11-24') : (regDate?.toDate ? regDate.toDate() : new Date());
     const now = new Date();
@@ -2540,27 +2516,33 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
     const style = getLevelStyle(memberLevel);
     const ringColor = style.border; 
 
-    // [4] SVG 생성
+    // [3] SVG 생성
     const svgNS = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(svgNS, "svg");
     svg.setAttribute("viewBox", "0 0 240 240");
     svg.style.cssText = "width:100%; height:100%; overflow:visible;";
 
+    // [4] 중앙 행성 그룹 (애니메이션 적용)
     const coreGroup = document.createElementNS(svgNS, "g");
+    coreGroup.setAttribute("class", "planet-core-group");
+
     const core = document.createElementNS(svgNS, "circle");
     core.setAttribute("cx", "120"); core.setAttribute("cy", "120"); core.setAttribute("r", "4");
     core.setAttribute("fill", ringColor);
     core.style.filter = `drop-shadow(0 0 10px ${ringColor})`;
+    
     coreGroup.appendChild(core);
     svg.appendChild(coreGroup);
 
-    // [5] 나이테 경로 생성
+    // [5] 나이테 경로 생성 (초기엔 투명)
     const rings = [];
     const seed = memberName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
 
     for (let i = 1; i <= diffMonths; i++) {
         const radius = 10 + (i * (95 / diffMonths));
         const path = document.createElementNS(svgNS, "path");
+        path.setAttribute("class", "tree-ring-path");
+        
         let d = "";
         for (let a = 0; a <= 360; a += 6) {
             const angle = (a * Math.PI) / 180;
@@ -2571,30 +2553,39 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
             d += (a === 0 ? "M" : "L") + `${x},${y} `;
         }
         d += "Z";
+        
         path.setAttribute("d", d);
         path.setAttribute("fill", "none");
         path.setAttribute("stroke", ringColor);
         path.setAttribute("stroke-width", i % 12 === 0 ? "1.5" : "0.4");
-        path.setAttribute("stroke-opacity", "0");
+        path.setAttribute("stroke-opacity", "0"); // 시작은 투명
+        
         svg.appendChild(path);
         rings.push(path);
     }
     container.appendChild(svg);
 
-    // [6] 순차적 애니메이션 실행
+    // [6] 핵심: 안쪽부터 순차적으로 밝아지는 애니메이션
+    // 전체 애니메이션 시간을 1.2초 정도로 맞춤
     const delayStep = Math.min(60, 1200 / diffMonths); 
+
     rings.forEach((ring, index) => {
         setTimeout(() => {
+            // 밝기 적용
             const targetOpacity = (index + 1) % 12 === 0 ? "0.8" : "0.25";
             ring.setAttribute("stroke-opacity", targetOpacity);
+            
+            // 숫자 카운트 동기화
             if(monthLabel) monthLabel.innerText = index + 1;
+            
+            // 마지막 링은 더 환하게 강조
             if(index === rings.length - 1) {
                 ring.style.strokeWidth = "2px";
                 ring.style.filter = `drop-shadow(0 0 5px ${ringColor})`;
             }
         }, index * delayStep);
     });
-}; // 함수 끝 (정확한 위치)
+};
 
 window.showMilkyWay = async (mId, mName) => {
     const modal = document.getElementById('milkyWayModal');
