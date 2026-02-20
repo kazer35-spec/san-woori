@@ -1051,16 +1051,16 @@ overflow: hidden;
 </head>
 <body>
 
-<div id="levelupAlert" class="levelup-overlay" onclick="closeLevelupAlert()">
-<div class="levelup-content" onclick="event.stopPropagation()">
-<span class="congrat-emoji">🎊</span>
-<span id="levelUpName" class="level-msg-name"></span>
-<div class="level-msg-box">
-<p id="levelUpMsg" class="level-msg-txt"></p>
-</div>
-<p class="text-xs font-bold text-gray-400">축하 메시지가 자동 복사되었습니다!</p>
-<button onclick="closeLevelupAlert()" class="w-full mt-6 py-4 bg-blue-600 text-white rounded-2xl font-black text-lg">확인</button>
-</div>
+<div id="levelupAlert" class="fixed inset-0 z-[200] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="bg-white rounded-3xl p-8 max-w-sm w-[90%] text-center shadow-2xl transform scale-90 transition-transform duration-300 ease-out border-4 border-yellow-400">
+        <div class="text-5xl mb-4">🎊</div>
+        <h2 id="levelUpTitle" class="text-2xl font-black text-slate-800 mb-2">LEVEL UP!</h2>
+        <div id="levelUpMsgContainer" class="text-sm font-bold text-slate-600 mb-6 space-y-2 bg-slate-50 p-4 rounded-xl max-h-[200px] overflow-y-auto">
+        </div>
+        <button onclick="closeLevelupAlert()" class="w-full py-4 bg-yellow-400 hover:bg-yellow-500 text-yellow-900 rounded-2xl font-black transition-colors shadow-lg">
+            축하 메시지 복사 및 닫기
+        </button>
+    </div>
 </div>
 
 <div class="main-container flex flex-col">
@@ -1332,9 +1332,8 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 </div>
 <button onclick="toggleVibeModal(false)" class="w-full mt-6 py-4 bg-slate-800 text-white rounded-2xl font-black text-sm">확인</button>
 </div>
-</div>
 
-   <div id="hallModal" class="modal-overlay" onclick="toggleHallModal(false)">
+    <div id="hallModal" class="modal-overlay" onclick="toggleHallModal(false)">
 <div class="modal-content !p-5 !max-w-[440px]" onclick="event.stopPropagation()">
 <div class="text-center mb-6">
 <h2 class="text-xl font-black text-slate-800 flex items-center justify-center gap-2">
@@ -2011,30 +2010,69 @@ currentData = results; updateAdminMemberLists(); renderStatusTable();
 });
 }
 
+// 1. 전역 변수 선언 (스크립트 최상단 혹은 함수 위쪽에 배치)
+let pendingLevelUpMessages = [];
+
+// 2. 레벨업 체크 및 메시지 수집 통합 함수
 window.checkLevelUpgrade = (name, oldLevel, newLevel) => {
-const thresholdLevels = levelThresholds.map(t => t.lv);
-for (let lv = oldLevel + 1; lv <= newLevel; lv++) {
-if (thresholdLevels.includes(lv)) {
-const badge = getLevelBadge(lv);
-triggerLevelupAlert(name, lv, badge); break;
-}
-}
+    const thresholdLevels = levelThresholds.map(t => t.lv);
+    for (let lv = oldLevel + 1; lv <= newLevel; lv++) {
+        if (thresholdLevels.includes(lv)) {
+            const badge = getLevelBadge(lv);
+            const msg = `${name}님이 ${lv}레벨로 [${badge}] 마크를 획득하셨습니다! 축하드립니다 🎉`;
+            pendingLevelUpMessages.push(msg); // 메시지를 배열에 저장
+            break; 
+        }
+    }
 };
 
-window.triggerLevelupAlert = (name, level, badge) => {
-const msg = `${name}님이 ${level}레벨로 [${badge}] 마크를 획득하셨습니다! 축하드립니다 🎉`;
-document.getElementById('levelUpName').innerText = name;
-document.getElementById('levelUpMsg').innerText = `${level}레벨 달성! [${badge}] 마크를 획득하셨습니다! 축하드립니다 🎉`;
-const overlay = document.getElementById('levelupAlert');
-overlay.style.display = 'flex';
-setTimeout(() => overlay.classList.add('active'), 10);
-navigator.clipboard.writeText(msg).catch(err => console.log('복사 실패', err));
+// 3. 통합 알림창 띄우기 함수 (기존 triggerLevelupAlert 대체)
+window.showCombinedLevelUpAlert = () => {
+    if (pendingLevelUpMessages.length === 0) return;
+
+    const container = document.getElementById('levelUpMsgContainer');
+    const overlay = document.getElementById('levelupAlert');
+    
+    // 팝업 내부 메시지 목록 생성
+    container.innerHTML = pendingLevelUpMessages
+        .map(msg => `<div class="py-1 border-b border-slate-100 last:border-0">${msg}</div>`)
+        .join('');
+    
+    // 제목 변경
+    const titleEl = document.getElementById('levelUpTitle');
+    if (titleEl) {
+        titleEl.innerText = pendingLevelUpMessages.length > 1 ? "🎊 단체 레벨업 달성!" : "🎊 레벨업 달성!";
+    }
+
+    // 1명일 때는 즉시 복사 (기존 기능 유지)
+    if (pendingLevelUpMessages.length === 1) {
+        navigator.clipboard.writeText(pendingLevelUpMessages[0]);
+    }
+
+    overlay.style.display = 'flex';
+    setTimeout(() => overlay.classList.add('active'), 10);
 };
 
+// 4. 알림창 닫기 및 일괄 복사 함수
 window.closeLevelupAlert = () => {
-const overlay = document.getElementById('levelupAlert');
-overlay.classList.remove('active');
-setTimeout(() => overlay.style.display = 'none', 500);
+    // 모든 메시지를 줄바꿈으로 합치기
+    const fullText = pendingLevelUpMessages.join('\n');
+    
+    // 클립보드 복사 실행
+    navigator.clipboard.writeText(fullText).then(() => {
+        // 여러명일 때만 확인 알림 (선택 사항)
+        if (pendingLevelUpMessages.length > 1) {
+            alert("모든 축하 메시지가 복사되었습니다!");
+        }
+    }).catch(err => console.error('복사 실패', err));
+
+    // 팝업 닫기 애니메이션
+    const overlay = document.getElementById('levelupAlert');
+    overlay.classList.remove('active');
+    setTimeout(() => {
+        overlay.style.display = 'none';
+        pendingLevelUpMessages = []; // 메시지 대기열 초기화
+    }, 500);
 };
 
 window.addMultiActivity = async () => {
@@ -2720,4 +2758,5 @@ window.showFadingScroll = function(dday, level = 0) {
 </script>
 </body>
     </html>
- 
+
+</div>
