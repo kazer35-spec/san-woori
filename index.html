@@ -2476,7 +2476,7 @@ function triggerPlanetImpact() {
 /**
  * 2. 산맥 보기 통합 함수
  */
-    window.showMemberMountain = async (mId, mName) => {
+window.showMemberMountain = async (mId, mName) => {
     const modal = document.getElementById('mountainViewModal');
     const card = document.getElementById('integratedCard');
     const peakLayer = document.getElementById('peakLayer');
@@ -2641,8 +2641,10 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
     // [3] SVG 생성
     const svgNS = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(svgNS, "svg");
-    svg.setAttribute("viewBox", "0 0 240 240");
-    svg.style.cssText = "width:100%; height:100%; overflow:visible;";
+svg.setAttribute("viewBox", "0 0 240 240"); // 내부 좌표계
+svg.style.width = "100%"; // 부모(카드) 너비에 꽉 채움
+svg.style.height = "auto"; // 비율 유지
+svg.style.maxWidth = "300px"; // 너무 커지지 않게 제한
 
     // [4] 중앙 행성 그룹 (애니메이션 적용)
     const coreGroup = document.createElementNS(svgNS, "g");
@@ -2827,45 +2829,63 @@ window.showFadingScroll = function(dday, level = 0) {
 </script> 
 
 <div id="mountainViewModal" class="mountain-modal" onclick="this.style.display='none'">
-    
     <div id="integratedCard" class="integrated-member-card" onclick="event.stopPropagation()" 
-         style="position: relative; width: 380px; height: 650px; background: #0f172a; border-radius: 24px; overflow: hidden; display: flex; flex-direction: column;">
+         style="position: relative; 
+                width: 90%; 
+                max-width: 448px; 
+                height: auto; 
+                min-height: 580px; 
+                max-height: 90vh; 
+                background: #0f172a; 
+                border-radius: 1.5rem; 
+                overflow: hidden; 
+                display: flex; 
+                flex-direction: column;
+                border: 1px solid rgba(30, 58, 138, 0.5);
+                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);">
         
-        <div class="btn-close-mountain" onclick="document.getElementById('mountainViewModal').style.display='none'">&times;</div>
-
-        <div id="starrySky" style="position: absolute; top:0; left:0; width:100%; height:100%; z-index:1;"></div>
-        <div id="lightBeam" class="light-beam"></div>
-
-        <div class="tree-ring-section" style="position: relative; z-index: 10; flex: 1; padding: 20px;">
-            <div class="ring-header">
-                <div class="ring-title-group">
-                    <span class="ring-label" style="opacity: 0.6; font-size: 10px;">ACTIVITY HISTORY</span>
-                    <h3 class="ring-main-title cosmic-neon-text">활동 나이테</h3>
-                </div>
-                <div class="ring-stats">
-                    <span id="activityMonths" class="ring-months-val">0</span>
-                    <span class="ring-unit">Months</span>
-                </div>
-            </div>
-            <div id="treeRingContainer" class="ring-canvas" style="height: 200px;"></div>
+        <div class="btn-close-mountain" 
+             onclick="document.getElementById('mountainViewModal').style.display='none'"
+             style="position: absolute; top: 1rem; right: 1.25rem; z-index: 100; font-size: 1.5rem; color: white; cursor: pointer; line-height: 1;">
+            &times;
         </div>
 
-        <div class="mountain-section" style="position: relative; z-index: 5; height: 300px;">
+        <div id="starrySky" style="position: absolute; top:0; left:0; width:100%; height:100%; z-index:1;"></div>
+        <div id="lightBeam" class="light-beam" style="z-index: 2;"></div>
+
+        <div class="tree-ring-section" style="position: relative; z-index: 10; padding: 1.5rem; flex-shrink: 0;">
+            <div class="ring-header" style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1rem;">
+                <div class="ring-title-group">
+                    <span class="ring-label" style="opacity: 0.6; font-size: 10px; display: block; letter-spacing: 1px;">ACTIVITY HISTORY</span>
+                    <h3 class="ring-main-title cosmic-neon-text" style="margin: 0; font-size: 1.25rem;">활동 나이테</h3>
+                </div>
+                <div class="ring-stats" style="text-align: right;">
+                    <span id="activityMonths" class="ring-months-val" style="font-size: 1.5rem; font-weight: bold; color: #60a5fa;">0</span>
+                    <span class="ring-unit" style="font-size: 0.75rem; opacity: 0.8;">Months</span>
+                </div>
+            </div>
+            <div id="treeRingContainer" class="ring-canvas" style="width: 100%; height: 220px; display: flex; justify-content: center; align-items: center;"></div>
+        </div>
+
+        <div class="mountain-section" style="position: relative; z-index: 5; height: 280px; margin-top: auto; overflow: hidden;">
             <div id="bgLayersContainer"></div>
             <div id="peakLayer" class="mountain-layer"></div>
 
-            <div class="mountain-header" style="padding: 0 20px;">
-                <h2 id="mwMountainName" class="cosmic-neon-text" style="font-size: 18px; margin: 0; font-weight: 900;"></h2>
+            <div class="mountain-header" style="padding: 0 1.5rem; position: relative; z-index: 20;">
+                <h2 id="mwMountainName" class="cosmic-neon-text" style="font-size: 1.2rem; margin: 0; font-weight: 900; letter-spacing: -0.5px;"></h2>
             </div>
 
             <div id="highestPeakLabel" class="highest-peak-label"></div>
 
-            <div class="mountain-info-bar">
-                <div class="info-item">개인 누적 <span id="myTotalH" class="info-val">0</span>m</div>
-                <div class="info-item">산우리 합산 <span id="globalTotalH" class="info-val">0</span>m</div>
+            <div class="mountain-info-bar" style="position: absolute; bottom: 1.5rem; width: 100%; display: flex; justify-content: space-around; z-index: 20; padding: 0 1rem; box-sizing: border-box;">
+                <div class="info-item" style="font-size: 0.85rem; color: #e2e8f0; background: rgba(15, 23, 42, 0.6); padding: 5px 12px; border-radius: 20px; backdrop-filter: blur(4px);">
+                    개인 누적 <span id="myTotalH" class="info-val" style="color: #60a5fa; font-weight: bold;">0</span>m
+                </div>
+                <div class="info-item" style="font-size: 0.85rem; color: #e2e8f0; background: rgba(15, 23, 42, 0.6); padding: 5px 12px; border-radius: 20px; backdrop-filter: blur(4px);">
+                    산우리 합산 <span id="globalTotalH" class="info-val" style="color: #60a5fa; font-weight: bold;">0</span>m
+                </div>
             </div>
         </div>
-    </div>
 
         <button onclick="document.getElementById('mountainViewModal').style.display='none'" 
                 style="position:absolute; top:15px; right:15px; color:white; background:none; border:none; font-size:24px; cursor:pointer; z-index:201;">&times;</button>
