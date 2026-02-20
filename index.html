@@ -12,6 +12,28 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+/* 우주적인 네온 글씨 스타일 고정 */
+.cosmic-neon-text {
+    font-size: 16px !important; /* 원하는 크기로 고정 (예: 16px) */
+    font-weight: 900 !important;
+    color: #fff !important;
+    text-shadow: 0 0 10px rgba(0, 150, 255, 0.8), 0 0 20px rgba(0, 150, 255, 0.4) !important;
+    letter-spacing: 1px !important;
+    transition: none !important; /* 크기 변화 애니메이션 제거 */
+    margin: 0 !important;
+}
+
+/* 나이테 제목 전용 */
+.ring-main-title {
+    font-size: 18px !important; 
+    margin-bottom: 5px !important;
+}
+
+/* 산맥 이름 전용 */
+#mwMountainName {
+    font-size: 16px !important;
+}
+
 /* 광선(Beam) 스타일 강화 */
 .light-beam {
     position: absolute;
@@ -2362,6 +2384,8 @@ window.showMemberMountain = async (mId, mName) => {
     // 1. 초기화 및 준비
     document.getElementById('mwMountainName').innerText = `${mName}님의 산맥`;
     modal.style.display = 'flex';
+if (mainTitle) mainTitle.classList.add('cosmic-neon-text');
+if (mountainName) mountainName.classList.add('cosmic-neon-text');
     card.classList.remove('glow-active'); 
     
     // 광선 초기화: 너비 넓게 설정 및 투명화
@@ -2484,13 +2508,22 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
     const mainTitle = document.querySelector('.ring-main-title');
     const mountainName = document.getElementById('mwMountainName');
 
+    // [1] 디자인 고정: 클래스가 중복으로 쌓이지 않도록 className으로 초기화
+    // 이 부분이 최상단에 있어야 새로고침 시 글씨가 커지는 현상을 방지합니다.
+    if (mainTitle) {
+        mainTitle.className = 'ring-main-title cosmic-neon-text';
+    }
+    if (mountainName) {
+        mountainName.className = 'cosmic-neon-text';
+    }
+
     if(!container) return;
-    container.innerHTML = ""; // 기존 내용 싹 비우기
+    
+    // [2] 컨테이너 초기화
+    container.innerHTML = ""; 
 
-    // [1] 텍스트 및 별빛 배경 설정
-    if (mainTitle) mainTitle.classList.add('cosmic-neon-text');
-    if (mountainName) mountainName.classList.add('cosmic-neon-text');
-
+    // [3] 우주적인 배경(별빛) 생성 로직
+    const starFragment = document.createDocumentFragment(); // 성능 최적화를 위해 fragment 사용
     for(let i=0; i<80; i++) {
         const star = document.createElement('div');
         star.className = 'tree-ring-star';
@@ -2503,9 +2536,14 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
             background: white;
             opacity: ${Math.random()};
             border-radius: 50%;
+            pointer-events: none;
         `;
-        container.appendChild(star);
+        starFragment.appendChild(star);
     }
+    container.appendChild(starFragment);
+
+    // 이후에 나이테를 그리는 추가 로직이 있다면 이 아래에 작성하시면 됩니다.
+};
 
     // [2] 기간 계산 (가입일 기준)
     const fixedList = ["오즈","나스","해수","용삼","지니","아랑","민이","몰랑","길치","등초","무니","식이","구름","뚜벅","윤윤","승이","이구","후후","튜브","피치","사랑","송돌","호프","이제","얌얌","태기","희야","멸치","성민","루이","섭섭"];
