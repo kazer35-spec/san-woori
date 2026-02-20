@@ -12,6 +12,70 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+/* 1. 나이테 섹션 높이 20% 축소 (확실한 적용을 위해 높이 고정) */
+.tree-ring-section {
+    padding: 15px 20px 5px 20px !important;
+    height: 230px !important; /* 세로 크기 축소 고정 */
+    min-height: 230px !important;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* 2. 헤더 구조: 제목은 왼쪽, 개월수는 오른쪽 */
+.ring-header {
+    display: flex;
+    justify-content: space-between; /* 양 끝으로 배치 */
+    align-items: flex-end;
+    width: 100%;
+}
+
+/* 3. Months 숫자 및 단위 우측 정렬 */
+.ring-stats {
+    text-align: right;
+    display: flex;
+    flex-direction: column; /* 숫자 아래에 Months 배치하거나 옆으로 배치 */
+    align-items: flex-end;
+}
+
+/* 4. ACTIVITY HISTORY: 초기 상태 (어둡게) */
+.ring-label {
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: 0.15em;
+    color: rgba(148, 163, 184, 0.4); /* 초기에는 흐리게 */
+    text-transform: uppercase;
+}
+
+/* 5. Months 숫자: 초기 상태 (어둡다가 애니메이션 후 파란 네온) */
+.ring-months-val {
+    font-size: 2rem;
+    font-weight: 900;
+    color: rgba(255, 255, 255, 0.2); /* 초기 상태 */
+    font-family: 'Inter', sans-serif;
+    line-height: 1;
+    transition: all 0.8s ease;
+}
+
+/* 6. 빛줄기 이후 활성화될 네온 스타일 */
+.glow-active .ring-months-val {
+    color: #3b82f6 !important; /* 파란색 네온 */
+    text-shadow: 0 0 15px rgba(59, 130, 246, 0.8), 0 0 30px rgba(59, 130, 246, 0.4);
+}
+
+.glow-active .ring-label {
+    color: #94a3b8 !important;
+}
+
+/* 나이테 캔버스 위치 조정 */
+.ring-canvas {
+    flex: 1;
+    margin-top: -10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
 /* 상시 적용되는 우주적인 네온 텍스트 스타일 */
 .cosmic-neon-text {
     text-shadow: 0 0 10px rgba(255, 255, 255, 0.5), 
@@ -2474,21 +2538,14 @@ window.showMemberMountain = async (mId, mName) => {
     const sky = document.getElementById('starrySky');
     const beam = document.getElementById('lightBeam');
     const peakLabel = document.getElementById('highestPeakLabel');
-    
-    // 텍스트 요소 미리 선택
-    const mainTitle = document.querySelector('.ring-main-title');
-    const mountainNameLabel = document.getElementById('mwMountainName');
+    const ringContainer = document.getElementById('treeRingContainer');
 
-    // 1. 초기화 및 즉시 스타일 적용
-    mountainNameLabel.innerText = `${mName}님의 산맥`;
+    // 1. 초기화 (모든 발광 및 클래스 제거)
+    document.getElementById('mwMountainName').innerText = `${mName}님의 산맥`;
     modal.style.display = 'flex';
-    card.classList.remove('glow-active'); 
+    card.classList.remove('glow-active'); // 네온 꺼진 상태로 시작
+    ringContainer.innerHTML = "";
     
-    // [추가] 실행 즉시 네온 클래스 부여 (글씨 크기 및 색상 고정용)
-    if (mainTitle) mainTitle.classList.add('cosmic-neon-text');
-    if (mountainNameLabel) mountainNameLabel.classList.add('cosmic-neon-text');
-
-    // 광선 초기화
     if(beam) { 
         beam.style.opacity = '0'; 
         beam.style.height = '0';
@@ -2498,17 +2555,15 @@ window.showMemberMountain = async (mId, mName) => {
     if(peakLabel) peakLabel.innerText = "";
     
     peakLayer.innerHTML = bgContainer.innerHTML = sky.innerHTML = "";
-    document.getElementById('treeRingContainer').innerHTML = ""; 
 
-    // 멤버 정보 및 레벨 기반 색상 설정
+    // 정보 및 스타일 설정
     const memberInfo = currentData.find(m => m.id === mId);
     const style = getLevelStyle(memberInfo ? memberInfo.level : 0);
-    
     card.style.setProperty('--glow-color', style.border);
     if(beam) beam.style.setProperty('--beam-color', style.border);
 
     // 2. 별밤 생성
-    for(let i=0; i<50; i++) {
+    for(let i=0; i<40; i++) {
         const star = document.createElement('div');
         star.className = 'sky-star';
         star.style.width = star.style.height = `${Math.random()*2}px`;
@@ -2521,30 +2576,25 @@ window.showMemberMountain = async (mId, mName) => {
     try {
         const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
         const logs = snap.docs.map(d => d.data()).filter(l => (l.height || 0) > 0);
-        
-        // 7. 나이테 애니메이션 실행 (레이아웃이 먼저 잡히도록 상단 배치 가능)
-        if (memberInfo) {
-            // 축소된 레이아웃에 맞춰 나이테 렌더링
-            await window.renderTreeRings(mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
-        }
 
+        // [산맥 차트 생성 로직 - 배경 및 개인 봉우리]
         if (logs.length > 0) {
             const heights = logs.map(l => l.height);
             const maxHeight = Math.max(...heights);
             const maxLog = logs.find(l => l.height === maxHeight);
-
+            
+            // 고도 텍스트 갱신
             document.getElementById('myTotalH').innerText = heights.reduce((a,b)=>a+b,0).toLocaleString();
             const globalH = currentData.reduce((acc, m) => acc + (m.totalHeight || 0), 0);
             document.getElementById('globalTotalH').innerText = globalH.toLocaleString();
-            
-            // 3. 배경 산맥 생성
+
+            // 배경 산맥
             const layerCount = Math.min(Math.floor(globalH / 15000) + 2, 5);
             for(let i = 1; i <= layerCount; i++) {
                 const layer = document.createElement('div');
                 layer.className = 'mountain-layer';
-                layer.style.height = `${20 + (i * 8)}%`; 
-                layer.style.opacity = 0.4; 
-                layer.style.filter = 'brightness(0.8)'; 
+                layer.style.height = `${20 + (i * 8)}%`;
+                layer.style.opacity = 0.4;
                 for(let j=0; j<10; j++) {
                     const p = document.createElement('div');
                     p.className = 'peak';
@@ -2554,43 +2604,47 @@ window.showMemberMountain = async (mId, mName) => {
                 bgContainer.appendChild(layer);
             }
 
-            // 4. 개인 봉우리 생성
-            peakLayer.style.height = "60%"; 
+            // 개인 봉우리
+            peakLayer.style.height = "60%";
             logs.forEach((log) => {
                 const hRatio = (log.height / maxHeight) * 100;
                 const isMax = log.height === maxHeight;
                 const peakDiv = document.createElement('div');
                 peakDiv.className = `peak ${isMax ? 'max-height' : ''}`;
                 peakDiv.style.height = `${hRatio}%`;
-                peakDiv.style.filter = 'brightness(1.5)'; 
-                
-                if (isMax) {
-                    peakDiv.innerHTML = `<div class="peak-glow-core"></div><div class="golden-glow-effect"></div>`;
-                }
+                if (isMax) peakDiv.innerHTML = `<div class="peak-glow-core"></div><div class="golden-glow-effect"></div>`;
                 peakLayer.appendChild(peakDiv);
             });
 
-            if(maxLog && peakLabel) {
-                peakLabel.innerHTML = `${maxLog.mountain} (${maxLog.height}m)`;
+            if(maxLog && peakLabel) peakLabel.innerHTML = `${maxLog.mountain} (${maxLog.height}m)`;
+        }
+
+        // 3. 순차적 연출 (Beam -> TreeRings -> Glow)
+        setTimeout(() => {
+            // 단계 1: 광선 발사
+            if(beam) {
+                beam.style.background = `linear-gradient(to top, ${style.border}, transparent)`;
+                beam.style.opacity = '0.7';
+                beam.style.transition = 'height 1s ease-in, opacity 0.5s';
+                beam.style.height = '120%';
             }
 
-            // 6. 연출: 레벨색 광선 발사
-            setTimeout(() => {
-                if(beam) {
-                    beam.style.background = `linear-gradient(to top, ${style.border}, transparent)`;
-                    beam.style.opacity = '0.7';
-                    beam.style.transition = 'height 1s ease-in, opacity 0.5s';
-                    beam.style.height = '120%'; 
+            // 단계 2: 광선 사라지며 나이테가 그려짐
+            setTimeout(async () => {
+                if(beam) beam.style.opacity = '0';
+
+                if (memberInfo) {
+                    // 나이테 생성 (나이테 함수 내부에서 애니메이션 처리됨)
+                    await window.renderTreeRings(mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
                 }
 
+                // 단계 3: 모든 시각화 완료 후 전체 카드 발광 및 네온 텍스트 점등
                 setTimeout(() => {
-                    if(beam) beam.style.opacity = '0';
                     card.classList.add('glow-active');
-                }, 1000);
-            }, 500);
-        } else {
-            card.classList.add('glow-active');
-        }
+                }, 500); 
+
+            }, 1000);
+        }, 300);
 
     } catch (e) { console.error("통합 로딩 에러:", e); }
 };
