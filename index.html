@@ -12,84 +12,58 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-/* 산우리 누적 산맥 (배경): 조금 더 밝게 조정 */
-.mountain-layer .peak {
-    background: linear-gradient(to bottom, #4a5d8a, #1a2436) !important;
-    clip-path: polygon(50% 0%, 0% 100%, 100% 100%) !important;
-}
-
-/* ★ 최고봉: 주황색 강조 ★ */
-#peakLayer .peak.max-height {
-    background: linear-gradient(to bottom, #ff9800, #e65100) !important;
-    filter: drop-shadow(0 0 15px rgba(255, 152, 0, 0.7)) !important;
-    z-index: 50 !important; /* 위로 올라오게 */
-    position: absolute !important;
-}
-
-/* 정상 광원 포인트 */
-.white-star-core {
-    position: absolute !important;
-    top: -8px !important;
-    left: 50% !important;
-    transform: translateX(-50%) !important;
-    width: 12px !important;
-    height: 12px !important;
-    background: #ffffff !important;
-    border-radius: 50% !important;
-    box-shadow: 0 0 20px 8px #fff, 0 0 40px 15px rgba(255, 255, 255, 0.6) !important;
-    z-index: 60 !important;
-}
-
-/* 하늘로 쏘아올리는 빔 */
-#lightBeam {
-    background: linear-gradient(to top, rgba(255,255,255,1), rgba(255,255,255,0.2), transparent) !important;
-    width: 20px !important;
-    filter: blur(4px) !important;
-    z-index: 55 !important;
-    pointer-events: none !important;
-    position: absolute !important;
-    bottom: 0 !important;
-}
-
-
-/* 산우리 누적 산맥 (배경): 어두운 블루-그레이 */
-.mountain-layer .peak {
-    background: linear-gradient(to bottom, #1a2436, #0a0f1d) !important;
-    clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
-}
-
-/* 개인 산맥: 선명한 네이비-블루 (이미지 색상) */
-#peakLayer .peak {
-    background: linear-gradient(to bottom, #3a507a, #162238) !important;
-    clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
-    box-shadow: inset 0 0 10px rgba(255,255,255,0.1);
-}
-
-/* 최고봉 강조 및 광원 */
-.peak.max-height {
-    background: linear-gradient(to bottom, #4a67a1, #162238) !important;
-    filter: drop-shadow(0 0 10px rgba(100, 150, 255, 0.3));
-}
-
-/* 정상의 흰색 광원 포인트 */
-.white-star-core {
+/* 광선(Beam) 스타일 강화 */
+.light-beam {
     position: absolute;
-    top: -6px;
+    bottom: 0;
     left: 50%;
     transform: translateX(-50%);
-    width: 10px;
-    height: 10px;
-    background: #fff;
-    border-radius: 50%;
-    box-shadow: 0 0 15px 5px #fff, 0 0 30px 10px rgba(255, 255, 255, 0.4);
-    z-index: 20;
+    width: 60px; /* 더 넓은 광선 */
+    background: linear-gradient(to top, var(--beam-color), transparent);
+    filter: blur(8px);
+    opacity: 0;
+    z-index: 150;
+    pointer-events: none;
 }
 
-/* 쏘아올리는 빔 효과 */
-#lightBeam {
-    background: linear-gradient(to top, rgba(255,255,255,0.9), transparent) !important;
-    width: 30px !important;
-    filter: blur(5px) !important;
+/* 산맥 밝기 보정 */
+.mountain-layer {
+    filter: brightness(1.2); /* 전체적인 베이스 밝기 상향 */
+}
+
+/* 앞쪽(개인) 산맥: 더 밝고 선명하게 */
+#peakLayer .peak {
+    background: linear-gradient(to bottom, #ffffff, #64748b);
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+}
+
+/* 배경(산우리) 산맥: 가시성 확보 */
+#bgLayersContainer .mountain-layer {
+    opacity: 0.4 !important; /* 기존 0.15에서 상향 */
+}
+
+/* 최고봉 광원 효과 */
+.peak.max-height {
+    position: relative;
+}
+
+.peak.max-height::after {
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 30px;
+    height: 30px;
+    background: radial-gradient(circle, #fff 0%, transparent 70%);
+    box-shadow: 0 0 20px 5px #fff;
+    border-radius: 50%;
+    animation: peak-glow 2s infinite alternate;
+}
+
+@keyframes peak-glow {
+    from { opacity: 0.5; transform: translateX(-50%) scale(0.8); }
+    to { opacity: 1; transform: translateX(-50%) scale(1.2); }
 }
 
 /* 1. 중앙 행성(코어)이 부드럽게 원을 그리며 움직임 */
@@ -2329,40 +2303,39 @@ window.showMemberMountain = async (mId, mName) => {
     const beam = document.getElementById('lightBeam');
     const peakLabel = document.getElementById('highestPeakLabel');
     
-    // 1. 초기화
+    // 1. 초기화 및 준비
     document.getElementById('mwMountainName').innerText = `${mName}님의 산맥`;
     modal.style.display = 'flex';
     card.classList.remove('glow-active'); 
     
+    // 광선 초기화: 너비 넓게 설정 및 투명화
     if(beam) { 
         beam.style.opacity = '0'; 
-        beam.style.height = '0'; 
+        beam.style.height = '0';
+        beam.style.width = '60px'; // 더 넓은 광선
+        beam.style.filter = 'blur(10px)'; // 부드러운 효과
     }
+    if(peakLabel) peakLabel.innerText = "";
     
     peakLayer.innerHTML = bgContainer.innerHTML = sky.innerHTML = "";
     document.getElementById('treeRingContainer').innerHTML = ""; 
 
+    // 멤버 정보 및 레벨 기반 색상 설정
     const memberInfo = currentData.find(m => m.id === mId);
-    if(memberInfo) {
-        const style = getLevelStyle(memberInfo.level || 0);
-        card.style.setProperty('--glow-color', style.border);
-    }
+    const style = getLevelStyle(memberInfo ? memberInfo.level : 0);
+    
+    // [수정] 카드 테두리와 광선 색상을 레벨색으로 통일
+    card.style.setProperty('--glow-color', style.border);
+    if(beam) beam.style.setProperty('--beam-color', style.border);
 
-    // 2. 별밤 생성 (유지)
-    for(let i=0; i<40; i++) {
+    // 2. 별밤 생성 (기존 로직 유지)
+    for(let i=0; i<50; i++) {
         const star = document.createElement('div');
         star.className = 'sky-star';
-        star.style.cssText = `
-            position: absolute;
-            background: white;
-            border-radius: 50%;
-            width: ${Math.random()*2}px;
-            height: ${Math.random()*2}px;
-            left: ${Math.random()*100}%;
-            top: ${Math.random()*60}%;
-            opacity: ${Math.random()};
-            animation: twinkle ${Math.random()*3+2}s infinite;
-        `;
+        star.style.width = star.style.height = `${Math.random()*2}px`;
+        star.style.left = `${Math.random()*100}%`;
+        star.style.top = `${Math.random()*60}%`;
+        star.style.setProperty('--duration', `${Math.random()*3+2}s`);
         sky.appendChild(star);
     }
 
@@ -2375,65 +2348,76 @@ window.showMemberMountain = async (mId, mName) => {
             const maxHeight = Math.max(...heights);
             const maxLog = logs.find(l => l.height === maxHeight);
 
-            // 데이터 표시
             document.getElementById('myTotalH').innerText = heights.reduce((a,b)=>a+b,0).toLocaleString();
             const globalH = currentData.reduce((acc, m) => acc + (m.totalHeight || 0), 0);
             document.getElementById('globalTotalH').innerText = globalH.toLocaleString();
             
-            // 3. 배경 산맥 생성
-            for(let i = 1; i <= 3; i++) {
+            // 3. [수정] 배경 산맥 (산우리 누적고도 바탕) - 더 밝게 처리
+            const layerCount = Math.min(Math.floor(globalH / 15000) + 2, 5);
+            for(let i = 1; i <= layerCount; i++) {
                 const layer = document.createElement('div');
                 layer.className = 'mountain-layer';
-                layer.style.cssText = `position:absolute; bottom:0; width:100%; height:${20 + (i*8)}%; opacity:0.3;`;
-                for(let j=0; j<8; j++) {
+                layer.style.height = `${20 + (i * 8)}%`; 
+                layer.style.opacity = 0.4; // [변경] 기존 0.15에서 상향 (가시성 확보)
+                layer.style.filter = 'brightness(0.8)'; // 배경 느낌 유지하되 밝게
+                for(let j=0; j<10; j++) {
                     const p = document.createElement('div');
                     p.className = 'peak';
-                    p.style.cssText = `position:absolute; bottom:0; width:120px; height:${Math.random()*30+70}%; left:${Math.random()*90}%;`;
+                    p.style.height = `${Math.random()*30+70}%`;
                     layer.appendChild(p);
                 }
                 bgContainer.appendChild(layer);
             }
 
-            // 4. 개인 산맥 및 빔 위치 계산
-            peakLayer.style.height = "60%";
-            logs.forEach((log, index) => {
+            // 4. [수정] 개인 봉우리 (내가 간 산) - 가장 밝게 & 최고봉 광원
+            peakLayer.style.height = "60%"; 
+            logs.forEach((log) => {
                 const hRatio = (log.height / maxHeight) * 100;
                 const isMax = log.height === maxHeight;
-                const leftPos = (index / (logs.length - 1 || 1)) * 85 + 7.5; 
-                
                 const peakDiv = document.createElement('div');
+                // 최고봉일 때 max-height 클래스 추가 (CSS에서 광원 처리)
                 peakDiv.className = `peak ${isMax ? 'max-height' : ''}`;
-                peakDiv.style.cssText = `position:absolute; bottom:0; width:100px; left:${leftPos}%; height:${hRatio}%; transition: height 1s;`;
+                peakDiv.style.height = `${hRatio}%`;
+                peakDiv.style.filter = 'brightness(1.5)'; // [변경] 내 산맥은 아주 밝게
                 
                 if (isMax) {
-                    peakDiv.innerHTML = `<div class="white-star-core"></div>`;
-                    if(beam) {
-                        beam.style.left = `${leftPos}%`; // 빔을 주황색 산 정중앙으로
-                        beam.style.transform = 'translateX(-50%)';
-                    }
+                    // 최고봉 꼭대기 광원 레이어 추가
+                    peakDiv.innerHTML = `
+                        <div class="peak-glow-core"></div>
+                        <div class="golden-glow-effect"></div>
+                    `;
                 }
                 peakLayer.appendChild(peakDiv);
             });
 
-            // 5. 시퀀스 연출
-            if(maxLog && peakLabel) peakLabel.innerHTML = `🏆 최고봉: ${maxLog.mountain} (${maxLog.height}m)`;
+            // 5. 최고봉 이름 표시
+            if(maxLog && peakLabel) {
+                peakLabel.innerHTML = `${maxLog.mountain} (${maxLog.height}m)`;
+            }
 
+            // 6. [수정] 연출: 레벨색 광선 발사 (폭이 넓고 색상이 연동됨)
             setTimeout(() => {
                 if(beam) {
-                    beam.style.opacity = '1';
-                    beam.style.transition = 'height 1.2s cubic-bezier(0.19, 1, 0.22, 1), opacity 0.4s';
-                    beam.style.height = '150%'; 
+                    beam.style.background = `linear-gradient(to top, ${style.border}, transparent)`;
+                    beam.style.opacity = '0.7';
+                    beam.style.transition = 'height 1s ease-in, opacity 0.5s';
+                    beam.style.height = '120%'; 
                 }
 
                 setTimeout(async () => {
                     if(beam) beam.style.opacity = '0';
+                    // 7. 나이테 애니메이션 실행
                     if (memberInfo) {
                         await window.renderTreeRings(mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
                     }
                     card.classList.add('glow-active');
                 }, 1000);
             }, 500);
+        } else {
+            if (memberInfo) await window.renderTreeRings(mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
+            card.classList.add('glow-active');
         }
+
     } catch (e) { console.error("통합 로딩 에러:", e); }
 };
 
