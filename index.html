@@ -12,6 +12,47 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+/* 산우리 누적 산맥 (배경): 기존보다 약간 밝은 네이비 그레이 */
+.mountain-layer .peak {
+    background: linear-gradient(to bottom, #3b4b6b, #1a2436) !important;
+    clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+}
+
+/* 개인 일반 산맥: 딥 블루 */
+#peakLayer .peak {
+    background: linear-gradient(to bottom, #435a85, #1e2b47) !important;
+    clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+}
+
+/* ★ 최고봉: 주황색 차별화 ★ */
+.peak.max-height {
+    background: linear-gradient(to bottom, #ff9800, #e65100) !important;
+    z-index: 10;
+    filter: drop-shadow(0 0 15px rgba(255, 152, 0, 0.6)) !important;
+}
+
+/* 정상 광원 */
+.white-star-core {
+    position: absolute;
+    top: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 12px;
+    height: 12px;
+    background: #fff;
+    border-radius: 50%;
+    box-shadow: 0 0 20px 8px #fff, 0 0 40px 15px rgba(255, 255, 255, 0.5);
+    z-index: 21;
+}
+
+/* 빛줄기 (빔) */
+#lightBeam {
+    background: linear-gradient(to top, rgba(255,255,255,1), rgba(255,255,255,0.4), transparent) !important;
+    width: 25px !important;
+    filter: blur(4px) brightness(1.2) !important;
+    z-index: 15;
+}
+
 /* 산우리 누적 산맥 (배경): 어두운 블루-그레이 */
 .mountain-layer .peak {
     background: linear-gradient(to bottom, #1a2436, #0a0f1d) !important;
@@ -2289,7 +2330,7 @@ window.showMemberMountain = async (mId, mName) => {
     const beam = document.getElementById('lightBeam');
     const peakLabel = document.getElementById('highestPeakLabel');
     
-    // 1. 초기화 (기존 UI 유지)
+    // 1. 초기화
     document.getElementById('mwMountainName').innerText = `${mName}님의 산맥`;
     modal.style.display = 'flex';
     card.classList.remove('glow-active'); 
@@ -2303,7 +2344,7 @@ window.showMemberMountain = async (mId, mName) => {
     const style = getLevelStyle(memberInfo ? memberInfo.level : 0);
     card.style.setProperty('--glow-color', style.border);
 
-    // 2. 별밤 생성 (유지)
+    // 2. 별밤 생성
     for(let i=0; i<50; i++) {
         const star = document.createElement('div');
         star.className = 'sky-star';
@@ -2327,13 +2368,13 @@ window.showMemberMountain = async (mId, mName) => {
             const globalH = currentData.reduce((acc, m) => acc + (m.totalHeight || 0), 0);
             document.getElementById('globalTotalH').innerText = globalH.toLocaleString();
             
-            // 3. 배경 산맥 생성 (색상은 CSS에서 조절됨)
+            // 3. 배경 산맥 생성 (조금 더 밝게 조정됨)
             const layerCount = Math.min(Math.floor(globalH / 15000) + 2, 5);
             for(let i = 1; i <= layerCount; i++) {
                 const layer = document.createElement('div');
                 layer.className = 'mountain-layer';
                 layer.style.height = `${20 + (i * 8)}%`; 
-                layer.style.opacity = 0.2; // 가독성을 위해 살짝 높임
+                layer.style.opacity = 0.3; // 투명도를 높여 조금 더 밝게 보이게 함
                 for(let j=0; j<10; j++) {
                     const p = document.createElement('div');
                     p.className = 'peak';
@@ -2343,49 +2384,52 @@ window.showMemberMountain = async (mId, mName) => {
                 bgContainer.appendChild(layer);
             }
 
-            // 4. 개인 봉우리 생성 (정상 광원 추가)
-            peakLayer.style.height = "60%"; 
-            logs.forEach((log) => {
+            // 4. 개인 봉우리 생성 및 최고봉 정중앙 계산
+            peakLayer.style.height = "60%";
+            const totalPeaks = logs.length;
+            
+            logs.forEach((log, index) => {
                 const hRatio = (log.height / maxHeight) * 100;
                 const isMax = log.height === maxHeight;
                 const peakDiv = document.createElement('div');
                 peakDiv.className = `peak ${isMax ? 'max-height' : ''}`;
+                
+                // 위치 계산 (정중앙 정렬을 위해)
+                const leftPos = (index / (totalPeaks - 1 || 1)) * 90 + 5; 
+                peakDiv.style.left = `${leftPos}%`;
                 peakDiv.style.height = `${hRatio}%`;
                 
                 if (isMax) {
-                    // 정상에 별 광원 추가
                     peakDiv.innerHTML = `<div class="white-star-core"></div>`;
-                    // 빔 위치를 최고봉 위치에 맞춤
-                    if(beam) beam.style.left = `${(logs.indexOf(log) / logs.length) * 100}%`;
+                    // 빔 위치를 최고봉의 가로 위치(leftPos)에 정확히 일치시킴
+                    if(beam) {
+                        beam.style.left = `${leftPos}%`;
+                        beam.style.transform = 'translateX(-50%)'; // 정확한 중앙 정렬
+                    }
                 }
                 peakLayer.appendChild(peakDiv);
             });
 
-            // 5. [연출] 최고봉 텍스트
-            if(maxLog && peakLabel) {
-                peakLabel.innerHTML = `🏆 최고봉: ${maxLog.mountain} (${maxLog.height}m)`;
-            }
+            // 5. 시퀀스 연출
+            if(maxLog && peakLabel) peakLabel.innerHTML = `🏆 최고봉: ${maxLog.mountain} (${maxLog.height}m)`;
 
-            // 6. [연출] 빛 줄기 쏘아 올리기 시퀀스
             setTimeout(() => {
                 if(beam) {
-                    beam.style.opacity = '0.8';
-                    beam.style.transition = 'height 1.2s ease-in, opacity 0.5s';
-                    beam.style.height = '150%'; // 꼭대기 위로 뚫고 지나감
+                    beam.style.opacity = '1';
+                    beam.style.transition = 'height 1s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s';
+                    beam.style.height = '150%'; 
                 }
 
                 setTimeout(async () => {
                     if(beam) beam.style.opacity = '0';
-                    // 7. 나이테 애니메이션 실행
                     if (memberInfo) {
                         await window.renderTreeRings(mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
                     }
-                    // 8. 테두리 빛 활성화
                     card.classList.add('glow-active');
                 }, 1000);
             }, 500);
         }
-    } catch (e) { console.error("통합 로딩 에러:", e); }
+    } catch (e) { console.error("산맥 생성 에러:", e); }
 };
 
 window.renderTreeRings = async (memberName, regDate, memberLevel) => {
