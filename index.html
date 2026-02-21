@@ -2248,28 +2248,34 @@ window.closeLevelupAlert = () => {
 };
 
 window.addMultiActivity = async () => {
+    // 1. 필요한 기본 데이터 가져오기
     const dateVal = document.getElementById('activityDate').value;
     const mName = document.getElementById('mountainName').value.trim();
     const height = parseInt(document.getElementById('mountainHeight').value) || 0;
     const isTop100 = document.getElementById('isTop100Check').checked;
     const isBAC = document.getElementById('isBACCheck').checked;
-    
-    // ✅ '분기 체크' 여부를 가져오는 변수 (HTML의 ID 확인 필요)
-    const isQuarterOnlyOne = document.getElementById('isQuarterCheck').checked; 
-    
     const region = document.getElementById('adminManualRegionSelect').value;
-    
+
+    // ✅ 분기 체크박스 상태 확인 (ID: isQuarterCheck)
+    // 화면에 체크박스가 없을 경우를 대비해 기본값 false 설정
+    const isQuarterOnlyOne = document.getElementById('isQuarterCheck')?.checked || false;
+
     if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜 확인");
-    
+
+    // 2. 레벨업 수치 및 날짜 타임스탬프 설정
     const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
     const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
 
+    // 3. 산 정보가 있을 경우 산 DB 업데이트
     if(mName && tempCoord) {
-        await setDoc(doc(db, "mountains", mName), { x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region }, { merge: true });
+        await setDoc(doc(db, "mountains", mName), { 
+            x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region 
+        }, { merge: true });
     }
 
     pendingLevelUpMessages = [];
 
+    // 4. 선택된 회원별 업데이트 루프
     for(const id of selectedMemberIds){
         const member = currentData.find(m => m.id === id);
         if(!member) continue;
@@ -2277,21 +2283,21 @@ window.addMultiActivity = async () => {
         const oldLevel = member.level || 0; 
         const newLevel = oldLevel + up;
         
-        // 1. 회원 정보 레벨 업데이트 (수치만큼 한 번에 업데이트)
+        // [A] 회원 정보 업데이트 (레벨 수치만큼 상승)
         await updateDoc(doc(db, "sanwoori", id), { 
             level: newLevel, 
             lastDate: ts 
         });
         
-        // 2. 우정 포인트 업데이트
+        // [B] 우정 포인트 업데이트 (2명 이상 동행 시)
         if (selectedMemberIds.size >= 2) {
             await updateDoc(doc(db, "sanwoori", id), { 
                 friendshipPoint: increment(10 * up) 
             });
         }
         
-        // 3. 핵심 로직: 로그 생성 횟수 결정
-        // '분기 체크'가 되어있으면 1번만 실행, 아니면 up(2~3)만큼 실행
+        // [C] 로그 기록 (분기 횟수 결정 핵심 로직)
+        // ✅ '분기 체크'가 되어있으면 1회만, 아니면 선택한 레벨업(up) 수만큼 기록 생성
         const logLoopCount = isQuarterOnlyOne ? 1 : up;
 
         for(let i = 0; i < logLoopCount; i++) {
@@ -2306,18 +2312,22 @@ window.addMultiActivity = async () => {
             });
         }
         
+        // 레벨업 축하 알림 체크
         checkLevelUpgrade(member.name, oldLevel, newLevel);
     }
 
+    // 5. 후처리 및 알림
     if (pendingLevelUpMessages.length > 0) {
         showCombinedLevelUpAlert();
     }
 
-    const msg = isQuarterOnlyOne ? `레벨 ${up}↑ / 분기 1회 반영` : `레벨 ${up}↑ / 분기 ${up}회 반영`;
-    alert("저장 완료 (" + msg + ")"); 
+    const logMsg = isQuarterOnlyOne ? "분기 1회만 반영" : `분기 ${up}회 반영`;
+    alert(`저장 완료 (레벨 ${up}↑ / ${logMsg})`); 
     
     selectedMemberIds.clear(); 
+    tempCoord = null; 
     updateAdminMemberLists();
+    updateVibeTemp();
 };
 
 window.loadMemberLogs = async () => {
