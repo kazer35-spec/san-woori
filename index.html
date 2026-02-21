@@ -1259,7 +1259,8 @@ const defaultSubRooms = [
 { id: "bank", name: "은행", emoji: "💰", url: "은행 톡방📢 https://open.kakao.com/o/gIiWrz6h" },
 { id: "stable", name: "승마장", emoji: "🐎", url: "승마장 톡방📢 https://open.kakao.com/o/gYiVoN3h" }
 ];
-function listenSubRooms() {
+
+    function listenSubRooms() {
 onSnapshot(collection(db, "sub_rooms"), (snapshot) => {
 const rooms = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 subRoomsData = defaultSubRooms.map(def => {
@@ -1931,11 +1932,17 @@ setTimeout(() => { updateVibeTemp(); setInterval(updateVibeTemp, 60000); }, 2000
 document.getElementById('regDate').valueAsDate = new Date();
 document.getElementById('activityDate').valueAsDate = new Date();
 
-// 🌌 새로운 회원 전용 우주 리포트 창
+// 🌌 새로운 회원 전용 우주 리포트 창 (기존 소스에 통합)
 window.showMemberUniverse = async (mId, mName) => {
-    const modal = document.getElementById('milkyWayModal'); // 기존 모달 틀 재사용
+    const modal = document.getElementById('milkyWayModal');
     const member = currentData.find(m => m.id === mId);
     if(!member) return;
+
+    // 🔥 [중요] 별자리 지도(Constellation) 게시판 숨기기
+    const constellationBoard = document.getElementById('constellationBoard');
+    const mwMemberName = document.getElementById('mwMemberName');
+    if(constellationBoard) constellationBoard.style.display = "none"; 
+    if(mwMemberName) mwMemberName.style.display = "none"; 
 
     // [1] 레벨별 테마 색상 설정
     const lvStyle = getLevelStyle(member.level);
@@ -1945,11 +1952,11 @@ window.showMemberUniverse = async (mId, mName) => {
     modal.style.display = 'flex';
     document.getElementById('mwTargetName').innerText = `${mName}님의 산맥`;
 
-    // [3] 나이테 개월수 계산 (요청하신 31명 고정 로직)
+    // [3] 나이테 개월수 계산 (31명 고정 로직)
     const fixedList = ["오즈","나스","해수","용삼","지니","아랑","민이","몰랑","길치","등초","무니","식이","구름","뚜벅","윤윤","승이","이구","후후","튜브","피치","사랑","송돌","호프","이제","얌얌","태기","희야","멸치","성민","루이","섭섭"];
     let joinDate = member.regDate ? member.regDate.toDate() : new Date();
     if(fixedList.includes(mName)) {
-        joinDate = new Date("2025-11-24"); // 25년 11월 24일 고정
+        joinDate = new Date("2025-11-24"); 
     }
     const diffMonths = Math.max(1, Math.floor((new Date() - joinDate) / (1000 * 60 * 60 * 24 * 30.44)));
     document.getElementById('mwMonths').innerText = diffMonths;
@@ -1960,64 +1967,67 @@ window.showMemberUniverse = async (mId, mName) => {
     document.getElementById('mwGlobalTotal').innerText = globalTotal.toLocaleString();
 
     // [5] 시각화 실행
-    renderCosmicMountains(mId, globalTotal); // 산맥 그리기
-    runUniverseAnimation(diffMonths, themeColor); // 애니메이션 시작
+    renderCosmicMountains(mId, globalTotal); 
+    runUniverseAnimation(diffMonths, themeColor); 
 };
 
-// ⛰️ 산맥 시각화 로직
+// ⛰️ 산맥 시각화 (개인 산맥 + 산우리 전체 배경)
 function renderCosmicMountains(mId, globalTotal) {
     const container = document.getElementById('mountainContainer');
+    if(!container) return;
     container.innerHTML = "";
     
-    // 뒤쪽: 산우리 전체 산맥 (배경)
-    const bgHeight = Math.min(100, globalTotal / 1000); // 전체 고도 비례
+    // 뒤쪽: 산우리 전체 누적 산맥 (배경)
+    const bgHeight = Math.min(120, globalTotal / 2000); 
     const bgMt = document.createElement('div');
-    bgMt.style.cssText = `position:absolute; bottom:0; width:100%; height:${bgHeight}px; background: rgba(255,255,255,0.05); clip-path: polygon(0% 100%, 20% 40%, 40% 80%, 60% 20%, 80% 60%, 100% 100%); z-index:1;`;
+    bgMt.style.cssText = `position:absolute; bottom:0; width:100%; height:${bgHeight}px; background: rgba(255,255,255,0.05); clip-path: polygon(0% 100%, 15% 30%, 35% 70%, 50% 10%, 65% 60%, 85% 25%, 100% 100%); z-index:1;`;
     container.appendChild(bgMt);
 
-    // 앞쪽: 내 개인 산맥 (데이터 기반 7개 봉우리 샘플)
+    // 앞쪽: 내 개인 산맥 (7개 봉우리)
     for(let i=0; i<7; i++) {
         const h = 40 + Math.random() * 50;
         const mt = document.createElement('div');
         mt.className = `mt-bar ${i===3 ? 'mt-highest' : ''}`;
         mt.style.height = h + "%";
         mt.style.zIndex = "2";
-        if(i===3) {
-            mt.innerHTML = `<span class="absolute -top-10 left-1/2 -translate-x-1/2 text-[10px] text-yellow-400 font-bold whitespace-nowrap">천황산 (1189m)</span>`;
+        if(i===3) { // 제일 높은 봉우리 광원 및 산 이름
+            mt.innerHTML = `<span class="absolute -top-10 left-1/2 -translate-x-1/2 text-[10px] text-yellow-400 font-bold whitespace-nowrap" style="text-shadow: 0 0 10px gold;">정복 최고봉</span>`;
         }
         container.appendChild(mt);
     }
 }
 
-// ✨ 빛줄기, 행성, 나이테 애니메이션 로직
+// ✨ 애니메이션 시퀀스 (빛줄기 -> 행성 -> 나이테 -> 별)
 function runUniverseAnimation(months, themeColor) {
     const beam = document.getElementById('lightBeam');
     const planet = document.getElementById('mainPlanet');
     const orbitArea = document.getElementById('orbitArea');
-    
+    if(!beam || !planet || !orbitArea) return;
+
     // 초기화
     document.querySelectorAll('.ring, .star').forEach(el => el.remove());
 
-    // 1단계: 빛줄기 발사
+    // 1단계: 빛줄기 발사 (바닥에서 행성으로)
     beam.style.background = `linear-gradient(to top, transparent, ${themeColor})`;
     beam.style.opacity = "1";
     beam.style.height = "100%";
     beam.style.transition = "height 0.8s ease-in";
 
     setTimeout(() => {
-        // 2단계: 행성 등장 (충돌 효과)
+        // 2단계: 행성 등장 및 빛줄기 충돌 (행성 밝아짐)
         planet.style.opacity = "1";
         planet.style.background = themeColor;
-        planet.style.boxShadow = `0 0 30px ${themeColor}`;
+        planet.style.boxShadow = `0 0 40px ${themeColor}, 0 0 80px ${themeColor}`;
         
-        // 3단계: 나이테 생성
+        // 3단계: 나이테(활동 개월수) 생성
         for(let i=1; i<=months; i++) {
             setTimeout(() => {
                 const ring = document.createElement('div');
                 ring.className = 'ring';
                 ring.style.width = ring.style.height = (i * 35) + "px";
                 ring.style.borderColor = themeColor;
-                ring.style.opacity = 1 / (i * 0.8);
+                ring.style.boxShadow = `0 0 10px ${themeColor}`;
+                ring.style.opacity = 1 / (i * 0.7);
                 orbitArea.appendChild(ring);
                 setTimeout(() => ring.style.transform = "scale(1)", 50);
             }, i * 150);
@@ -2027,7 +2037,7 @@ function runUniverseAnimation(months, themeColor) {
         beam.style.opacity = "0";
         beam.style.height = "0%";
 
-        // 4단계: 전체 창 별 반짝임 추가
+        // 4단계: 전체 창 별 반짝임 (우주 느낌)
         for(let i=0; i<60; i++) {
             const star = document.createElement('div');
             star.className = 'star';
