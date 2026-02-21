@@ -1553,7 +1553,7 @@ if(coords.x >= r.x[0] && coords.x <= r.x[1] && coords.y >= r.y[0] && coords.y <=
 return "기타";
 }
 
-function initAutoSelection() {  
+function initAutoSelection() {
 const yearSelect = document.getElementById('yearSelect');
 if (yearSelect) yearSelect.value = selectedYear;
 document.querySelectorAll('.q-btn').forEach((btn, idx) => {
@@ -2382,7 +2382,7 @@ window.showMemberMountain = async (mId, mName) => {
     const ringMainTitle = document.querySelector('.ring-main-title'); 
     const mwMountainName = document.getElementById('mwMountainName'); 
     
-    // 1. [수정] 텍스트 스타일 즉시 통일 (우주적 네온 효과)
+    // 1. 텍스트 스타일 즉시 통일 (우주적 네온 효과)
     if(mwMountainName) {
         mwMountainName.innerText = `${mName}님의 산맥`;
         mwMountainName.classList.add('cosmic-neon-text');
@@ -2394,7 +2394,7 @@ window.showMemberMountain = async (mId, mName) => {
     modal.style.display = 'flex';
     card.classList.remove('glow-active'); 
     
-    // 2. [수정] 빛줄기 슬림하게 설정 (두께 10px)
+    // 2. 빛줄기 슬림하게 설정 (두께 10px 초기화)
     if(beam) { 
         beam.style.opacity = '0'; 
         beam.style.height = '0';
@@ -2404,10 +2404,11 @@ window.showMemberMountain = async (mId, mName) => {
         beam.style.filter = 'blur(6px)';
     }
     
-    // 레이어 초기화
+    // 레이어 및 컨테이너 초기화
     if(peakLabel) peakLabel.innerText = "";
     peakLayer.innerHTML = bgContainer.innerHTML = sky.innerHTML = "";
-    document.getElementById('treeRingContainer').innerHTML = ""; 
+    const ringContainer = document.getElementById('treeRingContainer');
+    if(ringContainer) ringContainer.innerHTML = ""; 
 
     const memberInfo = currentData.find(m => m.id === mId);
     const style = getLevelStyle(memberInfo ? memberInfo.level : 0);
@@ -2415,7 +2416,7 @@ window.showMemberMountain = async (mId, mName) => {
     card.style.setProperty('--glow-color', style.border);
     if(beam) beam.style.setProperty('--beam-color', style.border);
 
-    // 3. 별밤 생성 (기존 로직 유지)
+    // 3. 별밤 배경 생성
     for(let i=0; i<60; i++) {
         const star = document.createElement('div');
         star.className = 'sky-star';
@@ -2441,13 +2442,13 @@ window.showMemberMountain = async (mId, mName) => {
             if(document.getElementById('myTotalH')) document.getElementById('myTotalH').innerText = myTotalH.toLocaleString();
             if(document.getElementById('globalTotalH')) document.getElementById('globalTotalH').innerText = globalH.toLocaleString();
             
-            // 4. 배경 산맥 레이어 생성 (가시성 확보 버전)
+            // 4. 배경 산맥 레이어 생성 (가시성 확보)
             const layerCount = Math.min(Math.floor(globalH / 15000) + 2, 5);
             for(let i = 1; i <= layerCount; i++) {
                 const layer = document.createElement('div');
                 layer.className = 'mountain-layer';
                 layer.style.height = `${20 + (i * 8)}%`; 
-                layer.style.opacity = 0.4; 
+                layer.style.opacity = "0.4"; 
                 layer.style.filter = 'brightness(0.8)';
                 for(let j=0; j<10; j++) {
                     const p = document.createElement('div');
@@ -2475,42 +2476,37 @@ window.showMemberMountain = async (mId, mName) => {
 
             if(maxLog && peakLabel) peakLabel.innerHTML = `${maxLog.mountain} (${maxLog.height}m)`;
 
-            // 6. [수정] 최종 연출: 얇은 빛줄기 발사 -> 행성 타격
-setTimeout(() => {
-    if(beam) {
-        beam.style.bottom = "80px"; // 산맥 높이쯤에서 시작
-        beam.style.background = `linear-gradient(to top, ${style.border}, #fff)`;
-        beam.style.opacity = '1';
-        beam.style.width = '2px'; // 더 날카로운 빛줄기
-        beam.style.transition = 'height 0.6s ease-in';
-        beam.style.height = '350px'; // 전체 500px 중 나이테 중심까지 도달하는 길이
-    }
+            // 6. 최종 연출: 얇은 빛줄기 발사 -> 행성 타격
+            setTimeout(() => {
+                if(beam) {
+                    beam.style.bottom = "80px"; 
+                    beam.style.background = `linear-gradient(to top, ${style.border}, #fff)`;
+                    beam.style.opacity = '1';
+                    beam.style.width = '2px'; 
+                    beam.style.transition = 'height 0.6s ease-in';
+                    beam.style.height = '350px'; 
+                }
 
-    setTimeout(async () => {
-        if(beam) {
-            // 행성 타격 효과 (번쩍임)
-            beam.style.opacity = '0';
-            const card = document.getElementById('integratedCard');
-            card.style.boxShadow = `0 0 50px ${style.border}`; // 카드 전체 번쩍!
-        }
-        
-        // 나이테 렌더링 시작
-        if (memberInfo) {
-            await window.renderTreeRings(mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
-        }
-    }, 600); 
-}, 400);
+                setTimeout(async () => {
+                    if(beam) {
+                        beam.style.opacity = '0';
+                        card.style.boxShadow = `0 0 50px ${style.border}`; 
+                    }
+                    
+                    // 나이테 렌더링 시작
+                    if (memberInfo) {
+                        await window.renderTreeRings(mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
+                    }
 
-                        // 7. 행성 번쩍임 효과 적용
-                        const planet = document.querySelector('.tree-ring-core');
-                        if(planet) {
-                            planet.classList.remove('planet-impact');
-                            void planet.offsetWidth; // 리플로우
-                            planet.classList.add('planet-impact');
-                        }
+                    // 7. 행성 번쩍임 효과 적용 (렌더링 후 실행)
+                    const planet = document.querySelector('.tree-ring-path'); // 나이테 생성 후 탐색
+                    if(planet) {
+                        planet.classList.remove('planet-impact');
+                        void planet.offsetWidth; // 리플로우
+                        planet.classList.add('planet-impact');
                     }
                     card.classList.add('glow-active');
-                }, 700); 
+                }, 600); 
             }, 400);
 
         } else {
@@ -2519,7 +2515,9 @@ setTimeout(() => {
             card.classList.add('glow-active');
         }
 
-    } catch (e) { console.error("통합 로딩 에러:", e); }
+    } catch (e) { 
+        console.error("통합 로딩 에러:", e); 
+    }
 };
 
 window.renderTreeRings = async (memberName, regDate, memberLevel) => {
