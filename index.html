@@ -12,7 +12,50 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-    /* 나이테창 별빛과 동일한 반짝임 효과 */
+/* 수치 데이터 네온 효과 */
+.neon-value {
+    font-weight: 900;
+    color: #fff;
+    text-shadow: 0 0 5px #fff, 
+                 0 0 10px var(--glow-color, #3b82f6), 
+                 0 0 20px var(--glow-color, #3b82f6);
+    font-size: 1.1rem; /* 수치는 눈에 띄게 */
+}
+
+/* 개인누적, 산우리 합산 라벨 글씨 작게 */
+.mountain-info-bar .info-item {
+    font-size: 9px !important; /* 라벨 크기 축소 */
+    color: rgba(255, 255, 255, 0.6);
+    font-weight: 500;
+    display: flex;
+    flex-direction: column; /* 글자와 수치를 위아래로 배치하면 더 깔끔합니다 */
+    align-items: center;
+    gap: 2px;
+}
+
+/* 최고봉(Peak Label) 글씨 줄이기 */
+.highest-peak-label .small-peak-text {
+    font-size: 10px !important;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: rgba(255, 255, 255, 0.8);
+    background: rgba(0, 0, 0, 0.3);
+    padding: 2px 8px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* 기존 info-bar 레이아웃 살짝 조정 */
+.mountain-info-bar {
+    display: flex;
+    justify-content: space-around;
+    padding: 10px 0;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(5px);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* 나이테창 별빛과 동일한 반짝임 효과 */
 .tree-ring-star {
     animation: twinkle var(--duration, 3s) infinite ease-in-out;
 }
@@ -136,7 +179,7 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 
 /* 배경(산우리) 산맥: 가시성 확보 */
 #bgLayersContainer .mountain-layer {
-    opacity: 0.4 !important; /* 기존 0.15에서 상향 */
+    opacity: 0.3 !important; /* 기존 0.15에서 상향 */
 }
 
 /* 최고봉 광원 효과 */
@@ -2462,7 +2505,6 @@ window.showMemberMountain = async (mId, mName) => {
     const ringMainTitle = document.querySelector('.ring-main-title'); 
     const mwMountainName = document.getElementById('mwMountainName'); 
     
-    // 1. 나이테창 전용 빛줄기 (ringBeam) 동적 생성 및 참조
     let ringBeam = document.getElementById('ringLightBeam');
     if(!ringBeam) {
         ringBeam = document.createElement('div');
@@ -2472,7 +2514,6 @@ window.showMemberMountain = async (mId, mName) => {
         if(ringSection) ringSection.appendChild(ringBeam);
     }
 
-    // 2. 초기화 및 스타일 설정
     if(mwMountainName) {
         mwMountainName.innerText = `${mName}님의 산맥`;
         mwMountainName.classList.add('cosmic-neon-text');
@@ -2482,7 +2523,6 @@ window.showMemberMountain = async (mId, mName) => {
     modal.style.display = 'flex';
     card.classList.remove('glow-active'); 
     
-    // 3. 빛줄기 초기 상태 설정
     const initializeBeam = (b) => {
         if(!b) return;
         b.style.transition = 'none';
@@ -2496,7 +2536,6 @@ window.showMemberMountain = async (mId, mName) => {
     };
     [beam, ringBeam].forEach(initializeBeam);
     
-    // 레이어 및 배경 초기화
     if(peakLabel) peakLabel.innerText = "";
     peakLayer.innerHTML = bgContainer.innerHTML = sky.innerHTML = "";
     const ringContainer = document.getElementById('treeRingContainer');
@@ -2509,20 +2548,13 @@ window.showMemberMountain = async (mId, mName) => {
     if(beam) beam.style.setProperty('--beam-color', style.border);
     if(ringBeam) ringBeam.style.setProperty('--beam-color', style.border);
 
-    // ✨ [수정] 산맥창 배경 별빛을 나이테창과 동일하게 생성 (80개 생성)
     for(let i=0; i<80; i++) {
         const star = document.createElement('div');
-        star.className = 'tree-ring-star'; // 나이테창과 동일한 클래스 사용
+        star.className = 'tree-ring-star';
         star.style.cssText = `
-            position: absolute;
-            width: ${Math.random() * 2}px;
-            height: ${Math.random() * 2}px;
-            left: ${Math.random() * 100}%;
-            top: ${Math.random() * 100}%;
-            background: white;
-            opacity: ${Math.random()};
-            border-radius: 50%;
-            pointer-events: none;
+            position: absolute; width: ${Math.random() * 2}px; height: ${Math.random() * 2}px;
+            left: ${Math.random() * 100}%; top: ${Math.random() * 100}%;
+            background: white; opacity: ${Math.random()}; border-radius: 50%; pointer-events: none;
         `;
         sky.appendChild(star);
     }
@@ -2538,11 +2570,22 @@ window.showMemberMountain = async (mId, mName) => {
             const myTotalH = heights.reduce((a, b) => a + b, 0);
             const globalH = currentData.reduce((acc, m) => acc + (m.totalHeight || 0), 0);
             
-            if(document.getElementById('myTotalH')) document.getElementById('myTotalH').innerText = myTotalH.toLocaleString();
-            if(document.getElementById('globalTotalH')) document.getElementById('globalTotalH').innerText = globalH.toLocaleString();
-            if(maxLog && peakLabel) peakLabel.innerHTML = `${maxLog.mountain} (${maxLog.height}m)`;
+            // ✨ [수정] 네온 효과 및 글씨 크기 조절 적용
+            if(document.getElementById('myTotalH')) {
+                const el = document.getElementById('myTotalH');
+                el.innerText = myTotalH.toLocaleString();
+                el.className = 'neon-value'; // 네온 수치 전용 클래스
+            }
+            if(document.getElementById('globalTotalH')) {
+                const el = document.getElementById('globalTotalH');
+                el.innerText = globalH.toLocaleString();
+                el.className = 'neon-value'; // 네온 수치 전용 클래스
+            }
+            if(maxLog && peakLabel) {
+                // 최고봉 글씨 작게 처리
+                peakLabel.innerHTML = `<span class="small-peak-tag">${maxLog.mountain} (${maxLog.height}m)</span>`;
+            }
 
-            // 배경 산맥 레이어
             const layerCount = Math.min(Math.floor(globalH / 15000) + 2, 5);
             for(let i = 1; i <= layerCount; i++) {
                 const layer = document.createElement('div');
@@ -2558,7 +2601,6 @@ window.showMemberMountain = async (mId, mName) => {
                 bgContainer.appendChild(layer);
             }
 
-            // 개인 봉우리
             peakLayer.style.height = "60%"; 
             logs.forEach((log) => {
                 const hRatio = (log.height / maxHeight) * 100;
@@ -2570,7 +2612,6 @@ window.showMemberMountain = async (mId, mName) => {
                 peakLayer.appendChild(peakDiv);
             });
 
-            // 연출 애니메이션
             setTimeout(() => {
                 if(beam) {
                     beam.style.background = `linear-gradient(to top, transparent, ${style.border}, rgba(255,255,255,0.7))`;
@@ -2578,7 +2619,6 @@ window.showMemberMountain = async (mId, mName) => {
                     beam.style.transition = 'height 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
                     beam.style.height = '110%';
                 }
-
                 setTimeout(() => {
                     if(ringBeam) {
                         ringBeam.style.background = `linear-gradient(to top, ${style.border}, transparent)`;
@@ -2586,31 +2626,18 @@ window.showMemberMountain = async (mId, mName) => {
                         ringBeam.style.transition = 'height 0.5s ease-out';
                         ringBeam.style.height = '50%'; 
                     }
-
                     setTimeout(async () => {
                         if (memberInfo) {
                             await window.renderTreeRings(mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
-                            const ringCore = document.querySelector('.planet-core-group');
-                            if(ringCore) {
-                                ringCore.classList.add('planet-impact-active');
-                                setTimeout(() => ringCore.classList.remove('planet-impact-active'), 1000);
-                            }
                         }
-                        [beam, ringBeam].forEach(b => {
-                            if(b) {
-                                b.style.transition = 'opacity 0.8s ease-out';
-                                b.style.opacity = '0';
-                            }
-                        });
+                        [beam, ringBeam].forEach(b => { if(b) { b.style.transition = 'opacity 0.8s ease-out'; b.style.opacity = '0'; } });
                         card.classList.add('glow-active');
                     }, 450); 
                 }, 350); 
             }, 400);
-
         } else {
             if (memberInfo) await window.renderTreeRings(mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
             card.classList.add('glow-active');
-            if(document.getElementById('myTotalH')) document.getElementById('myTotalH').innerText = "0";
         }
     } catch (e) { console.error("통합 로딩 에러:", e); }
 }
