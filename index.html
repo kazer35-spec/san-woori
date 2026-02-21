@@ -12,23 +12,6 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-/* 라벨 글씨 2px 축소 및 색상 조정 */
-.info-label-small {
-font-size: 11px !important;
-color: #cbd5e1;
-font-weight: 800;
-}
-
-/* 숫자 누적고도 그린 네온 효과 */
-.neon-value-green {
-color: #22c55e !important; /* 선명한 그린 */
-font-weight: 900;
-font-size: 15px;
-text-shadow: 0 0 5px rgba(34, 197, 94, 0.8),
-0 0 10px rgba(34, 197, 94, 0.4);
-margin: 0 2px;
-}
-​
 /* 가려진 창 (충돌 전 코어) */
 .planet-core-group {
 /* 1번 레이어: 응축된 우주의 색 */
@@ -1545,7 +1528,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 </div>
 </div>
 
-<div id="mapModal" class="modal-overlay" onclick="toggleMapModal(false)">
+    <div id="mapModal" class="modal-overlay" onclick="toggleMapModal(false)">
 <div id="mapModalContent" class="modal-content !p-5 !rounded-3xl" onclick="event.stopPropagation()">
 <div class="flex justify-between items-center mb-4 gap-3">
 <div class="flex-shrink-0">
@@ -2546,11 +2529,14 @@ window.showMemberMountain = async (mId, mName) => {
     if(beam) beam.style.setProperty('--beam-color', style.border);
     if(ringBeam) ringBeam.style.setProperty('--beam-color', style.border);
 
-    // 배경 별빛 생성
     for(let i=0; i<80; i++) {
         const star = document.createElement('div');
         star.className = 'tree-ring-star';
-        star.style.cssText = `position: absolute; width: ${Math.random() * 2}px; height: ${Math.random() * 2}px; left: ${Math.random() * 100}%; top: ${Math.random() * 100}%; background: white; opacity: ${Math.random()}; border-radius: 50%; pointer-events: none;`;
+        star.style.cssText = `
+            position: absolute; width: ${Math.random() * 2}px; height: ${Math.random() * 2}px;
+            left: ${Math.random() * 100}%; top: ${Math.random() * 100}%;
+            background: white; opacity: ${Math.random()}; border-radius: 50%; pointer-events: none;
+        `;
         sky.appendChild(star);
     }
 
@@ -2565,23 +2551,22 @@ window.showMemberMountain = async (mId, mName) => {
             const myTotalH = heights.reduce((a, b) => a + b, 0);
             const globalH = currentData.reduce((acc, m) => acc + (m.totalHeight || 0), 0);
             
-            // ✨ [수정] 개인 누적 및 합산 고도 수치에 그린 네온 클래스 적용
+            // ✨ [수정] 네온 효과 및 글씨 크기 조절 적용
             if(document.getElementById('myTotalH')) {
                 const el = document.getElementById('myTotalH');
                 el.innerText = myTotalH.toLocaleString();
-                el.className = 'neon-value-green'; // 그린 네온 적용
+                el.className = 'neon-value'; // 네온 수치 전용 클래스
             }
             if(document.getElementById('globalTotalH')) {
                 const el = document.getElementById('globalTotalH');
                 el.innerText = globalH.toLocaleString();
-                el.className = 'neon-value-green'; // 그린 네온 적용
+                el.className = 'neon-value'; // 네온 수치 전용 클래스
             }
-            
             if(maxLog && peakLabel) {
+                // 최고봉 글씨 작게 처리
                 peakLabel.innerHTML = `<span class="small-peak-tag">${maxLog.mountain} (${maxLog.height}m)</span>`;
             }
 
-            // 산맥 레이어 및 애니메이션 로직 (기존과 동일)
             const layerCount = Math.min(Math.floor(globalH / 15000) + 2, 5);
             for(let i = 1; i <= layerCount; i++) {
                 const layer = document.createElement('div');
@@ -2600,28 +2585,33 @@ window.showMemberMountain = async (mId, mName) => {
             peakLayer.style.height = "60%"; 
             logs.forEach((log) => {
                 const hRatio = (log.height / maxHeight) * 100;
+                const isMax = log.height === maxHeight;
                 const peakDiv = document.createElement('div');
-                peakDiv.className = `peak ${log.height === maxHeight ? 'max-height' : ''}`;
+                peakDiv.className = `peak ${isMax ? 'max-height' : ''}`;
                 peakDiv.style.height = `${hRatio}%`;
+                if (isMax) peakDiv.innerHTML = `<div class="peak-glow-core"></div><div class="golden-glow-effect"></div>`;
                 peakLayer.appendChild(peakDiv);
             });
 
-            // 빔 및 나이테 등장 애니메이션
             setTimeout(() => {
                 if(beam) {
                     beam.style.background = `linear-gradient(to top, transparent, ${style.border}, rgba(255,255,255,0.7))`;
                     beam.style.opacity = '0.9';
+                    beam.style.transition = 'height 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
                     beam.style.height = '110%';
                 }
                 setTimeout(() => {
                     if(ringBeam) {
                         ringBeam.style.background = `linear-gradient(to top, ${style.border}, transparent)`;
                         ringBeam.style.opacity = '0.9';
+                        ringBeam.style.transition = 'height 0.5s ease-out';
                         ringBeam.style.height = '50%'; 
                     }
                     setTimeout(async () => {
-                        if (memberInfo) await window.renderTreeRings(mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
-                        [beam, ringBeam].forEach(b => { if(b) b.style.opacity = '0'; });
+                        if (memberInfo) {
+                            await window.renderTreeRings(mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
+                        }
+                        [beam, ringBeam].forEach(b => { if(b) { b.style.transition = 'opacity 0.8s ease-out'; b.style.opacity = '0'; } });
                         card.classList.add('glow-active');
                     }, 450); 
                 }, 350); 
@@ -2910,16 +2900,12 @@ window.showFadingScroll = function(dday, level = 0) {
 
             <div id="highestPeakLabel" class="highest-peak-label"></div>
 
-<div class="mountain-info-bar">
-    <div class="info-item">
-        <span class="info-label-small">개인 누적</span> 
-        <span id="myTotalH" class="neon-value-green">0</span><span class="info-label-small">m</span>
-    </div>
-    <div class="info-item">
-        <span class="info-label-small">산우리 합산</span> 
-        <span id="globalTotalH" class="neon-value-green">0</span><span class="info-label-small">m</span>
-    </div>
-</div>
+            <div class="mountain-info-bar">
+                <div class="info-item">개인 누적 <span id="myTotalH" class="info-val">0</span>m</div>
+                <div class="info-item">산우리 합산 <span id="globalTotalH" class="info-val">0</span>m</div>
+            </div>
+        </div>
+
         <button onclick="document.getElementById('mountainViewModal').style.display='none'" 
                 style="position:absolute; top:15px; right:15px; color:white; background:none; border:none; font-size:24px; cursor:pointer; z-index:201;">&times;</button>
     </div>
@@ -2960,4 +2946,4 @@ window.showFadingScroll = function(dday, level = 0) {
 
 </script>
 </body>
-    </html>
+    </html>   
