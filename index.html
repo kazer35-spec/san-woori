@@ -12,34 +12,39 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-/* 정보 바 전체 레이아웃 (가로 정렬) */
-/* 정보 바 전체 레이아웃 */
-.mountain-info-bar {
-    display: flex;
-    justify-content: center;
-    gap: 12px; /* 항목 간 간격 살짝 축소 */
-    padding: 8px 0;
-    background: rgba(0, 0, 0, 0.3);
-    backdrop-filter: blur(4px);
+/* 가려진 창 (충돌 전 코어) */
+.planet-core-group {
+/* 1번 레이어: 응축된 우주의 색 */
+background: radial-gradient(circle, #1e2a4a 0%, #050b18 100%);
+box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.1); /* 내부로 모이는 빛 */
+overflow: hidden;
 }
 
-/* 가로 정렬 항목 */
+/* 사라진 후 보일 배경 (전체 우주) */
+#mountainViewModal {
+/* 2번 레이어: 무한한 밤하늘색 */
+background: #030712;
+}
+
+/* 개별 항목 가로 정렬 */
 .info-item {
     display: flex;
     flex-direction: row;
-    align-items: center; /* 세로 중앙 맞춤 */
-    gap: 3px;
+    align-items: center; /* 기본 중앙 정렬 */
+    gap: 4px;
 }
 
-/* 라벨 디자인: 5px */
+/* 라벨 디자인: 6px + 1px 내림 */
 .info-label {
-    font-size: 6px !important; 
+    font-size: 6px !important;
     color: rgba(255, 255, 255, 0.5);
     font-weight: 500;
-    letter-spacing: -0.2px;
+    /* 미세하게 아래로 이동 */
+    transform: translateY(1px); 
+    display: inline-block;
 }
 
-/* 숫자 디자인: 10px + 오렌지 네온 */
+/* 숫자 디자인: 8px + 오렌지 네온 + 1px 올림 */
 .neon-value {
     font-size: 8px !important;
     font-weight: 900;
@@ -48,9 +53,10 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
     text-shadow: 0 0 2px #ff9800, 
                  0 0 4px #ff5722, 
                  0 0 7px #e65100;
-    letter-spacing: 0.2px;
+    /* 미세하게 위로 이동 */
+    transform: translateY(-1px); 
+    display: inline-block;
 }
-
 
 /* 최고봉(Peak Label) 글씨 줄이기 */
 .highest-peak-label .small-peak-text {
@@ -1594,7 +1600,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
         <div class="conquer-header-box !mb-0">
             <div class="conquer-title">🎖 지역 점유율 및 정복 통계</div>
             <div class="text-[10px] font-black text-sky-600">지역별 상세 ></div>
-        </div>
+    </div>
 
         <div style="display: none;">
             <span id="mapTotalHeight">0</span>
@@ -2662,6 +2668,28 @@ window.showMemberMountain = async (mId, mName) => {
 }
 
 window.renderTreeRings = async (memberName, regDate, memberLevel) => {
+const core = document.querySelector('.planet-core-group');
+    if (core) {
+        core.innerHTML = ""; // 기존 내용 비우기
+        for (let i = 0; i < 40; i++) {
+            const star = document.createElement('div');
+            star.className = 'inner-star'; // CSS에서 설정한 클래스
+            const size = Math.random() * 1.5;
+            star.style.cssText = `
+                position: absolute;
+                width: ${size}px;
+                height: ${size}px;
+                left: ${Math.random() * 100}%;
+                top: ${Math.random() * 100}%;
+                background: white;
+                opacity: ${Math.random()};
+                border-radius: 50%;
+                pointer-events: none;
+                animation: twinkle ${Math.random() * 2 + 1}s infinite ease-in-out;
+            `;
+            core.appendChild(star);
+        }
+    }
     const container = document.getElementById('treeRingContainer');
     const monthLabel = document.getElementById('activityMonths');
     const mainTitle = document.querySelector('.ring-main-title');
