@@ -907,26 +907,19 @@ td { padding: 12px 0; text-align: center; vertical-align: middle; position: rela
 .rank-badge { font-size: 0.65rem; display: block; margin-bottom: -1px; font-weight: 900; }
 .rank-1 { color: #facc15 !important; } .rank-2 { color: #94a3b8 !important; } .rank-3 { color: #a36a00 !important; }
 
-/* CLICK 네온 텍스트 */
-.click-neon {
-font-size: 6px;
-font-weight: 900;
-color: #3b82f6;
-text-transform: uppercase;
-position: absolute;
-top: -2px;
-left: 50%;
-transform: translateX(-50%);
-animation: neon-flicker 1.5s infinite;
-letter-spacing: 0.5px;
-pointer-events: none;
-white-space: nowrap;
-z-index: 5;
+@keyframes dimBlink {
+  0% { opacity: 0.3; } /* 흐림 */
+  50% { opacity: 0.05; } /* 아주 흐림 */
+  100% { opacity: 0.3; } /* 다시 흐림 */
 }
 
-@keyframes neon-flicker {
-0%, 100% { opacity: 1; text-shadow: 0 0 2px #3b82f6, 0 0 5px #3b82f6; }
-50% { opacity: 0.4; text-shadow: none; }
+.click-neon {
+  font-size: 9px; /* 작게 */
+  color: #a0a0a0; /* 연한 회색 */
+  animation: dimBlink 1.8s infinite ease-in-out; /* 은은한 속도 */
+  margin-left: 4px; /* 글자와의 간격 */
+  font-weight: normal;
+  vertical-align: middle;
 }
 
 .badge-level { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; }
@@ -1883,41 +1876,39 @@ window.renderStatusTable = () => {
         const ddayClass = getDDayStyle(m.ddayVal, m.level);
         const nameColor = m.gender === '여' ? 'text-pink-600' : (m.gender === '남' ? 'text-blue-600' : 'text-slate-800');
 
-        list.innerHTML += `<tr class="${m.isHidden ? 'opacity-40' : ''}">
+        // 이 변수를 한 번 정의해두고 아래에서 돌려씁니다.
+const clickNeonHtml = `<span class="click-neon">click</span>`;
+
+List.innerHTML += `<tr class="${m.isHidden ? 'opacity-40' : ''}">
     <td class="text-xs text-center">
         <div class="flex flex-col items-center justify-center">
             ${rankT ? `<span class="rank-badge ${rankC}">${rankT}</span>` : ''}
-            <span class="font-bold ${nameColor} cursor-pointer hover:underline" onclick="showMemberMountain('${m.id}', '${m.name}')">${m.name}</span>
+            <span class="font-bold ${nameColor} cursor-pointer hover:underline" onclick="showMemberMountain('${m.id}', '${m.name}')">
+                ${m.name}${clickNeonHtml} </span>
         </div>
     </td>
     <td>
-        ${clickNeonHtml}
-        <div class="badge-level">
+        ${clickNeonHtml} <div class="badge-level">
             <div class="badge-icon-box ${style.blink} cursor-pointer" 
                  onclick="showMilkyWay('${m.id}', '${m.name}')" 
                  style="background-color: ${style.bg}; border: 1.5px solid ${style.border} !important;">
-                
                 <span class="badge-icon-txt" style="color:${style.text}; font-weight: bold;">${getLevelBadge(m.level)}</span>
             </div>
-            
             <span class="badge-lv-txt" style="color:${style.text}; font-weight: bold;">Lv ${m.level}</span>
         </div>
     </td>
-            <td>
-                ${clickNeonHtml}
-                <button onclick="showMemberTimeline('${m.id}', '${m.name}')" class="qcount-box bg-gray-soft border-none hover:bg-slate-200 text-slate-600">${m.qCount}회 📈</button>
-            </td>
-            <td>
-                ${clickNeonHtml}
-                <button onclick="showMemberMap('${m.id}', '${m.name}')" class="height-badge hover:scale-105 active:scale-95 transition-all">🚩${m.totalHeight || 0}m</button>
-            </td>
-            <td>
-<span class="dday-box ${ddayClass} cursor-pointer" 
-      onclick="window.showFadingScroll(${m.ddayVal}, ${m.level})">
-    ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
-</span>
-</td>
-        </tr>`;
+    <td>
+        ${clickNeonHtml} <button onclick="showMemberTimeline('${m.id}', '${m.name}')" class="qcount-box bg-gray-soft border-none hover:bg-slate-200 text-slate-600">${m.qCount}회 📈</button>
+    </td>
+    <td>
+        ${clickNeonHtml} <button onclick="showMemberMap('${m.id}', '${m.name}')" class="height-badge hover:scale-105 active:scale-95 transition-all">🚩${m.totalHeight || 0}m</button>
+    </td>
+    <td>
+        <span class="dday-box ${ddayClass} cursor-pointer" onclick="window.showFadingScroll(${m.ddayVal}, ${m.level})">
+            ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
+            ${clickNeonHtml} </span>
+    </td>
+</tr>`;
     });
 };
 
