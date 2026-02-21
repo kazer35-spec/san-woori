@@ -1861,6 +1861,7 @@ window.renderStatusTable = () => {
         return { ...m, ddayVal: (baseLimit + (m.bonusDays || 0)) - diffDays };
     });
 
+    // 정렬 로직
     processedData.sort((a, b) => {
         if (sort === 'qCount') return b.qCount - a.qCount || b.level - a.level;
         if (sort === 'totalHeight') return b.totalHeight - a.totalHeight;
@@ -1870,21 +1871,30 @@ window.renderStatusTable = () => {
         return 0;
     });
 
-    const topNames = [...processedData].filter(m => !m.isHidden && m.name !== "오즈").sort((a, b) => b.qCount - a.qCount || b.level - a.level).slice(0, 3).map(m => m.name);
+    // 랭크 산출을 위한 데이터 (오즈 제외, 상위 3명)
+    const topNames = [...processedData]
+        .filter(m => !m.isHidden && m.name !== "오즈")
+        .sort((a, b) => b.qCount - a.qCount || b.level - a.level)
+        .slice(0, 3)
+        .map(m => m.name);
+
     let isFirstVisible = true;
+
     processedData.forEach((m) => {
         if (!isAdminLoggedIn && m.isHidden) return;
         if (search && !m.name.includes(search)) return;
         
+        // CLICK 문구 생성 (첫 번째 행에만 표시)
         let clickNeonHtml = (isFirstVisible && !m.isHidden) ? `<span class="click-neon">CLICK</span>` : "";
         if (!m.isHidden) isFirstVisible = false;
 
+        // 랭크 뱃지 로직 복구
         let rankT = ""; let rankC = "";
         if (m.name !== "오즈" && m.qCount > 0 && !m.isHidden) {
             const idx = topNames.indexOf(m.name);
-            if (idx === 0) { rankT = "🥇"; rankC = "rank-1"; } // 뱃지는 간결하게 이모지만 표시하거나 작게 조정
-            else if (idx === 1) { rankT = "🥈"; rankC = "rank-2"; }
-            else if (idx === 2) { rankT = "🥉"; rankC = "rank-3"; }
+            if (idx === 0) { rankT = "🥇산신령"; rankC = "rank-1"; }
+            else if (idx === 1) { rankT = "🥈심마니"; rankC = "rank-2"; }
+            else if (idx === 2) { rankT = "🥉나무꾼"; rankC = "rank-3"; }
         }
 
         const style = getLevelStyle(m.level); 
@@ -1894,6 +1904,7 @@ window.renderStatusTable = () => {
         list.innerHTML += `<tr class="${m.isHidden ? 'opacity-40' : ''}">
             <td class="text-xs text-center">
                 <div class="flex items-center justify-center gap-1">
+                    ${rankT ? `<span class="rank-badge ${rankC}" style="font-size: 9px; padding: 1px 3px;">${rankT}</span>` : ''}
                     <span class="font-bold ${nameColor} cursor-pointer hover:underline" onclick="showMemberMountain('${m.id}', '${m.name}')">
                         ${m.name}
                     </span>
@@ -1904,7 +1915,8 @@ window.renderStatusTable = () => {
             <td class="text-center">
                 <div class="flex items-center justify-center gap-1">
                     <div class="badge-level flex items-center justify-center gap-1">
-                        <div class="badge-icon-box ${style.blink} cursor-pointer" onclick="showMilkyWay('${m.id}', '${m.name}')" 
+                        <div class="badge-icon-box ${style.blink} cursor-pointer" 
+                             onclick="showMilkyWay('${m.id}', '${m.name}')" 
                              style="background-color: ${style.bg}; border: 1.5px solid ${style.border} !important;">
                             <span class="badge-icon-txt" style="color:${style.text}; font-weight: bold;">${getLevelBadge(m.level)}</span>
                         </div>
@@ -1935,7 +1947,7 @@ window.renderStatusTable = () => {
             <td class="text-center">
                 <div class="flex items-center justify-center gap-1">
                     <span class="dday-box ${ddayClass} cursor-pointer inline-flex items-center justify-center" 
-                          style="min-width: 50px; text-align: center;" onclick="window.showFadingScroll(${m.ddayVal}, ${m.level})">
+                          style="min-width: 52px; text-align: center;" onclick="window.showFadingScroll(${m.ddayVal}, ${m.level})">
                         ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
                     </span>
                     ${clickNeonHtml}
