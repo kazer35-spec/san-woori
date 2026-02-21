@@ -2439,16 +2439,18 @@ window.showMemberMountain = async (mId, mName) => {
     const ringMainTitle = document.querySelector('.ring-main-title'); 
     const mwMountainName = document.getElementById('mwMountainName'); 
     
-    // 나이테창 전용 빛줄기 (ringBeam) 동적 생성 및 참조
+    // 1. 나이테창 전용 빛줄기 (ringBeam) 동적 생성 및 참조
     let ringBeam = document.getElementById('ringLightBeam');
     if(!ringBeam) {
         ringBeam = document.createElement('div');
         ringBeam.id = 'ringLightBeam';
         ringBeam.className = 'light-beam-ring';
-        document.querySelector('.tree-ring-section').appendChild(ringBeam);
+        // 나이테 섹션이 존재할 때만 추가
+        const ringSection = document.querySelector('.tree-ring-section');
+        if(ringSection) ringSection.appendChild(ringBeam);
     }
 
-    // 1. 텍스트 스타일 및 레이아웃 초기화
+    // 2. 텍스트 스타일 및 레이아웃 초기화
     if(mwMountainName) {
         mwMountainName.innerText = `${mName}님의 산맥`;
         mwMountainName.classList.add('cosmic-neon-text');
@@ -2458,34 +2460,43 @@ window.showMemberMountain = async (mId, mName) => {
     modal.style.display = 'flex';
     card.classList.remove('glow-active'); 
     
-    // 빛줄기 초기 상태 (숨김)
+    // 3. 빛줄기 초기 상태 설정 (산맥창)
     if(beam) { 
         beam.style.transition = 'none';
         beam.style.opacity = '0'; 
         beam.style.height = '0';
-        beam.style.width = '10px'; // 더 날카로운 느낌으로 수정
+        beam.style.width = '10px'; 
         beam.style.left = '50%';
         beam.style.transform = 'translateX(-50%)';
+        beam.style.filter = 'blur(4px)'; 
     }
-beam.style.filter = 'blur(4px)'; 
-}
-    ringBeam.style.transition = 'none';
-    ringBeam.style.height = '0';
-    ringBeam.style.opacity = '0';
+
+    // 4. 빛줄기 초기 상태 설정 (나이테창) - 함수 내부로 통합됨
+    if(ringBeam) {
+        ringBeam.style.transition = 'none';
+        ringBeam.style.height = '0';
+        ringBeam.style.opacity = '0';
+        ringBeam.style.width = '10px';
+        ringBeam.style.left = '50%';
+        ringBeam.style.transform = 'translateX(-50%)';
+    }
     
-    // 레이어 초기화
+    // 5. 레이어 초기화
     if(peakLabel) peakLabel.innerText = "";
-    peakLayer.innerHTML = bgContainer.innerHTML = sky.innerHTML = "";
-    document.getElementById('treeRingContainer').innerHTML = ""; 
+    peakLayer.innerHTML = "";
+    bgContainer.innerHTML = "";
+    sky.innerHTML = "";
+    const ringContainer = document.getElementById('treeRingContainer');
+    if(ringContainer) ringContainer.innerHTML = ""; 
 
     const memberInfo = currentData.find(m => m.id === mId);
     const style = getLevelStyle(memberInfo ? memberInfo.level : 0);
     
     card.style.setProperty('--glow-color', style.border);
     if(beam) beam.style.setProperty('--beam-color', style.border);
-    ringBeam.style.setProperty('--beam-color', style.border);
+    if(ringBeam) ringBeam.style.setProperty('--beam-color', style.border);
 
-    // 2. 배경 생성 (별밤 등)
+    // 6. 배경 생성 (별밤)
     for(let i=0; i<60; i++) {
         const star = document.createElement('div');
         star.className = 'sky-star';
@@ -2500,7 +2511,6 @@ beam.style.filter = 'blur(4px)';
         const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
         const logs = snap.docs.map(d => d.data()).filter(l => (l.height || 0) > 0);
         
-        // 데이터 처리 로직 (고도 합산 및 산맥 그리기)
         if (logs.length > 0) {
             const heights = logs.map(l => l.height);
             const maxHeight = Math.max(...heights);
@@ -2546,30 +2556,31 @@ beam.style.filter = 'blur(4px)';
             // --- ✨ 하이라이트: 빛줄기 연동 연출 시작 ---
             setTimeout(() => {
                 if(beam) {
-                    // 1단계: 산맥창에서 하늘 위로 빛 발사 (0.6초)
+                    // 1단계: 산맥창에서 하늘 위로 빛 발사
                     beam.style.background = `linear-gradient(to top, transparent, ${style.border}, #fff)`;
                     beam.style.opacity = '0.8';
                     beam.style.transition = 'height 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
-                    beam.style.height = '110%'; // 창 끝을 살짝 넘어가도록
+                    beam.style.height = '110%';
                 }
 
                 setTimeout(() => {
-                    // 2단계: 산맥창 빛은 소멸, 나이테창 빛이 아래에서 위로 등장 (0.5초)
+                    // 2단계: 산맥창 빛 소멸, 나이테창 빛 아래에서 위로 등장
                     if(beam) beam.style.opacity = '0';
                     
-                    ringBeam.style.background = `linear-gradient(to top, ${style.border}, transparent)`;
-                    ringBeam.style.opacity = '1';
-                    ringBeam.style.transition = 'height 0.3s cubic-bezier(0.15, 0, 0.15, 1)';
-                    ringBeam.style.height = '50%'; // 나이테 중앙(행성) 위치까지
+                    if(ringBeam) {
+                        ringBeam.style.background = `linear-gradient(to top, ${style.border}, transparent)`;
+                        ringBeam.style.opacity = '1';
+                        ringBeam.style.transition = 'height 0.3s cubic-bezier(0.15, 0, 0.15, 1)';
+                        ringBeam.style.height = '50%'; 
+                    }
 
                     setTimeout(async () => {
-                        // 3단계: 행성 타격 및 나이테 생성
-                        ringBeam.style.opacity = '0';
+                        // 3단계: 나이테 생성 및 임팩트
+                        if(ringBeam) ringBeam.style.opacity = '0';
                         
                         if (memberInfo) {
                             await window.renderTreeRings(mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
                             
-                            // 행성(SVG 내부 그룹) 번쩍임 효과 적용
                             const ringCore = document.querySelector('.planet-core-group');
                             if(ringCore) {
                                 ringCore.classList.add('planet-impact-active');
@@ -2577,11 +2588,12 @@ beam.style.filter = 'blur(4px)';
                             }
                         }
                         card.classList.add('glow-active');
-                    }, 500); // ringBeam 상승 시간과 동기화
-                }, 450); // beam 상승 시간과 동기화
+                    }, 500); 
+                }, 450); 
             }, 400);
 
         } else {
+            // 기록이 없는 경우 바로 나이테 렌더링
             if (memberInfo) await window.renderTreeRings(mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
             card.classList.add('glow-active');
         }
