@@ -1518,7 +1518,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 </div>
 </div>
 
-<div id="timelineModal" class="modal-overlay" onclick="toggleTimelineModal(false)">
+    <div id="timelineModal" class="modal-overlay" onclick="toggleTimelineModal(false)">
 <div id="timelineModalContent" class="modal-content !p-5 !rounded-3xl" onclick="event.stopPropagation()">
 <div class="flex justify-between items-center mb-3">
 <div><h2 class="text-lg font-black text-slate-800"><span id="timelineMemberName" class="text-blue-600"></span> 님</h2></div>
@@ -2253,6 +2253,10 @@ window.addMultiActivity = async () => {
     const height = parseInt(document.getElementById('mountainHeight').value) || 0;
     const isTop100 = document.getElementById('isTop100Check').checked;
     const isBAC = document.getElementById('isBACCheck').checked;
+    
+    // ✅ '분기 체크' 여부를 가져오는 변수 (HTML의 ID 확인 필요)
+    const isQuarterOnlyOne = document.getElementById('isQuarterCheck').checked; 
+    
     const region = document.getElementById('adminManualRegionSelect').value;
     
     if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜 확인");
@@ -2264,7 +2268,6 @@ window.addMultiActivity = async () => {
         await setDoc(doc(db, "mountains", mName), { x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region }, { merge: true });
     }
 
-    // 전역 변수 초기화
     pendingLevelUpMessages = [];
 
     for(const id of selectedMemberIds){
@@ -2274,34 +2277,48 @@ window.addMultiActivity = async () => {
         const oldLevel = member.level || 0; 
         const newLevel = oldLevel + up;
         
-        // 데이터 업데이트
-        await updateDoc(doc(db, "sanwoori", id), { level: newLevel, lastDate: ts });
+        // 1. 회원 정보 레벨 업데이트 (수치만큼 한 번에 업데이트)
+        await updateDoc(doc(db, "sanwoori", id), { 
+            level: newLevel, 
+            lastDate: ts 
+        });
         
-        // 우정 포인트 (2명 이상일 때)
+        // 2. 우정 포인트 업데이트
         if (selectedMemberIds.size >= 2) {
-            await updateDoc(doc(db, "sanwoori", id), { friendshipPoint: increment(10 * up) });
+            await updateDoc(doc(db, "sanwoori", id), { 
+                friendshipPoint: increment(10 * up) 
+            });
         }
         
-        // 로그 기록
-        for(let i=0; i < up; i++) {
-            await addDoc(collection(db, `sanwoori/${id}/logs`), { date: ts, mountain: mName, height, coords: tempCoord, isTop100, isBAC, region });
+        // 3. 핵심 로직: 로그 생성 횟수 결정
+        // '분기 체크'가 되어있으면 1번만 실행, 아니면 up(2~3)만큼 실행
+        const logLoopCount = isQuarterOnlyOne ? 1 : up;
+
+        for(let i = 0; i < logLoopCount; i++) {
+            await addDoc(collection(db, `sanwoori/${id}/logs`), { 
+                date: ts, 
+                mountain: mName, 
+                height, 
+                coords: tempCoord, 
+                isTop100, 
+                isBAC, 
+                region 
+            });
         }
         
-        // 레벨업 체크 (메시지 수집)
         checkLevelUpgrade(member.name, oldLevel, newLevel);
     }
 
-    // 모든 처리가 끝난 후 통합 알림창 띄우기
     if (pendingLevelUpMessages.length > 0) {
         showCombinedLevelUpAlert();
     }
 
-    alert("저장 완료"); 
+    const msg = isQuarterOnlyOne ? `레벨 ${up}↑ / 분기 1회 반영` : `레벨 ${up}↑ / 분기 ${up}회 반영`;
+    alert("저장 완료 (" + msg + ")"); 
+    
     selectedMemberIds.clear(); 
-    tempCoord = null; 
     updateAdminMemberLists();
-    updateVibeTemp();
-}; // <--- 이 중괄호가 정확히 닫혀야 아래 함수들이 작동합니다!
+};
 
 window.loadMemberLogs = async () => {
 const id = document.getElementById('memberSelectEdit').value;
