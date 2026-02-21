@@ -12,118 +12,172 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-/* 모달 전체 배경 */
-.space-modal {
-    display: none; position: fixed; inset: 0; z-index: 1000;
-    background: rgba(0, 0, 0, 0.9); align-items: center; justify-content: center;
-    overflow: hidden; font-family: 'Pretendard', sans-serif;
+/* 1. 기본 변수 및 초기화 */
+:root {
+    --cosmic-bg: #0f172a;
+    --neon-blue: #00f2ff;
+    --neon-glow: #3b82f6;
+    --golden-peak: #fbbf24;
+    --mountain-dark: #070b14;
 }
 
-.space-container {
-    position: relative; width: 90%; max-width: 400px; height: 600px;
-    background: radial-gradient(circle at top, #0f172a 0%, #020617 100%);
-    border-radius: 30px; border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 0 50px rgba(0, 0, 0, 1); overflow: hidden;
+/* 2. 통합 모달 및 카드 레이아웃 */
+.mountain-modal {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; 
+    width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 2000;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
 }
 
-/* 네온 텍스트 스타일 */
-.neon-blue { color: #00f2ff; text-shadow: 0 0 10px #00f2ff, 0 0 20px #00f2ff; font-weight: 900; }
-.space-title { position: absolute; top: 30px; left: 30px; font-size: 0.7rem; letter-spacing: 2px; opacity: 0.8; }
-.member-mountains-title { position: absolute; top: 45%; left: 30px; font-size: 0.9rem; }
-
-/* 나이테 및 행성 구역 */
-.orbit-area {
-    position: absolute; top: 15%; left: 50%; transform: translateX(-50%);
-    width: 250px; height: 250px; display: flex; align-items: center; justify-content: center;
+.integrated-member-card {
+    position: relative;
+    width: 90%;
+    max-width: 420px;
+    background: var(--cosmic-bg);
+    border-radius: 30px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+    animation: slideUp 0.5s ease-out;
 }
 
-.orbit-circle {
-    position: absolute; border: 1px solid var(--lv-color); border-radius: 50%;
-    opacity: 0; transform: scale(0); transition: all 1s ease-out;
+/* 3. 상단: 활동 나이테 섹션 (이미지 상단부) */
+.tree-ring-section {
+    position: relative;
+    padding: 30px 25px 10px 25px;
+    background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+    overflow: hidden;
 }
 
-.planet {
-    position: absolute; width: 12px; height: 12px; background: #fff;
-    border-radius: 50%; box-shadow: 0 0 20px var(--lv-color);
-    z-index: 10; animation: float 3s infinite ease-in-out;
+/* 나이테 전용 네온 텍스트 */
+.cosmic-neon-text {
+    font-family: 'Pretendard', sans-serif;
+    color: var(--neon-blue) !important;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-shadow: 0 0 5px var(--neon-blue), 0 0 15px var(--neon-blue);
 }
 
-/* 산맥 구역 */
-.mountain-range {
-    position: absolute; bottom: 80px; width: 100%; height: 200px;
-    display: flex; align-items: flex-end; justify-content: center; padding: 0 20px;
+.ring-main-title.cosmic-neon-text { font-size: 0.7rem !important; font-weight: bold; }
+.ring-months-val { font-size: 24px; color: #3b82f6; font-weight: 900; }
+
+/* SVG 나이테 애니메이션 */
+.planet-core-group {
+    animation: planetOrbit 5s ease-in-out infinite;
+    transform-origin: 120px 120px;
 }
 
-.mountain-bar {
-    position: relative; width: 15px; margin: 0 2px;
-    background: linear-gradient(to top, rgba(255,165,0,0.8), rgba(255,69,0,0.2));
+@keyframes planetOrbit {
+    0%, 100% { transform: translate(0, 0); }
+    50% { transform: translate(2px, 3px); }
+}
+
+.tree-ring-path {
+    fill: none;
+    stroke-linecap: round;
+    transition: stroke-opacity 1s ease, stroke-width 0.5s ease;
+}
+
+/* 4. 하단: 산맥 섹션 (이미지 하단부) */
+.mountain-section {
+    position: relative;
+    height: 220px;
+    width: 100%;
+    background: var(--cosmic-bg);
+    overflow: hidden;
+}
+
+.mountain-layer {
+    position: absolute;
+    bottom: 45px; /* 정보 바 공간 */
+    left: 0; width: 100%;
+    display: flex; align-items: flex-end;
+}
+
+.peak {
+    flex: 1;
     clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
-    transition: height 1.5s cubic-bezier(0.17, 0.67, 0.83, 0.67);
+    background: linear-gradient(to bottom, #1e293b, var(--mountain-dark));
+    margin-left: -4%;
+    transition: height 1s ease;
 }
 
-.highest-peak {
-    filter: drop-shadow(0 0 15px #fff);
-    background: linear-gradient(to top, #ff9800, #ffeb3b);
+/* 최고봉 골든 효과 */
+.peak.max-height {
+    background: linear-gradient(to bottom, var(--golden-peak), #78350f) !important;
+    z-index: 10;
 }
 
-.peak-label {
-    position: absolute; top: -25px; left: 50%; transform: translateX(-50%);
-    white-space: nowrap; font-size: 9px; color: #ffeb3b; font-weight: 800;
+/* 5. 최하단 정보 바 */
+.mountain-info-bar {
+    position: absolute;
+    bottom: 0; left: 0;
+    width: 100%; height: 45px;
+    background: rgba(15, 23, 42, 0.95);
+    border-top: 1px solid rgba(255,255,255,0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+    z-index: 100;
 }
 
-/* 하단 통계 */
-.space-footer {
-    position: absolute; bottom: 30px; width: 100%; padding: 0 30px;
-    display: flex; justify-content: space-between; font-size: 11px; color: #fff;
+.info-item { color: #94a3b8; font-size: 11px; font-weight: 600; }
+.info-val { color: var(--golden-peak); margin-left: 5px; }
+
+/* 6. 기타 유틸리티 (닫기 버튼 등) */
+.close-btn {
+    position: absolute;
+    top: 15px; right: 20px;
+    font-size: 24px; color: white;
+    cursor: pointer; z-index: 1000;
 }
 
-/* 애니메이션 효과 */
-@keyframes float { 0%, 100% { transform: translate(0,0); } 50% { transform: translate(5px, -5px); } }
-
-.light-beam {
-    position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
-    width: 2px; height: 0; background: var(--lv-color);
-    box-shadow: 0 0 15px var(--lv-color); z-index: 5;
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
 }
-
-.star { position: absolute; background: white; border-radius: 50%; opacity: 0.5; animation: twinkle 2s infinite; }
-@keyframes twinkle { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
 
 /* 1. 전체 배경 어둡게 */
 .scroll-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.75);
-    z-index: 9999; /* 다른 요소보다 위에 오도록 */
-    justify-content: center;
-    align-items: center;
-    backdrop-filter: blur(4px);
+display: none;
+position: fixed;
+inset: 0;
+background: rgba(0, 0, 0, 0.75);
+z-index: 9999; /* 다른 요소보다 위에 오도록 */
+justify-content: center;
+align-items: center;
+backdrop-filter: blur(4px);
 }
 
 /* 2. 예언서 종이 스타일 */
 .fading-scroll {
-    position: relative;
-    width: 90%;
-    max-width: 380px;
-    background: #f4e4bc; /* 낡은 종이색 */
-    padding: 50px 25px 30px;
-    border-radius: 4px;
-    box-shadow: inset 0 0 60px rgba(139, 69, 19, 0.25), 0 20px 40px rgba(0,0,0,0.6);
-    text-align: center;
-    border: 1px solid #d2b48c;
-    overflow: hidden;
+position: relative;
+width: 90%;
+max-width: 380px;
+background: #f4e4bc; /* 낡은 종이색 */
+padding: 50px 25px 30px;
+border-radius: 4px;
+box-shadow: inset 0 0 60px rgba(139, 69, 19, 0.25), 0 20px 40px rgba(0,0,0,0.6);
+text-align: center;
+border: 1px solid #d2b48c;
+overflow: hidden;
 }
 
 /* 3. 🏔️ 산 배경 위치 조절 */
 .ancient-mountain-bg {
-    position: absolute;
-    top: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 220px;
-    z-index: 0;
-    pointer-events: none;
+position: absolute;
+top: 10px;
+left: 50%;
+transform: translateX(-50%);
+width: 220px;
+z-index: 0;
+pointer-events: none;
 }
 
 .scroll-header { position: relative; z-index: 2; margin-bottom: 25px; }
@@ -135,17 +189,17 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 /* 4. 장식 요소들 */
 .scroll-divider { border: 0; border-top: 1px dashed #8b4513; margin: 25px 0; opacity: 0.2; }
 .ancient-seal {
-    width: 55px; height: 55px; border: 2px double #8b4513; border-radius: 50%;
-    margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; opacity: 0.5;
+width: 55px; height: 55px; border: 2px double #8b4513; border-radius: 50%;
+margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; opacity: 0.5;
 }
 .seal-text { font-size: 9px; font-weight: bold; color: #8b4513; line-height: 1.1; }
 .footer-note { font-size: 10px; color: #5a4a3a; margin-bottom: 4px; opacity: 0.8; }
 .ancient-signature { font-style: italic; font-size: 12px; color: #3e2723; opacity: 0.7; }
 
 .scroll-close-btn {
-    margin-top: 25px; background: #4a3728; color: #f4e4bc;
-    padding: 10px 35px; border: none; border-radius: 2px;
-    cursor: pointer; font-weight: bold; font-size: 13px;
+margin-top: 25px; background: #4a3728; color: #f4e4bc;
+padding: 10px 35px; border: none; border-radius: 2px;
+cursor: pointer; font-weight: bold; font-size: 13px;
 }
 
 /* 기존 JS에서 쓰던 글자 효과 유지 */
@@ -172,76 +226,76 @@ select { -webkit-appearance: none; -moz-appearance: none; appearance: none; back
 
 /* 1. 팝업 배경 및 양피지 기본 디자인 */
 .scroll-overlay {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.85); display: none; justify-content: center; align-items: center; z-index: 9999;
+position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+background: rgba(0,0,0,0.85); display: none; justify-content: center; align-items: center; z-index: 9999;
 }
 
 .fading-scroll {
-    font-family: 'ChosunGu', 'Nanum Myeongjo', serif; 
-    background: #f4e4bc;
-    background-image: url("https://www.transparenttextures.com/patterns/handmade-paper.png");
-    padding: 40px 20px; width: 85%; max-width: 400px;
-    min-height: 500px; 
-    position: relative;
-    border-left: 15px solid #8b4513; 
-    border-right: 15px solid #8b4513;
-    border-radius: 5px;
-    text-align: center; color: #4a3728;
-    animation: scroll-glow 3s infinite alternate ease-in-out;
+font-family: 'ChosunGu', 'Nanum Myeongjo', serif;
+background: #f4e4bc;
+background-image: url("https://www.transparenttextures.com/patterns/handmade-paper.png");
+padding: 40px 20px; width: 85%; max-width: 400px;
+min-height: 500px;
+position: relative;
+border-left: 15px solid #8b4513;
+border-right: 15px solid #8b4513;
+border-radius: 5px;
+text-align: center; color: #4a3728;
+animation: scroll-glow 3s infinite alternate ease-in-out;
 }
 
 @keyframes scroll-glow {
-    from { box-shadow: 0 0 15px rgba(212, 175, 55, 0.4); }
-    to { box-shadow: 0 0 45px rgba(212, 175, 55, 0.8); }
+from { box-shadow: 0 0 15px rgba(212, 175, 55, 0.4); }
+to { box-shadow: 0 0 45px rgba(212, 175, 55, 0.8); }
 }
 
 /* 2. 직인 위치 정밀 수정: 세로 60%, 가로 우측 66.6% */
 .ancient-seal {
-    width: 70px; height: 70px;
-    border: 2px solid rgba(139, 69, 19, 0.35);
-    border-radius: 50%;
-    position: absolute;
-    /* 세로 위치를 66.6%에서 60%로 상향 조정 */
-    top: 68%; 
-    left: 73%; 
-    transform: translate(-50%, -50%) rotate(-10deg); 
-    background: rgba(139, 69, 19, 0.03);
-    display: flex; align-items: center; justify-content: center;
-    z-index: 1;
+width: 70px; height: 70px;
+border: 2px solid rgba(139, 69, 19, 0.35);
+border-radius: 50%;
+position: absolute;
+/* 세로 위치를 66.6%에서 60%로 상향 조정 */
+top: 68%;
+left: 73%;
+transform: translate(-50%, -50%) rotate(-10deg);
+background: rgba(139, 69, 19, 0.03);
+display: flex; align-items: center; justify-content: center;
+z-index: 1;
 }
 
 .seal-text {
-    font-size: 11px; color: rgba(139, 69, 19, 0.45);
-    font-weight: bold; line-height: 1.1;
+font-size: 11px; color: rgba(139, 69, 19, 0.45);
+font-weight: bold; line-height: 1.1;
 }
 
 /* 3. 하단 문구 영역 (직인과 겹칠 경우 대비 z-index 설정) */
 .footer-area {
-    margin-top: 20px;
-    position: relative;
-    z-index: 2; 
+margin-top: 20px;
+position: relative;
+z-index: 2;
 }
 
 .footer-text {
-    font-size: 12px;
-    color: #7a6a5a;
-    letter-spacing: -0.5px;
-    margin: 0;
-    font-weight: bold;
+font-size: 12px;
+color: #7a6a5a;
+letter-spacing: -0.5px;
+margin: 0;
+font-weight: bold;
 }
 
 /* 4. 상태별 글자 효과 (황금빛/흐림/소멸) */
 .gold-glow {
-    font-size: 22px; font-weight: 900;
-    color: #b8860b !important;
-    text-shadow: 0 0 12px rgba(255, 215, 0, 0.8);
-    display: inline-block;
-    animation: gold-pulse 1.5s infinite alternate;
+font-size: 22px; font-weight: 900;
+color: #b8860b !important;
+text-shadow: 0 0 12px rgba(255, 215, 0, 0.8);
+display: inline-block;
+animation: gold-pulse 1.5s infinite alternate;
 }
 
 @keyframes gold-pulse {
-    from { transform: scale(1); filter: brightness(1); }
-    to { transform: scale(1.05); filter: brightness(1.3); }
+from { transform: scale(1); filter: brightness(1); }
+to { transform: scale(1.05); filter: brightness(1.3); }
 }
 
 .fading-20 { display: inline-block; animation: blur-fade 2.5s infinite alternate; }
@@ -252,8 +306,8 @@ select { -webkit-appearance: none; -moz-appearance: none; appearance: none; back
 
 /* 5. 필기체 서명 */
 .ancient-signature {
-    font-family: 'Apple Chancery', 'Segoe Script', 'Cursive';
-    font-size: 18px; color: #8b4513; opacity: 0.6; margin-top: 8px;
+font-family: 'Apple Chancery', 'Segoe Script', 'Cursive';
+font-size: 18px; color: #8b4513; opacity: 0.6; margin-top: 8px;
 }
 
 /* 성별 전용 컬러 */
@@ -478,16 +532,16 @@ color: #991b1b !important;
 }
 
 /* 90레벨 전용 주황색 글로우 효과 */
-@keyframes glow-orange { 
-    0% { border-color: #f97316; } 
-    50% { border-color: #ea580c; box-shadow: 0 0 8px rgba(234, 88, 12, 0.5); } 
-    100% { border-color: #f97316; } 
+@keyframes glow-orange {
+0% { border-color: #f97316; }
+50% { border-color: #ea580c; box-shadow: 0 0 8px rgba(234, 88, 12, 0.5); }
+100% { border-color: #f97316; }
 }
 
 /* 실제 적용되는 클래스 */
-.level-blink-orange { 
-    animation: glow-orange 1.5s infinite ease-in-out; 
-    border-width: 1.8px !important; 
+.level-blink-orange {
+animation: glow-orange 1.5s infinite ease-in-out;
+border-width: 1.8px !important;
 }
 
 @keyframes glow-orange { 0% { border-color: #f97316; } 50% { border-color: #ea580c; box-shadow: 0 0 8px rgba(234, 88, 12, 0.5); } 100% { border-color: #f97316; } }
@@ -705,16 +759,16 @@ overflow: hidden;
 </head>
 <body>
 
-<div id="levelupAlert" class="levelup-overlay" onclick="closeLevelupAlert()">
-<div class="levelup-content" onclick="event.stopPropagation()">
-<span class="congrat-emoji">🎊</span>
-<span id="levelUpName" class="level-msg-name"></span>
-<div class="level-msg-box">
-<p id="levelUpMsg" class="level-msg-txt"></p>
-</div>
-<p class="text-xs font-bold text-gray-400">축하 메시지가 자동 복사되었습니다!</p>
-<button onclick="closeLevelupAlert()" class="w-full mt-6 py-4 bg-blue-600 text-white rounded-2xl font-black text-lg">확인</button>
-</div>
+<div id="levelupAlert" class="fixed inset-0 z-[200] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="bg-white rounded-3xl p-8 max-w-sm w-[90%] text-center shadow-2xl transform scale-90 transition-transform duration-300 ease-out border-4 border-yellow-400">
+        <div class="text-5xl mb-4">🎊</div>
+        <h2 id="levelUpTitle" class="text-2xl font-black text-slate-800 mb-2">LEVEL UP!</h2>
+        <div id="levelUpMsgContainer" class="text-sm font-bold text-slate-600 mb-6 space-y-2 bg-slate-50 p-4 rounded-xl max-h-[200px] overflow-y-auto">
+        </div>
+        <button onclick="closeLevelupAlert()" class="w-full py-4 bg-yellow-400 hover:bg-yellow-500 text-yellow-900 rounded-2xl font-black transition-colors shadow-lg">
+            축하 메시지 복사 및 닫기
+        </button>
+    </div>
 </div>
 
 <div class="main-container flex flex-col">
@@ -987,7 +1041,6 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 <button onclick="toggleVibeModal(false)" class="w-full mt-6 py-4 bg-slate-800 text-white rounded-2xl font-black text-sm">확인</button>
 </div>
 </div>
-
 <div id="hallModal" class="modal-overlay" onclick="toggleHallModal(false)">
 <div class="modal-content !p-5 !max-w-[440px]" onclick="event.stopPropagation()">
 <div class="text-center mb-6">
@@ -1041,10 +1094,9 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 <span class="text-sky-300">▶</span>
 </button>
 
-<button onclick="toggleTimelineModal(false)" class="w-full mt-4 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold text-sm">닫기</button>
+    <button onclick="toggleTimelineModal(false)" class="w-full mt-4 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold text-sm">닫기</button>
 </div>
 </div>
-
 <div id="logPopup" class="log-popup-overlay" onclick="toggleLogPopup(false)">
 <div class="modal-content !max-h-[80vh] !p-6" onclick="event.stopPropagation()">
 <div class="flex justify-between items-center mb-4">
@@ -1076,31 +1128,24 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 </div>
 
 <div id="mapViewMain">
-<div class="map-container mb-4">
-<img src="https://i.ibb.co/bMLmRYRJ/2-1.jpg" class="map-image">
-<div id="conquerMapPoints"></div>
-<div class="map-source-txt">출처: 산림청</div>
-</div>
+    <div class="map-container mb-4">
+        <img src="https://i.ibb.co/bMLmRYRJ/2-1.jpg" class="map-image">
+        <div id="conquerMapPoints"></div>
+        <div class="map-source-txt">출처: 산림청</div>
+    </div>
 
-<div class="conquer-dark-card cursor-pointer" onclick="toggleMapView()">
-<div class="conquer-header-box">
-<div class="conquer-title">🎖 지역 점유율 및 정복 통계</div>
-<div class="text-[10px] font-black text-sky-600">지역별 상세 &gt;</div>
-</div>
-<div class="grid grid-cols-2 gap-4">
-<div class="flex flex-col">
-<span class="text-[8px] font-bold text-emerald-500 uppercase">Personal Height</span>
-<span class="text-sm font-black text-emerald-700"><span id="mapTotalHeight">0</span> m</span>
-</div>
-<div class="flex flex-col text-right">
-<span class="text-[8px] font-bold text-blue-500 uppercase">
-San:Woori Total</span>
-<span class="text-sm font-black text-blue-700"><span id="mapGlobalTotalHeight">0</span> m</span>
-</div>
-</div>
-</div>
-</div>
+    <div class="conquer-dark-card cursor-pointer !py-2" onclick="toggleMapView()">
+        <div class="conquer-header-box !mb-0">
+            <div class="conquer-title">🎖 지역 점유율 및 정복 통계</div>
+            <div class="text-[10px] font-black text-sky-600">지역별 상세 ></div>
+        </div>
 
+        <div style="display: none;">
+            <span id="mapTotalHeight">0</span>
+            <span id="mapGlobalTotalHeight">0</span>
+        </div>
+    </div>
+</div>
 <div id="mapViewStats" class="hidden-view">
 <div class="conquer-dark-card !mt-0 !min-h-[400px]">
 <div class="conquer-header-box">
@@ -1202,7 +1247,7 @@ btn.classList.toggle('active-q', idx + 1 === selectedQuarter);
 });
 }
 
-const levelThresholds = [
+    const levelThresholds = [
 { lv: 100, name: "🌌 은하수" }, { lv: 90, name: "🌠 별똥별" }, { lv: 80, name: "💫 타원별" },
 { lv: 70, name: "🌟 황금별" }, { lv: 60, name: "⭐️ 별" }, { lv: 50, name: "☀️ 해" },
 { lv: 45, name: "🌕 달" }, { lv: 40, name: "🌙 초승달" }, { lv: 35, name: "☄️ 운석" },
@@ -1279,8 +1324,7 @@ const defaultSubRooms = [
 { id: "bank", name: "은행", emoji: "💰", url: "은행 톡방📢 https://open.kakao.com/o/gIiWrz6h" },
 { id: "stable", name: "승마장", emoji: "🐎", url: "승마장 톡방📢 https://open.kakao.com/o/gYiVoN3h" }
 ];
-
-    function listenSubRooms() {
+function listenSubRooms() {
 onSnapshot(collection(db, "sub_rooms"), (snapshot) => {
 const rooms = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 subRoomsData = defaultSubRooms.map(def => {
@@ -1355,6 +1399,7 @@ window.renderStatusTable = () => {
         if (!isAdminLoggedIn && m.isHidden) return;
         if (search && !m.name.includes(search)) return;
         
+        // ✨ [중요] 첫 번째 줄에만 나타나는 CLICK 문구 로직
         let clickNeonHtml = (isFirstVisible && !m.isHidden) ? `<span class="click-neon">CLICK</span>` : "";
         if (!m.isHidden) isFirstVisible = false;
 
@@ -1371,10 +1416,10 @@ window.renderStatusTable = () => {
         const nameColor = m.gender === '여' ? 'text-pink-600' : (m.gender === '남' ? 'text-blue-600' : 'text-slate-800');
 
         list.innerHTML += `<tr class="${m.isHidden ? 'opacity-40' : ''}">
-    <td class="text-xs text-center cursor-pointer" onclick="window.showActivitySpace('${m.id}', '${m.name}')">
+    <td class="text-xs text-center">
         <div class="flex flex-col items-center justify-center">
             ${rankT ? `<span class="rank-badge ${rankC}">${rankT}</span>` : ''}
-            <span class="font-bold ${nameColor}">${m.name}</span>
+            <span class="font-bold ${nameColor} cursor-pointer hover:underline" onclick="showMemberMountain('${m.id}', '${m.name}')">${m.name}</span>
         </div>
     </td>
     <td>
@@ -1383,23 +1428,28 @@ window.renderStatusTable = () => {
             <div class="badge-icon-box ${style.blink} cursor-pointer" 
                  onclick="showMilkyWay('${m.id}', '${m.name}')" 
                  style="background-color: ${style.bg}; border: 1.5px solid ${style.border} !important;">
+                
                 <span class="badge-icon-txt" style="color:${style.text}; font-weight: bold;">${getLevelBadge(m.level)}</span>
             </div>
+            
             <span class="badge-lv-txt" style="color:${style.text}; font-weight: bold;">Lv ${m.level}</span>
         </div>
     </td>
-    <td>
-        <button onclick="showMemberTimeline('${m.id}', '${m.name}')" class="qcount-box bg-gray-soft border-none hover:bg-slate-200 text-slate-600">${m.qCount}회 📈</button>
-    </td>
-    <td>
-        <button onclick="showMemberMap('${m.id}', '${m.name}')" class="height-badge hover:scale-105 active:scale-95 transition-all">🚩${m.totalHeight || 0}m</button>
-    </td>
-    <td>
-        <span class="dday-box ${ddayClass} cursor-pointer" onclick="window.showFadingScroll(${m.ddayVal}, ${m.level})">
-            ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
-        </span>
-    </td>
-</tr>`;
+            <td>
+                ${clickNeonHtml}
+                <button onclick="showMemberTimeline('${m.id}', '${m.name}')" class="qcount-box bg-gray-soft border-none hover:bg-slate-200 text-slate-600">${m.qCount}회 📈</button>
+            </td>
+            <td>
+                ${clickNeonHtml}
+                <button onclick="showMemberMap('${m.id}', '${m.name}')" class="height-badge hover:scale-105 active:scale-95 transition-all">🚩${m.totalHeight || 0}m</button>
+            </td>
+            <td>
+<span class="dday-box ${ddayClass} cursor-pointer" 
+      onclick="window.showFadingScroll(${m.ddayVal}, ${m.level})">
+    ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
+</span>
+</td>
+        </tr>`;
     });
 };
 
@@ -1668,65 +1718,126 @@ currentData = results; updateAdminMemberLists(); renderStatusTable();
 });
 }
 
+// 1. 전역 변수 선언 (스크립트 최상단 혹은 함수 위쪽에 배치)
+let pendingLevelUpMessages = [];
+
+// 2. 레벨업 체크 및 메시지 수집 통합 함수
 window.checkLevelUpgrade = (name, oldLevel, newLevel) => {
-const thresholdLevels = levelThresholds.map(t => t.lv);
-for (let lv = oldLevel + 1; lv <= newLevel; lv++) {
-if (thresholdLevels.includes(lv)) {
-const badge = getLevelBadge(lv);
-triggerLevelupAlert(name, lv, badge); break;
-}
-}
+    const thresholdLevels = levelThresholds.map(t => t.lv);
+    for (let lv = oldLevel + 1; lv <= newLevel; lv++) {
+        if (thresholdLevels.includes(lv)) {
+            const badge = getLevelBadge(lv);
+            const msg = `${name}님이 ${lv}레벨로 [${badge}] 마크를 획득하셨습니다! 축하드립니다 🎉`;
+            pendingLevelUpMessages.push(msg); // 메시지를 배열에 저장
+            break; 
+        }
+    }
 };
 
-window.triggerLevelupAlert = (name, level, badge) => {
-const msg = `${name}님이 ${level}레벨로 [${badge}] 마크를 획득하셨습니다! 축하드립니다 🎉`;
-document.getElementById('levelUpName').innerText = name;
-document.getElementById('levelUpMsg').innerText = `${level}레벨 달성! [${badge}] 마크를 획득하셨습니다! 축하드립니다 🎉`;
-const overlay = document.getElementById('levelupAlert');
-overlay.style.display = 'flex';
-setTimeout(() => overlay.classList.add('active'), 10);
-navigator.clipboard.writeText(msg).catch(err => console.log('복사 실패', err));
+// 3. 통합 알림창 띄우기 함수 (기존 triggerLevelupAlert 대체)
+window.showCombinedLevelUpAlert = () => {
+    if (pendingLevelUpMessages.length === 0) return;
+
+    const container = document.getElementById('levelUpMsgContainer');
+    const overlay = document.getElementById('levelupAlert');
+    
+    // 팝업 내부 메시지 목록 생성
+    container.innerHTML = pendingLevelUpMessages
+        .map(msg => `<div class="py-1 border-b border-slate-100 last:border-0">${msg}</div>`)
+        .join('');
+    
+    // 제목 변경
+    const titleEl = document.getElementById('levelUpTitle');
+    if (titleEl) {
+        titleEl.innerText = pendingLevelUpMessages.length > 1 ? "🎊 단체 레벨업 달성!" : "🎊 레벨업 달성!";
+    }
+
+    // 1명일 때는 즉시 복사 (기존 기능 유지)
+    if (pendingLevelUpMessages.length === 1) {
+        navigator.clipboard.writeText(pendingLevelUpMessages[0]);
+    }
+
+    overlay.style.display = 'flex';
+    setTimeout(() => overlay.classList.add('active'), 10);
 };
 
+// 4. 알림창 닫기 및 일괄 복사 함수
 window.closeLevelupAlert = () => {
-const overlay = document.getElementById('levelupAlert');
-overlay.classList.remove('active');
-setTimeout(() => overlay.style.display = 'none', 500);
+    // 모든 메시지를 줄바꿈으로 합치기
+    const fullText = pendingLevelUpMessages.join('\n');
+    
+    // 클립보드 복사 실행
+    navigator.clipboard.writeText(fullText).then(() => {
+        // 여러명일 때만 확인 알림 (선택 사항)
+        if (pendingLevelUpMessages.length > 1) {
+            alert("모든 축하 메시지가 복사되었습니다!");
+        }
+    }).catch(err => console.error('복사 실패', err));
+
+    // 팝업 닫기 애니메이션
+    const overlay = document.getElementById('levelupAlert');
+    overlay.classList.remove('active');
+    setTimeout(() => {
+        overlay.style.display = 'none';
+        pendingLevelUpMessages = []; // 메시지 대기열 초기화
+    }, 500);
 };
 
 window.addMultiActivity = async () => {
-const dateVal = document.getElementById('activityDate').value;
-const mName = document.getElementById('mountainName').value.trim();
-const height = parseInt(document.getElementById('mountainHeight').value) || 0;
-const isTop100 = document.getElementById('isTop100Check').checked;
-const isBAC = document.getElementById('isBACCheck').checked;
-const region = document.getElementById('adminManualRegionSelect').value;
-if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜 확인");
-const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
-const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
+    const dateVal = document.getElementById('activityDate').value;
+    const mName = document.getElementById('mountainName').value.trim();
+    const height = parseInt(document.getElementById('mountainHeight').value) || 0;
+    const isTop100 = document.getElementById('isTop100Check').checked;
+    const isBAC = document.getElementById('isBACCheck').checked;
+    const region = document.getElementById('adminManualRegionSelect').value;
+    
+    if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜 확인");
+    
+    const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
+    const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
 
-if(mName && tempCoord) await setDoc(doc(db, "mountains", mName), { x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region }, { merge: true });
+    if(mName && tempCoord) {
+        await setDoc(doc(db, "mountains", mName), { x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region }, { merge: true });
+    }
 
-for(const id of selectedMemberIds){
-const member = currentData.find(m => m.id === id);
-if(!member) continue;
-const oldLevel = member.level || 0; const newLevel = oldLevel + up;
-await updateDoc(doc(db, "sanwoori", id), { level: newLevel, lastDate: ts });
-if (selectedMemberIds.size >= 2) {
-const bonusPoint = 10 * up;
+    // 전역 변수 초기화
+    pendingLevelUpMessages = [];
 
-await updateDoc(doc(db, "sanwoori", id), {
-friendshipPoint: increment(bonusPoint)
-});
-}
-for(let i=0; i < up; i++) {
-await addDoc(collection(db, `sanwoori/${id}/logs`), { date: ts, mountain: mName, height, coords: tempCoord, isTop100, isBAC, region });
-}
-checkLevelUpgrade(member.name, oldLevel, newLevel);
-}
-alert("저장 완료"); selectedMemberIds.clear(); tempCoord = null; updateAdminMemberLists();
-updateVibeTemp();
-};
+    for(const id of selectedMemberIds){
+        const member = currentData.find(m => m.id === id);
+        if(!member) continue;
+        
+        const oldLevel = member.level || 0; 
+        const newLevel = oldLevel + up;
+        
+        // 데이터 업데이트
+        await updateDoc(doc(db, "sanwoori", id), { level: newLevel, lastDate: ts });
+        
+        // 우정 포인트 (2명 이상일 때)
+        if (selectedMemberIds.size >= 2) {
+            await updateDoc(doc(db, "sanwoori", id), { friendshipPoint: increment(10 * up) });
+        }
+        
+        // 로그 기록
+        for(let i=0; i < up; i++) {
+            await addDoc(collection(db, `sanwoori/${id}/logs`), { date: ts, mountain: mName, height, coords: tempCoord, isTop100, isBAC, region });
+        }
+        
+        // 레벨업 체크 (메시지 수집)
+        checkLevelUpgrade(member.name, oldLevel, newLevel);
+    }
+
+    // 모든 처리가 끝난 후 통합 알림창 띄우기
+    if (pendingLevelUpMessages.length > 0) {
+        showCombinedLevelUpAlert();
+    }
+
+    alert("저장 완료"); 
+    selectedMemberIds.clear(); 
+    tempCoord = null; 
+    updateAdminMemberLists();
+    updateVibeTemp();
+}; // <--- 이 중괄호가 정확히 닫혀야 아래 함수들이 작동합니다!
 
 window.loadMemberLogs = async () => {
 const id = document.getElementById('memberSelectEdit').value;
@@ -1896,7 +2007,7 @@ recentLogCount += logSnap.size;
 const visitorSnap = await getDocs(query(collection(db, "visitor_logs"), where("timestamp", ">=", twentyFourHoursAgo)));
 const recentVisitorCount = visitorSnap.size;
 
-let visitorScore = (recentVisitorCount / 5) * 20;
+let visitorScore = (recentVisitorCount / 5) * 10;
 let logScore = recentLogCount * 10;
 let tempPercent = Math.min(visitorScore + logScore, 100);
 
@@ -1946,105 +2057,253 @@ setTimeout(() => { updateVibeTemp(); setInterval(updateVibeTemp, 60000); }, 2000
 document.getElementById('regDate').valueAsDate = new Date();
 document.getElementById('activityDate').valueAsDate = new Date();
 
-window.showActivitySpace = async (mId, mName) => {
-    const modal = document.getElementById('activitySpaceModal');
-    const member = currentData.find(m => m.id === mId);
-    if(!member) return;
-
-    // 1. 레벨 색상 가져오기 및 적용
-    const lvStyle = getLevelStyle(member.level);
-    modal.style.setProperty('--lv-color', lvStyle.bg);
-    document.getElementById('memberNameLabel').innerText = `${mName}님의 산맥`;
-    modal.style.display = 'flex';
-
-    // 2. 배경 별 생성
-    const starField = document.getElementById('starField');
-    starField.innerHTML = '';
-    for(let i=0; i<100; i++) {
-        const star = document.createElement('div');
-        star.className = 'star';
-        star.style.width = star.style.height = Math.random() * 2 + 'px';
-        star.style.left = Math.random() * 100 + '%';
-        star.style.top = Math.random() * 100 + '%';
-        star.style.animationDelay = Math.random() * 2 + 's';
-        starField.appendChild(star);
+window.showMemberMountain = async (mId, mName) => {
+    const modal = document.getElementById('mountainViewModal');
+    const card = document.getElementById('integratedCard');
+    const peakLayer = document.getElementById('peakLayer');
+    const bgContainer = document.getElementById('bgLayersContainer');
+    const sky = document.getElementById('starrySky');
+    const beam = document.getElementById('lightBeam');
+    const peakLabel = document.getElementById('highestPeakLabel');
+    const ringMainTitle = document.querySelector('.ring-main-title'); 
+    const mwMountainName = document.getElementById('mwMountainName'); 
+    
+    // 1. [수정] 텍스트 스타일 즉시 통일 (우주적 네온 효과)
+    if(mwMountainName) {
+        mwMountainName.innerText = `${mName}님의 산맥`;
+        mwMountainName.classList.add('cosmic-neon-text');
+    }
+    if(ringMainTitle) {
+        ringMainTitle.classList.add('cosmic-neon-text');
     }
 
-    // 3. 개월수 계산 (나이테 개수)
-    const fixedMembers = ["오즈","나스","해수","용삼","지니","아랑","민이","몰랑","길치","등초","무니","식이","구름","뚜벅","윤윤","승이","이구","후후","튜브","피치","사랑","송돌","호프","이제","얌얌","태기","희야","멸치","성민","루이","섭섭"];
-    let startDate = member.regDate ? member.regDate.toDate() : new Date();
-    if(fixedMembers.includes(mName)) startDate = new Date("2025-11-24");
+    modal.style.display = 'flex';
+    card.classList.remove('glow-active'); 
     
-    const months = Math.max(1, Math.floor((new Date() - startDate) / (1000 * 60 * 60 * 24 * 30.44)));
-    document.getElementById('monthDisplay').innerHTML = `${months} <span style="font-size:0.6rem">Months</span>`;
-
-    // 4. 애니메이션 시퀀스
-    const beam = document.getElementById('lightBeam');
-    const planet = document.getElementById('mainPlanet');
-    const orbitArea = document.getElementById('orbitArea');
+    // 2. [수정] 빛줄기 슬림하게 설정 (두께 10px)
+    if(beam) { 
+        beam.style.opacity = '0'; 
+        beam.style.height = '0';
+        beam.style.width = '10px'; 
+        beam.style.left = '50%';
+        beam.style.transform = 'translateX(-50%)';
+        beam.style.filter = 'blur(6px)';
+    }
     
-    // 초기화
-    beam.style.height = '0';
-    planet.style.display = 'none';
-    Array.from(orbitArea.getElementsByClassName('orbit-circle')).forEach(c => c.remove());
+    // 레이어 초기화
+    if(peakLabel) peakLabel.innerText = "";
+    peakLayer.innerHTML = bgContainer.innerHTML = sky.innerHTML = "";
+    document.getElementById('treeRingContainer').innerHTML = ""; 
 
-    // 빛줄기 쏘기
-    setTimeout(() => {
-        beam.style.transition = 'height 0.8s ease-in';
-        beam.style.height = '70%';
+    const memberInfo = currentData.find(m => m.id === mId);
+    const style = getLevelStyle(memberInfo ? memberInfo.level : 0);
+    
+    card.style.setProperty('--glow-color', style.border);
+    if(beam) beam.style.setProperty('--beam-color', style.border);
+
+    // 3. 별밤 생성 (기존 로직 유지)
+    for(let i=0; i<60; i++) {
+        const star = document.createElement('div');
+        star.className = 'sky-star';
+        star.style.width = star.style.height = `${Math.random()*2}px`;
+        star.style.left = `${Math.random()*100}%`;
+        star.style.top = `${Math.random()*60}%`;
+        star.style.setProperty('--duration', `${Math.random()*3+2}s`);
+        sky.appendChild(star);
+    }
+
+    try {
+        const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
+        const logs = snap.docs.map(d => d.data()).filter(l => (l.height || 0) > 0);
         
-        setTimeout(() => {
-            // 행성 등장 (충돌 효과 대신 밝아지기)
-            planet.style.display = 'block';
-            planet.style.boxShadow = `0 0 50px 20px ${lvStyle.bg}`;
+        if (logs.length > 0) {
+            const heights = logs.map(l => l.height);
+            const maxHeight = Math.max(...heights);
+            const maxLog = logs.find(l => l.height === maxHeight);
+
+            // 전체 고도 텍스트 업데이트
+            const myTotalH = heights.reduce((a,b)=>a+b,0);
+            const globalH = currentData.reduce((acc, m) => acc + (m.totalHeight || 0), 0);
+            if(document.getElementById('myTotalH')) document.getElementById('myTotalH').innerText = myTotalH.toLocaleString();
+            if(document.getElementById('globalTotalH')) document.getElementById('globalTotalH').innerText = globalH.toLocaleString();
             
-            // 나이테 생성
-            for(let i=1; i<=months; i++) {
-                setTimeout(() => {
-                    const circle = document.createElement('div');
-                    circle.className = 'orbit-circle';
-                    circle.style.width = circle.style.height = (i * 20) + 'px';
-                    circle.style.opacity = '0.3';
-                    circle.style.transform = 'scale(1)';
-                    orbitArea.appendChild(circle);
-                }, i * 100);
+            // 4. 배경 산맥 레이어 생성 (가시성 확보 버전)
+            const layerCount = Math.min(Math.floor(globalH / 15000) + 2, 5);
+            for(let i = 1; i <= layerCount; i++) {
+                const layer = document.createElement('div');
+                layer.className = 'mountain-layer';
+                layer.style.height = `${20 + (i * 8)}%`; 
+                layer.style.opacity = 0.4; 
+                layer.style.filter = 'brightness(0.8)';
+                for(let j=0; j<10; j++) {
+                    const p = document.createElement('div');
+                    p.className = 'peak';
+                    p.style.height = `${Math.random()*30+70}%`;
+                    layer.appendChild(p);
+                }
+                bgContainer.appendChild(layer);
             }
-        }, 800);
-    }, 200);
 
-    // 5. 산맥 및 고도 데이터 로드
-    const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
-    const logs = snap.docs.map(d => d.data());
-    const rangeContainer = document.getElementById('mountainRange');
-    rangeContainer.innerHTML = '';
+            // 5. 개인 봉우리 (밝기 강화 및 최고봉 효과)
+            peakLayer.style.height = "60%"; 
+            logs.forEach((log) => {
+                const hRatio = (log.height / maxHeight) * 100;
+                const isMax = log.height === maxHeight;
+                const peakDiv = document.createElement('div');
+                peakDiv.className = `peak ${isMax ? 'max-height' : ''}`;
+                peakDiv.style.height = `${hRatio}%`;
+                peakDiv.style.filter = 'brightness(1.5)';
+                if (isMax) {
+                    peakDiv.innerHTML = `<div class="peak-glow-core"></div><div class="golden-glow-effect"></div>`;
+                }
+                peakLayer.appendChild(peakDiv);
+            });
 
-    // 높은 순서대로 7개 산 추출
-    const sortedLogs = logs.sort((a,b) => b.height - a.height).slice(0, 7);
-    const maxH = sortedLogs.length > 0 ? sortedLogs[0].height : 1000;
+            if(maxLog && peakLabel) peakLabel.innerHTML = `${maxLog.mountain} (${maxLog.height}m)`;
 
-    sortedLogs.reverse().forEach((log, idx) => {
-        const bar = document.createElement('div');
-        bar.className = 'mountain-bar';
-        const hPercent = (log.height / maxH) * 100;
-        
-        if(log.height === maxH) {
-            bar.classList.add('highest-peak');
-            bar.innerHTML = `<div class="peak-label">${log.mountain}(${log.height}m)</div>`;
+            // 6. [수정] 최종 연출: 얇은 빛줄기 발사 -> 행성 타격
+            setTimeout(() => {
+                if(beam) {
+                    beam.style.background = `linear-gradient(to top, ${style.border}, transparent)`;
+                    beam.style.opacity = '0.8';
+                    beam.style.transition = 'height 0.7s cubic-bezier(0.15, 0, 0.15, 1)';
+                    beam.style.height = '175%'; // 나이테 중앙 행성까지 상승
+                }
+
+                setTimeout(async () => {
+                    if(beam) beam.style.opacity = '0';
+                    
+                    if (memberInfo) {
+                        await window.renderTreeRings(mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
+                        
+                        // 7. 행성 번쩍임 효과 적용
+                        const planet = document.querySelector('.tree-ring-core');
+                        if(planet) {
+                            planet.classList.remove('planet-impact');
+                            void planet.offsetWidth; // 리플로우
+                            planet.classList.add('planet-impact');
+                        }
+                    }
+                    card.classList.add('glow-active');
+                }, 700); 
+            }, 400);
+
+        } else {
+            // 로그 없을 때 기본 나이테만 표시
+            if (memberInfo) await window.renderTreeRings(mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
+            card.classList.add('glow-active');
         }
 
-        setTimeout(() => {
-            bar.style.height = hPercent + '%';
-        }, 1000 + (idx * 100));
-        rangeContainer.appendChild(bar);
-    });
-
-    document.getElementById('personalTotal').innerText = (member.totalHeight || 0).toLocaleString();
-    const globalH = currentData.reduce((acc, m) => acc + (m.totalHeight || 0), 0);
-    document.getElementById('globalTotal').innerText = globalH.toLocaleString();
+    } catch (e) { console.error("통합 로딩 에러:", e); }
 };
 
-window.closeSpaceModal = () => {
-    document.getElementById('activitySpaceModal').style.display = 'none';
+window.renderTreeRings = async (memberName, regDate, memberLevel) => {
+    const container = document.getElementById('treeRingContainer');
+    const monthLabel = document.getElementById('activityMonths');
+    const mainTitle = document.querySelector('.ring-main-title');
+    const mountainName = document.getElementById('mwMountainName');
+
+    if(!container) return;
+    container.innerHTML = ""; // 기존 내용 싹 비우기
+
+    // [1] 텍스트 및 별빛 배경 설정
+    if (mainTitle) mainTitle.classList.add('cosmic-neon-text');
+    if (mountainName) mountainName.classList.add('cosmic-neon-text');
+
+    for(let i=0; i<80; i++) {
+        const star = document.createElement('div');
+        star.className = 'tree-ring-star';
+        star.style.cssText = `
+            position: absolute;
+            width: ${Math.random() * 2}px;
+            height: ${Math.random() * 2}px;
+            left: ${Math.random() * 100}%;
+            top: ${Math.random() * 100}%;
+            background: white;
+            opacity: ${Math.random()};
+            border-radius: 50%;
+        `;
+        container.appendChild(star);
+    }
+
+    // [2] 기간 계산 (가입일 기준)
+    const fixedList = ["오즈","나스","해수","용삼","지니","아랑","민이","몰랑","길치","등초","무니","식이","구름","뚜벅","윤윤","승이","이구","후후","튜브","피치","사랑","송돌","호프","이제","얌얌","태기","희야","멸치","성민","루이","섭섭"];
+    let jDate = fixedList.includes(memberName) ? new Date('2025-11-24') : (regDate?.toDate ? regDate.toDate() : new Date());
+    const now = new Date();
+    const diffMonths = Math.max(1, (now.getFullYear() - jDate.getFullYear()) * 12 + (now.getMonth() - jDate.getMonth()) + 1);
+    
+    const style = getLevelStyle(memberLevel);
+    const ringColor = style.border; 
+
+    // [3] SVG 생성
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("viewBox", "0 0 240 240");
+    svg.style.cssText = "width:100%; height:100%; overflow:visible;";
+
+    // [4] 중앙 행성 그룹 (애니메이션 적용)
+    const coreGroup = document.createElementNS(svgNS, "g");
+    coreGroup.setAttribute("class", "planet-core-group");
+
+    const core = document.createElementNS(svgNS, "circle");
+    core.setAttribute("cx", "120"); core.setAttribute("cy", "120"); core.setAttribute("r", "4");
+    core.setAttribute("fill", ringColor);
+    core.style.filter = `drop-shadow(0 0 10px ${ringColor})`;
+    
+    coreGroup.appendChild(core);
+    svg.appendChild(coreGroup);
+
+    // [5] 나이테 경로 생성 (초기엔 투명)
+    const rings = [];
+    const seed = memberName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+
+    for (let i = 1; i <= diffMonths; i++) {
+        const radius = 10 + (i * (95 / diffMonths));
+        const path = document.createElementNS(svgNS, "path");
+        path.setAttribute("class", "tree-ring-path");
+        
+        let d = "";
+        for (let a = 0; a <= 360; a += 6) {
+            const angle = (a * Math.PI) / 180;
+            const wave = Math.sin(angle * (seed % 4 + 3) + i) * 2.5;
+            const r = radius + wave;
+            const x = 120 + r * Math.cos(angle);
+            const y = 120 + r * Math.sin(angle);
+            d += (a === 0 ? "M" : "L") + `${x},${y} `;
+        }
+        d += "Z";
+        
+        path.setAttribute("d", d);
+        path.setAttribute("fill", "none");
+        path.setAttribute("stroke", ringColor);
+        path.setAttribute("stroke-width", i % 12 === 0 ? "1.5" : "0.4");
+        path.setAttribute("stroke-opacity", "0"); // 시작은 투명
+        
+        svg.appendChild(path);
+        rings.push(path);
+    }
+    container.appendChild(svg);
+
+    // [6] 핵심: 안쪽부터 순차적으로 밝아지는 애니메이션
+    // 전체 애니메이션 시간을 1.2초 정도로 맞춤
+    const delayStep = Math.min(60, 1200 / diffMonths); 
+
+    rings.forEach((ring, index) => {
+        setTimeout(() => {
+            // 밝기 적용
+            const targetOpacity = (index + 1) % 12 === 0 ? "0.8" : "0.25";
+            ring.setAttribute("stroke-opacity", targetOpacity);
+            
+            // 숫자 카운트 동기화
+            if(monthLabel) monthLabel.innerText = index + 1;
+            
+            // 마지막 링은 더 환하게 강조
+            if(index === rings.length - 1) {
+                ring.style.strokeWidth = "2px";
+                ring.style.filter = `drop-shadow(0 0 5px ${ringColor})`;
+            }
+        }, index * delayStep);
+    });
 };
 
 window.showMilkyWay = async (mId, mName) => {
@@ -2164,28 +2423,45 @@ window.showFadingScroll = function(dday, level = 0) {
 };
 </script> 
 
-<div id="activitySpaceModal" class="space-modal" onclick="closeSpaceModal()">
-<div class="space-container" onclick="event.stopPropagation()">
-<div id="starField"></div>
-<div class="space-title neon-blue">ACTIVITY HISTORY</div>
-<div id="monthDisplay" class="neon-blue" style="position:absolute; top:30px; right:30px; font-size:1.2rem;">0 <span style="font-size:0.6rem">Months</span></div>
+<div id="mountainViewModal" class="mountain-modal" onclick="this.style.display='none'">
+    <div id="integratedCard" class="integrated-member-card" onclick="event.stopPropagation()">
+        
+        <div class="tree-ring-section">
+            <div class="ring-header">
+                <div class="ring-title-group">
+                    <span class="ring-label">ACTIVITY HISTORY</span>
+                    <h3 class="ring-main-title">활동 나이테</h3>
+                </div>
+                <div class="ring-stats">
+                    <span id="activityMonths" class="ring-months-val">0</span>
+                    <span class="ring-unit">Months</span>
+                </div>
+            </div>
+            <div id="treeRingContainer" class="ring-canvas"></div>
+        </div>
 
-<div class="orbit-area" id="orbitArea">
-<div id="lightBeam" class="light-beam"></div>
-<div id="mainPlanet" class="planet" style="display:none;"></div>
-</div>
+        <div class="mountain-section">
+            <div id="starrySky"></div>
+            <div id="bgLayersContainer"></div>
+            <div id="lightBeam" class="light-beam"></div>
+            <div id="peakLayer" class="mountain-layer"></div>
 
-<div id="memberNameLabel" class="member-mountains-title neon-blue">OOO님의 산맥</div>
+            <div class="mountain-header">
+                <h2 id="mwMountainName" style="font-size: 16px; margin: 0; font-weight: 900; color: white;"></h2>
+                <p style="font-size: 10px; color: #94a3b8; margin: 0;"></p>
+            </div>
 
-<div class="mountain-range" id="mountainRange"></div>
+            <div id="highestPeakLabel" class="highest-peak-label"></div>
 
-<div class="space-footer">
-<div>개인 누적 <span id="personalTotal" class="neon-blue">0</span>m</div>
-<div>산우리 합산 <span id="globalTotal" style="color:#ff9800">0</span>m</div>
-</div>
+            <div class="mountain-info-bar">
+                <div class="info-item">개인 누적 <span id="myTotalH" class="info-val">0</span>m</div>
+                <div class="info-item">산우리 합산 <span id="globalTotalH" class="info-val">0</span>m</div>
+            </div>
+        </div>
 
-<button onclick="closeSpaceModal()" style="position:absolute; top:20px; right:15px; background:none; border:none; color:white; font-size:20px; cursor:pointer;">&times;</button>
-</div>
+        <button onclick="document.getElementById('mountainViewModal').style.display='none'" 
+                style="position:absolute; top:15px; right:15px; color:white; background:none; border:none; font-size:24px; cursor:pointer; z-index:201;">&times;</button>
+    </div>
 </div>
 
   <div id="scrollModal" class="scroll-overlay" onclick="this.style.display='none'">
@@ -2223,5 +2499,4 @@ window.showFadingScroll = function(dday, level = 0) {
 </div>
 </script>
 </body>
-</html>
-​
+  </html>
