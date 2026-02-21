@@ -12,20 +12,6 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-    /* 두께와 연결성 보정 */
-.light-beam {
-    width: 10px !important;
-    filter: blur(4px);
-    box-shadow: 0 0 20px var(--beam-color);
-}
-
-.light-beam-ring {
-    width: 10px !important;
-    bottom: -50px; /* 나이테창 아래쪽으로 더 내려서 산맥창과 겹치게 */
-    filter: blur(4px);
-    box-shadow: 0 0 20px var(--beam-color);
-}
-
 /* 1. 산맥창 빛줄기 스타일 */
 .light-beam {
     position: absolute;
@@ -1623,7 +1609,6 @@ if(coords.x >= r.x[0] && coords.x <= r.x[1] && coords.y >= r.y[0] && coords.y <=
 }
 return "기타";
 }
-
 function initAutoSelection() {
 const yearSelect = document.getElementById('yearSelect');
 if (yearSelect) yearSelect.value = selectedYear;
@@ -2448,7 +2433,7 @@ window.showMemberMountain = async (mId, mName) => {
     const peakLayer = document.getElementById('peakLayer');
     const bgContainer = document.getElementById('bgLayersContainer');
     const sky = document.getElementById('starrySky');
-    const beam = document.getElementById('lightBeam'); // 산맥창 빛
+    const beam = document.getElementById('lightBeam'); 
     const peakLabel = document.getElementById('highestPeakLabel');
     const ringMainTitle = document.querySelector('.ring-main-title'); 
     const mwMountainName = document.getElementById('mwMountainName'); 
@@ -2459,12 +2444,11 @@ window.showMemberMountain = async (mId, mName) => {
         ringBeam = document.createElement('div');
         ringBeam.id = 'ringLightBeam';
         ringBeam.className = 'light-beam-ring';
-        // 나이테 섹션이 존재할 때만 추가
         const ringSection = document.querySelector('.tree-ring-section');
         if(ringSection) ringSection.appendChild(ringBeam);
     }
 
-    // 2. 텍스트 스타일 및 레이아웃 초기화
+    // 2. 초기화 및 스타일 설정
     if(mwMountainName) {
         mwMountainName.innerText = `${mName}님의 산맥`;
         mwMountainName.classList.add('cosmic-neon-text');
@@ -2474,32 +2458,22 @@ window.showMemberMountain = async (mId, mName) => {
     modal.style.display = 'flex';
     card.classList.remove('glow-active'); 
     
-    // 3. 빛줄기 초기 상태 설정 (산맥창)
-    if(beam) { 
-        beam.style.transition = 'none';
-        beam.style.opacity = '0'; 
-        beam.style.height = '0';
-        beam.style.width = '10px'; 
-        beam.style.left = '50%';
-        beam.style.transform = 'translateX(-50%)';
-        beam.style.filter = 'blur(4px)'; 
-    }
-
-    // 4. 빛줄기 초기 상태 설정 (나이테창) - 함수 내부로 통합됨
-    if(ringBeam) {
-        ringBeam.style.transition = 'none';
-        ringBeam.style.height = '0';
-        ringBeam.style.opacity = '0';
-        ringBeam.style.width = '10px';
-        ringBeam.style.left = '50%';
-        ringBeam.style.transform = 'translateX(-50%)';
-    }
+    // 빛줄기 초기 상태 설정 (둘 다 숨김)
+    [beam, ringBeam].forEach(b => {
+        if(b) {
+            b.style.transition = 'none';
+            b.style.opacity = '0';
+            b.style.height = '0';
+            b.style.width = '10px';
+            b.style.left = '50%';
+            b.style.transform = 'translateX(-50%)';
+            b.style.filter = 'blur(4px)';
+        }
+    });
     
-    // 5. 레이어 초기화
+    // 레이어 초기화
     if(peakLabel) peakLabel.innerText = "";
-    peakLayer.innerHTML = "";
-    bgContainer.innerHTML = "";
-    sky.innerHTML = "";
+    peakLayer.innerHTML = bgContainer.innerHTML = sky.innerHTML = "";
     const ringContainer = document.getElementById('treeRingContainer');
     if(ringContainer) ringContainer.innerHTML = ""; 
 
@@ -2510,7 +2484,7 @@ window.showMemberMountain = async (mId, mName) => {
     if(beam) beam.style.setProperty('--beam-color', style.border);
     if(ringBeam) ringBeam.style.setProperty('--beam-color', style.border);
 
-    // 6. 배경 생성 (별밤)
+    // 3. 배경 생성 (별밤)
     for(let i=0; i<60; i++) {
         const star = document.createElement('div');
         star.className = 'sky-star';
@@ -2535,14 +2509,13 @@ window.showMemberMountain = async (mId, mName) => {
             if(document.getElementById('myTotalH')) document.getElementById('myTotalH').innerText = myTotalH.toLocaleString();
             if(document.getElementById('globalTotalH')) document.getElementById('globalTotalH').innerText = globalH.toLocaleString();
             
-            // 배경 산맥 레이어 생성
+            // 배경 산맥 레이어 및 개인 봉우리 생성 (기존 로직 유지)
             const layerCount = Math.min(Math.floor(globalH / 15000) + 2, 5);
             for(let i = 1; i <= layerCount; i++) {
                 const layer = document.createElement('div');
                 layer.className = 'mountain-layer';
                 layer.style.height = `${20 + (i * 8)}%`; 
                 layer.style.opacity = 0.4; 
-                layer.style.filter = 'brightness(0.8)';
                 for(let j=0; j<10; j++) {
                     const p = document.createElement('div');
                     p.className = 'peak';
@@ -2552,7 +2525,6 @@ window.showMemberMountain = async (mId, mName) => {
                 bgContainer.appendChild(layer);
             }
 
-            // 개인 봉우리 그리기
             peakLayer.style.height = "60%"; 
             logs.forEach((log) => {
                 const hRatio = (log.height / maxHeight) * 100;
@@ -2560,17 +2532,16 @@ window.showMemberMountain = async (mId, mName) => {
                 const peakDiv = document.createElement('div');
                 peakDiv.className = `peak ${isMax ? 'max-height' : ''}`;
                 peakDiv.style.height = `${hRatio}%`;
-                peakDiv.style.filter = 'brightness(1.5)';
                 if (isMax) peakDiv.innerHTML = `<div class="peak-glow-core"></div><div class="golden-glow-effect"></div>`;
                 peakLayer.appendChild(peakDiv);
             });
 
             if(maxLog && peakLabel) peakLabel.innerHTML = `${maxLog.mountain} (${maxLog.height}m)`;
 
-            // --- ✨ 하이라이트: 빛줄기 연동 연출 시작 ---
+            // --- ✨ 하이라이트: 빛줄기 연계 연출 (수정된 로직) ---
             setTimeout(() => {
+                // 1단계: 산맥창에서 빛 발사 (유지 시작)
                 if(beam) {
-                    // 1단계: 산맥창에서 하늘 위로 빛 발사
                     beam.style.background = `linear-gradient(to top, transparent, ${style.border}, #fff)`;
                     beam.style.opacity = '0.8';
                     beam.style.transition = 'height 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
@@ -2578,20 +2549,16 @@ window.showMemberMountain = async (mId, mName) => {
                 }
 
                 setTimeout(() => {
-                    // 2단계: 산맥창 빛 소멸, 나이테창 빛 아래에서 위로 등장
-                    if(beam) beam.style.opacity = '0';
-                    
+                    // 2단계: 산맥창 빛은 그대로 유지하며, 나이테창 빛이 등장
                     if(ringBeam) {
                         ringBeam.style.background = `linear-gradient(to top, ${style.border}, transparent)`;
                         ringBeam.style.opacity = '1';
-                        ringBeam.style.transition = 'height 0.3s cubic-bezier(0.15, 0, 0.15, 1)';
-                        ringBeam.style.height = '50%'; 
+                        ringBeam.style.transition = 'height 0.4s ease-out';
+                        ringBeam.style.height = '50%'; // 행성 위치까지
                     }
 
                     setTimeout(async () => {
-                        // 3단계: 나이테 생성 및 임팩트
-                        if(ringBeam) ringBeam.style.opacity = '0';
-                        
+                        // 3단계: 나이테 행성 타격 및 렌더링
                         if (memberInfo) {
                             await window.renderTreeRings(mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
                             
@@ -2601,13 +2568,23 @@ window.showMemberMountain = async (mId, mName) => {
                                 setTimeout(() => ringCore.classList.remove('planet-impact-active'), 1000);
                             }
                         }
+
+                        // 4단계: [핵심] 행성에 닿은 후 두 빛줄기를 동시에 페이드 아웃
+                        if(beam) {
+                            beam.style.transition = 'opacity 0.5s ease';
+                            beam.style.opacity = '0';
+                        }
+                        if(ringBeam) {
+                            ringBeam.style.transition = 'opacity 0.5s ease';
+                            ringBeam.style.opacity = '0';
+                        }
+                        
                         card.classList.add('glow-active');
-                    }, 500); 
-                }, 300); 
+                    }, 400); // ringBeam이 행성에 도달하는 시간
+                }, 300); // beam 발사 후 ringBeam 시작 대기 시간
             }, 400);
 
         } else {
-            // 기록이 없는 경우 바로 나이테 렌더링
             if (memberInfo) await window.renderTreeRings(mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
             card.classList.add('glow-active');
         }
@@ -2919,4 +2896,5 @@ window.showFadingScroll = function(dday, level = 0) {
 </script>
 </body>
   </html>
+
 
