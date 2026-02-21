@@ -12,53 +12,62 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-/* 카드 전체 크기 고정 및 통합 */
+/* 카드 전체 설정 */
 .integrated-member-card {
     position: relative;
-    width: 320px; /* 별자리 창과 비슷한 고정 너비 */
-    height: 550px; /* 위아래 통합 높이 */
-    background: #0f172a;
-    border-radius: 20px;
+    width: 320px;
+    height: 580px;
+    background: #020617; /* 더 깊은 밤하늘색 */
+    border-radius: 24px;
     overflow: hidden;
     display: flex;
     flex-direction: column;
 }
 
-/* 나이테와 산맥을 감싸는 하나의 통합 캔버스 */
+/* 통합 캔버스: 여기서 모든 시각화가 일어남 */
 .visual-combined-area {
     position: relative;
-    flex: 1; /* 남은 공간 모두 차지 */
     width: 100%;
+    height: 500px; /* 정보바 제외한 높이 */
 }
 
-/* 나이테 영역 (상단 배치) */
+/* 나이테 영역 (상단) */
 .tree-ring-section {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
-    height: 300px; /* 나이테가 그려질 높이 */
-    z-index: 2;
+    height: 280px; /* 상단 절반 */
+    z-index: 10; /* 산맥보다 위 */
 }
 
-/* 산맥 영역 (하단 배치 및 나이테와 겹침) */
+/* 산맥 영역 (하단) */
 .mountain-section {
     position: absolute;
     bottom: 0;
     left: 0;
     width: 100%;
-    height: 350px; /* 빛줄기가 위로 뻗어나갈 수 있도록 높게 설정 */
-    z-index: 1;
+    height: 380px; /* 나이테 영역과 일부 겹치게 해서 빛줄기 통로 확보 */
+    z-index: 5;
 }
 
-/* 빛줄기가 산맥을 넘어 나이테 중앙까지 가도록 설정 */
+/* 쏟아지는 별밤 레이어 (가장 뒤) */
+#starrySky {
+    position: absolute;
+    inset: 0;
+    z-index: 1; /* 가장 바닥 */
+}
+
+/* 빛줄기 설정 (산맥에서 위로 발사) */
 .light-beam {
     position: absolute;
-    bottom: 0;
-    width: 10px;
-    z-index: 5;
-    pointer-events: none;
-    /* 하단에서부터 나이테 중앙까지 뻗어나가는 애니메이션용 */
+    bottom: 80px; /* 산맥 바닥 근처에서 시작 */
+    left: 50%;
+    width: 8px; /* 더 슬림하고 날카롭게 */
+    transform: translateX(-50%);
+    z-index: 20; /* 모든 것의 위를 지나감 */
+    filter: blur(4px);
+    opacity: 0;
 }
 
 /* 행성 충격 효과 애니메이션 */
@@ -2534,34 +2543,36 @@ window.showMemberMountain = async (mId, mName) => {
 
             if(maxLog && peakLabel) peakLabel.innerHTML = `${maxLog.mountain} (${maxLog.height}m)`;
 
-         // [수정] 최종 연출: 얇은 빛줄기 발사 -> 나이테 중앙 행성 타격
+     // [수정] 아래(산맥)에서 위(나이테)로 쏘아 올리는 연출
 setTimeout(() => {
     if(beam) {
-        beam.style.background = `linear-gradient(to top, ${style.border}, #fff)`;
+        // gradient 방향: 위쪽(to top)으로 밝아짐
+        beam.style.background = `linear-gradient(to top, transparent, ${style.border}, #fff)`;
         beam.style.opacity = '0.9';
-        beam.style.transition = 'height 0.6s cubic-bezier(0.2, 0, 0.2, 1)';
-        // 산맥 하단에서 나이테 중앙까지의 거리 (약 150%~170%로 조정)
-        beam.style.height = '165%'; 
+        beam.style.height = '0';
+        beam.style.transition = 'height 0.8s cubic-bezier(0.15, 0, 0.15, 1)';
+        
+        // 빛줄기가 나이테 중앙(상단부)까지 솟구침
+        beam.style.height = '420px'; 
     }
 
     setTimeout(async () => {
-        if(beam) beam.style.opacity = '0';
+        if(beam) {
+            beam.style.opacity = '0';
+            beam.style.transition = 'opacity 0.3s';
+        }
         
         if (memberInfo) {
-            // 나이테 그리기 시작
             await window.renderTreeRings(mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
             
-            // 행성(중앙 점) 충격 효과
-            // SVG 내부의 .planet-core-group 또는 첫번째 circle을 찾아 효과 부여
+            // 행성 타격 효과 (나이테 중앙 점 애니메이션)
             const planet = document.querySelector('.planet-core-group');
             if(planet) {
-                planet.classList.remove('planet-impact');
-                void planet.offsetWidth; // 리플로우 강제 발생
                 planet.classList.add('planet-impact');
             }
         }
         card.classList.add('glow-active');
-    }, 600); // 빛줄기가 올라가는 시간과 동기화
+    }, 800); 
 }, 400);
 
         } else {
@@ -2803,7 +2814,7 @@ window.showFadingScroll = function(dday, level = 0) {
     <div id="integratedCard" class="integrated-member-card" onclick="event.stopPropagation()">
         
         <div class="visual-combined-area">
-            <div id="starrySky" style="position:absolute; inset:0; z-index:0;"></div>
+            <div id="starrySky"></div>
 
             <div class="mountain-section">
                 <div id="bgLayersContainer"></div>
@@ -2811,12 +2822,13 @@ window.showFadingScroll = function(dday, level = 0) {
                 <div id="lightBeam" class="light-beam"></div>
                 
                 <div class="mountain-header">
-                    <h2 id="mwMountainName"></h2>
+                    <h2 id="mwMountainName" class="cosmic-neon-text"></h2>
                 </div>
                 <div id="highestPeakLabel" class="highest-peak-label"></div>
             </div>
 
             <div class="tree-ring-section">
+                <div id="treeRingContainer" class="ring-canvas"></div>
                 <div class="ring-header">
                     <div class="ring-title-group">
                         <span class="ring-label">ACTIVITY HISTORY</span>
@@ -2827,17 +2839,15 @@ window.showFadingScroll = function(dday, level = 0) {
                         <span class="ring-unit">Months</span>
                     </div>
                 </div>
-                <div id="treeRingContainer" class="ring-canvas"></div>
             </div>
         </div>
 
-        <div class="mountain-info-bar" style="background: rgba(0,0,0,0.5); z-index:10;">
+        <div class="mountain-info-bar">
             <div class="info-item">개인 누적 <span id="myTotalH" class="info-val">0</span>m</div>
             <div class="info-item">산우리 합산 <span id="globalTotalH" class="info-val">0</span>m</div>
         </div>
 
-        <button onclick="document.getElementById('mountainViewModal').style.display='none'" 
-                style="position:absolute; top:15px; right:15px; color:white; background:none; border:none; font-size:24px; cursor:pointer; z-index:201;">&times;</button>
+        <button onclick="document.getElementById('mountainViewModal').style.display='none'" class="close-btn">&times;</button>
     </div>
 </div>
 
