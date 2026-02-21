@@ -18,23 +18,35 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
     bottom: -20px; /* 아래창에서 올라오는 느낌을 위해 살짝 밑에서 시작 */
     left: 50%;
     transform: translateX(-50%);
-    width: 6px;
+    width: 4px;
     z-index: 100;
     pointer-events: none;
     filter: blur(4px);
     box-shadow: 0 0 15px var(--beam-color);
 }
 
-/* 행성 타격 시 번쩍이는 애니메이션 */
-@keyframes planet-flare {
-    0% { filter: brightness(1) blur(0px); transform: scale(1); }
-    15% { filter: brightness(8) blur(4px); transform: scale(3); } /* 강렬한 타격 순간 */
-    100% { filter: brightness(1) blur(0px); transform: scale(1); }
+/* 다른 어떤 효과보다 최우선으로 적용되도록 수정 */
+.tree-ring-section .planet-core-group.planet-impact-active {
+    animation: planet-flare 0.6s cubic-bezier(0.15, 0.85, 0.35, 1) !important;
+    transform-origin: center !important;
+    display: inline-block; /* transform이 잘 먹도록 설정 */
+    will-change: transform, filter; /* 브라우저에게 미리 알려서 성능 최적화 */
 }
 
-.planet-impact-active {
-    animation: planet-flare 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-    transform-origin: center;
+@keyframes planet-flare {
+    0% { 
+        filter: brightness(1) blur(0px); 
+        transform: scale(1); 
+    }
+    10% { 
+        /* 찰나의 순간에 압도적인 광량과 크기 */
+        filter: brightness(15) blur(10px); 
+        transform: scale(4.5); 
+    }
+    100% { 
+        filter: brightness(1) blur(0px); 
+        transform: scale(1); 
+    }
 }
 
 /* 나이테 섹션이 빛줄기의 기준점이 되도록 설정 */
@@ -2437,7 +2449,7 @@ window.showMemberMountain = async (mId, mName) => {
         beam.style.transition = 'none';
         beam.style.opacity = '0'; 
         beam.style.height = '0';
-        beam.style.width = '4px'; // 더 날카로운 느낌으로 수정
+        beam.style.width = '10px'; // 더 날카로운 느낌으로 수정
         beam.style.left = '50%';
         beam.style.transform = 'translateX(-50%)';
     }
@@ -2531,7 +2543,7 @@ window.showMemberMountain = async (mId, mName) => {
                     
                     ringBeam.style.background = `linear-gradient(to top, ${style.border}, transparent)`;
                     ringBeam.style.opacity = '1';
-                    ringBeam.style.transition = 'height 0.5s cubic-bezier(0.15, 0, 0.15, 1)';
+                    ringBeam.style.transition = 'height 0.3s cubic-bezier(0.15, 0, 0.15, 1)';
                     ringBeam.style.height = '50%'; // 나이테 중앙(행성) 위치까지
 
                     setTimeout(async () => {
