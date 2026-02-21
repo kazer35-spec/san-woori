@@ -1542,6 +1542,14 @@ return `<div class="conquer-item-dark"><div class="flex justify-between items-ce
 <div class="conquer-bar-bg-dark"><div class="conquer-bar-fill-dark" style="width:${percent}%"></div></div></div>`;
 }).join('');
 
+let selectedMemberIds = new Set();
+let tempCoord = null;
+let currentData = [];
+let growthChartInstance = null;
+let subRoomsData = [];
+let selectedYear = new Date().getFullYear();
+let selectedQuarter = Math.ceil((new Date().getMonth() + 1) / 3);
+
 window.showMemberMountain = async (mId, mName) => {
     const modal = document.getElementById('mountainModal');
     const planetArea = document.getElementById('planetArea');
@@ -2190,39 +2198,47 @@ window.showFadingScroll = function(dday, level = 0) {
     </div>
 </div>
 
-  <div id="scrollModal" class="scroll-overlay" onclick="this.style.display='none'">
-    <div class="fading-scroll" onclick="event.stopPropagation()">
-        
-        <div class="ancient-mountain-bg">
-            <svg viewBox="0 0 500 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M150 180L250 50L350 180" stroke="#8b4513" stroke-width="2" stroke-opacity="0.2"/>
-                <path d="M50 180L180 80L280 180" stroke="#8b4513" stroke-width="2" stroke-opacity="0.1"/>
-                <path d="M280 180L380 90L480 180" stroke="#8b4513" stroke-width="2" stroke-opacity="0.1"/>
-                <path d="M230 75L250 50L270 75" stroke="#8b4513" stroke-width="1" stroke-opacity="0.2"/>
-            </svg>
-        </div>
-
-        <div class="scroll-header">
-            <div class="scroll-title-sub">SAN WOORI</div>
-            <h3 class="scroll-title-main">고대 예언서</h3>
-        </div>
-        
-        <div id="scrollContent" class="scroll-body"></div>
-        
-        <div class="scroll-footer">
-            <hr class="scroll-divider">
-            <div class="ancient-seal">
-                <div class="seal-text">SAN<br>WOORI</div>
+ </div> <div id="scrollModal" class="scroll-overlay" onclick="this.style.display='none'">
+        <div class="fading-scroll" onclick="event.stopPropagation()">
+            <div class="ancient-mountain-bg">
+                <svg viewBox="0 0 500 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M150 180L250 50L350 180" stroke="#8b4513" stroke-width="2" stroke-opacity="0.2"/>
+                    <path d="M50 180L180 80L280 180" stroke="#8b4513" stroke-width="2" stroke-opacity="0.1"/>
+                    <path d="M280 180L380 90L480 180" stroke="#8b4513" stroke-width="2" stroke-opacity="0.1"/>
+                    <path d="M230 75L250 50L270 75" stroke="#8b4513" stroke-width="1" stroke-opacity="0.2"/>
+                </svg>
             </div>
-            <p class="footer-note">기록 연장이 필요하면 요청해 주세요.</p>
-            <p class="ancient-signature">Guardian of History</p>
-            
-            <button onclick="document.getElementById('scrollModal').style.display='none'" class="scroll-close-btn">
-                닫기
-            </button>
+            <div class="scroll-header">
+                <div class="scroll-title-sub">SAN WOORI</div>
+                <h3 class="scroll-title-main">고대 예언서</h3>
+            </div>
+            <div id="scrollContent" class="scroll-body"></div>
+            <div class="scroll-footer">
+                <hr class="scroll-divider">
+                <div class="ancient-seal">
+                    <div class="seal-text">SAN<br>WOORI</div>
+                </div>
+                <p class="footer-note">기록 연장이 필요하면 요청해 주세요.</p>
+                <p class="ancient-signature">Guardian of History</p>
+                <button onclick="document.getElementById('scrollModal').style.display='none'" class="scroll-close-btn">닫기</button>
+            </div>
         </div>
     </div>
-</div>
-</script>
+
+    <script>
+        // 초기화 실행 함수들
+        if (!sessionStorage.getItem('visited')) { updateVisitorCount(); sessionStorage.setItem('visited', 'true'); }
+        listenVisitors(); 
+        startRealtimeSync(); 
+        listenSubRooms();
+        
+        setTimeout(() => { 
+            updateVibeTemp(); 
+            setInterval(updateVibeTemp, 60000); 
+        }, 2000);
+
+        document.getElementById('regDate').valueAsDate = new Date();
+        document.getElementById('activityDate').valueAsDate = new Date();
+    </script>
 </body>
-  </html>
+</html>
