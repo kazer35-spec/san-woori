@@ -2150,14 +2150,15 @@ window.showMemberMountain = async (mId, mName) => {
     const ringsWrap = document.getElementById('ringsWrap');
     const fg = document.getElementById('mForeground');
     
+    // 데이터 찾기
     const member = currentData.find(m => m.id === mId);
     if(!member) return;
 
     const levelStyle = getLevelStyle(member.level);
     document.documentElement.style.setProperty('--lv-color', levelStyle.border);
     
-    // 초기화
-    modal.style.display = 'flex';
+    // 초기화 및 표시
+    modal.style.display = 'flex'; // 중요: 여기서 display를 flex로 바꿔야 보입니다.
     card.style.animation = ""; 
     beam.classList.remove('active');
     impact.classList.remove('active');
@@ -2174,27 +2175,23 @@ window.showMemberMountain = async (mId, mName) => {
     document.getElementById('activityMonths').innerText = diffMonths;
 
     // 2. 애니메이션 시퀀스
-    // (1) 빛줄기 발사 (행성 위치인 top: 160px 까지만 도달하도록 CSS 제어)
     setTimeout(() => { beam.classList.add('active'); }, 100);
 
-    // (2) 충돌 및 행성/나이테 생성
     setTimeout(() => {
         impact.classList.add('active');
         planet.style.opacity = "1";
         planet.style.backgroundColor = levelStyle.border;
         planet.style.boxShadow = `0 0 25px ${levelStyle.border}`;
 
-        // (3) 불규칙 나이테 확산
+        // 나이테 생성 루프
         for(let i=1; i<=diffMonths; i++) {
             setTimeout(() => {
                 const ring = document.createElement('div');
                 const isYearly = (i % 12 === 0);
-                
-                // 불규칙한 타원형 및 회전값 생성
-                const randW = 20 + (Math.random() * 15); // 너비 변동폭 증가
-                const randH = 20 + (Math.random() * 15); // 높이 변동폭 증가
+                const randW = 20 + (Math.random() * 15);
+                const randH = 20 + (Math.random() * 15);
                 const rotate = Math.floor(Math.random() * 360);
-                const sizeBase = i * 35; // 나이테 간격 확대
+                const sizeBase = i * 35; 
 
                 ring.className = `ring ${isYearly ? 'thick' : ''}`;
                 ring.style.width = (sizeBase + randW) + 'px';
@@ -2202,7 +2199,6 @@ window.showMemberMountain = async (mId, mName) => {
                 ring.style.borderColor = levelStyle.border;
                 ring.style.transform = `translate(-50%, -50%) rotate(${rotate}deg)`;
                 ring.style.opacity = '0';
-                
                 ringsWrap.appendChild(ring);
                 
                 setTimeout(() => { 
@@ -2211,11 +2207,9 @@ window.showMemberMountain = async (mId, mName) => {
                 }, 50);
             }, i * 120);
         }
-
-        setTimeout(() => { card.style.animation = "cardGlow 2s ease-out forwards"; }, 1500);
     }, 800);
 
-    // 3. 산맥 데이터 로드 및 시각화
+    // 3. 산맥 로그 로드
     const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
     const logs = snap.docs.map(d => d.data()).sort((a,b) => b.height - a.height);
     
@@ -2224,8 +2218,7 @@ window.showMemberMountain = async (mId, mName) => {
 
     logs.slice(0, 15).forEach((log, idx) => {
         const peak = document.createElement('div');
-        const hPercent = (log.height / 2000) * 80; // 세로가 줄어들었으므로 최대 높이 비율 조정
-        
+        const hPercent = (log.height / 2000) * 80;
         peak.className = `peak-item ${idx === 0 ? 'highest-peak' : ''}`;
         peak.style.height = '0%';
         peak.style.background = idx === 0 ? 
@@ -2237,18 +2230,11 @@ window.showMemberMountain = async (mId, mName) => {
             document.getElementById('highestLabel').innerText = `${log.mountain}`;
         }
         fg.appendChild(peak);
-        
         setTimeout(() => {
             peak.style.height = hPercent + '%';
-            peak.style.transition = "height 1.5s cubic-bezier(0.17, 0.67, 0.83, 0.67)";
             peak.style.opacity = "1";
         }, 1000 + (idx * 50));
     });
-};
-
-
-window.closeMountainModal = () => {
-    document.getElementById('memberMountainModal').style.display = 'none';
 };
 
 window.showMilkyWay = async (mId, mName) => {
