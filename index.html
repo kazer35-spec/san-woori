@@ -1553,14 +1553,15 @@ if(coords.x >= r.x[0] && coords.x <= r.x[1] && coords.y >= r.y[0] && coords.y <=
 return "기타";
 }
 
-function initAutoSelection() {
+function initAutoSelection() {  
 const yearSelect = document.getElementById('yearSelect');
 if (yearSelect) yearSelect.value = selectedYear;
 document.querySelectorAll('.q-btn').forEach((btn, idx) => {
 btn.classList.toggle('active-q', idx + 1 === selectedQuarter);
 });
 }
-const levelThresholds = [
+
+​const levelThresholds = [
 { lv: 100, name: "🌌 은하수" }, { lv: 90, name: "🌠 별똥별" }, { lv: 80, name: "💫 타원별" },
 { lv: 70, name: "🌟 황금별" }, { lv: 60, name: "⭐️ 별" }, { lv: 50, name: "☀️ 해" },
 { lv: 45, name: "🌕 달" }, { lv: 40, name: "🌙 초승달" }, { lv: 35, name: "☄️ 운석" },
@@ -2475,20 +2476,31 @@ window.showMemberMountain = async (mId, mName) => {
             if(maxLog && peakLabel) peakLabel.innerHTML = `${maxLog.mountain} (${maxLog.height}m)`;
 
             // 6. [수정] 최종 연출: 얇은 빛줄기 발사 -> 행성 타격
-            setTimeout(() => {
-                if(beam) {
-                    beam.style.background = `linear-gradient(to top, ${style.border}, transparent)`;
-                    beam.style.opacity = '0.8';
-                    beam.style.transition = 'height 0.7s cubic-bezier(0.15, 0, 0.15, 1)';
-                    beam.style.height = '175%'; // 나이테 중앙 행성까지 상승
-                }
+setTimeout(() => {
+    if(beam) {
+        beam.style.bottom = "80px"; // 산맥 높이쯤에서 시작
+        beam.style.background = `linear-gradient(to top, ${style.border}, #fff)`;
+        beam.style.opacity = '1';
+        beam.style.width = '2px'; // 더 날카로운 빛줄기
+        beam.style.transition = 'height 0.6s ease-in';
+        beam.style.height = '350px'; // 전체 500px 중 나이테 중심까지 도달하는 길이
+    }
 
-                setTimeout(async () => {
-                    if(beam) beam.style.opacity = '0';
-                    
-                    if (memberInfo) {
-                        await window.renderTreeRings(mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
-                        
+    setTimeout(async () => {
+        if(beam) {
+            // 행성 타격 효과 (번쩍임)
+            beam.style.opacity = '0';
+            const card = document.getElementById('integratedCard');
+            card.style.boxShadow = `0 0 50px ${style.border}`; // 카드 전체 번쩍!
+        }
+        
+        // 나이테 렌더링 시작
+        if (memberInfo) {
+            await window.renderTreeRings(mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
+        }
+    }, 600); 
+}, 400);
+
                         // 7. 행성 번쩍임 효과 적용
                         const planet = document.querySelector('.tree-ring-core');
                         if(planet) {
@@ -2561,6 +2573,11 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
     const core = document.createElementNS(svgNS, "circle");
     core.setAttribute("cx", "120"); core.setAttribute("cy", "120"); core.setAttribute("r", "4");
     core.setAttribute("fill", ringColor);
+// core.setAttribute 아래에 추가
+core.innerHTML = `
+<animate attributeName="r" values="4;10;4" dur="0.5s" begin="0s" repeatCount="1" />
+<animate attributeName="fill-opacity" values="1;0.5;1" dur="0.5s" begin="0s" repeatCount="1" />
+`;
     core.style.filter = `drop-shadow(0 0 10px ${ringColor})`;
     
     coreGroup.appendChild(core);
@@ -2739,41 +2756,46 @@ window.showFadingScroll = function(dday, level = 0) {
 <div id="mountainViewModal" class="mountain-modal" onclick="this.style.display='none'">
     <div id="integratedCard" class="integrated-member-card" onclick="event.stopPropagation()">
         
-        <div class="tree-ring-section">
-            <div class="ring-header">
-                <div class="ring-title-group">
-                    <span class="ring-label">ACTIVITY HISTORY</span>
-                    <h3 class="ring-main-title">활동 나이테</h3>
-                </div>
-                <div class="ring-stats">
-                    <span id="activityMonths" class="ring-months-val">0</span>
-                    <span class="ring-unit">Months</span>
-                </div>
-            </div>
-            <div id="treeRingContainer" class="ring-canvas"></div>
-        </div>
-
-        <div class="mountain-section">
+        <div class="main-visual-container" style="position: relative; width: 100%; height: 500px; background: #0f172a; overflow: hidden; border-radius: 20px;">
+            
             <div id="starrySky"></div>
             <div id="bgLayersContainer"></div>
-            <div id="lightBeam" class="light-beam"></div>
-            <div id="peakLayer" class="mountain-layer"></div>
-
-            <div class="mountain-header">
-                <h2 id="mwMountainName" style="font-size: 16px; margin: 0; font-weight: 900; color: white;"></h2>
-                <p style="font-size: 10px; color: #94a3b8; margin: 0;"></p>
+            
+            <div class="ring-header" style="position: absolute; top: 25px; left: 25px; z-index: 30; pointer-events: none;">
+                <div class="ring-title-group">
+                    <span class="ring-label" style="font-size: 9px; color: #64748b; font-weight: 800; letter-spacing: 1px; display: block;">ACTIVITY HISTORY</span>
+                    <h3 class="ring-main-title" style="font-size: 18px; margin: 0; font-weight: 900; color: white; opacity: 0.9;">활동 나이테</h3>
+                </div>
             </div>
 
-            <div id="highestPeakLabel" class="highest-peak-label"></div>
+            <div class="tree-ring-overlay" style="position: absolute; top: 30px; left: 0; width: 100%; height: 260px; z-index: 10; display: flex; justify-content: center; align-items: center;">
+                <div id="treeRingContainer" class="ring-canvas" style="width: 240px; height: 240px;"></div>
+            </div>
 
-            <div class="mountain-info-bar">
-                <div class="info-item">개인 누적 <span id="myTotalH" class="info-val">0</span>m</div>
-                <div class="info-item">산우리 합산 <span id="globalTotalH" class="info-val">0</span>m</div>
+            <div id="peakLayer" class="mountain-layer" style="z-index: 5;"></div>
+            <div id="lightBeam" class="light-beam" style="z-index: 15;"></div>
+
+            <div class="card-ui-overlay" style="position: absolute; bottom: 0; left: 0; width: 100%; padding: 25px; z-index: 20; background: linear-gradient(to top, rgba(15,23,42,0.95), transparent);">
+                <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+                    <div>
+                        <h2 id="mwMountainName" style="font-size: 20px; margin: 0; font-weight: 900; color: white;"></h2>
+                        <div id="highestPeakLabel" style="color: #fbbf24; font-size: 11px; font-weight: 800; margin-top: 5px;"></div>
+                    </div>
+                    <div style="text-align: right;">
+                        <span id="activityMonths" style="font-size: 28px; font-weight: 900; color: white; line-height: 1;">0</span>
+                        <span style="font-size: 10px; color: #94a3b8; display: block; font-weight: 700;">Months</span>
+                    </div>
+                </div>
+
+                <div class="mountain-info-bar" style="margin-top: 15px; display: flex; gap: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
+                    <div style="font-size: 10px; color: #cbd5e1;">개인 누적 <span id="myTotalH" style="color: white; font-weight: 800;">0</span>m</div>
+                    <div style="font-size: 10px; color: #cbd5e1;">산우리 합산 <span id="globalTotalH" style="color: white; font-weight: 800;">0</span>m</div>
+                </div>
             </div>
         </div>
 
         <button onclick="document.getElementById('mountainViewModal').style.display='none'" 
-                style="position:absolute; top:15px; right:15px; color:white; background:none; border:none; font-size:24px; cursor:pointer; z-index:201;">&times;</button>
+                style="position:absolute; top:15px; right:15px; color:white; background:rgba(0,0,0,0.3); border:none; width:35px; height:35px; border-radius:50%; font-size:24px; cursor:pointer; z-index:100; display:flex; justify-content:center; align-items:center;">&times;</button>
     </div>
 </div>
 
