@@ -12,6 +12,27 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+/* 전체 창을 덮는 섬광 레이어 */
+.shimmer-overlay {
+    position: absolute;
+    top: 0; left: 0; 
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 999; /* 최상단 */
+    opacity: 0;
+    transition: opacity 0.3s ease-out;
+}
+
+/* 나이테 섹션: 창 크기에 맞춰 유동적으로 조절 */
+.tree-ring-section {
+    width: 100%;
+    height: 180px; 
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
 /* 1. 기본 변수 및 초기화 */
 :root {
     --cosmic-bg: #0f172a;
@@ -87,21 +108,6 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
     100% { transform: scale(1); filter: brightness(1); }
 }
 .planet-impact { animation: planet-hit 0.4s ease-out; }
-
-/* 창 전체 반짝임 효과 */
-@keyframes window-shimmer {
-    0% { opacity: 0; }
-    50% { opacity: 0.3; }
-    100% { opacity: 0; }
-}
-.shimmer-overlay {
-    position: absolute;
-    top: 0; left: 0; width: 100%; height: 100%;
-    background: white;
-    pointer-events: none;
-    z-index: 100;
-    opacity: 0;
-}
 
 /* 최고봉 광원 효과 */
 .peak-glow-core {
@@ -1312,15 +1318,15 @@ if(coords.x >= r.x[0] && coords.x <= r.x[1] && coords.y >= r.y[0] && coords.y <=
 return "기타";
 }
 
-    function initAutoSelection() {
+function initAutoSelection() {
 const yearSelect = document.getElementById('yearSelect');
 if (yearSelect) yearSelect.value = selectedYear;
 document.querySelectorAll('.q-btn').forEach((btn, idx) => {
 btn.classList.toggle('active-q', idx + 1 === selectedQuarter);
 });
-    }
-    
- const levelThresholds = [
+}
+
+const levelThresholds = [
 { lv: 100, name: "🌌 은하수" }, { lv: 90, name: "🌠 별똥별" }, { lv: 80, name: "💫 타원별" },
 { lv: 70, name: "🌟 황금별" }, { lv: 60, name: "⭐️ 별" }, { lv: 50, name: "☀️ 해" },
 { lv: 45, name: "🌕 달" }, { lv: 40, name: "🌙 초승달" }, { lv: 35, name: "☄️ 운석" },
@@ -2130,7 +2136,7 @@ setTimeout(() => { updateVibeTemp(); setInterval(updateVibeTemp, 60000); }, 2000
 document.getElementById('regDate').valueAsDate = new Date();
 document.getElementById('activityDate').valueAsDate = new Date();
 
-window.showMemberMountain = async (mId, mName) => {
+Window.showMemberMountain = async (mId, mName) => {
     const modal = document.getElementById('mountainViewModal');
     const card = document.getElementById('integratedCard');
     const peakLayer = document.getElementById('peakLayer');
@@ -2142,52 +2148,35 @@ window.showMemberMountain = async (mId, mName) => {
     const mwMountainName = document.getElementById('mwMountainName'); 
     const treeRingContainer = document.getElementById('treeRingContainer');
 
-    // [1] 가로 크기 및 레이아웃 조정 (JS에서 인라인으로 보정)
-    card.style.width = "320px"; // 전체 가로 10% 축소 반영
+    // [1] 레벨 스타일 확보 (색상 추출의 핵심)
+    const memberInfo = currentData.find(m => m.id === mId);
+    const style = getLevelStyle(memberInfo ? memberInfo.level : 0);
+    const lvColor = style.border; // 레벨 마크 색상
 
-    // 텍스트 스타일 통일
+    // [2] 레이아웃 초기화
+    card.style.width = "320px";
     if(mwMountainName) {
         mwMountainName.innerText = `${mName}님의 산맥`;
+        mwMountainName.style.color = lvColor; // 이름도 레벨색으로
         mwMountainName.classList.add('cosmic-neon-text');
     }
-    if(ringMainTitle) ringMainTitle.classList.add('cosmic-neon-text');
+    if(ringMainTitle) {
+        ringMainTitle.style.setProperty('--neon-blue', lvColor);
+        ringMainTitle.classList.add('cosmic-neon-text');
+    }
 
     modal.style.display = 'flex';
     card.classList.remove('glow-active'); 
-    
-    // [2] 빛줄기 설정 (약간 굵게 변경)
-    if(beam) { 
-        beam.style.opacity = '0'; 
-        beam.style.height = '0';
-        beam.style.width = '25px'; // 약간 굵은 빛줄기
-        beam.style.left = '50%';
-        beam.style.transform = 'translateX(-50%)';
-        beam.style.filter = 'blur(10px)';
-    }
+    card.style.setProperty('--glow-color', lvColor);
     
     // 초기화
     if(peakLabel) peakLabel.innerHTML = "";
-    peakLayer.innerHTML = bgContainer.innerHTML = sky.innerHTML = "";
-    treeRingContainer.innerHTML = ""; 
+    peakLayer.innerHTML = bgContainer.innerHTML = sky.innerHTML = treeRingContainer.innerHTML = ""; 
 
-    const memberInfo = currentData.find(m => m.id === mId);
-    const style = getLevelStyle(memberInfo ? memberInfo.level : 0);
-    
-    card.style.setProperty('--glow-color', style.border);
-    if(beam) beam.style.setProperty('--beam-color', style.border);
-
-    // [3] 통합 별밤 생성 (산맥+나이테 전체 배경에 별을 많이 추가)
-    for(let i=0; i<120; i++) { // 별 개수 대폭 증가
+    // [3] 통합 별밤 생성
+    for(let i=0; i<100; i++) {
         const star = document.createElement('div');
-        star.className = 'sky-star'; // CSS에 unified-star 속성 적용 권장
-        star.style.position = 'absolute';
-        star.style.background = 'white';
-        star.style.borderRadius = '50%';
-        star.style.width = star.style.height = `${Math.random()*2}px`;
-        star.style.left = `${Math.random()*100}%`;
-        star.style.top = `${Math.random()*100}%`; // 전체 영역
-        star.style.setProperty('--duration', `${Math.random()*3+2}s`);
-        star.style.opacity = Math.random();
+        star.style.cssText = `position:absolute; background:white; border-radius:50%; width:${Math.random()*2}px; height:${Math.random()*2}px; left:${Math.random()*100}%; top:${Math.random()*100}%; opacity:${Math.random()};`;
         sky.appendChild(star);
     }
 
@@ -2196,27 +2185,20 @@ window.showMemberMountain = async (mId, mName) => {
         const logs = snap.docs.map(d => d.data()).filter(l => (l.height || 0) > 0);
         
         if (logs.length > 0) {
-            const heights = logs.map(l => l.height);
-            const maxHeight = Math.max(...heights);
+            const maxHeight = Math.max(...logs.map(l => l.height));
             const maxLog = logs.find(l => l.height === maxHeight);
 
-            // 산맥 레이어 생성
-            const layerCount = 3;
-            for(let i = 1; i <= layerCount; i++) {
+            // 산맥 배경 생성 (레벨색 투명도 조절 적용)
+            for(let i = 1; i <= 3; i++) {
                 const layer = document.createElement('div');
                 layer.className = 'mountain-layer';
                 layer.style.height = `${20 + (i * 8)}%`; 
-                layer.style.opacity = 0.3; 
-                for(let j=0; j<8; j++) {
-                    const p = document.createElement('div');
-                    p.className = 'peak';
-                    p.style.height = `${Math.random()*30+70}%`;
-                    layer.appendChild(p);
-                }
+                layer.style.background = lvColor; // 배경 산맥도 레벨색 계열로
+                layer.style.opacity = 0.15; 
                 bgContainer.appendChild(layer);
             }
 
-            // [4] 개인 봉우리 및 최고봉 광원 효과
+            // 개인 봉우리 설정
             peakLayer.style.height = "55%"; 
             logs.forEach((log) => {
                 const hRatio = (log.height / maxHeight) * 100;
@@ -2224,65 +2206,92 @@ window.showMemberMountain = async (mId, mName) => {
                 const peakDiv = document.createElement('div');
                 peakDiv.className = `peak ${isMax ? 'max-height' : ''}`;
                 peakDiv.style.height = `${hRatio}%`;
+                peakDiv.style.background = isMax ? '#fff' : lvColor; // 일반 봉우리는 레벨색
                 
                 if (isMax) {
-                    // 최고봉 정상 광원 및 이름 표시
                     peakDiv.innerHTML = `
-                        <div class="peak-glow-core" style="background:white; box-shadow:0 0 20px 10px ${style.border};"></div>
-                        <div class="golden-glow-effect"></div>
+                        <div class="peak-glow-core" style="background:white; box-shadow:0 0 20px 10px ${lvColor};"></div>
                     `;
                     if(peakLabel) {
-                        peakLabel.innerHTML = `<span style="color:white; font-size:13px; font-weight:bold; text-shadow: 0 0 10px ${style.border}">${maxLog.mountain}</span><br><span style="font-size:10px; opacity:0.8;">최고봉 ${maxHeight}m</span>`;
+                        peakLabel.innerHTML = `<span style="color:white; font-size:13px; font-weight:bold; text-shadow: 0 0 10px ${lvColor}">${maxLog.mountain}</span><br><span style="font-size:10px; opacity:0.8;">최고봉 ${maxHeight}m</span>`;
                     }
                 }
                 peakLayer.appendChild(peakDiv);
             });
 
-            // [5] 시퀀스 연출
+            // [4] 시퀀스 연출 (빛줄기 -> 반짝임 -> 나이테)
             setTimeout(() => {
-                // 1. 굵은 빛줄기 발사
                 if(beam) {
-                    beam.style.background = `linear-gradient(to top, ${style.border}, #fff, transparent)`;
+                    beam.style.background = `linear-gradient(to top, ${lvColor}, #fff, transparent)`;
+                    beam.style.boxShadow = `0 0 30px ${lvColor}`;
                     beam.style.opacity = '1';
-                    beam.style.transition = 'all 0.6s cubic-bezier(0.15, 0, 0.15, 1)';
+                    beam.style.width = '25px';
                     beam.style.height = '180%'; 
+                    beam.style.transition = 'all 0.6s cubic-bezier(0.15, 0, 0.15, 1)';
                 }
 
                 setTimeout(async () => {
-                    // 2. 행성 충돌 및 나이테 생성
                     if(beam) beam.style.opacity = '0';
                     
+                    // 1. 전체 창 반짝임 (Flash) 효과 - 레벨색으로!
+                    const flash = document.createElement('div');
+                    flash.style.cssText = `position:absolute; top:0; left:0; width:100%; height:100%; background:${lvColor}; z-index:1000; opacity:0; pointer-events:none; transition: opacity 0.1s;`;
+                    card.appendChild(flash);
+                    
+                    flash.style.opacity = '0.7';
+                    setTimeout(() => { 
+                        flash.style.opacity = '0'; 
+                        setTimeout(() => flash.remove(), 200);
+                    }, 100);
+
+                    // 2. 나이테 생성 (수정된 반응형 함수 호출)
                     if (memberInfo) {
-                        // 나이테 렌더링 호출
-                        await window.renderTreeRings(mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
-                        
-                        // 나이테가 안쪽부터 밝아지는 효과 (클래스 부여)
-                        const rings = treeRingContainer.querySelectorAll('circle');
-                        rings.forEach((ring, idx) => {
-                            ring.style.opacity = '0';
-                            ring.style.transition = `opacity 0.3s ease ${idx * 0.1}s, stroke 0.3s ease`;
-                            setTimeout(() => { ring.style.opacity = '1'; }, 50);
-                        });
-
-                        // 3. 행성 충돌 및 창 전체 반짝임
-                        const core = document.querySelector('.tree-ring-core');
-                        if(core) core.classList.add('planet-impact');
-
-                        const flash = document.createElement('div');
-                        flash.className = 'shimmer-overlay'; // CSS에 추가 필요
-                        card.appendChild(flash);
-                        setTimeout(() => flash.remove(), 600);
+                        await renderResponsiveTreeRings(treeRingContainer, memberInfo, lvColor);
                     }
                     card.classList.add('glow-active');
                 }, 600); 
             }, 300);
 
         } else {
-            if (memberInfo) await window.renderTreeRings(mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
+            // 로그 없을 때도 나이테는 표시
+            if (memberInfo) await renderResponsiveTreeRings(treeRingContainer, memberInfo, lvColor);
             card.classList.add('glow-active');
         }
     } catch (e) { console.error("통합 로딩 에러:", e); }
 };
+
+// [5] 반응형 나이테 렌더링 함수 (창 크기에 맞춰 자동 변경)
+async function renderResponsiveTreeRings(container, member, color) {
+    const rect = container.getBoundingClientRect();
+    const size = Math.min(rect.width, 160) - 20; // 가로/세로 중 작은 쪽에 맞춤
+    const center = size / 2;
+    const months = 12; // 예시 데이터 (가입 기간 로직 적용 가능)
+
+    let svgHtml = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="display:block; margin:auto;">`;
+    
+    for (let i = 1; i <= months; i++) {
+        const radius = (size / 2 / months) * i;
+        svgHtml += `
+            <circle cx="${center}" cy="${center}" r="${radius}" 
+                fill="none" stroke="${color}" stroke-width="1.2" 
+                style="opacity:0; transition: opacity 0.3s ease ${i * 0.08}s;">
+            </circle>`;
+    }
+    
+    // 중앙 코어
+    svgHtml += `<circle class="tree-ring-core planet-impact" cx="${center}" cy="${center}" r="4" fill="${color}"></circle>`;
+    svgHtml += `</svg>`;
+    
+    container.innerHTML = svgHtml;
+    
+    // 애니메이션 트리거
+    setTimeout(() => {
+        container.querySelectorAll('circle').forEach((c, idx) => {
+            c.style.opacity = (idx / months) * 0.8 + 0.2;
+        });
+    }, 50);
+}
+
 
 
 window.renderTreeRings = async (memberName, regDate, memberLevel) => {
@@ -2512,43 +2521,37 @@ window.showFadingScroll = function(dday, level = 0) {
 </script> 
 
 <div id="mountainViewModal" class="mountain-modal" onclick="this.style.display='none'">
-    <div id="integratedCard" class="integrated-member-card" onclick="event.stopPropagation()" style="position: relative; overflow: hidden;">
+    <div id="integratedCard" class="integrated-member-card" onclick="event.stopPropagation()">
+        <div id="shimmerOverlay" class="shimmer-overlay"></div>
         
         <div id="starrySky" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:1;"></div>
 
-        <div class="tree-ring-section" style="height: 160px; position: relative; z-index: 2;">
+        <div class="tree-ring-section" style="height: 180px; display: flex; flex-direction: column;">
             <div class="ring-header">
                 <div class="ring-title-group">
-                    <span class="ring-label" style="font-size: 9px; opacity: 0.6; letter-spacing: 1px;">ACTIVITY HISTORY</span>
-                    <h3 class="ring-main-title cosmic-neon-text" style="margin: 0;">활동 나이테</h3>
+                    <span class="ring-label" style="font-size: 9px; opacity: 0.6; letter-spacing: 1px; color:white;">ACTIVITY HISTORY</span>
+                    <h3 id="mwRingTitle" class="ring-main-title cosmic-neon-text" style="margin: 0;">활동 나이테</h3>
                 </div>
                 <div class="ring-stats">
                     <span id="activityMonths" class="ring-months-val">0</span>
-                    <span class="ring-unit">Months</span>
+                    <span class="ring-unit" style="color:#94a3b8; font-size:10px;">Months</span>
                 </div>
             </div>
-            <div id="treeRingContainer" class="ring-canvas"></div>
+            <div id="treeRingContainer" class="ring-canvas" style="flex: 1; width: 100%; min-height: 0;"></div>
         </div>
 
-        <div class="mountain-section" style="height: 140px; position:relative; z-index: 2;">
+        <div class="mountain-section" style="height: 140px;">
             <div id="bgLayersContainer"></div>
             <div id="lightBeam" class="light-beam"></div>
             <div id="peakLayer" class="mountain-layer"></div>
+            <div id="highestPeakLabel" class="highest-peak-label"></div>
             
-            <div id="highestPeakLabel" class="highest-peak-label" style="position:absolute; top:10px; width:100%; text-align:center; z-index:30;"></div>
-
-            <div class="mountain-header" style="position:absolute; bottom:45px; left:20px;">
-                <h2 id="mwMountainName" style="font-size: 16px; margin: 0; font-weight: 900; color: white;"></h2>
-            </div>
-
             <div class="mountain-info-bar">
                 <div class="info-item">개인 누적 <span id="myTotalH" class="info-val">0</span>m</div>
                 <div class="info-item">산우리 합산 <span id="globalTotalH" class="info-val">0</span>m</div>
             </div>
         </div>
-
-        <button onclick="document.getElementById('mountainViewModal').style.display='none'" 
-                style="position:absolute; top:15px; right:15px; color:white; background:none; border:none; font-size:24px; cursor:pointer; z-index:201; opacity: 0.7;">&times;</button>
+        <button class="close-btn" onclick="document.getElementById('mountainViewModal').style.display='none'">&times;</button>
     </div>
 </div>
 
@@ -2587,11 +2590,4 @@ window.showFadingScroll = function(dday, level = 0) {
 </div>
 </script>
 </body>
-  </html>   
-function initAutoSelection() {
-const yearSelect = document.getElementById('yearSelect');
-if (yearSelect) yearSelect.value = selectedYear;
-document.querySelectorAll('.q-btn').forEach((btn, idx) => {
-btn.classList.toggle('active-q', idx + 1 === selectedQuarter);
-});
-}
+  </html>
