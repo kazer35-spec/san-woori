@@ -1265,7 +1265,7 @@ overflow: hidden;
 </head>
 <body>
 
-<div id="levelupAlert" class="fixed inset-0 z-[200] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div id="levelupAlert" class="fixed inset-0 z-[200] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
     <div class="bg-white rounded-3xl p-8 max-w-sm w-[90%] text-center shadow-2xl transform scale-90 transition-transform duration-300 ease-out border-4 border-yellow-400">
         <div class="text-5xl mb-4">🎊</div>
         <h2 id="levelUpTitle" class="text-2xl font-black text-slate-800 mb-2">LEVEL UP!</h2>
@@ -1903,15 +1903,20 @@ window.renderStatusTable = () => {
     });
 
     const topNames = [...processedData].filter(m => !m.isHidden && m.name !== "오즈").sort((a, b) => b.qCount - a.qCount || b.level - a.level).slice(0, 3).map(m => m.name);
+    
+    // 첫 번째 노출되는 행에만 CLICK 문구를 넣기 위한 플래그
     let isFirstVisible = true;
 
     processedData.forEach((m) => {
         if (!isAdminLoggedIn && m.isHidden) return;
         if (search && !m.name.includes(search)) return;
         
-        // ✨ [중요] 첫 번째 줄에만 나타나는 CLICK 문구 로직
-        let clickNeonHtml = (isFirstVisible && !m.isHidden) ? `<span class="click-neon">CLICK</span>` : "";
-        if (!m.isHidden) isFirstVisible = false;
+        // ✨ [핵심 수정] 첫 번째 보이는 데이터 행인 경우 모든 열에 들어갈 네온 태그 생성
+        let clickTag = "";
+        if (isFirstVisible && !m.isHidden) {
+            clickTag = `<span class="click-neon">CLICK</span>`;
+            isFirstVisible = false; // 한 번 그렸으면 플래그 해제
+        }
 
         let rankT = ""; let rankC = "";
         if (m.name !== "오즈" && m.qCount > 0 && !m.isHidden) {
@@ -1927,39 +1932,34 @@ window.renderStatusTable = () => {
 
         list.innerHTML += `<tr class="${m.isHidden ? 'opacity-40' : ''}">
     <td class="text-xs text-center">
-        <div class="flex flex-col items-center justify-center">
+        ${clickTag} <div class="flex flex-col items-center justify-center">
             ${rankT ? `<span class="rank-badge ${rankC}">${rankT}</span>` : ''}
             <span class="font-bold ${nameColor} cursor-pointer hover:underline" onclick="showMemberMountain('${m.id}', '${m.name}')">${m.name}</span>
         </div>
     </td>
     <td>
-        ${clickNeonHtml}
-        <div class="badge-level">
+        ${clickTag} <div class="badge-level">
             <div class="badge-icon-box ${style.blink} cursor-pointer" 
                  onclick="showMilkyWay('${m.id}', '${m.name}')" 
                  style="background-color: ${style.bg}; border: 1.5px solid ${style.border} !important;">
-                
                 <span class="badge-icon-txt" style="color:${style.text}; font-weight: bold;">${getLevelBadge(m.level)}</span>
             </div>
-            
             <span class="badge-lv-txt" style="color:${style.text}; font-weight: bold;">Lv ${m.level}</span>
         </div>
     </td>
-            <td>
-                ${clickNeonHtml}
-                <button onclick="showMemberTimeline('${m.id}', '${m.name}')" class="qcount-box bg-gray-soft border-none hover:bg-slate-200 text-slate-600">${m.qCount}회 📈</button>
-            </td>
-            <td>
-                ${clickNeonHtml}
-                <button onclick="showMemberMap('${m.id}', '${m.name}')" class="height-badge hover:scale-105 active:scale-95 transition-all">🚩${m.totalHeight || 0}m</button>
-            </td>
-            <td>
-<span class="dday-box ${ddayClass} cursor-pointer" 
-      onclick="window.showFadingScroll(${m.ddayVal}, ${m.level})">
-    ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
-</span>
-</td>
-        </tr>`;
+    <td>
+        ${clickTag} <button onclick="showMemberTimeline('${m.id}', '${m.name}')" class="qcount-box bg-gray-soft border-none hover:bg-slate-200 text-slate-600">${m.qCount}회 📈</button>
+    </td>
+    <td>
+        ${clickTag} <button onclick="showMemberMap('${m.id}', '${m.name}')" class="height-badge hover:scale-105 active:scale-95 transition-all">🚩${m.totalHeight || 0}m</button>
+    </td>
+    <td>
+        ${clickTag} <span class="dday-box ${ddayClass} cursor-pointer" 
+              onclick="window.showFadingScroll(${m.ddayVal}, ${m.level})">
+            ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
+        </span>
+    </td>
+</tr>`;
     });
 };
 
@@ -3066,3 +3066,6 @@ window.showFadingScroll = function(dday, level = 0) {
 </script>
 </body>
     </html>   
+
+      
+    
