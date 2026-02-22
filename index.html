@@ -1305,7 +1305,7 @@ overflow: hidden;
 </head>
 <body>
 
-<div id="levelupAlert" class="fixed inset-0 z-[200] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div id="levelupAlert" class="fixed inset-0 z-[200] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
     <div class="bg-white rounded-3xl p-8 max-w-sm w-[90%] text-center shadow-2xl transform scale-90 transition-transform duration-300 ease-out border-4 border-yellow-400">
         <div class="text-5xl mb-4">🎊</div>
         <h2 id="levelUpTitle" class="text-2xl font-black text-slate-800 mb-2">LEVEL UP!</h2>
@@ -2151,7 +2151,7 @@ y1: { beginAtZero: true, position: 'right', display: false }
 });
 }
 
-window.toggleMapView = () => {
+    window.toggleMapView = () => {
 const main = document.getElementById('mapViewMain');
 const stats = document.getElementById('mapViewStats');
 if (main.classList.contains('hidden-view')) { main.classList.remove('hidden-view'); stats.classList.add('hidden-view'); }
@@ -2205,15 +2205,23 @@ else { popup.style.display = 'none'; if (scrollContainer) scrollContainer.scroll
 };
 
 window.setAdminCoordinate = (event) => {
-const rect = event.currentTarget.getBoundingClientRect();
-const x = ((event.clientX - rect.left) / rect.width) * 100;
-const y = ((event.clientY - rect.top) / rect.height) * 100;
-tempCoord = { x: parseFloat(x.toFixed(2)), y: parseFloat(y.toFixed(2)) };
-const marker = document.getElementById('adminMapMarker');
-marker.style.left = x + "%"; marker.style.top = y + "%"; marker.classList.remove('hidden');
-const detectedRegion = getRegionFromCoord(tempCoord);
-document.getElementById('adminManualRegionSelect').value = detectedRegion;
-document.getElementById('coordDisplay').innerText = `좌표: X ${tempCoord.x} / Y ${tempCoord.y} (${detectedRegion})`;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * 100;
+    const y = ((event.clientY - rect.top) / rect.height) * 100;
+    
+    const newCoord = { x: parseFloat(x.toFixed(2)), y: parseFloat(y.toFixed(2)) };
+    
+    // 좌표 배열에 추가 (최대 5개까지만 저장되도록 제한 가능)
+    if(tempCoordList.length >= 5) tempCoordList.shift(); // 너무 많으면 앞의 것 삭제
+    tempCoordList.push(newCoord);
+    
+    // 화면에 현재 몇 번째 좌표인지 표시 (선택사항)
+    const detectedRegion = getRegionFromCoord(newCoord);
+    document.getElementById('coordDisplay').innerText = `좌표 ${tempCoordList.length}개 선택됨: 마지막 (${detectedRegion})`;
+    
+    // 마커 표시 (마지막 클릭 지점)
+    const marker = document.getElementById('adminMapMarker');
+    marker.style.left = x + "%"; marker.style.top = y + "%"; marker.classList.remove('hidden');
 };
 
 window.toggleMarkerStyle = () => {
@@ -2280,6 +2288,7 @@ currentData = results; updateAdminMemberLists(); renderStatusTable();
 });
 }
 
+let tempCoordList = []; // 여러 좌표를 담을 배열
 // 1. 전역 변수 선언 (스크립트 최상단 혹은 함수 위쪽에 배치)
 let pendingLevelUpMessages = [];
 
@@ -2354,8 +2363,7 @@ window.addMultiActivity = async () => {
     const isBAC = document.getElementById('isBACCheck').checked;
     const region = document.getElementById('adminManualRegionSelect').value;
 
-    // ✅ 분기 체크박스 상태 확인 (ID: isQuarterCheck)
-    // 화면에 체크박스가 없을 경우를 대비해 기본값 false 설정
+    // 분기 체크박스 상태 확인 (기록 횟수 강제 1회 제한 여부)
     const isQuarterOnlyOne = document.getElementById('isQuarterCheck')?.checked || false;
 
     if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜 확인");
@@ -2364,10 +2372,11 @@ window.addMultiActivity = async () => {
     const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
     const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
 
-    // 3. 산 정보가 있을 경우 산 DB 업데이트
-    if(mName && tempCoord) {
+    // 3. 산 정보 업데이트 (첫 번째 클릭된 좌표 기준)
+    if(mName && (tempCoord || tempCoordList.length > 0)) {
+        const primaryCoord = tempCoordList.length > 0 ? tempCoordList[0] : tempCoord;
         await setDoc(doc(db, "mountains", mName), { 
-            x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region 
+            x: primaryCoord.x, y: primaryCoord.y, height, isTop100, isBAC, region 
         }, { merge: true });
     }
 
@@ -2381,36 +2390,45 @@ window.addMultiActivity = async () => {
         const oldLevel = member.level || 0; 
         const newLevel = oldLevel + up;
         
-        // [A] 회원 정보 업데이트 (레벨 수치만큼 상승)
+        // [A] 회원 정보 업데이트 (레벨 수치 상승)
         await updateDoc(doc(db, "sanwoori", id), { 
             level: newLevel, 
             lastDate: ts 
         });
         
-        // [B] 우정 포인트 업데이트 (2명 이상 동행 시)
+        // [B] 우정 포인트 업데이트 (동행 시)
         if (selectedMemberIds.size >= 2) {
             await updateDoc(doc(db, "sanwoori", id), { 
                 friendshipPoint: increment(10 * up) 
             });
         }
         
-        // [C] 로그 기록 (분기 횟수 결정 핵심 로직)
-        // ✅ '분기 체크'가 되어있으면 1회만, 아니면 선택한 레벨업(up) 수만큼 기록 생성
+        // [C] 로그 기록 (통합된 개별 좌표 반영 로직)
+        // 분기 체크가 되어있으면 1회만, 아니면 up(레벨업 수)만큼 반복
         const logLoopCount = isQuarterOnlyOne ? 1 : up;
 
         for(let i = 0; i < logLoopCount; i++) {
+            // tempCoordList에 저장된 좌표를 순서대로 배정 (없으면 마지막 좌표 사용)
+            let finalCoord = null;
+            if (tempCoordList.length > 0) {
+                finalCoord = tempCoordList[i] || tempCoordList[tempCoordList.length - 1];
+            } else {
+                finalCoord = tempCoord; // 기존 단일 좌표 변수 대응
+            }
+            
+            const finalRegion = finalCoord ? getRegionFromCoord(finalCoord) : region;
+
             await addDoc(collection(db, `sanwoori/${id}/logs`), { 
                 date: ts, 
-                mountain: mName, 
-                height, 
-                coords: tempCoord, 
-                isTop100, 
-                isBAC, 
-                region 
+                mountain: i === 0 ? mName : `${mName}(연계${i})`, // 첫 기록만 원래 이름, 나머지는 구분값
+                height: i === 0 ? height : 0, // 높이는 첫 번째 로그에만 기록
+                coords: finalCoord, 
+                isTop100: i === 0 ? isTop100 : false, 
+                isBAC: isBAC, 
+                region: finalRegion 
             });
         }
         
-        // 레벨업 축하 알림 체크
         checkLevelUpgrade(member.name, oldLevel, newLevel);
     }
 
@@ -2419,11 +2437,20 @@ window.addMultiActivity = async () => {
         showCombinedLevelUpAlert();
     }
 
-    const logMsg = isQuarterOnlyOne ? "분기 1회만 반영" : `분기 ${up}회 반영`;
+    const logMsg = isQuarterOnlyOne ? "분기 1회만 반영" : `분기 ${up}회(다중 좌표) 반영`;
     alert(`저장 완료 (레벨 ${up}↑ / ${logMsg})`); 
     
+    // 데이터 리셋
     selectedMemberIds.clear(); 
-    tempCoord = null; 
+    tempCoord = null;
+    tempCoordList = []; // 좌표 배열 초기화
+    if(document.getElementById('coordDisplay')) {
+        document.getElementById('coordDisplay').innerText = "좌표: 선택 전";
+    }
+    
+    tempCoordList = []; // 배열 비우기
+    document.getElementById('coordDisplay').innerText = "좌표를 선택하세요";
+
     updateAdminMemberLists();
     updateVibeTemp();
 };
