@@ -1305,7 +1305,7 @@ overflow: hidden;
 </head>
 <body>
 
-    <div id="levelupAlert" class="fixed inset-0 z-[200] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
+<div id="levelupAlert" class="fixed inset-0 z-[200] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
     <div class="bg-white rounded-3xl p-8 max-w-sm w-[90%] text-center shadow-2xl transform scale-90 transition-transform duration-300 ease-out border-4 border-yellow-400">
         <div class="text-5xl mb-4">🎊</div>
         <h2 id="levelUpTitle" class="text-2xl font-black text-slate-800 mb-2">LEVEL UP!</h2>
@@ -1915,7 +1915,7 @@ await setDoc(doc(db, "sub_rooms", roomId), { isActive: nextActive, statusMsg: ms
 
 window.copySubRoomUrl = (url, name) => { navigator.clipboard.writeText(url); alert(`[${name}] 링크 복사 완료`); };
 
-    window.renderStatusTable = () => {
+window.renderStatusTable = () => {
     const list = document.getElementById('statusList');
     const search = document.getElementById('searchInput').value.trim();
     const sort = document.getElementById('statusSortOrder').value;
@@ -2204,178 +2204,84 @@ if (show) { popup.style.display = 'flex'; if (scrollContainer) scrollContainer.s
 else { popup.style.display = 'none'; if (scrollContainer) scrollContainer.scrollTop = 0; }
 };
 
-// --- [2. 좌표 입력 및 마커 렌더링 통합] ---
 window.setAdminCoordinate = (event) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const x = ((event.clientX - rect.left) / rect.width) * 100;
-    const y = ((event.clientY - rect.top) / rect.height) * 100;
-    
-    // 신규 좌표 생성
-    const newCoord = { x: parseFloat(x.toFixed(2)), y: parseFloat(y.toFixed(2)) };
-    
-    // 배열에 누적 저장
-    tempCoordsArray.push(newCoord);
-    
-    // 지역 감지 (가장 최근에 찍은 좌표 기준)
-    const detectedRegion = getRegionFromCoord(newCoord);
-    document.getElementById('adminManualRegionSelect').value = detectedRegion;
-
-    // 마커 렌더링 및 UI 업데이트
-    renderAdminMarkers();
-    updateCoordDisplayText(detectedRegion);
+const rect = event.currentTarget.getBoundingClientRect();
+const x = ((event.clientX - rect.left) / rect.width) * 100;
+const y = ((event.clientY - rect.top) / rect.height) * 100;
+tempCoord = { x: parseFloat(x.toFixed(2)), y: parseFloat(y.toFixed(2)) };
+const marker = document.getElementById('adminMapMarker');
+marker.style.left = x + "%"; marker.style.top = y + "%"; marker.classList.remove('hidden');
+const detectedRegion = getRegionFromCoord(tempCoord);
+document.getElementById('adminManualRegionSelect').value = detectedRegion;
+document.getElementById('coordDisplay').innerText = `좌표: X ${tempCoord.x} / Y ${tempCoord.y} (${detectedRegion})`;
 };
 
-// 마커 그리기 로직 (기존 단일 마커 대신 다중 마커 지원)
-function renderAdminMarkers() {
-    // 1. 기존 임시 마커들 삭제
-    document.querySelectorAll('.admin-temp-marker').forEach(m => m.remove());
-    
-    // 2. 기존 단일 마커(adminMapMarker)는 숨김
-    const singleMarker = document.getElementById('adminMapMarker');
-    if(singleMarker) singleMarker.classList.add('hidden');
-
-    const mapArea = document.querySelector('.admin-map-area'); 
-    const isTop100 = document.getElementById('isTop100Check').checked;
-
-    // 3. 배열에 담긴 모든 좌표를 마커로 표시
-    tempCoordsArray.forEach((pos, idx) => {
-        const marker = document.createElement('div');
-        marker.className = `map-point admin-temp-marker ${isTop100 ? 'top-100' : ''}`;
-        marker.style.left = pos.x + "%";
-        marker.style.top = pos.y + "%";
-        // 마커 안에 클릭 순번 표시 (종주 경로 확인용)
-        marker.innerHTML = `<span style="font-size:9px; color:white; pointer-events:none;">${idx + 1}</span>`;
-        mapArea.appendChild(marker);
-    });
-}
-
-    <div class="flex items-center gap-2">
-    <span id="coordDisplay">좌표: 없음</span>
-    <button type="button" onclick="resetAdminCoords()" class="text-xs bg-red-100 text-red-600 px-2 py-1 rounded">
-        초기화
-    </button>
-</div>
-
-function updateCoordDisplayText(region) {
-    const display = document.getElementById('coordDisplay');
-    if (tempCoordsArray.length === 0) {
-        display.innerText = "좌표를 선택해주세요";
-    } else {
-        const last = tempCoordsArray[tempCoordsArray.length - 1];
-        display.innerText = `좌표: ${tempCoordsArray.length}개 선택됨 (최근: X ${last.x} / Y ${last.y}) [${region}]`;
-    }
-}
-
-// 마커 스타일(Top100 색상) 토글
 window.toggleMarkerStyle = () => {
-    renderAdminMarkers(); // 다시 그려서 스타일 업데이트
+const marker = document.getElementById('adminMapMarker');
+if(document.getElementById('isTop100Check').checked) marker.classList.add('top-100');
+else marker.classList.remove('top-100');
 };
 
-// 좌표 초기화 (잘못 찍었을 때 사용)
-window.resetAdminCoords = () => {
-    tempCoordsArray = [];
-    renderAdminMarkers();
-    updateCoordDisplayText("지역없음");
-};
-
-window.resetAdminCoords = () => {
-    tempCoordsArray = [];
-    renderAdminMarkers();
-    if(document.getElementById('coordDisplay')) {
-        document.getElementById('coordDisplay').innerText = "좌표: 없음";
-    }
-    alert("입력된 좌표가 초기화되었습니다.");
-};
-
-// --- [3. 산 정보 자동 찾기 및 일괄 수정] ---
 window.autoFindCoords = async () => {
-    const mName = document.getElementById('mountainName').value.trim();
-    if(!mName) return;
-    const snap = await getDoc(doc(db, "mountains", mName));
-    if(snap.exists()) {
-        const d = snap.data(); 
-        // 기존 1개 좌표 데이터를 배열로 변환하여 수용
-        tempCoordsArray = d.multiCoords || (d.x ? [{x: d.x, y: d.y}] : []);
-        
-        document.getElementById('mountainHeight').value = d.height || "";
-        document.getElementById('isTop100Check').checked = d.isTop100 || false;
-        document.getElementById('isBACCheck').checked = d.isBAC || false;
-        document.getElementById('adminManualRegionSelect').value = d.region || (tempCoordsArray[0] ? getRegionFromCoord(tempCoordsArray[0]) : "");
-        
-        renderAdminMarkers();
-        updateCoordDisplayText(document.getElementById('adminManualRegionSelect').value);
-    }
+const mName = document.getElementById('mountainName').value.trim();
+if(!mName) return;
+const snap = await getDoc(doc(db, "mountains", mName));
+if(snap.exists()) {
+const d = snap.data(); tempCoord = { x: d.x, y: d.y };
+document.getElementById('mountainHeight').value = d.height || "";
+document.getElementById('isTop100Check').checked = d.isTop100 || false;
+document.getElementById('isBACCheck').checked = d.isBAC || false;
+document.getElementById('adminManualRegionSelect').value = d.region || getRegionFromCoord(tempCoord);
+toggleMarkerStyle();
+const marker = document.getElementById('adminMapMarker');
+marker.style.left = d.x + "%"; marker.style.top = d.y + "%"; marker.classList.remove('hidden');
+}
 };
 
 window.globalSyncMountainInfo = async () => {
-    const mName = document.getElementById('mountainName').value.trim();
-    const height = parseInt(document.getElementById('mountainHeight').value) || 0;
-    const isTop100 = document.getElementById('isTop100Check').checked;
-    const isBAC = document.getElementById('isBACCheck').checked;
-    const region = document.getElementById('adminManualRegionSelect').value;
-    
-    if(!mName || tempCoordsArray.length === 0) return alert("산 이름과 좌표 필수");
-    if(!confirm(`[${mName}] 정보를 일괄 수정하시겠습니까? (저장된 좌표 ${tempCoordsArray.length}개)`)) return;
-
-    try {
-        // 대표 좌표는 첫 번째 클릭 지점으로 설정
-        const mainCoord = tempCoordsArray[0];
-        const updateData = { 
-            x: mainCoord.x, 
-            y: mainCoord.y, 
-            multiCoords: tempCoordsArray, // 전체 경로 저장
-            height, isTop100, isBAC, region 
-        };
-
-        await setDoc(doc(db, "mountains", mName), updateData, { merge: true });
-        
-        const membersSnap = await getDocs(collection(db, "sanwoori"));
-        for (const mDoc of membersSnap.docs) {
-            const logsSnap = await getDocs(query(collection(db, `sanwoori/${mDoc.id}/logs`), where("mountain", "==", mName)));
-            if (!logsSnap.empty) {
-                const batch = writeBatch(db);
-                logsSnap.forEach(ldoc => batch.update(ldoc.ref, { 
-                    height, 
-                    coords: mainCoord, 
-                    multiCoords: tempCoordsArray,
-                    isTop100, isBAC, region 
-                }));
-                await batch.commit();
-            }
-        }
-        alert("수정 완료"); 
-        startRealtimeSync();
-    } catch (e) { alert(e.message); }
+const mName = document.getElementById('mountainName').value.trim();
+const height = parseInt(document.getElementById('mountainHeight').value) || 0;
+const isTop100 = document.getElementById('isTop100Check').checked;
+const isBAC = document.getElementById('isBACCheck').checked;
+const region = document.getElementById('adminManualRegionSelect').value;
+if(!mName || !tempCoord) return alert("산 이름과 좌표 필수");
+if(!confirm(`[${mName}] 정보를 일괄 수정하시겠습니까?`)) return;
+try {
+await setDoc(doc(db, "mountains", mName), { x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region }, { merge: true });
+const membersSnap = await getDocs(collection(db, "sanwoori"));
+for (const mDoc of membersSnap.docs) {
+const logsSnap = await getDocs(query(collection(db, `sanwoori/${mDoc.id}/logs`), where("mountain", "==", mName)));
+if (!logsSnap.empty) {
+const batch = writeBatch(db);
+logsSnap.forEach(ldoc => batch.update(ldoc.ref, { height, coords: tempCoord, isTop100, isBAC, region }));
+await batch.commit();
+}
+}
+alert("수정 완료"); startRealtimeSync();
+} catch (e) { alert(e.message); }
 };
 
-// --- [4. 실시간 동기화 (기존 유지)] ---
 let unsubscribe = null;
 function startRealtimeSync() {
-    if (unsubscribe) unsubscribe();
-    unsubscribe = onSnapshot(collection(db, "sanwoori"), async (snapshot) => {
-        const start = Timestamp.fromDate(new Date(selectedYear, (selectedQuarter - 1) * 3, 1));
-        const end = Timestamp.fromDate(new Date(selectedYear, selectedQuarter * 3, 1));
-        const results = await Promise.all(snapshot.docs.map(async (docSnap) => {
-            const m = { id: docSnap.id, ...docSnap.data() };
-            const allLogs = await getDocs(collection(db, `sanwoori/${m.id}/logs`));
-            m.qCount = allLogs.docs.filter(l => {
-                const d = l.data().date;
-                return d >= start && d < end;
-            }).length;
-            m.totalHeight = allLogs.docs.reduce((acc, l) => acc + (l.data().height || 0), 0);
-            const latestLogSnap = await getDocs(query(collection(db, `sanwoori/${m.id}/logs`), orderBy("date", "desc"), limit(1)));
-            if (!latestLogSnap.empty) m.lastDate = latestLogSnap.docs[0].data().date;
-            return m;
-        }));
-        currentData = results; 
-        updateAdminMemberLists(); 
-        renderStatusTable();
-    });
+if (unsubscribe) unsubscribe();
+unsubscribe = onSnapshot(collection(db, "sanwoori"), async (snapshot) => {
+const start = Timestamp.fromDate(new Date(selectedYear, (selectedQuarter - 1) * 3, 1));
+const end = Timestamp.fromDate(new Date(selectedYear, selectedQuarter * 3, 1));
+const results = await Promise.all(snapshot.docs.map(async (docSnap) => {
+const m = { id: docSnap.id, ...docSnap.data() };
+const allLogs = await getDocs(collection(db, `sanwoori/${m.id}/logs`));
+m.qCount = allLogs.docs.filter(l => l.data().date >= start && l.data().date < end).length;
+m.totalHeight = allLogs.docs.reduce((acc, l) => acc + (l.data().height || 0), 0);
+const latestLogSnap = await getDocs(query(collection(db, `sanwoori/${m.id}/logs`), orderBy("date", "desc"), limit(1)));
+if (!latestLogSnap.empty) m.lastDate = latestLogSnap.docs[0].data().date;
+return m;
+}));
+currentData = results; updateAdminMemberLists(); renderStatusTable();
+});
 }
 
-// 1. 전역 변수 선언
+// 1. 전역 변수 선언 (스크립트 최상단 혹은 함수 위쪽에 배치)
 let pendingLevelUpMessages = [];
-let tempCoordsArray = []; // ✨ 이 줄을 추가하세요!
 
 // 2. 레벨업 체크 및 메시지 수집 통합 함수
 window.checkLevelUpgrade = (name, oldLevel, newLevel) => {
@@ -2769,7 +2675,6 @@ window.showMemberMountain = async (mId, mName) => {
     modal.style.display = 'flex';
     card.classList.remove('glow-active'); 
     
-    // [1] 빛줄기 초기화 (아래에서 대기하도록 설정)
     const initializeBeam = (b) => {
         if(!b) return;
         b.style.transition = 'none';
@@ -2778,8 +2683,6 @@ window.showMemberMountain = async (mId, mName) => {
         b.style.width = '12px';
         b.style.left = '50%';
         b.style.transform = 'translateX(-50%)';
-        b.style.bottom = '0'; // 아래에서 시작
-        b.style.top = 'auto'; // 상단 고정 해제
         b.style.filter = 'blur(6px)';
         b.style.mixBlendMode = 'screen';
     };
@@ -2797,7 +2700,6 @@ window.showMemberMountain = async (mId, mName) => {
     if(beam) beam.style.setProperty('--beam-color', style.border);
     if(ringBeam) ringBeam.style.setProperty('--beam-color', style.border);
 
-    // 배경 별빛 생성
     for(let i=0; i<80; i++) {
         const star = document.createElement('div');
         star.className = 'tree-ring-star';
@@ -2813,7 +2715,6 @@ window.showMemberMountain = async (mId, mName) => {
         const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
         const logs = snap.docs.map(d => d.data()).filter(l => (l.height || 0) > 0);
         
-        // 데이터 요약 및 UI 반영
         if (logs.length > 0) {
             const heights = logs.map(l => l.height);
             const maxHeight = Math.max(...heights);
@@ -2821,11 +2722,22 @@ window.showMemberMountain = async (mId, mName) => {
             const myTotalH = heights.reduce((a, b) => a + b, 0);
             const globalH = currentData.reduce((acc, m) => acc + (m.totalHeight || 0), 0);
             
-            if(document.getElementById('myTotalH')) document.getElementById('myTotalH').innerText = myTotalH.toLocaleString();
-            if(document.getElementById('globalTotalH')) document.getElementById('globalTotalH').innerText = globalH.toLocaleString();
-            if(maxLog && peakLabel) peakLabel.innerHTML = `<span class="small-peak-tag">${maxLog.mountain} (${maxLog.height}m)</span>`;
+            // ✨ [수정] 네온 효과 및 글씨 크기 조절 적용
+            if(document.getElementById('myTotalH')) {
+                const el = document.getElementById('myTotalH');
+                el.innerText = myTotalH.toLocaleString();
+                el.className = 'neon-value'; // 네온 수치 전용 클래스
+            }
+            if(document.getElementById('globalTotalH')) {
+                const el = document.getElementById('globalTotalH');
+                el.innerText = globalH.toLocaleString();
+                el.className = 'neon-value'; // 네온 수치 전용 클래스
+            }
+            if(maxLog && peakLabel) {
+                // 최고봉 글씨 작게 처리
+                peakLabel.innerHTML = `<span class="small-peak-tag">${maxLog.mountain} (${maxLog.height}m)</span>`;
+            }
 
-            // 산맥 레이어 및 피크 생성
             const layerCount = Math.min(Math.floor(globalH / 15000) + 2, 5);
             for(let i = 1; i <= layerCount; i++) {
                 const layer = document.createElement('div');
@@ -2833,7 +2745,8 @@ window.showMemberMountain = async (mId, mName) => {
                 layer.style.height = `${20 + (i * 8)}%`; 
                 layer.style.opacity = 0.4; 
                 for(let j=0; j<10; j++) {
-                    const p = document.createElement('div'); p.className = 'peak';
+                    const p = document.createElement('div');
+                    p.className = 'peak';
                     p.style.height = `${Math.random()*30+70}%`;
                     layer.appendChild(p);
                 }
@@ -2851,45 +2764,30 @@ window.showMemberMountain = async (mId, mName) => {
                 peakLayer.appendChild(peakDiv);
             });
 
-            // [2] 상승 빛줄기 애니메이션 시퀀스
             setTimeout(() => {
-                // 산맥에서 기운이 솟구침
                 if(beam) {
-                    beam.style.background = `linear-gradient(to top, ${style.border}, #fff)`;
-                    beam.style.opacity = '1';
-                    beam.style.transition = 'height 0.4s ease-in';
-                    beam.style.height = '120%'; 
+                    beam.style.background = `linear-gradient(to top, transparent, ${style.border}, rgba(255,255,255,0.7))`;
+                    beam.style.opacity = '0.9';
+                    beam.style.transition = 'height 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+                    beam.style.height = '110%';
                 }
-                
                 setTimeout(() => {
-                    // 나이테 영역으로 빛이 전달됨
                     if(ringBeam) {
-                        ringBeam.style.background = `linear-gradient(to top, ${style.border}, #fff)`;
-                        ringBeam.style.opacity = '1';
-                        ringBeam.style.transition = 'height 0.4s ease-out';
-                        ringBeam.style.height = '60%'; // 행성 위치까지
+                        ringBeam.style.background = `linear-gradient(to top, ${style.border}, transparent)`;
+                        ringBeam.style.opacity = '0.9';
+                        ringBeam.style.transition = 'height 0.5s ease-out';
+                        ringBeam.style.height = '50%'; 
                     }
-
                     setTimeout(async () => {
-                        // [3] 부딪히는 찰나에 나이테 생성
                         if (memberInfo) {
                             await window.renderTreeRings(mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
                         }
-                        
-                        // [4] 빛줄기 소멸 (위로 빠져나가는 느낌)
-                        [beam, ringBeam].forEach(b => { 
-                            if(b) { 
-                                b.style.transition = 'opacity 0.6s ease-out, transform 0.6s ease-out'; 
-                                b.style.transform = 'translateX(-50%) translateY(-100%)'; 
-                                b.style.opacity = '0'; 
-                            } 
-                        });
+                        [beam, ringBeam].forEach(b => { if(b) { b.style.transition = 'opacity 0.8s ease-out'; b.style.opacity = '0'; } });
                         card.classList.add('glow-active');
-                    }, 300); // 빛이 도달하는 시간
-                }, 200); 
+                    }, 450); 
+                }, 350); 
             }, 400);
         } else {
-            // 기록 없을 시 바로 나이테 표시
             if (memberInfo) await window.renderTreeRings(mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
             card.classList.add('glow-active');
         }
@@ -2904,12 +2802,12 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
 
     if (!container) return;
     
-    // [1] 초기화
+    // [1] 초기화: 기존 내용 비우기 및 텍스트 스타일 적용
     container.innerHTML = ""; 
     if (mainTitle) mainTitle.classList.add('cosmic-neon-text');
     if (mountainName) mountainName.classList.add('cosmic-neon-text');
 
-    // [2] 배경 별빛 생성
+    // [2] 배경 별빛 생성 (Canvas 대신 가벼운 div 기반)
     for (let i = 0; i < 80; i++) {
         const star = document.createElement('div');
         star.className = 'tree-ring-star';
@@ -2923,7 +2821,7 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
         container.appendChild(star);
     }
 
-    // [3] 기간 계산
+    // [3] 기간 계산 (가입일 기준)
     const fixedList = ["오즈","나스","해수","용삼","지니","아랑","민이","몰랑","길치","등초","무니","식이","구름","뚜벅","윤윤","승이","이구","후후","튜브","피치","사랑","송돌","호프","이제","얌얌","태기","희야","멸치","성민","루이","섭섭"];
     let jDate = fixedList.includes(memberName) ? new Date('2025-11-24') : (regDate?.toDate ? regDate.toDate() : new Date());
     const now = new Date();
@@ -2932,29 +2830,21 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
     const style = getLevelStyle(memberLevel);
     const ringColor = style.border; 
 
-    // [4] SVG 및 중앙 코어 생성 (애니메이션 통합)
+    // [4] SVG 및 중앙 코어 생성
     const svgNS = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(svgNS, "svg");
     svg.setAttribute("viewBox", "0 0 240 240");
     svg.style.cssText = "width:100%; height:100%; overflow:visible;";
 
+    // 중앙 행성 코어 그룹
     const coreGroup = document.createElementNS(svgNS, "g");
     coreGroup.setAttribute("class", "planet-core-group");
 
-    // ✨ 상승 빛줄기에 부딪혀 커지는 행성 코어
+    // 코어 자체 별무리 효과 (함수 내부에서 직접 생성하도록 통합)
     const coreCircle = document.createElementNS(svgNS, "circle");
-    coreCircle.setAttribute("cx", "120"); 
-    coreCircle.setAttribute("cy", "120"); 
-    coreCircle.setAttribute("r", "0"); // 0에서 시작 (빛줄기 충돌 전)
+    coreCircle.setAttribute("cx", "120"); coreCircle.setAttribute("cy", "120"); coreCircle.setAttribute("r", "5");
     coreCircle.setAttribute("fill", ringColor);
-    coreCircle.style.filter = `drop-shadow(0 0 12px ${ringColor})`;
-
-    // 행성 탄생 애니메이션 (빛줄기 도달 시점에 맞춰 실행)
-    coreCircle.innerHTML = `
-        <animate attributeName="r" from="0" to="6" dur="0.4s" fill="freeze" begin="0s" />
-        <animate attributeName="opacity" from="0" to="1" dur="0.2s" fill="freeze" begin="0s" />
-    `;
-
+    coreCircle.style.filter = `drop-shadow(0 0 10px ${ringColor})`;
     coreGroup.appendChild(coreCircle);
     svg.appendChild(coreGroup);
 
@@ -2970,6 +2860,7 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
         let d = "";
         for (let a = 0; a <= 360; a += 6) {
             const angle = (a * Math.PI) / 180;
+            // 고유한 물결 모양 생성 (이름 기반 seed + 월별 인덱스 i)
             const wave = Math.sin(angle * (seed % 4 + 3) + i) * 2.5;
             const r = radius + wave;
             const x = 120 + r * Math.cos(angle);
@@ -2981,8 +2872,8 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
         path.setAttribute("d", d);
         path.setAttribute("fill", "none");
         path.setAttribute("stroke", ringColor);
-        path.setAttribute("stroke-width", i % 12 === 0 ? "1.2" : "0.35");
-        path.setAttribute("stroke-opacity", "0");
+        path.setAttribute("stroke-width", i % 12 === 0 ? "1.2" : "0.35"); // 1년 단위 링 강조
+        path.setAttribute("stroke-opacity", "0"); // 초기엔 투명
         path.style.transition = "stroke-opacity 0.5s ease-in, stroke-width 0.5s ease";
         
         svg.appendChild(path);
@@ -2991,14 +2882,19 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
     container.appendChild(svg);
 
     // [6] 애니메이션 실행: 안쪽부터 순차적으로 등장
-    const totalAnimTime = 1200; 
+    const totalAnimTime = 1200; // 전체 등장 시간 1.2초
     const delayStep = Math.min(60, totalAnimTime / diffMonths); 
 
     rings.forEach((ring, index) => {
         setTimeout(() => {
+            // 연단위(12개월)는 더 진하게, 나머지는 은은하게
             const targetOpacity = (index + 1) % 12 === 0 ? "0.8" : "0.25";
             ring.setAttribute("stroke-opacity", targetOpacity);
+            
+            // 숫자 카운트 증가 효과
             if(monthLabel) monthLabel.innerText = index + 1;
+            
+            // 마지막 링(현재 시점) 강조 효과
             if(index === rings.length - 1) {
                 ring.setAttribute("stroke-width", "2");
                 ring.style.filter = `drop-shadow(0 0 5px ${ringColor})`;
@@ -3007,7 +2903,7 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
         }, index * delayStep);
     });
 
-    // [7] 내부 행성 별빛 추가
+    // [7] 내부 행성 별빛 추가 생성 (코어 그룹 내부)
     setTimeout(() => {
         const coreDOM = container.querySelector('.planet-core-group');
         if (coreDOM) {
