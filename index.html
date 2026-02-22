@@ -1518,7 +1518,9 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 <div id="adminMapMarker" class="map-point hidden"></div>
 </div>
 <div id="coordDisplay" class="coordinate-display">좌표: 없음 (지도 클릭)</div>
-</div>
+</div><button onclick="resetCoords()" type="button" style="background:#f43f5e; color:white; padding:2px 8px; border-radius:4px; font-size:12px;">
+    좌표 리셋
+</button>
 
 <input type="date" id="activityDate" class="input-gap">
 <button onclick="addMultiActivity()" class="btn-submit bg-blue-500 mt-0">기록 저장하기</button>
@@ -2224,6 +2226,15 @@ window.setAdminCoordinate = (event) => {
     marker.style.left = x + "%"; marker.style.top = y + "%"; marker.classList.remove('hidden');
 };
 
+window.resetCoords = () => {
+    tempCoord = null;
+    tempCoordList = []; // 배열 비우기
+    const marker = document.getElementById('adminMapMarker');
+    if (marker) marker.classList.add('hidden'); // 마커 숨기기
+    const display = document.getElementById('coordDisplay');
+    if (display) display.innerText = "좌표가 초기화되었습니다.";
+};
+
 window.toggleMarkerStyle = () => {
 const marker = document.getElementById('adminMapMarker');
 if(document.getElementById('isTop100Check').checked) marker.classList.add('top-100');
@@ -2288,10 +2299,6 @@ currentData = results; updateAdminMemberLists(); renderStatusTable();
 });
 }
 
-let tempCoordList = []; // 여러 좌표를 담을 배열
-// 1. 전역 변수 선언 (스크립트 최상단 혹은 함수 위쪽에 배치)
-let pendingLevelUpMessages = [];
-
 // 2. 레벨업 체크 및 메시지 수집 통합 함수
 window.checkLevelUpgrade = (name, oldLevel, newLevel) => {
     const thresholdLevels = levelThresholds.map(t => t.lv);
@@ -2354,25 +2361,28 @@ window.closeLevelupAlert = () => {
     }, 500);
 };
 
+// [1] 전역 변수 선언 확인 (스크립트 최상단 혹은 기존 위치)
+let tempCoord = null;
+let tempCoordList = []; // 다중 좌표 저장용 배열
+
+// [3] 통합 활동 추가 함수
 window.addMultiActivity = async () => {
-    // 1. 필요한 기본 데이터 가져오기
+    // 기본 데이터 가져오기
     const dateVal = document.getElementById('activityDate').value;
     const mName = document.getElementById('mountainName').value.trim();
     const height = parseInt(document.getElementById('mountainHeight').value) || 0;
     const isTop100 = document.getElementById('isTop100Check').checked;
     const isBAC = document.getElementById('isBACCheck').checked;
     const region = document.getElementById('adminManualRegionSelect').value;
-
-    // 분기 체크박스 상태 확인 (기록 횟수 강제 1회 제한 여부)
     const isQuarterOnlyOne = document.getElementById('isQuarterCheck')?.checked || false;
 
     if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜 확인");
 
-    // 2. 레벨업 수치 및 날짜 타임스탬프 설정
+    // 레벨업 수치 및 날짜 설정
     const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
     const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
 
-    // 3. 산 정보 업데이트 (첫 번째 클릭된 좌표 기준)
+    // 산 DB 업데이트 (첫 번째 좌표 기준 저장)
     if(mName && (tempCoord || tempCoordList.length > 0)) {
         const primaryCoord = tempCoordList.length > 0 ? tempCoordList[0] : tempCoord;
         await setDoc(doc(db, "mountains", mName), { 
@@ -2382,7 +2392,7 @@ window.addMultiActivity = async () => {
 
     pendingLevelUpMessages = [];
 
-    // 4. 선택된 회원별 업데이트 루프
+    // 회원별 업데이트 루프
     for(const id of selectedMemberIds){
         const member = currentData.find(m => m.id === id);
         if(!member) continue;
@@ -2390,67 +2400,57 @@ window.addMultiActivity = async () => {
         const oldLevel = member.level || 0; 
         const newLevel = oldLevel + up;
         
-        // [A] 회원 정보 업데이트 (레벨 수치 상승)
+        // A. 회원 정보 업데이트 (레벨 및 마지막 산행일)
         await updateDoc(doc(db, "sanwoori", id), { 
             level: newLevel, 
             lastDate: ts 
         });
         
-        // [B] 우정 포인트 업데이트 (동행 시)
+        // B. 우정 포인트 업데이트 (2명 이상 동행 시)
         if (selectedMemberIds.size >= 2) {
             await updateDoc(doc(db, "sanwoori", id), { 
                 friendshipPoint: increment(10 * up) 
             });
         }
         
-        // [C] 로그 기록 (통합된 개별 좌표 반영 로직)
-        // 분기 체크가 되어있으면 1회만, 아니면 up(레벨업 수)만큼 반복
+        // C. 로그 기록 (핵심: 다중 좌표 반영 및 최근 기록 1개 유지)
         const logLoopCount = isQuarterOnlyOne ? 1 : up;
 
         for(let i = 0; i < logLoopCount; i++) {
-            // tempCoordList에 저장된 좌표를 순서대로 배정 (없으면 마지막 좌표 사용)
+            // 클릭한 좌표가 여러 개면 순서대로 사용, 부족하면 마지막 클릭 좌표 사용
             let finalCoord = null;
             if (tempCoordList.length > 0) {
                 finalCoord = tempCoordList[i] || tempCoordList[tempCoordList.length - 1];
             } else {
-                finalCoord = tempCoord; // 기존 단일 좌표 변수 대응
+                finalCoord = tempCoord;
             }
             
-            const finalRegion = finalCoord ? getRegionFromCoord(finalCoord) : region;
+            if(!finalCoord) continue;
+            const finalRegion = getRegionFromCoord(finalCoord);
 
             await addDoc(collection(db, `sanwoori/${id}/logs`), { 
                 date: ts, 
-                mountain: i === 0 ? mName : `${mName}(연계${i})`, // 첫 기록만 원래 이름, 나머지는 구분값
-                height: i === 0 ? height : 0, // 높이는 첫 번째 로그에만 기록
+                // 첫 번째 로그에만 산 이름을 넣고 나머지는 비워서 최근 기록 1개로 보이게 함
+                mountain: i === 0 ? mName : "", 
+                height: i === 0 ? height : 0, 
                 coords: finalCoord, 
                 isTop100: i === 0 ? isTop100 : false, 
-                isBAC: isBAC, 
+                isBAC: i === 0 ? isBAC : false, 
                 region: finalRegion 
             });
         }
-        
         checkLevelUpgrade(member.name, oldLevel, newLevel);
     }
 
-    // 5. 후처리 및 알림
-    if (pendingLevelUpMessages.length > 0) {
-        showCombinedLevelUpAlert();
-    }
+    // 후처리 및 알림
+    if (pendingLevelUpMessages.length > 0) showCombinedLevelUpAlert();
 
-    const logMsg = isQuarterOnlyOne ? "분기 1회만 반영" : `분기 ${up}회(다중 좌표) 반영`;
+    const logMsg = isQuarterOnlyOne ? "분기 1회만 반영" : `분기 ${up}회(좌표 ${tempCoordList.length || 1}개) 반영`;
     alert(`저장 완료 (레벨 ${up}↑ / ${logMsg})`); 
     
-    // 데이터 리셋
+    // 리셋 및 UI 업데이트
     selectedMemberIds.clear(); 
-    tempCoord = null;
-    tempCoordList = []; // 좌표 배열 초기화
-    if(document.getElementById('coordDisplay')) {
-        document.getElementById('coordDisplay').innerText = "좌표: 선택 전";
-    }
-    
-    tempCoordList = []; // 배열 비우기
-    document.getElementById('coordDisplay').innerText = "좌표를 선택하세요";
-
+    resetCoords(); // 좌표 데이터 및 마커 초기화
     updateAdminMemberLists();
     updateVibeTemp();
 };
