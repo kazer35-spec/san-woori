@@ -1305,7 +1305,7 @@ overflow: hidden;
 </head>
 <body>
 
-    <div id="levelupAlert" class="fixed inset-0 z-[200] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
+<div id="levelupAlert" class="fixed inset-0 z-[200] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
     <div class="bg-white rounded-3xl p-8 max-w-sm w-[90%] text-center shadow-2xl transform scale-90 transition-transform duration-300 ease-out border-4 border-yellow-400">
         <div class="text-5xl mb-4">🎊</div>
         <h2 id="levelUpTitle" class="text-2xl font-black text-slate-800 mb-2">LEVEL UP!</h2>
@@ -1915,7 +1915,7 @@ await setDoc(doc(db, "sub_rooms", roomId), { isActive: nextActive, statusMsg: ms
 
 window.copySubRoomUrl = (url, name) => { navigator.clipboard.writeText(url); alert(`[${name}] 링크 복사 완료`); };
 
-    window.renderStatusTable = () => {
+window.renderStatusTable = () => {
     const list = document.getElementById('statusList');
     const search = document.getElementById('searchInput').value.trim();
     const sort = document.getElementById('statusSortOrder').value;
@@ -2675,7 +2675,6 @@ window.showMemberMountain = async (mId, mName) => {
     modal.style.display = 'flex';
     card.classList.remove('glow-active'); 
     
-    // [1] 빛줄기 초기화 (아래에서 대기하도록 설정)
     const initializeBeam = (b) => {
         if(!b) return;
         b.style.transition = 'none';
@@ -2684,8 +2683,6 @@ window.showMemberMountain = async (mId, mName) => {
         b.style.width = '12px';
         b.style.left = '50%';
         b.style.transform = 'translateX(-50%)';
-        b.style.bottom = '0'; // 아래에서 시작
-        b.style.top = 'auto'; // 상단 고정 해제
         b.style.filter = 'blur(6px)';
         b.style.mixBlendMode = 'screen';
     };
@@ -2703,7 +2700,6 @@ window.showMemberMountain = async (mId, mName) => {
     if(beam) beam.style.setProperty('--beam-color', style.border);
     if(ringBeam) ringBeam.style.setProperty('--beam-color', style.border);
 
-    // 배경 별빛 생성
     for(let i=0; i<80; i++) {
         const star = document.createElement('div');
         star.className = 'tree-ring-star';
@@ -2719,7 +2715,6 @@ window.showMemberMountain = async (mId, mName) => {
         const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
         const logs = snap.docs.map(d => d.data()).filter(l => (l.height || 0) > 0);
         
-        // 데이터 요약 및 UI 반영
         if (logs.length > 0) {
             const heights = logs.map(l => l.height);
             const maxHeight = Math.max(...heights);
@@ -2727,11 +2722,22 @@ window.showMemberMountain = async (mId, mName) => {
             const myTotalH = heights.reduce((a, b) => a + b, 0);
             const globalH = currentData.reduce((acc, m) => acc + (m.totalHeight || 0), 0);
             
-            if(document.getElementById('myTotalH')) document.getElementById('myTotalH').innerText = myTotalH.toLocaleString();
-            if(document.getElementById('globalTotalH')) document.getElementById('globalTotalH').innerText = globalH.toLocaleString();
-            if(maxLog && peakLabel) peakLabel.innerHTML = `<span class="small-peak-tag">${maxLog.mountain} (${maxLog.height}m)</span>`;
+            // ✨ [수정] 네온 효과 및 글씨 크기 조절 적용
+            if(document.getElementById('myTotalH')) {
+                const el = document.getElementById('myTotalH');
+                el.innerText = myTotalH.toLocaleString();
+                el.className = 'neon-value'; // 네온 수치 전용 클래스
+            }
+            if(document.getElementById('globalTotalH')) {
+                const el = document.getElementById('globalTotalH');
+                el.innerText = globalH.toLocaleString();
+                el.className = 'neon-value'; // 네온 수치 전용 클래스
+            }
+            if(maxLog && peakLabel) {
+                // 최고봉 글씨 작게 처리
+                peakLabel.innerHTML = `<span class="small-peak-tag">${maxLog.mountain} (${maxLog.height}m)</span>`;
+            }
 
-            // 산맥 레이어 및 피크 생성
             const layerCount = Math.min(Math.floor(globalH / 15000) + 2, 5);
             for(let i = 1; i <= layerCount; i++) {
                 const layer = document.createElement('div');
@@ -2739,7 +2745,8 @@ window.showMemberMountain = async (mId, mName) => {
                 layer.style.height = `${20 + (i * 8)}%`; 
                 layer.style.opacity = 0.4; 
                 for(let j=0; j<10; j++) {
-                    const p = document.createElement('div'); p.className = 'peak';
+                    const p = document.createElement('div');
+                    p.className = 'peak';
                     p.style.height = `${Math.random()*30+70}%`;
                     layer.appendChild(p);
                 }
@@ -2757,45 +2764,30 @@ window.showMemberMountain = async (mId, mName) => {
                 peakLayer.appendChild(peakDiv);
             });
 
-            // [2] 상승 빛줄기 애니메이션 시퀀스
             setTimeout(() => {
-                // 산맥에서 기운이 솟구침
                 if(beam) {
-                    beam.style.background = `linear-gradient(to top, ${style.border}, #fff)`;
-                    beam.style.opacity = '1';
-                    beam.style.transition = 'height 0.4s ease-in';
-                    beam.style.height = '120%'; 
+                    beam.style.background = `linear-gradient(to top, transparent, ${style.border}, rgba(255,255,255,0.7))`;
+                    beam.style.opacity = '0.9';
+                    beam.style.transition = 'height 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+                    beam.style.height = '110%';
                 }
-                
                 setTimeout(() => {
-                    // 나이테 영역으로 빛이 전달됨
                     if(ringBeam) {
-                        ringBeam.style.background = `linear-gradient(to top, ${style.border}, #fff)`;
-                        ringBeam.style.opacity = '1';
-                        ringBeam.style.transition = 'height 0.4s ease-out';
-                        ringBeam.style.height = '60%'; // 행성 위치까지
+                        ringBeam.style.background = `linear-gradient(to top, ${style.border}, transparent)`;
+                        ringBeam.style.opacity = '0.9';
+                        ringBeam.style.transition = 'height 0.5s ease-out';
+                        ringBeam.style.height = '50%'; 
                     }
-
                     setTimeout(async () => {
-                        // [3] 부딪히는 찰나에 나이테 생성
                         if (memberInfo) {
                             await window.renderTreeRings(mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
                         }
-                        
-                        // [4] 빛줄기 소멸 (위로 빠져나가는 느낌)
-                        [beam, ringBeam].forEach(b => { 
-                            if(b) { 
-                                b.style.transition = 'opacity 0.6s ease-out, transform 0.6s ease-out'; 
-                                b.style.transform = 'translateX(-50%) translateY(-100%)'; 
-                                b.style.opacity = '0'; 
-                            } 
-                        });
+                        [beam, ringBeam].forEach(b => { if(b) { b.style.transition = 'opacity 0.8s ease-out'; b.style.opacity = '0'; } });
                         card.classList.add('glow-active');
-                    }, 300); // 빛이 도달하는 시간
-                }, 200); 
+                    }, 450); 
+                }, 350); 
             }, 400);
         } else {
-            // 기록 없을 시 바로 나이테 표시
             if (memberInfo) await window.renderTreeRings(mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
             card.classList.add('glow-active');
         }
@@ -2810,12 +2802,12 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
 
     if (!container) return;
     
-    // [1] 초기화
+    // [1] 초기화: 기존 내용 비우기 및 텍스트 스타일 적용
     container.innerHTML = ""; 
     if (mainTitle) mainTitle.classList.add('cosmic-neon-text');
     if (mountainName) mountainName.classList.add('cosmic-neon-text');
 
-    // [2] 배경 별빛 생성
+    // [2] 배경 별빛 생성 (Canvas 대신 가벼운 div 기반)
     for (let i = 0; i < 80; i++) {
         const star = document.createElement('div');
         star.className = 'tree-ring-star';
@@ -2829,7 +2821,7 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
         container.appendChild(star);
     }
 
-    // [3] 기간 계산
+    // [3] 기간 계산 (가입일 기준)
     const fixedList = ["오즈","나스","해수","용삼","지니","아랑","민이","몰랑","길치","등초","무니","식이","구름","뚜벅","윤윤","승이","이구","후후","튜브","피치","사랑","송돌","호프","이제","얌얌","태기","희야","멸치","성민","루이","섭섭"];
     let jDate = fixedList.includes(memberName) ? new Date('2025-11-24') : (regDate?.toDate ? regDate.toDate() : new Date());
     const now = new Date();
@@ -2838,29 +2830,21 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
     const style = getLevelStyle(memberLevel);
     const ringColor = style.border; 
 
-    // [4] SVG 및 중앙 코어 생성 (애니메이션 통합)
+    // [4] SVG 및 중앙 코어 생성
     const svgNS = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(svgNS, "svg");
     svg.setAttribute("viewBox", "0 0 240 240");
     svg.style.cssText = "width:100%; height:100%; overflow:visible;";
 
+    // 중앙 행성 코어 그룹
     const coreGroup = document.createElementNS(svgNS, "g");
     coreGroup.setAttribute("class", "planet-core-group");
 
-    // ✨ 상승 빛줄기에 부딪혀 커지는 행성 코어
+    // 코어 자체 별무리 효과 (함수 내부에서 직접 생성하도록 통합)
     const coreCircle = document.createElementNS(svgNS, "circle");
-    coreCircle.setAttribute("cx", "120"); 
-    coreCircle.setAttribute("cy", "120"); 
-    coreCircle.setAttribute("r", "0"); // 0에서 시작 (빛줄기 충돌 전)
+    coreCircle.setAttribute("cx", "120"); coreCircle.setAttribute("cy", "120"); coreCircle.setAttribute("r", "5");
     coreCircle.setAttribute("fill", ringColor);
-    coreCircle.style.filter = `drop-shadow(0 0 12px ${ringColor})`;
-
-    // 행성 탄생 애니메이션 (빛줄기 도달 시점에 맞춰 실행)
-    coreCircle.innerHTML = `
-        <animate attributeName="r" from="0" to="6" dur="0.4s" fill="freeze" begin="0s" />
-        <animate attributeName="opacity" from="0" to="1" dur="0.2s" fill="freeze" begin="0s" />
-    `;
-
+    coreCircle.style.filter = `drop-shadow(0 0 10px ${ringColor})`;
     coreGroup.appendChild(coreCircle);
     svg.appendChild(coreGroup);
 
@@ -2876,6 +2860,7 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
         let d = "";
         for (let a = 0; a <= 360; a += 6) {
             const angle = (a * Math.PI) / 180;
+            // 고유한 물결 모양 생성 (이름 기반 seed + 월별 인덱스 i)
             const wave = Math.sin(angle * (seed % 4 + 3) + i) * 2.5;
             const r = radius + wave;
             const x = 120 + r * Math.cos(angle);
@@ -2887,8 +2872,8 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
         path.setAttribute("d", d);
         path.setAttribute("fill", "none");
         path.setAttribute("stroke", ringColor);
-        path.setAttribute("stroke-width", i % 12 === 0 ? "1.2" : "0.35");
-        path.setAttribute("stroke-opacity", "0");
+        path.setAttribute("stroke-width", i % 12 === 0 ? "1.2" : "0.35"); // 1년 단위 링 강조
+        path.setAttribute("stroke-opacity", "0"); // 초기엔 투명
         path.style.transition = "stroke-opacity 0.5s ease-in, stroke-width 0.5s ease";
         
         svg.appendChild(path);
@@ -2897,14 +2882,19 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
     container.appendChild(svg);
 
     // [6] 애니메이션 실행: 안쪽부터 순차적으로 등장
-    const totalAnimTime = 1200; 
+    const totalAnimTime = 1200; // 전체 등장 시간 1.2초
     const delayStep = Math.min(60, totalAnimTime / diffMonths); 
 
     rings.forEach((ring, index) => {
         setTimeout(() => {
+            // 연단위(12개월)는 더 진하게, 나머지는 은은하게
             const targetOpacity = (index + 1) % 12 === 0 ? "0.8" : "0.25";
             ring.setAttribute("stroke-opacity", targetOpacity);
+            
+            // 숫자 카운트 증가 효과
             if(monthLabel) monthLabel.innerText = index + 1;
+            
+            // 마지막 링(현재 시점) 강조 효과
             if(index === rings.length - 1) {
                 ring.setAttribute("stroke-width", "2");
                 ring.style.filter = `drop-shadow(0 0 5px ${ringColor})`;
@@ -2913,7 +2903,7 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
         }, index * delayStep);
     });
 
-    // [7] 내부 행성 별빛 추가
+    // [7] 내부 행성 별빛 추가 생성 (코어 그룹 내부)
     setTimeout(() => {
         const coreDOM = container.querySelector('.planet-core-group');
         if (coreDOM) {
