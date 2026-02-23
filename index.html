@@ -2992,16 +2992,14 @@ window.showMilkyWay = async (mId, mName) => {
 
     modal.style.display = 'flex';
     if (nameLabel) nameLabel.innerText = `${mName}님의 은하수`;
-    
-    // 초기화
     board.innerHTML = ""; 
 
     try {
         const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
         const logs = snap.docs
             .map(d => d.data())
-            .filter(l => l.coords) // 좌표가 있는 데이터만 필터링
-            .sort((a, b) => a.date.toDate() - b.date.toDate()); // 날짜순 정렬
+            .filter(l => l.coords)
+            .sort((a, b) => a.date.toDate() - b.date.toDate());
 
         if (logs.length === 0) {
             board.innerHTML = "<div class='text-white/20 text-xs h-full flex items-center justify-center'>아직 기록된 별이 없습니다.</div>";
@@ -3010,78 +3008,70 @@ window.showMilkyWay = async (mId, mName) => {
 
         logs.forEach((log, index) => {
             // --- [설정] 별 디자인 구성 ---
-            const regularColors = ["#00FFFF", "#FBCEB1", "#D32F2F", "#9B84D8"]; // 민트, 살구, 레드, 퍼플
+            const regularColors = ["#00FFFF", "#FBCEB1", "#D32F2F", "#9B84D8"];
             let starColor = "white";
-            let shadowColor = "#FFFFFF";
+            let shadowColor = "rgba(255, 255, 255, 0.8)";
             let extraClass = "";
-            let starSize = "w-1.5 h-1.5"; // 모든 별 크기 통일 (Tailwind 기준)
+            let starSize = "w-1.5 h-1.5"; 
 
-            if (log.isTop100) {
-                // 100대 명산: 샴페인 골드 색상
-                starColor = "#F7E7CE";
-                shadowColor = "#F7E7CE";
-            } else if (log.isRegular) {
-                // 정기산행: 랜덤 색상 + 은은한 애니메이션 효과
+            // 1. 정기산행 별 디자인 (가장 화려하게)
+            if (log.isRegular) {
                 starColor = regularColors[Math.floor(Math.random() * regularColors.length)];
                 shadowColor = starColor;
-                extraClass = "animate-soft-glow"; 
+                // 'animate-pulse'는 Tailwind 기본 클래스이며, 아래 CSS로 커스텀 'vivid-glow'를 추가하면 더 효과적입니다.
+                extraClass = "animate-vivid-pulse"; 
+            } 
+            // 2. 100대 명산 별 디자인
+            else if (log.isTop100) {
+                starColor = "#F7E7CE";
+                shadowColor = "#F7E7CE";
             }
 
-            // 1. 별(Star) 요소 생성
+            // 별(Star) 객체 생성
             const star = document.createElement('div');
             star.className = `absolute ${starSize} rounded-full z-10 ${extraClass}`;
             star.style.backgroundColor = starColor;
             
-            // 광채 효과 적용 (box-shadow)
-            star.style.boxShadow = `0 0 6px ${shadowColor}, 0 0 12px ${shadowColor}`;
+            // 광채 효과 (정기산행일 경우 더 강력하게 3중 섀도우)
+            if (log.isRegular) {
+                star.style.boxShadow = `0 0 8px ${shadowColor}, 0 0 16px ${shadowColor}, 0 0 24px ${shadowColor}`;
+            } else {
+                star.style.boxShadow = `0 0 4px ${shadowColor}, 0 0 8px ${shadowColor}`;
+            }
+
             star.style.left = log.coords.x + "%";
             star.style.top = log.coords.y + "%";
-            
-            // 페이드인 애니메이션 준비
             star.style.transition = "opacity 1s ease";
             star.style.opacity = "0";
             
             board.appendChild(star);
 
-            // 순차적 페이드인 실행
-            setTimeout(() => { 
-                star.style.opacity = "1"; 
-            }, index * 100);
+            setTimeout(() => { star.style.opacity = "1"; }, index * 100);
 
-            // 2. 선(Line) 연결: 현재 별과 이전 별을 잇습니다.
+            // 선(Line) 연결 로직
             if (index > 0) {
                 const prev = logs[index - 1];
-                const x1 = prev.coords.x;
-                const y1 = prev.coords.y;
-                const x2 = log.coords.x;
-                const y2 = log.coords.y;
-
-                // 두 지점 사이의 거리와 각도 계산
+                const x1 = prev.coords.x, y1 = prev.coords.y;
+                const x2 = log.coords.x, y2 = log.coords.y;
                 const dist = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
                 const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
 
                 const line = document.createElement('div');
-                line.className = 'absolute bg-blue-400/20 origin-left z-0'; // 별 아래에 위치하도록 z-0
-                line.style.height = '0.5px'; // 얇고 은은한 선
+                line.className = 'absolute bg-blue-400/10 origin-left z-0';
+                line.style.height = '0.5px';
                 line.style.width = dist + "%";
                 line.style.left = x1 + "%";
                 line.style.top = y1 + "%";
                 line.style.transform = `rotate(${angle}deg)`;
-                
-                // 선도 별과 함께 나타나도록 투명도 조절
                 line.style.transition = "opacity 1.5s ease";
                 line.style.opacity = "0";
                 
                 board.appendChild(line);
-                
-                setTimeout(() => { 
-                    line.style.opacity = "1"; 
-                }, index * 100);
+                setTimeout(() => { line.style.opacity = "1"; }, index * 100);
             }
         });
-
     } catch (e) {
-        console.error("성좌 로딩 에러:", e);
+        console.error(e);
         alert("성좌를 불러오는데 실패했습니다.");
     }
 };
