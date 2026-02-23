@@ -2668,59 +2668,89 @@ const q = document.getElementById('adminSearchInput').value.toLowerCase();
 document.querySelectorAll('.member-chip').forEach(c => { c.style.display = c.innerText.toLowerCase().includes(q) ? "block" : "none"; });
 };
 
-/* [완성본] 원형 열정 온도 로직 */
+/* [완성본] 원형 열정 온도 로직 (10% 가산 로직 통합 버전) */
 async function updateVibeTemp() {
-try {
-const twentyFourHoursAgo = Timestamp.fromMillis(Date.now() - 86400000);
-let recentLogCount = 0;
-for (const member of currentData) {
-const logSnap = await getDocs(query(collection(db, `sanwoori/${member.id}/logs`), where("date", ">=", twentyFourHoursAgo)));
-recentLogCount += logSnap.size;
-}
-const visitorSnap = await getDocs(query(collection(db, "visitor_logs"), where("timestamp", ">=", twentyFourHoursAgo)));
-const recentVisitorCount = visitorSnap.size;
+    try {
+        const twentyFourHoursAgo = Timestamp.fromMillis(Date.now() - 86400000);
+        let recentLogCount = 0;
+        let hasRecentActivity = false; // ✨ 최근 산행 기록 여부 체크 변수
 
-let visitorScore = (recentVisitorCount / 5) * 10;
-let logScore = recentLogCount * 10;
-let tempPercent = Math.min(visitorScore + logScore, 100);
+        // 1. 멤버별 최근 로그 조회 및 카운트
+        for (const member of currentData) {
+            const logSnap = await getDocs(query(collection(db, `sanwoori/${member.id}/logs`), where("date", ">=", twentyFourHoursAgo)));
+            if (logSnap.size > 0) {
+                recentLogCount += logSnap.size;
+                hasRecentActivity = true; // ✨ 최근 24시간 내 기록이 하나라도 있다면 true
+            }
+        }
 
-// 원형 게이지 업데이트 (Circle)
-const circleProgress = document.getElementById('vibeCircleProgress');
-const circleIcon = document.getElementById('vibeCircleIcon');
-const circleBtn = document.getElementById('vibeCircleBtn');
+        // 2. 방문자 로그 조회
+        const visitorSnap = await getDocs(query(collection(db, "visitor_logs"), where("timestamp", ">=", twentyFourHoursAgo)));
+        const recentVisitorCount = visitorSnap.size;
 
-const offset = 100 - tempPercent;
-if(circleProgress) circleProgress.style.strokeDashoffset = offset;
+        // 3. 점수 계산
+        let visitorScore = (recentVisitorCount / 5) * 10;
+        let logScore = recentLogCount * 10;
+        
+        // ✨ 기본 점수 합산
+        let tempPercent = visitorScore + logScore;
 
-// 모달 및 바 업데이트
-const gauge = document.getElementById('vibeGauge');
-const modalIcon = document.getElementById('vibeModalIcon');
-const status = document.getElementById('vibeStatusTxt');
-const desc = document.getElementById('vibeDesc');
-const scoreTxt = document.getElementById('vibeScoreTxt');
+        // ✨ [핵심] 최근 산행 기록이 있다면 전체 점수에 1.1배(10% 상승) 적용
+        if (hasRecentActivity) {
+            tempPercent = tempPercent * 1.1;
+        }
 
-if(gauge) gauge.style.width = `${tempPercent}%`;
-if(scoreTxt) scoreTxt.innerText = `${Math.floor(tempPercent)}%`;
+        // 최대치 100% 제한
+        tempPercent = Math.min(tempPercent, 100);
 
-let currentEmoji = "🍀";
-if (tempPercent >= 80) {
-currentEmoji = "🔥"; status.innerText = "EXPLOSIVE PASSION"; desc.innerText = "현재 활동지수 최고조! 산행의 열기가 가득합니다.";
-circleBtn.classList.add('hot-vibe');
-} else if (tempPercent >= 50) {
-currentEmoji = "☀️"; status.innerText = "VERY ACTIVE"; desc.innerText = "커뮤니티가 아주 활발합니다. 함께 등산해요!";
-circleBtn.classList.remove('hot-vibe');
-} else if (tempPercent >= 20) {
-currentEmoji = "🍀"; status.innerText = "WARMING UP"; desc.innerText = "산행의 온기가 느껴집니다.";
-circleBtn.classList.remove('hot-vibe');
-} else {
-currentEmoji = "❄️"; status.innerText = "CHILLING"; desc.innerText = "조용한 숲속 같네요. 첫 산행 기록을 남겨보세요!";
-circleBtn.classList.remove('hot-vibe');
-}
+        // 4. UI 업데이트: 원형 게이지 (Circle)
+        const circleProgress = document.getElementById('vibeCircleProgress');
+        const circleIcon = document.getElementById('vibeCircleIcon');
+        const circleBtn = document.getElementById('vibeCircleBtn');
 
-if(circleIcon) circleIcon.innerText = currentEmoji;
-if(modalIcon) modalIcon.innerText = currentEmoji;
+        const offset = 100 - tempPercent;
+        if (circleProgress) circleProgress.style.strokeDashoffset = offset;
 
-} catch (e) { console.error("온도 갱신 오류:", e); }
+        // 5. UI 업데이트: 모달 및 바 (Bar)
+        const gauge = document.getElementById('vibeGauge');
+        const modalIcon = document.getElementById('vibeModalIcon');
+        const status = document.getElementById('vibeStatusTxt');
+        const desc = document.getElementById('vibeDesc');
+        const scoreTxt = document.getElementById('vibeScoreTxt');
+
+        if (gauge) gauge.style.width = `${tempPercent}%`;
+        if (scoreTxt) scoreTxt.innerText = `${Math.floor(tempPercent)}%`;
+
+        // 6. 점수대별 상태 설정
+        let currentEmoji = "🍀";
+        if (tempPercent >= 80) {
+            currentEmoji = "🔥"; 
+            if(status) status.innerText = "EXPLOSIVE PASSION"; 
+            if(desc) desc.innerText = "현재 활동지수 최고조! 산행의 열기가 가득합니다.";
+            if(circleBtn) circleBtn.classList.add('hot-vibe');
+        } else if (tempPercent >= 50) {
+            currentEmoji = "☀️"; 
+            if(status) status.innerText = "VERY ACTIVE"; 
+            if(desc) desc.innerText = "커뮤니티가 아주 활발합니다. 함께 등산해요!";
+            if(circleBtn) circleBtn.classList.remove('hot-vibe');
+        } else if (tempPercent >= 20) {
+            currentEmoji = "🍀"; 
+            if(status) status.innerText = "WARMING UP"; 
+            if(desc) desc.innerText = "산행의 온기가 느껴집니다.";
+            if(circleBtn) circleBtn.classList.remove('hot-vibe');
+        } else {
+            currentEmoji = "❄️"; 
+            if(status) status.innerText = "CHILLING"; 
+            if(desc) desc.innerText = "조용한 숲속 같네요. 첫 산행 기록을 남겨보세요!";
+            if(circleBtn) circleBtn.classList.remove('hot-vibe');
+        }
+
+        if (circleIcon) circleIcon.innerText = currentEmoji;
+        if (modalIcon) modalIcon.innerText = currentEmoji;
+
+    } catch (e) { 
+        console.error("온도 갱신 오류:", e); 
+    }
 }
 
 if (!sessionStorage.getItem('visited')) { updateVisitorCount(); sessionStorage.setItem('visited', 'true'); }
