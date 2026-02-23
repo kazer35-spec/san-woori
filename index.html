@@ -12,41 +12,6 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-/* 1. 정기산행 별 깜빡임 */
-.star-blink { animation: twinkle 1.5s infinite ease-in-out; }
-@keyframes twinkle { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-
-/* 2. 마지막 등록 산 유성 효과 */
-.meteor {
-    position: absolute;
-    width: 2px; height: 50px;
-    background: linear-gradient(to bottom, #F7E7CE, transparent);
-    transform: rotate(135deg);
-    animation: meteor-fall 1.2s ease-out forwards;
-    pointer-events: none;
-    z-index: 20;
-}
-@keyframes meteor-fall {
-    0% { transform: rotate(135deg) translateY(-60px); opacity: 0; }
-    30% { opacity: 1; }
-    100% { transform: rotate(135deg) translateY(40px); opacity: 0; }
-}
-
-/* 3. 오로라 배경 (8848m 달성자) */
-.aurora-bg {
-    background: linear-gradient(to bottom, #00040a, #001a14) !important;
-    position: relative; overflow: hidden;
-}
-.aurora-bg::after {
-    content: ""; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-    background: radial-gradient(ellipse at top, rgba(0,255,150,0.05) 0%, transparent 70%);
-    pointer-events: none;
-}
-
-/* 4. 계절 성운 레이어 */
-.nebula-spring { background-image: radial-gradient(circle at 50% 50%, rgba(144,238,144,0.05) 0%, rgba(255,182,193,0.03) 50%, transparent 100%); }
-.nebula-winter { background-image: radial-gradient(circle at 50% 50%, rgba(0,191,255,0.05) 0%, rgba(255,215,0,0.03) 50%, transparent 100%); }
-
     /* 칭호 스타일: 다시 원래대로 이름 위에 위치 */
 .rank-badge {
     display: inline-block;
@@ -1507,16 +1472,6 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 <input type="checkbox" id="isBACCheck" class="w-3.5 h-3.5">
 <span class="text-[10px] font-black text-red-500">BAC인증지</span>
 </label>
-<div class="flex gap-3 my-2 items-center bg-slate-50 p-2 rounded">
-    <label class="flex items-center gap-1 text-xs font-bold">
-        <input type="checkbox" id="isRegularCheck"> 🏔️ 정기산행
-    </label>
-    <label class="flex items-center gap-1 text-xs font-bold">
-        <input type="checkbox" id="isRunningCheck"> 🏃 러닝
-    </label>
-    <label class="flex items-center gap-1 text-xs font-bold">
-        <input type="checkbox" id="isTrackingCheck"> 🚶 트레킹
-    </label>
 </div>
 </div>
 <input type="text" id="mountainName" onblur="autoFindCoords()" placeholder="등산한 산 이름 (예: 관악산)" class="mb-2 h-9 text-xs">
@@ -1951,7 +1906,7 @@ container.innerHTML = subRoomsData.map(room => `
 </div>`).join('');
 }
 
-    window.updateSubRoom = async (roomId, nextActive) => {
+window.updateSubRoom = async (roomId, nextActive) => {
 let msgInput = document.getElementById(`msg-${roomId}`);
 let msg = msgInput.value;
 if (!nextActive) { msg = ""; msgInput.value = ""; }
@@ -2390,7 +2345,7 @@ window.closeLevelupAlert = () => {
     }, 500);
 };
 
-Window.addMultiActivity = async () => {
+window.addMultiActivity = async () => {
     // 1. 필요한 기본 데이터 가져오기
     const dateVal = document.getElementById('activityDate').value;
     const mName = document.getElementById('mountainName').value.trim();
@@ -2399,20 +2354,17 @@ Window.addMultiActivity = async () => {
     const isBAC = document.getElementById('isBACCheck').checked;
     const region = document.getElementById('adminManualRegionSelect').value;
 
-    // ✅ 새로 추가된 체크박스들 (정기산행, 러닝, 트레킹)
-    const isRegular = document.getElementById('isRegularCheck')?.checked || false;
-    const isRunning = document.getElementById('isRunningCheck')?.checked || false;
-    const isTracking = document.getElementById('isTrackingCheck')?.checked || false;
+    // ✅ 분기 체크박스 상태 확인 (ID: isQuarterCheck)
+    // 화면에 체크박스가 없을 경우를 대비해 기본값 false 설정
     const isQuarterOnlyOne = document.getElementById('isQuarterCheck')?.checked || false;
 
     if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜 확인");
 
-    // 2. 수치 설정 및 분기 계산 (1~4분기)
+    // 2. 레벨업 수치 및 날짜 타임스탬프 설정
     const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
-    const activityDate = new Date(dateVal + "T00:00:00");
-    const ts = Timestamp.fromDate(activityDate);
-    const quarter = Math.ceil((activityDate.getMonth() + 1) / 3); 
+    const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
 
+    // 3. 산 정보가 있을 경우 산 DB 업데이트
     if(mName && tempCoord) {
         await setDoc(doc(db, "mountains", mName), { 
             x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region 
@@ -2421,7 +2373,7 @@ Window.addMultiActivity = async () => {
 
     pendingLevelUpMessages = [];
 
-    // 4. 회원별 업데이트 루프
+    // 4. 선택된 회원별 업데이트 루프
     for(const id of selectedMemberIds){
         const member = currentData.find(m => m.id === id);
         if(!member) continue;
@@ -2429,23 +2381,21 @@ Window.addMultiActivity = async () => {
         const oldLevel = member.level || 0; 
         const newLevel = oldLevel + up;
         
-        // [A] 회원 정보 업데이트
+        // [A] 회원 정보 업데이트 (레벨 수치만큼 상승)
         await updateDoc(doc(db, "sanwoori", id), { 
             level: newLevel, 
             lastDate: ts 
         });
         
-        // [B] 우정 포인트 업데이트 (정기산행 3업일 때 10점만 제한)
+        // [B] 우정 포인트 업데이트 (2명 이상 동행 시)
         if (selectedMemberIds.size >= 2) {
-            let pointAmount = 10 * up;
-            if (isRegular && up === 3) pointAmount = 10; // 정기산행 체크 + 3업이면 10점 고정
-            
             await updateDoc(doc(db, "sanwoori", id), { 
-                friendshipPoint: increment(pointAmount) 
+                friendshipPoint: increment(10 * up) 
             });
         }
         
-        // [C] 로그 기록 (정기산행 여부 및 분기 정보 포함)
+        // [C] 로그 기록 (분기 횟수 결정 핵심 로직)
+        // ✅ '분기 체크'가 되어있으면 1회만, 아니면 선택한 레벨업(up) 수만큼 기록 생성
         const logLoopCount = isQuarterOnlyOne ? 1 : up;
 
         for(let i = 0; i < logLoopCount; i++) {
@@ -2456,18 +2406,21 @@ Window.addMultiActivity = async () => {
                 coords: tempCoord, 
                 isTop100, 
                 isBAC, 
-                region,
-                isRegular, // 정기산행 여부 저장
-                quarter // 분기 정보 저장 (1,2,3,4)
+                region 
             });
         }
         
+        // 레벨업 축하 알림 체크
         checkLevelUpgrade(member.name, oldLevel, newLevel);
     }
 
-    if (pendingLevelUpMessages.length > 0) showCombinedLevelUpAlert();
+    // 5. 후처리 및 알림
+    if (pendingLevelUpMessages.length > 0) {
+        showCombinedLevelUpAlert();
+    }
 
-    alert(`저장 완료! (정기산행: ${isRegular ? 'O' : 'X'})`); 
+    const logMsg = isQuarterOnlyOne ? "분기 1회만 반영" : `분기 ${up}회 반영`;
+    alert(`저장 완료 (레벨 ${up}↑ / ${logMsg})`); 
     
     selectedMemberIds.clear(); 
     tempCoord = null; 
@@ -2974,73 +2927,67 @@ window.renderTreeRings = async (memberName, regDate, memberLevel) => {
 window.showMilkyWay = async (mId, mName) => {
     const modal = document.getElementById('milkyWayModal');
     const board = document.getElementById('constellationBoard');
-    const memberInfo = currentData.find(m => m.id === mId);
+    const nameLabel = document.getElementById('mwMemberName');
     
     modal.style.display = 'flex';
-    board.innerHTML = ""; 
-
-    // 1. 오로라 효과 (누적고도 8848m 이상)
-    if ((memberInfo?.totalHeight || 0) >= 8848) {
-        board.classList.add('aurora-bg'); // CSS에서 정의 필요
-    } else {
-        board.classList.remove('aurora-bg');
-    }
-
-    // 2. 계절 성운 배경 설정
-    const month = new Date().getMonth() + 1;
-    let nebulaClass = (month >= 3 && month <= 8) ? 'nebula-spring' : 'nebula-autumn';
-    board.classList.add(nebulaClass);
+    nameLabel.innerText = `${mName}님의 은하수`;
+    board.innerHTML = ""; // 이전 기록 지우기
 
     try {
+        // 1. 해당 유저의 모든 산행 기록 가져오기
         const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
-        const logs = snap.docs.map(d => d.data()).sort((a, b) => a.date.toDate() - b.date.toDate());
+        const logs = snap.docs
+            .map(d => d.data())
+            .filter(l => l.coords) // 좌표가 있는 것만 골라내기
+            .sort((a, b) => a.date.toDate() - b.date.toDate()); // 날짜순 정렬
 
+        if (logs.length === 0) {
+            board.innerHTML = "<div class='text-white/20 text-xs h-full flex items-center justify-center'>아직 기록된 별이 없습니다.</div>";
+            return;
+        }
+
+        // 2. 별과 선 그리기
         logs.forEach((log, index) => {
+            // 별 생성
             const star = document.createElement('div');
-            
-            // --- 색상 및 크기 로직 ---
-            let starColor = "#ffffff"; 
-            let starSize = 1.5; // 기본 크기
-
-            if (log.isTop100) {
-                starColor = "#F7E7CE"; // 샴페인 골드
-            } else if (log.isRegular) {
-                starSize = 1.7; // 0.2 크게
-                const qColors = { 1: "#00FFFF", 2: "#FBCEB1", 3: "#FFE4E1", 4: "#E6E6FA" };
-                starColor = qColors[log.quarter] || "#ffffff";
-                if (log.isRegular) star.classList.add('star-blink'); // 깜빡임 클래스
-            }
-
-            star.className = 'absolute rounded-full z-10';
-            star.style.cssText = `
-                width: ${starSize}px; height: ${starSize}px;
-                background: ${starColor};
-                left: ${log.coords.x}%; top: ${log.coords.y}%;
-                box-shadow: 0 0 8px ${starColor};
-                opacity: 0; transition: opacity 1s;
-            `;
+            star.className = 'absolute w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_8px_#fff] z-10';
+            star.style.left = log.coords.x + "%";
+            star.style.top = log.coords.y + "%";
+            star.style.transition = "all 1s ease";
+            star.style.opacity = "0";
             board.appendChild(star);
+            
+            // 서서히 나타나는 효과
             setTimeout(() => { star.style.opacity = "1"; }, index * 100);
 
-            // 유성 효과 (마지막 별일 때)
-            if (index === logs.length - 1) {
-                createMeteor(board, log.coords);
+            // 3. 이전 별과 연결선 그리기 (2번째 별부터)
+            if (index > 0) {
+                const prev = logs[index - 1];
+                const line = document.createElement('div');
+                
+                // 두 점 사이의 거리와 각도 계산 (초보자용 공식)
+                const x1 = prev.coords.x, y1 = prev.coords.y;
+                const x2 = log.coords.x, y2 = log.coords.y;
+                const dist = Math.sqrt(Math.pow(x2-x1, 2) + Math.pow(y2-y1, 2));
+                const angle = Math.atan2(y2-y1, x2-x1) * 180 / Math.PI;
+
+                line.className = 'absolute bg-blue-400/20 origin-left z-0';
+                line.style.height = '0.5px';
+                line.style.width = dist + "%";
+                line.style.left = x1 + "%";
+                line.style.top = y1 + "%";
+                line.style.transform = `rotate(${angle}deg)`;
+                line.style.transition = "width 1s ease";
+                
+                board.appendChild(line);
             }
-
-            // ... 연결선(Line) 그리기 로직 (기존과 동일) ...
         });
-    } catch (e) { console.error(e); }
-};
 
-// 유성 함수 추가
-function createMeteor(parent, coords) {
-    const meteor = document.createElement('div');
-    meteor.className = 'meteor'; // CSS에서 애니메이션 정의
-    meteor.style.left = (coords.x - 10) + "%";
-    meteor.style.top = (coords.y - 10) + "%";
-    parent.appendChild(meteor);
-    setTimeout(() => meteor.remove(), 2000);
-}
+    } catch (e) {
+        console.error(e);
+        alert("성좌를 불러오는데 실패했습니다.");
+    }
+};
 
 window.showFadingScroll = function(dday, level = 0) {
     const modal = document.getElementById('scrollModal');
