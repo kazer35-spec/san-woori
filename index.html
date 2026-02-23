@@ -1951,7 +1951,15 @@ container.innerHTML = subRoomsData.map(room => `
 </div>`).join('');
 }
 
-    window.updateSubRoom = async (roomId, nextActive) => {
+    // [필수] 전역 변수 선언 확인
+let selectedYear = new Date().getFullYear();
+let selectedQuarter = Math.ceil((new Date().getMonth() + 1) / 3);
+let growthChartInstance = null;
+let currentData = []; // 데이터 저장소 초기화
+let selectedMemberIds = new Set();
+let tempCoord = null;
+
+window.updateSubRoom = async (roomId, nextActive) => {
 let msgInput = document.getElementById(`msg-${roomId}`);
 let msg = msgInput.value;
 if (!nextActive) { msg = ""; msgInput.value = ""; }
@@ -2976,34 +2984,31 @@ Window.showMilkyWay = async (mId, mName) => {
     const board = document.getElementById('constellationBoard');
     const nameLabel = document.getElementById('mwMemberName');
     
-    // 1. 초기 세팅 및 회원 데이터 찾기
-    const memberInfo = currentData.find(m => m.id === mId);
+    if(!modal || !board) return; // 요소가 없으면 중단
+
     modal.style.display = 'flex';
     nameLabel.innerText = `${mName}님의 은하수`;
-    board.innerHTML = ""; 
-
-    // [효과 A] 누적고도 8848m 이상 시 오로라 배경 적용
-    if ((memberInfo?.totalHeight || 0) >= 8848) {
-        board.classList.add('aurora-bg');
-    } else {
-        board.classList.remove('aurora-bg');
-    }
-
-    // [효과 B] 계절별 성좌 레이어 (성운) 적용
-    const currentMonth = new Date().getMonth() + 1;
-    board.classList.remove('nebula-spring', 'nebula-winter');
-    if (currentMonth >= 3 && currentMonth <= 8) {
-        board.classList.add('nebula-spring'); // 봄/여름: 녹색&분홍 성운
-    } else {
-        board.classList.add('nebula-winter'); // 가을/겨울: 청색&황금 성단
-    }
+    board.innerHTML = "<div class='text-white/20 text-xs h-full flex items-center justify-center'>별을 불러오는 중...</div>";
 
     try {
+        const memberInfo = currentData.find(m => m.id === mId);
+        
+        // 오로라 및 성운 효과 적용
+        if ((memberInfo?.totalHeight || 0) >= 8848) board.classList.add('aurora-bg');
+        else board.classList.remove('aurora-bg');
+
+        const currentMonth = new Date().getMonth() + 1;
+        board.classList.remove('nebula-spring', 'nebula-winter');
+        if (currentMonth >= 3 && currentMonth <= 8) board.classList.add('nebula-spring');
+        else board.classList.add('nebula-winter');
+
         const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
         const logs = snap.docs
             .map(d => d.data())
             .filter(l => l.coords)
             .sort((a, b) => a.date.toDate() - b.date.toDate());
+
+        board.innerHTML = ""; // 로딩 문구 제거
 
         if (logs.length === 0) {
             board.innerHTML = "<div class='text-white/20 text-xs h-full flex items-center justify-center'>아직 기록된 별이 없습니다.</div>";
@@ -3011,23 +3016,19 @@ Window.showMilkyWay = async (mId, mName) => {
         }
 
         logs.forEach((log, index) => {
-            // --- [효과 C] 별 디자인 결정 ---
             let starColor = "#ffffff"; 
-            let starSize = 1.5; // 기본 크기 (하얀점)
+            let starSize = 1.5;
             let isBlinking = false;
 
             if (log.isTop100) {
-                starColor = "#F7E7CE"; // 100대 명산: 샴페인 골드
-                starSize = 1.5; // 하얀점과 크기 동일
+                starColor = "#F7E7CE";
             } else if (log.isRegular) {
-                starSize = 1.7; // 정기산행: 0.2 살짝 크게
-                isBlinking = true; // 깜빡임 효과 대상
-                // 분기별 색상 적용
+                starSize = 1.7;
+                isBlinking = true;
                 const qColors = { 1: "#00FFFF", 2: "#FBCEB1", 3: "#FFE4E1", 4: "#E6E6FA" };
                 starColor = qColors[log.quarter] || "#ffffff";
             }
 
-            // 별 생성 및 스타일 적용
             const star = document.createElement('div');
             star.className = `absolute rounded-full z-10 ${isBlinking ? 'star-blink' : ''}`;
             star.style.width = starSize + "px";
@@ -3036,13 +3037,11 @@ Window.showMilkyWay = async (mId, mName) => {
             star.style.boxShadow = `0 0 8px ${starColor}`;
             star.style.left = log.coords.x + "%";
             star.style.top = log.coords.y + "%";
-            star.style.transition = "all 1s ease";
             star.style.opacity = "0";
             board.appendChild(star);
             
-            setTimeout(() => { star.style.opacity = "1"; }, index * 100);
+            setTimeout(() => { star.style.opacity = "1"; }, index * 80);
 
-            // --- [효과 D] 선 그리기 (기존 로직 유지) ---
             if (index > 0) {
                 const prev = logs[index - 1];
                 const line = document.createElement('div');
@@ -3051,7 +3050,7 @@ Window.showMilkyWay = async (mId, mName) => {
                 const dist = Math.sqrt(Math.pow(x2-x1, 2) + Math.pow(y2-y1, 2));
                 const angle = Math.atan2(y2-y1, x2-x1) * 180 / Math.PI;
 
-                line.className = 'absolute bg-blue-400/20 origin-left z-0';
+                line.className = 'absolute bg-blue-400/10 origin-left z-0';
                 line.style.height = '0.5px';
                 line.style.width = dist + "%";
                 line.style.left = x1 + "%";
@@ -3060,7 +3059,6 @@ Window.showMilkyWay = async (mId, mName) => {
                 board.appendChild(line);
             }
 
-            // --- [효과 E] 마지막 산 유성 효과 ---
             if (index === logs.length - 1) {
                 const meteor = document.createElement('div');
                 meteor.className = 'meteor';
@@ -3069,10 +3067,9 @@ Window.showMilkyWay = async (mId, mName) => {
                 board.appendChild(meteor);
             }
         });
-
     } catch (e) {
         console.error(e);
-        alert("성좌를 불러오는데 실패했습니다.");
+        board.innerHTML = "데이터 로드 실패";
     }
 };
 
