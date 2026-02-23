@@ -2990,67 +2990,54 @@ window.showMilkyWay = async (mId, mName) => {
     
     modal.style.display = 'flex';
     nameLabel.innerText = `${mName}님의 은하수`;
-    board.innerHTML = ""; // 이전 기록 지우기
+    board.innerHTML = ""; 
 
     try {
-        // 1. 해당 유저의 모든 산행 기록 가져오기
         const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
         const logs = snap.docs
             .map(d => d.data())
-            .filter(l => l.coords) // 좌표가 있는 것만 골라내기
-            .sort((a, b) => a.date.toDate() - b.date.toDate()); // 날짜순 정렬
+            .filter(l => l.coords)
+            .sort((a, b) => a.date.toDate() - b.date.toDate());
 
         if (logs.length === 0) {
             board.innerHTML = "<div class='text-white/20 text-xs h-full flex items-center justify-center'>아직 기록된 별이 없습니다.</div>";
             return;
         }
 
-        // 2. 별과 선 그리기
         logs.forEach((log, index) => {
-            // 별 생성
-                        const star = document.createElement('div');
+            // --- [수정된 색상 로직] ---
+            const regularColors = ["#00FFFF", "#FBCEB1", "#E5A4A4", "#9B84D8"]; // 세미콜론 제거됨
+            let starColor = "white";
+            let shadowColor = "#FFFFFF";
+            let extraClass = "";
+            let starSize = "w-1.5 h-1.5"; 
 
-       
-// --- [업그레이드 로직] 별 색상 및 애니메이션 설정 ---
-// 오타 수정된 진한 색상 배열 (#e5a4a4: 딥 미스티로즈, #9b84d8: 다크라벤더)
-const regularColors = ["#00FFFF", "#FBCEB1", "#E5A4A4", "#9B84D8"];
-let starColor = "white";
-let shadowColor = "#FFFFFF";
-let extraClass = "";
-let starSize = "w-1.5 h-1.5"; // 기본 별 크기
+            if (log.isTop100) {
+                starColor = "#F7E7CE";
+                shadowColor = "#F7E7CE";
+                starSize = "w-2 h-2";
+            } else if (log.isRegular) {
+                starColor = regularColors[Math.floor(Math.random() * regularColors.length)];
+                shadowColor = starColor;
+                extraClass = "animate-pulse-fast"; 
+                starSize = "w-2 h-2";
+            }
 
-if (log.isTop100) {
-// 100대 명산: 샴페인 골드 색상
-starColor = "#F7E7CE";
-shadowColor = "#F7E7CE";
-starSize = "w-2 h-2"; // 100대 명산은 조금 더 크게
-} else if (log.isRegular) {
-// 정기산행: 4가지 진한 색 중 랜덤 + 깜빡임 클래스 추가
-starColor = regularColors[Math.floor(Math.random() * regularColors.length)];
-shadowColor = starColor;
-extraClass = "animate-pulse-fast"; // 깜빡임 효과
-starSize = "w-2 h-2"; // 정기산행 별도 크게 강조
-}
+            const star = document.createElement('div');
+            star.className = `absolute ${starSize} rounded-full z-10 ${extraClass}`;
+            star.style.backgroundColor = starColor;
+            star.style.boxShadow = `0 0 10px ${shadowColor}, 0 0 20px ${shadowColor}`;
+            star.style.left = log.coords.x + "%";
+            star.style.top = log.coords.y + "%";
+            star.style.transition = "all 1s ease";
+            star.style.opacity = "0";
+            board.appendChild(star);
 
-// 별 생성 및 스타일 적용
-const star = document.createElement('div');
-star.className = `absolute ${starSize} rounded-full z-10 ${extraClass}`;
-star.style.backgroundColor = starColor;
-star.style.boxShadow = `0 0 10px ${shadowColor}, 0 0 20px ${shadowColor}`; // 이중 그림자로 광채 강화
-star.style.left = log.coords.x + "%";
-star.style.top = log.coords.y + "%";
-star.style.transition = "all 1s ease";
-star.style.opacity = "0";
-board.appendChild(star);
-            
-            // 서서히 나타나는 효과 (기존 유지)
             setTimeout(() => { star.style.opacity = "1"; }, index * 100);
 
-            // 3. 이전 별과 연결선 그리기 (기존 로직 유지)
             if (index > 0) {
                 const prev = logs[index - 1];
                 const line = document.createElement('div');
-                
                 const x1 = prev.coords.x, y1 = prev.coords.y;
                 const x2 = log.coords.x, y2 = log.coords.y;
                 const dist = Math.sqrt(Math.pow(x2-x1, 2) + Math.pow(y2-y1, 2));
@@ -3062,12 +3049,9 @@ board.appendChild(star);
                 line.style.left = x1 + "%";
                 line.style.top = y1 + "%";
                 line.style.transform = `rotate(${angle}deg)`;
-                line.style.transition = "width 1s ease";
-                
                 board.appendChild(line);
             }
         });
-
     } catch (e) {
         console.error(e);
         alert("성좌를 불러오는데 실패했습니다.");
