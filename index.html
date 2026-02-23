@@ -12,6 +12,57 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+/* [효과 2] 계절 성운 레이어 */
+.nebula-spring-summer { background-image: radial-gradient(circle at 20% 30%, rgba(144, 238, 144, 0.06), transparent 40%), radial-gradient(circle at 80% 70%, rgba(255, 182, 193, 0.06), transparent 40%); }
+.nebula-fall-winter { background-image: radial-gradient(circle at 30% 20%, rgba(0, 191, 255, 0.06), transparent 40%), radial-gradient(circle at 70% 80%, rgba(255, 215, 0, 0.06), transparent 40%); }
+
+/* [효과 3] 별똥별 (꼬리가 뒤로 가도록 수정) */
+.shooting-star {
+    position: absolute;
+    width: 3px; height: 3px; 
+    background: white;
+    border-radius: 50%;
+    box-shadow: 0 0 10px white;
+    z-index: 100;
+    pointer-events: none;
+    opacity: 0;
+}
+/* 별똥별 꼬리: 머리 왼쪽(뒤쪽)으로 배치 */
+.shooting-star::after {
+    content: "";
+    position: absolute;
+    top: 50%; 
+    left: 0; 
+    transform: translate(-100%, -50%); /* 핵심: 머리 뒤로 보냄 */
+    width: 60px; 
+    height: 1.5px;
+    background: linear-gradient(to right, transparent, white);
+}
+
+@keyframes gentle-shine {
+    0%, 100% { 
+        opacity: 1;
+        filter: brightness(1);
+    }
+    50% { 
+        opacity: 0.6;
+        filter: brightness(1.2); /* 아주 미세하게만 밝아짐 */
+    }
+}
+
+.animate-gentle-shine {
+    /* 4초 주기로 아주 천천히 반짝임 */
+    animation: gentle-shine 4s infinite ease-in-out;
+}
+
+@keyframes star-blink {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.8); }
+}
+.animate-pulse {
+    animation: star-blink 1.5s infinite ease-in-out;
+}
+
     /* 칭호 스타일: 다시 원래대로 이름 위에 위치 */
 .rank-badge {
     display: inline-block;
@@ -1474,6 +1525,20 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 </label>
 </div>
 </div>
+<div class="flex items-center justify-between mt-2 py-1.5 border-t border-gray-100 overflow-x-auto">
+    <label class="text-[10px] flex items-center gap-1 shrink-0 cursor-pointer whitespace-nowrap">
+        <input type="checkbox" id="isRegularCheck" class="w-3.5 h-3.5"> 정기🚩
+    </label>
+    <label class="text-[10px] flex items-center gap-1 shrink-0 cursor-pointer whitespace-nowrap">
+        <input type="checkbox" id="isRunningCheck" class="w-3.5 h-3.5"> 런닝🏃
+    </label>
+    <label class="text-[10px] flex items-center gap-1 shrink-0 cursor-pointer whitespace-nowrap">
+        <input type="checkbox" id="isTrackingCheck" class="w-3.5 h-3.5"> 트래킹👟
+    </label>
+    <label class="text-[10px] flex items-center gap-1 shrink-0 cursor-pointer whitespace-nowrap">
+        <input type="checkbox" id="isQuarterCheck" class="w-3.5 h-3.5"> 분기1회☝️
+    </label>
+</div>
 <input type="text" id="mountainName" onblur="autoFindCoords()" placeholder="등산한 산 이름 (예: 관악산)" class="mb-2 h-9 text-xs">
 
 <div class="flex gap-2 mb-2">
@@ -1906,7 +1971,7 @@ container.innerHTML = subRoomsData.map(room => `
 </div>`).join('');
 }
 
-window.updateSubRoom = async (roomId, nextActive) => {
+    window.updateSubRoom = async (roomId, nextActive) => {
 let msgInput = document.getElementById(`msg-${roomId}`);
 let msg = msgInput.value;
 if (!nextActive) { msg = ""; msgInput.value = ""; }
@@ -2243,6 +2308,9 @@ const mName = document.getElementById('mountainName').value.trim();
 const height = parseInt(document.getElementById('mountainHeight').value) || 0;
 const isTop100 = document.getElementById('isTop100Check').checked;
 const isBAC = document.getElementById('isBACCheck').checked;
+const isRegular = document.getElementById('isRegularCheck').checked;
+const isRunning = document.getElementById('isRunningCheck').checked;
+const isTracking = document.getElementById('isTrackingCheck').checked;
 const region = document.getElementById('adminManualRegionSelect').value;
 if(!mName || !tempCoord) return alert("산 이름과 좌표 필수");
 if(!confirm(`[${mName}] 정보를 일괄 수정하시겠습니까?`)) return;
@@ -2352,16 +2420,23 @@ window.addMultiActivity = async () => {
     const height = parseInt(document.getElementById('mountainHeight').value) || 0;
     const isTop100 = document.getElementById('isTop100Check').checked;
     const isBAC = document.getElementById('isBACCheck').checked;
+    
+    // ✅ 누락되었던 체크박스 변수 정의 추가
+    const isRegular = document.getElementById('isRegularCheck')?.checked || false;
+    const isRunning = document.getElementById('isRunningCheck')?.checked || false;
+    const isTracking = document.getElementById('isTrackingCheck')?.checked || false;
+    
     const region = document.getElementById('adminManualRegionSelect').value;
 
-    // ✅ 분기 체크박스 상태 확인 (ID: isQuarterCheck)
-    // 화면에 체크박스가 없을 경우를 대비해 기본값 false 설정
+    // ✅ 분기 체크박스 상태 확인
     const isQuarterOnlyOne = document.getElementById('isQuarterCheck')?.checked || false;
 
     if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜 확인");
 
     // 2. 레벨업 수치 및 날짜 타임스탬프 설정
-    const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
+    const upElement = document.querySelector('input[name="upAmount"]:checked');
+    if(!upElement) return alert("레벨업 수치를 선택해주세요.");
+    const up = parseInt(upElement.value);
     const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
 
     // 3. 산 정보가 있을 경우 산 DB 업데이트
@@ -2373,59 +2448,68 @@ window.addMultiActivity = async () => {
 
     pendingLevelUpMessages = [];
 
-    // 4. 선택된 회원별 업데이트 루프
-    for(const id of selectedMemberIds){
-        const member = currentData.find(m => m.id === id);
-        if(!member) continue;
-        
-        const oldLevel = member.level || 0; 
-        const newLevel = oldLevel + up;
-        
-        // [A] 회원 정보 업데이트 (레벨 수치만큼 상승)
-        await updateDoc(doc(db, "sanwoori", id), { 
-            level: newLevel, 
-            lastDate: ts 
-        });
-        
-        // [B] 우정 포인트 업데이트 (2명 이상 동행 시)
-        if (selectedMemberIds.size >= 2) {
+    try {
+        // 4. 선택된 회원별 업데이트 루프
+        for(const id of selectedMemberIds){
+            const member = currentData.find(m => m.id === id);
+            if(!member) continue;
+            
+            const oldLevel = member.level || 0; 
+            const newLevel = oldLevel + up;
+            
+            // [A] 회원 정보 업데이트
             await updateDoc(doc(db, "sanwoori", id), { 
-                friendshipPoint: increment(10 * up) 
+                level: newLevel, 
+                lastDate: ts 
             });
+            
+            // [B] 우정 포인트 업데이트
+            if (selectedMemberIds.size >= 2) {
+                // 정기산행이면 10점, 아니면 원래대로 10 * up
+                const pointToAdd = isRegular ? 10 : (10 * up); 
+                await updateDoc(doc(db, "sanwoori", id), { 
+                    friendshipPoint: increment(pointToAdd) 
+                });
+            }
+            
+            // [C] 로그 기록 (분기 횟수 결정)
+            const logLoopCount = isQuarterOnlyOne ? 1 : up;
+
+            for(let i = 0; i < logLoopCount; i++) {
+                await addDoc(collection(db, `sanwoori/${id}/logs`), { 
+                    date: ts, 
+                    mountain: mName, 
+                    height, 
+                    coords: tempCoord, 
+                    isTop100, 
+                    isBAC, 
+                    isRegular, 
+                    isRunning, 
+                    isTracking, 
+                    region
+                });
+            }
+            
+            // 레벨업 축하 알림 체크
+            checkLevelUpgrade(member.name, oldLevel, newLevel);
         }
-        
-        // [C] 로그 기록 (분기 횟수 결정 핵심 로직)
-        // ✅ '분기 체크'가 되어있으면 1회만, 아니면 선택한 레벨업(up) 수만큼 기록 생성
-        const logLoopCount = isQuarterOnlyOne ? 1 : up;
 
-        for(let i = 0; i < logLoopCount; i++) {
-            await addDoc(collection(db, `sanwoori/${id}/logs`), { 
-                date: ts, 
-                mountain: mName, 
-                height, 
-                coords: tempCoord, 
-                isTop100, 
-                isBAC, 
-                region 
-            });
+        // 5. 후처리 및 알림
+        if (pendingLevelUpMessages.length > 0) {
+            showCombinedLevelUpAlert();
         }
+
+        const logMsg = isQuarterOnlyOne ? "분기 1회만 반영" : `분기 ${up}회 반영`;
+        alert(`저장 완료 (레벨 ${up}↑ / ${logMsg})`); 
         
-        // 레벨업 축하 알림 체크
-        checkLevelUpgrade(member.name, oldLevel, newLevel);
+        selectedMemberIds.clear(); 
+        tempCoord = null; 
+        updateAdminMemberLists();
+        updateVibeTemp();
+    } catch (error) {
+        console.error("저장 중 에러 발생:", error);
+        alert("저장에 실패했습니다: " + error.message);
     }
-
-    // 5. 후처리 및 알림
-    if (pendingLevelUpMessages.length > 0) {
-        showCombinedLevelUpAlert();
-    }
-
-    const logMsg = isQuarterOnlyOne ? "분기 1회만 반영" : `분기 ${up}회 반영`;
-    alert(`저장 완료 (레벨 ${up}↑ / ${logMsg})`); 
-    
-    selectedMemberIds.clear(); 
-    tempCoord = null; 
-    updateAdminMemberLists();
-    updateVibeTemp();
 };
 
 window.loadMemberLogs = async () => {
@@ -2584,59 +2668,89 @@ const q = document.getElementById('adminSearchInput').value.toLowerCase();
 document.querySelectorAll('.member-chip').forEach(c => { c.style.display = c.innerText.toLowerCase().includes(q) ? "block" : "none"; });
 };
 
-/* [완성본] 원형 열정 온도 로직 */
+/* [완성본] 원형 열정 온도 로직 (10% 가산 로직 통합 버전) */
 async function updateVibeTemp() {
-try {
-const twentyFourHoursAgo = Timestamp.fromMillis(Date.now() - 86400000);
-let recentLogCount = 0;
-for (const member of currentData) {
-const logSnap = await getDocs(query(collection(db, `sanwoori/${member.id}/logs`), where("date", ">=", twentyFourHoursAgo)));
-recentLogCount += logSnap.size;
-}
-const visitorSnap = await getDocs(query(collection(db, "visitor_logs"), where("timestamp", ">=", twentyFourHoursAgo)));
-const recentVisitorCount = visitorSnap.size;
+    try {
+        const twentyFourHoursAgo = Timestamp.fromMillis(Date.now() - 86400000);
+        let recentLogCount = 0;
+        let hasRecentActivity = false; // ✨ 최근 산행 기록 여부 체크 변수
 
-let visitorScore = (recentVisitorCount / 5) * 10;
-let logScore = recentLogCount * 10;
-let tempPercent = Math.min(visitorScore + logScore, 100);
+        // 1. 멤버별 최근 로그 조회 및 카운트
+        for (const member of currentData) {
+            const logSnap = await getDocs(query(collection(db, `sanwoori/${member.id}/logs`), where("date", ">=", twentyFourHoursAgo)));
+            if (logSnap.size > 0) {
+                recentLogCount += logSnap.size;
+                hasRecentActivity = true; // ✨ 최근 24시간 내 기록이 하나라도 있다면 true
+            }
+        }
 
-// 원형 게이지 업데이트 (Circle)
-const circleProgress = document.getElementById('vibeCircleProgress');
-const circleIcon = document.getElementById('vibeCircleIcon');
-const circleBtn = document.getElementById('vibeCircleBtn');
+        // 2. 방문자 로그 조회
+        const visitorSnap = await getDocs(query(collection(db, "visitor_logs"), where("timestamp", ">=", twentyFourHoursAgo)));
+        const recentVisitorCount = visitorSnap.size;
 
-const offset = 100 - tempPercent;
-if(circleProgress) circleProgress.style.strokeDashoffset = offset;
+        // 3. 점수 계산
+        let visitorScore = (recentVisitorCount / 5) * 10;
+        let logScore = recentLogCount * 10;
+        
+        // ✨ 기본 점수 합산
+        let tempPercent = visitorScore + logScore;
 
-// 모달 및 바 업데이트
-const gauge = document.getElementById('vibeGauge');
-const modalIcon = document.getElementById('vibeModalIcon');
-const status = document.getElementById('vibeStatusTxt');
-const desc = document.getElementById('vibeDesc');
-const scoreTxt = document.getElementById('vibeScoreTxt');
+        // ✨ [핵심] 최근 산행 기록이 있다면 전체 점수에 1.1배(10% 상승) 적용
+        if (hasRecentActivity) {
+            tempPercent = tempPercent * 1.1;
+        }
 
-if(gauge) gauge.style.width = `${tempPercent}%`;
-if(scoreTxt) scoreTxt.innerText = `${Math.floor(tempPercent)}%`;
+        // 최대치 100% 제한
+        tempPercent = Math.min(tempPercent, 100);
 
-let currentEmoji = "🍀";
-if (tempPercent >= 80) {
-currentEmoji = "🔥"; status.innerText = "EXPLOSIVE PASSION"; desc.innerText = "현재 활동지수 최고조! 산행의 열기가 가득합니다.";
-circleBtn.classList.add('hot-vibe');
-} else if (tempPercent >= 50) {
-currentEmoji = "☀️"; status.innerText = "VERY ACTIVE"; desc.innerText = "커뮤니티가 아주 활발합니다. 함께 등산해요!";
-circleBtn.classList.remove('hot-vibe');
-} else if (tempPercent >= 20) {
-currentEmoji = "🍀"; status.innerText = "WARMING UP"; desc.innerText = "산행의 온기가 느껴집니다.";
-circleBtn.classList.remove('hot-vibe');
-} else {
-currentEmoji = "❄️"; status.innerText = "CHILLING"; desc.innerText = "조용한 숲속 같네요. 첫 산행 기록을 남겨보세요!";
-circleBtn.classList.remove('hot-vibe');
-}
+        // 4. UI 업데이트: 원형 게이지 (Circle)
+        const circleProgress = document.getElementById('vibeCircleProgress');
+        const circleIcon = document.getElementById('vibeCircleIcon');
+        const circleBtn = document.getElementById('vibeCircleBtn');
 
-if(circleIcon) circleIcon.innerText = currentEmoji;
-if(modalIcon) modalIcon.innerText = currentEmoji;
+        const offset = 100 - tempPercent;
+        if (circleProgress) circleProgress.style.strokeDashoffset = offset;
 
-} catch (e) { console.error("온도 갱신 오류:", e); }
+        // 5. UI 업데이트: 모달 및 바 (Bar)
+        const gauge = document.getElementById('vibeGauge');
+        const modalIcon = document.getElementById('vibeModalIcon');
+        const status = document.getElementById('vibeStatusTxt');
+        const desc = document.getElementById('vibeDesc');
+        const scoreTxt = document.getElementById('vibeScoreTxt');
+
+        if (gauge) gauge.style.width = `${tempPercent}%`;
+        if (scoreTxt) scoreTxt.innerText = `${Math.floor(tempPercent)}%`;
+
+        // 6. 점수대별 상태 설정
+        let currentEmoji = "🍀";
+        if (tempPercent >= 80) {
+            currentEmoji = "🔥"; 
+            if(status) status.innerText = "EXPLOSIVE PASSION"; 
+            if(desc) desc.innerText = "현재 활동지수 최고조! 산행의 열기가 가득합니다.";
+            if(circleBtn) circleBtn.classList.add('hot-vibe');
+        } else if (tempPercent >= 50) {
+            currentEmoji = "☀️"; 
+            if(status) status.innerText = "VERY ACTIVE"; 
+            if(desc) desc.innerText = "커뮤니티가 아주 활발합니다. 함께 등산해요!";
+            if(circleBtn) circleBtn.classList.remove('hot-vibe');
+        } else if (tempPercent >= 20) {
+            currentEmoji = "🍀"; 
+            if(status) status.innerText = "WARMING UP"; 
+            if(desc) desc.innerText = "산행의 온기가 느껴집니다.";
+            if(circleBtn) circleBtn.classList.remove('hot-vibe');
+        } else {
+            currentEmoji = "❄️"; 
+            if(status) status.innerText = "CHILLING"; 
+            if(desc) desc.innerText = "조용한 숲속 같네요. 첫 산행 기록을 남겨보세요!";
+            if(circleBtn) circleBtn.classList.remove('hot-vibe');
+        }
+
+        if (circleIcon) circleIcon.innerText = currentEmoji;
+        if (modalIcon) modalIcon.innerText = currentEmoji;
+
+    } catch (e) { 
+        console.error("온도 갱신 오류:", e); 
+    }
 }
 
 if (!sessionStorage.getItem('visited')) { updateVisitorCount(); sessionStorage.setItem('visited', 'true'); }
@@ -2929,65 +3043,119 @@ window.showMilkyWay = async (mId, mName) => {
     const board = document.getElementById('constellationBoard');
     const nameLabel = document.getElementById('mwMemberName');
     
+    if (!modal || !board) return;
+
     modal.style.display = 'flex';
-    nameLabel.innerText = `${mName}님의 은하수`;
-    board.innerHTML = ""; // 이전 기록 지우기
+    if (nameLabel) nameLabel.innerText = `${mName}님의 은하수`;
+    board.innerHTML = ""; 
 
     try {
-        // 1. 해당 유저의 모든 산행 기록 가져오기
         const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
         const logs = snap.docs
             .map(d => d.data())
-            .filter(l => l.coords) // 좌표가 있는 것만 골라내기
-            .sort((a, b) => a.date.toDate() - b.date.toDate()); // 날짜순 정렬
+            .filter(l => l.coords)
+            .sort((a, b) => a.date.toDate() - b.date.toDate());
+
+        // --- [기능 1] 계절 성좌 레이어 (오로라는 삭제됨) ---
+        const month = new Date().getMonth() + 1;
+        board.classList.remove('nebula-spring-summer', 'nebula-fall-winter');
+        if (month >= 3 && month <= 8) board.classList.add('nebula-spring-summer');
+        else board.classList.add('nebula-fall-winter');
+
+        // --- [기능 2] 활동지수 10% 상승 로직 ---
+        // 최근 24시간 이내에 등록된 기록이 있는지 확인
+        const now = new Date();
+        const oneDayAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+        
+        const hasRecentLog = logs.some(log => log.date.toDate() > oneDayAgo);
+        
+        // 활동지수 업데이트 (예시: UI에 표시하거나 DB에 반영)
+        let activityBonus = hasRecentLog ? 1.1 : 1.0; 
+        console.log(`${mName}님의 활동지수 배율: ${activityBonus}`);
 
         if (logs.length === 0) {
             board.innerHTML = "<div class='text-white/20 text-xs h-full flex items-center justify-center'>아직 기록된 별이 없습니다.</div>";
             return;
         }
 
-        // 2. 별과 선 그리기
         logs.forEach((log, index) => {
-            // 별 생성
+            const regularColors = ["#00FFFF", "#FBCEB1", "#D32F2F", "#9B84D8"];
+            let starColor = "white";
+            let shadowColor = "#FFFFFF";
+            let extraClass = "";
+            let starSize = "w-1.5 h-1.5";
+
+            if (log.isTop100) {
+                starColor = "#F7E7CE";
+                shadowColor = "#F7E7CE";
+            } else if (log.isRegular) {
+                starColor = regularColors[Math.floor(Math.random() * regularColors.length)];
+                shadowColor = starColor;
+                extraClass = "animate-gentle-shine"; 
+            }
+
             const star = document.createElement('div');
-            star.className = 'absolute w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_8px_#fff] z-10';
+            star.className = `absolute ${starSize} rounded-full z-10 ${extraClass}`;
+            star.style.backgroundColor = starColor;
+            star.style.boxShadow = `0 0 6px ${shadowColor}, 0 0 12px ${shadowColor}`;
             star.style.left = log.coords.x + "%";
             star.style.top = log.coords.y + "%";
-            star.style.transition = "all 1s ease";
+            star.style.transition = "opacity 1s ease";
             star.style.opacity = "0";
-            board.appendChild(star);
             
-            // 서서히 나타나는 효과
+            board.appendChild(star);
             setTimeout(() => { star.style.opacity = "1"; }, index * 100);
 
-            // 3. 이전 별과 연결선 그리기 (2번째 별부터)
             if (index > 0) {
                 const prev = logs[index - 1];
-                const line = document.createElement('div');
-                
-                // 두 점 사이의 거리와 각도 계산 (초보자용 공식)
                 const x1 = prev.coords.x, y1 = prev.coords.y;
                 const x2 = log.coords.x, y2 = log.coords.y;
                 const dist = Math.sqrt(Math.pow(x2-x1, 2) + Math.pow(y2-y1, 2));
                 const angle = Math.atan2(y2-y1, x2-x1) * 180 / Math.PI;
 
+                const line = document.createElement('div');
                 line.className = 'absolute bg-blue-400/20 origin-left z-0';
                 line.style.height = '0.5px';
                 line.style.width = dist + "%";
                 line.style.left = x1 + "%";
                 line.style.top = y1 + "%";
                 line.style.transform = `rotate(${angle}deg)`;
-                line.style.transition = "width 1s ease";
-                
                 board.appendChild(line);
             }
-        });
 
+            // --- [기능 3] 마지막 별 별똥별 ---
+            if (index === logs.length - 1) {
+                setTimeout(() => createShootingStar(board, log.coords.x, log.coords.y), (index * 100) + 500);
+            }
+        });
     } catch (e) {
         console.error(e);
         alert("성좌를 불러오는데 실패했습니다.");
     }
 };
+
+function createShootingStar(board, tx, ty) {
+    const s = document.createElement('div');
+    s.className = 'shooting-star';
+    const startX = tx - 20;
+    const startY = ty - 20;
+    s.style.left = startX + "%";
+    s.style.top = startY + "%";
+    s.style.transform = "rotate(45deg)";
+    board.appendChild(s);
+
+    setTimeout(() => {
+        s.style.transition = "all 0.8s cubic-bezier(0.25, 0.1, 0.25, 1)";
+        s.style.left = tx + "%";
+        s.style.top = ty + "%";
+        s.style.opacity = "1";
+    }, 50);
+
+    setTimeout(() => {
+        s.style.opacity = "0";
+        setTimeout(() => s.remove(), 500);
+    }, 850);
+}
 
 window.showFadingScroll = function(dday, level = 0) {
     const modal = document.getElementById('scrollModal');
