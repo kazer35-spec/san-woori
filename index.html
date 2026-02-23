@@ -12,6 +12,27 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+#grassPopup {
+    position: fixed; 
+    display: none; 
+    z-index: 100000 !important; /* 모달보다 훨씬 높게 설정 */
+    background: rgba(15, 23, 42, 0.98); /* 진한 네이비/블랙 배경 */
+    color: white;
+    padding: 10px 14px; 
+    border-radius: 8px; 
+    font-size: 11px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5); 
+    border: 1px solid rgba(255,255,255,0.2);
+    pointer-events: none; /* 클릭 방해 금지 */
+    line-height: 1.6;
+}
+
+/* 그라데이션 잔디 색상들 */
+.grass-hike-run { background: linear-gradient(135deg, #2ecc71 50%, #ffd1dc 50%) !important; }
+.grass-hike-track { background: linear-gradient(135deg, #2ecc71 50%, #ffe4b5 50%) !important; }
+.grass-run-track { background: linear-gradient(135deg, #ffd1dc 50%, #ffe4b5 50%) !important; }
+.grass-all-mix { background: linear-gradient(135deg, #2ecc71 33%, #ffd1dc 33% 66%, #ffe4b5 66%) !important; }
+
 /* 러닝: 연분홍 */
 .grass-running {
     background-color: #ffd1dc !important;
@@ -1696,7 +1717,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 </div>
 
 <div class="flex justify-between items-center mb-2">
-<p class="text-[10px] font-extrabold text-slate-500">🌱 분기 산행 잔디</p>
+<p class="text-[10px] font-extrabold text-slate-500">🌱 분기 운동 잔디</p>
 
 <div class="flex items-center gap-1.5">
 <div id="passionVibeArea"></div>
@@ -1724,7 +1745,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 </div>
 
 <button onclick="toggleLogPopup(true)" class="btn-open-log">
-<span>📜 최근 산행 일지 자세히 보기</span>
+<span>📜 최근 운동 일지 자세히 보기</span>
 <span class="text-sky-300">▶</span>
 </button>
 
@@ -1990,8 +2011,7 @@ container.innerHTML = subRoomsData.map(room => `
 </div>`).join('');
 }
 
-
-    window.updateSubRoom = async (roomId, nextActive) => {
+window.updateSubRoom = async (roomId, nextActive) => {
 let msgInput = document.getElementById(`msg-${roomId}`);
 let msg = msgInput.value;
 if (!nextActive) { msg = ""; msgInput.value = ""; }
@@ -2126,8 +2146,8 @@ listArea.innerHTML = combinedHtml;
 
 window.toggleVibeModal = (show) => { document.getElementById('vibeModal').style.display = show ? 'flex' : 'none'; };
 
-/* [통합 버전] 운동 잔디 + km 단위 + 상세 일지 팝업 */
-window.showMemberTimeline = async (mId, mName) => {
+//* [정복지도 데이터 연동형] 통합 코드 */
+Window.showMemberTimeline = async (mId, mName) => {
     toggleTimelineModal(true);
     const modalContent = document.getElementById('timelineModalContent');
     modalContent.scrollTop = 0;
@@ -2136,12 +2156,19 @@ window.showMemberTimeline = async (mId, mName) => {
     const vibeArea = document.getElementById('passionVibeArea');
     const chartBox = document.getElementById('chartBox');
 
+    // 1. 이름 및 개인 누적 데이터(고도/포인트) 표시
     document.getElementById('timelineMemberName').innerText = mName;
+    
+    // currentData에서 해당 멤버의 정보를 찾아 누적 고도(friendshipPoint 등) 반영
     const memberInfo = currentData.find(m => m.id === mId);
     const friendshipPoint = memberInfo?.friendshipPoint || 0;
-    document.getElementById('memberFriendshipPoint').innerText = friendshipPoint.toLocaleString();
     
-    // UI 명칭 변경 (산행 -> 운동)
+    // UI에 누적 고도/포인트 출력 (이 ID가 HTML에 있어야 함)
+    const pointEl = document.getElementById('memberFriendshipPoint');
+    if(pointEl) {
+        pointEl.innerText = friendshipPoint.toLocaleString();
+    }
+    
     if(document.getElementById('grassTitle')) document.getElementById('grassTitle').innerText = "운동 잔디";
     container.innerHTML = "<p class='text-center text-xs py-5 text-gray-400'>조회 중...</p>";
     grassBoard.innerHTML = vibeArea.innerHTML = "";
@@ -2152,54 +2179,68 @@ window.showMemberTimeline = async (mId, mName) => {
         const end = new Date(selectedYear, selectedQuarter * 3, 1);
         const totalDaysInQ = Math.floor((end - start) / (1000 * 60 * 60 * 24));
         
-        // 최근 50개까지 조회 (기존 30개에서 상향)
         const snapAll = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc"), limit(50)));
         const logsAll = snapAll.docs.map(doc => ({ ...doc.data(), date: doc.data().date.toDate() }));
         const logsQuarter = logsAll.filter(l => l.date >= start && l.date < end);
         
+        // 📊 차트 데이터 계산 및 렌더링 (툴팁 상세 데이터 포함)
         const chartData = await calculateGrowthData(mId);
         renderGrowthChart(chartData);
 
-        // 🔥 최근 30일 열정 지수 (런닝/트레킹 포함)
+        // 🔥 최근 30일 활동 지수
         const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
         const recentCount = logsAll.filter(l => l.date >= thirtyDaysAgo).length;
         if(recentCount >= 4) vibeArea.innerHTML = `<span class="hot-vibe flex items-center h-[18px] text-[9px] font-black text-orange-500 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-100">🔥 HOT</span>`;
 
-        // 🟢 잔디 데이터 매핑
-        const dateDetails = {}; 
+        // 🟢 날짜별 데이터 그룹화
+        const dateMap = {}; 
         logsQuarter.forEach(l => { 
             const key = `${l.date.getFullYear()}-${l.date.getMonth() + 1}-${l.date.getDate()}`;
-            dateDetails[key] = {
+            if(!dateMap[key]) dateMap[key] = [];
+            dateMap[key].push({
                 mountain: l.mountain,
                 val: l.height || 0,
                 unit: (l.isRunning || l.isTracking) ? 'km' : 'm',
-                type: l.isRunning ? 'running' : (l.isTracking ? 'tracking' : 'hiking')
-            };
+                type: l.isRunning ? 'run' : (l.isTracking ? 'track' : 'hike')
+            });
         });
 
         let grassHtml = "";
         for (let i = 0; i < totalDaysInQ; i++) {
             const cur = new Date(start); cur.setDate(start.getDate() + i);
             const k = `${cur.getFullYear()}-${cur.getMonth() + 1}-${cur.getDate()}`;
-            const data = dateDetails[k];
+            const activities = dateMap[k];
             
             let cl = "";
-            let clickAttr = `onclick="alert('${k}: 기록 없음')"`;
+            let popContent = "";
 
-            if (data) {
-                // 타입별 색상 결정
-                if (data.type === 'running') cl = "grass-running"; // 연분홍
-                else if (data.type === 'tracking') cl = "grass-tracking"; // 연주황
-                else cl = "grass-active-1"; // 일반 산행
-                
-                // 잔디 클릭 시 상세 일지 팝업
-                clickAttr = `onclick="alert('[${k} 일지]\\n📍 장소: ${data.mountain}\\n📊 기록: ${data.val}${data.unit}')"`;
+            if (activities) {
+                const types = activities.map(a => a.type);
+                const hasHike = types.includes('hike');
+                const hasRun = types.includes('run');
+                const hasTrack = types.includes('track');
+
+                if (hasHike && hasRun && hasTrack) cl = "grass-all-mix";
+                else if (hasHike && hasRun) cl = "grass-hike-run";
+                else if (hasHike && hasTrack) cl = "grass-hike-track";
+                else if (hasRun && hasTrack) cl = "grass-run-track";
+                else if (hasHike) cl = "grass-active-1";
+                else if (hasRun) cl = "grass-running";
+                else if (hasTrack) cl = "grass-tracking";
+
+                popContent = `<b style='color:#94a3b8; font-size:10px;'>${k}</b><br>`;
+                popContent += activities.map(a => {
+                    const icon = a.type === 'run' ? '🏃' : a.type === 'track' ? '🚶' : '⛰️';
+                    return `${icon} ${a.mountain}: ${a.val}${a.unit}`;
+                }).join('<br>');
             }
-            grassHtml += `<div class="grass-day ${cl}" ${clickAttr} style="cursor:pointer;"></div>`;
+            
+            grassHtml += `<div class="grass-day ${cl}" 
+                               onclick="showGrassPopup(event, \`${popContent}\`)" 
+                               style="cursor:pointer;"></div>`;
         }
         grassBoard.innerHTML = grassHtml;
 
-        // 분기 횟수는 '순수 산행'만 표시
         const pureHikingCount = logsQuarter.filter(l => !l.isRunning && !l.isTracking).length;
         document.getElementById('timelineCountBadge').innerText = `분기산행 ${pureHikingCount}회 / 최근운동 ${logsAll.length}회`;
 
@@ -2208,33 +2249,24 @@ window.showMemberTimeline = async (mId, mName) => {
             return; 
         }
 
-        // 📜 최근 운동 일지 리스트 출력
         container.innerHTML = logsAll.map(log => {
             const dayName = ['일','월','화','수','목','금','토'][log.date.getDay()];
-            const isSpecial = log.isRunning || log.isTracking;
-            const unit = isSpecial ? 'km' : 'm';
+            const unit = (log.isRunning || log.isTracking) ? 'km' : 'm';
             const icon = log.isRunning ? '🏃' : (log.isTracking ? '🚶' : '⛰️');
-            
-            const top100Class = log.isTop100 ? 'text-blue-600 font-black' : '';
-            const bacTag = log.isBAC ? '<span class="bac-txt">BAC</span>' : '';
-            
             return `
                 <div class="timeline-item">
                     <div class="timeline-dot"></div>
                     <div class="timeline-date">${log.date.getFullYear()}.${log.date.getMonth()+1}.${log.date.getDate()} (${dayName})</div>
-                    <div class="timeline-desc ${top100Class}">
-                        ${icon} ${bacTag}${log.mountain || '기록'} (${log.height || 0}${unit}) 
+                    <div class="timeline-desc ${log.isTop100 ? 'text-blue-600 font-black' : ''}">
+                        ${icon} ${log.isBAC ? '<span class="bac-txt">BAC</span>' : ''}${log.mountain || '기록'} (${log.height || 0}${unit}) 
                         ${log.isTop100 ? '⭐' : '✔️'}
                     </div>
                 </div>`;
         }).join('');
-    } catch (e) { 
-        console.error(e);
-        container.innerHTML = "<p class='text-center text-xs text-red-400'>실패</p>"; 
-    }
+    } catch (e) { container.innerHTML = "<p class='text-center text-xs text-red-400'>로드 실패</p>"; }
 };
 
-/* [성장 데이터] 런닝/트레킹은 고도 합산 및 최고봉에서 제외 가능 */
+/* [성장 데이터 - 툴팁 데이터 원본 보존] */
 async function calculateGrowthData(mId) {
     const labels = []; const counts = []; const heights = []; const peaks = [];
     for (let i = 3; i >= 0; i--) {
@@ -2243,37 +2275,26 @@ async function calculateGrowthData(mId) {
         labels.push(`${q}Q`);
         const qStart = new Date(y, (q - 1) * 3, 1);
         const qEnd = new Date(y, q * 3, 1);
-        
-        const qSnap = await getDocs(query(
-            collection(db, `sanwoori/${mId}/logs`), 
-            where("date", ">=", Timestamp.fromDate(qStart)), 
-            where("date", "<", Timestamp.fromDate(qEnd))
-        ));
-
+        const qSnap = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), where("date", ">=", Timestamp.fromDate(qStart)), where("date", "<", Timestamp.fromDate(qEnd))));
         let hikingCount = 0; let totalH = 0; let maxH = 0; let peakName = "-";
-        
         qSnap.forEach(d => {
             const data = d.data();
-            // 런닝/트레킹이 아닌 경우에만 횟수와 고도 통계에 포함
             if (!data.isRunning && !data.isTracking) {
                 hikingCount++;
                 totalH += (data.height || 0);
                 if((data.height || 0) > maxH) { maxH = data.height; peakName = data.mountain || "기록"; }
             }
         });
-        counts.push(hikingCount);
-        heights.push(totalH); 
-        peaks.push(peakName);
+        counts.push(hikingCount); heights.push(totalH); peaks.push(peakName);
     }
     return { labels, counts, heights, peaks };
 }
 
-/* 차트 렌더링 (기존 로직 유지) */
+/* [차트 렌더링 - 툴팁 상세 포함] */
 function renderGrowthChart(data) {
     const ctx = document.getElementById('growthChart').getContext('2d');
-    if (typeof growthChartInstance !== 'undefined' && growthChartInstance) growthChartInstance.destroy();
-    
-    growthChartInstance = new Chart(ctx, {
+    if (window.growthChartInstance) window.growthChartInstance.destroy();
+    window.growthChartInstance = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: data.labels,
@@ -2292,7 +2313,11 @@ function renderGrowthChart(data) {
                     callbacks: {
                         label: function(context) {
                             const i = context.dataIndex;
-                            return [ ` ⛰️ 누적: ${data.heights[i].toLocaleString()}m`, ` 🏔️ 최고봉: ${data.peaks[i]}`, ` 📈 횟수: ${data.counts[i]}회` ];
+                            return [ 
+                                ` ⛰️ 누적: ${data.heights[i].toLocaleString()}m`, 
+                                ` 🏔️ 최고봉: ${data.peaks[i]}`, 
+                                ` 📈 횟수: ${data.counts[i]}회` 
+                            ];
                         }
                     }
                 }
@@ -2304,6 +2329,27 @@ function renderGrowthChart(data) {
             }
         }
     });
+}
+
+/* [팝업 함수] */
+function showGrassPopup(e, content) {
+    e.stopPropagation();
+    if (!content || content.includes('undefined')) return;
+    let popup = document.getElementById('grassPopup');
+    if (!popup) {
+        popup = document.createElement('div');
+        popup.id = 'grassPopup';
+        document.body.appendChild(popup);
+    }
+    popup.innerHTML = content;
+    popup.style.display = 'block';
+    popup.style.left = `${e.clientX + 10}px`;
+    popup.style.top = `${e.clientY - 40}px`;
+    const closeHandler = () => {
+        popup.style.display = 'none';
+        document.removeEventListener('click', closeHandler);
+    };
+    setTimeout(() => document.addEventListener('click', closeHandler), 10);
 }
 
 window.toggleMapView = () => {
@@ -3395,3 +3441,4 @@ window.showFadingScroll = function(dday, level = 0) {
 </script>
 </body>
     </html>   
+    
