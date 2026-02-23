@@ -12,21 +12,22 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-/* 1. 색상 커스텀 클래스 */
-.bg-deep-misty-rose { background-color: #e5a4a4; color: #fff; } /* 기존보다 진한 로즈 */
-.bg-dark-lavender { background-color: #9b84d8; color: #fff; }    /* 기존보다 진한 라벤더 */
-
-/* 2. 별표 깜빡임(Blink) 애니메이션 */
-@keyframes blink-star {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.4; transform: scale(1.1); }
+/* 정기산행 별 깜빡임 및 크기 변화 효과 */
+@keyframes pulse-fast {
+    0%, 100% { 
+        opacity: 1; 
+        transform: scale(1); 
+        filter: brightness(1.2);
+    }
+    50% { 
+        opacity: 0.4; 
+        transform: scale(1.4); /* 깜빡일 때 살짝 커짐 */
+        filter: brightness(0.8);
+    }
 }
 
-.animate-star {
-    display: inline-block;
-    animation: blink-star 1.5s infinite ease-in-out;
-    color: #FFD700; /* 황금색 별 */
-    font-weight: bold;
+.animate-pulse-fast {
+    animation: pulse-fast 1.0s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 @keyframes star-blink {
@@ -3009,34 +3010,38 @@ window.showMilkyWay = async (mId, mName) => {
             // 별 생성
                         const star = document.createElement('div');
 
-            // --- [업그레이드 로직] 별 색상 및 애니메이션 설정 ---
-            const regularColors = ["#00FFFF", "#FBCEB1", "#e5a4a4;", "#9b84d8​;"]; // 시안블루, 애프리콧, 딥 미스티로즈, 다크라벤더
-            let starColor = "white"; 
-            let shadowColor = "#fff";
-            let extraClass = "";
+       
+// --- [업그레이드 로직] 별 색상 및 애니메이션 설정 ---
+// 오타 수정된 진한 색상 배열 (#e5a4a4: 딥 미스티로즈, #9b84d8: 다크라벤더)
+const regularColors = ["#00FFFF", "#FBCEB1", "#E5A4A4", "#9B84D8"];
+let starColor = "white";
+let shadowColor = "#FFFFFF";
+let extraClass = "";
+let starSize = "w-1.5 h-1.5"; // 기본 별 크기
 
-            if (log.isTop100) {
-                // 100대 명산: 샴페인 골드 색상
-                starColor = "#F7E7CE"; 
-                shadowColor = "#F7E7CE";
-            } else if (log.isRegular) {
-                // 정기산행: 4가지 색 중 랜덤 + 깜빡임 클래스 추가
-                starColor = regularColors[Math.floor(Math.random() * regularColors.length)];
-                shadowColor = starColor;
-                extraClass = "animate-pulse-fast"; 
-            }
+if (log.isTop100) {
+// 100대 명산: 샴페인 골드 색상
+starColor = "#F7E7CE";
+shadowColor = "#F7E7CE";
+starSize = "w-2 h-2"; // 100대 명산은 조금 더 크게
+} else if (log.isRegular) {
+// 정기산행: 4가지 진한 색 중 랜덤 + 깜빡임 클래스 추가
+starColor = regularColors[Math.floor(Math.random() * regularColors.length)];
+shadowColor = starColor;
+extraClass = "animate-pulse-fast"; // 깜빡임 효과
+starSize = "w-2 h-2"; // 정기산행 별도 크게 강조
+}
 
-            // 클래스 설정 (디자인창은 건드리지 않고 속성만 유동적으로 부여)
-            star.className = `absolute w-1.5 h-1.5 rounded-full z-10 ${extraClass}`;
-            star.style.backgroundColor = starColor;
-            star.style.boxShadow = `0 0 8px ${shadowColor}`;
-            // --- [업그레이드 끝] ---
-
-            star.style.left = log.coords.x + "%";
-            star.style.top = log.coords.y + "%";
-            star.style.transition = "all 1s ease";
-            star.style.opacity = "0";
-            board.appendChild(star);
+// 별 생성 및 스타일 적용
+const star = document.createElement('div');
+star.className = `absolute ${starSize} rounded-full z-10 ${extraClass}`;
+star.style.backgroundColor = starColor;
+star.style.boxShadow = `0 0 10px ${shadowColor}, 0 0 20px ${shadowColor}`; // 이중 그림자로 광채 강화
+star.style.left = log.coords.x + "%";
+star.style.top = log.coords.y + "%";
+star.style.transition = "all 1s ease";
+star.style.opacity = "0";
+board.appendChild(star);
             
             // 서서히 나타나는 효과 (기존 유지)
             setTimeout(() => { star.style.opacity = "1"; }, index * 100);
