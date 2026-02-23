@@ -12,6 +12,23 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+/* 깜빡임 효과 */
+@keyframes star-blink {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.1); }
+}
+.star-blink { animation: star-blink 1.5s infinite; }
+
+/* 오로라 애니메이션 */
+@keyframes aurora-bg {
+    0% { filter: hue-rotate(0deg); }
+    100% { filter: hue-rotate(360deg); }
+}
+.aurora-anim { animation: aurora-bg 10s linear infinite; }
+
+/* 유성 애니메이션 보조 */
+.meteor { z-index: 20; pointer-events: none; }
+
     /* 칭호 스타일: 다시 원래대로 이름 위에 위치 */
 .rank-badge {
     display: inline-block;
@@ -1472,6 +1489,17 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 <input type="checkbox" id="isBACCheck" class="w-3.5 h-3.5">
 <span class="text-[10px] font-black text-red-500">BAC인증지</span>
 </label>
+<div class="flex items-center gap-3 mt-2 mb-2 p-2 bg-slate-50 rounded-lg border border-slate-100">
+    <label class="flex items-center text-[11px] font-bold text-slate-600 gap-1 cursor-pointer">
+        <input type="checkbox" id="isOfficialCheck" class="rounded"> 🌲 정기산행
+    </label>
+    <div class="w-[1px] h-3 bg-slate-300 mx-1"></div> <label class="flex items-center text-[11px] font-bold text-slate-600 gap-1 cursor-pointer">
+        <input type="checkbox" id="isRunningCheck" class="rounded"> 🏃 러닝
+    </label>
+    <div class="w-[1px] h-3 bg-slate-300 mx-1"></div> <label class="flex items-center text-[11px] font-bold text-slate-600 gap-1 cursor-pointer">
+        <input type="checkbox" id="isTrackingCheck" class="rounded"> 🚶 트레킹
+    </label>
+</div>
 </div>
 </div>
 <input type="text" id="mountainName" onblur="autoFindCoords()" placeholder="등산한 산 이름 (예: 관악산)" class="mb-2 h-9 text-xs">
@@ -1906,7 +1934,7 @@ container.innerHTML = subRoomsData.map(room => `
 </div>`).join('');
 }
 
-window.updateSubRoom = async (roomId, nextActive) => {
+​window.updateSubRoom = async (roomId, nextActive) => {
 let msgInput = document.getElementById(`msg-${roomId}`);
 let msg = msgInput.value;
 if (!nextActive) { msg = ""; msgInput.value = ""; }
@@ -2346,25 +2374,31 @@ window.closeLevelupAlert = () => {
 };
 
 window.addMultiActivity = async () => {
-    // 1. 필요한 기본 데이터 가져오기
+    // 1. 기본 데이터 및 체크박스 상태 가져오기
     const dateVal = document.getElementById('activityDate').value;
     const mName = document.getElementById('mountainName').value.trim();
     const height = parseInt(document.getElementById('mountainHeight').value) || 0;
-    const isTop100 = document.getElementById('isTop100Check').checked;
-    const isBAC = document.getElementById('isBACCheck').checked;
+    const isTop100 = document.getElementById('isTop100Check')?.checked || false;
+    const isBAC = document.getElementById('isBACCheck')?.checked || false;
     const region = document.getElementById('adminManualRegionSelect').value;
 
-    // ✅ 분기 체크박스 상태 확인 (ID: isQuarterCheck)
-    // 화면에 체크박스가 없을 경우를 대비해 기본값 false 설정
+    // ✅ 추가된 체크박스들 (정기산행, 러닝, 트레킹)
+    const isOfficial = document.getElementById('isOfficialCheck')?.checked || false;
+    const isRunning = document.getElementById('isRunningCheck')?.checked || false;
+    const isTracking = document.getElementById('isTrackingCheck')?.checked || false;
     const isQuarterOnlyOne = document.getElementById('isQuarterCheck')?.checked || false;
 
     if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜 확인");
 
-    // 2. 레벨업 수치 및 날짜 타임스탬프 설정
+    // 2. 레벨업 수치 및 분기(Quarter) 계산
     const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
-    const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
+    const activityDate = new Date(dateVal + "T00:00:00");
+    const ts = Timestamp.fromDate(activityDate);
+    
+    // 현재 날짜 기준 분기 계산 (1~3월:1, 4~6월:2, 7~9월:3, 10~12월:4)
+    const currentQuarter = Math.floor((activityDate.getMonth() / 3)) + 1;
 
-    // 3. 산 정보가 있을 경우 산 DB 업데이트
+    // 3. 산 정보 업데이트 (좌표가 있을 때만)
     if(mName && tempCoord) {
         await setDoc(doc(db, "mountains", mName), { 
             x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region 
@@ -2377,25 +2411,26 @@ window.addMultiActivity = async () => {
     for(const id of selectedMemberIds){
         const member = currentData.find(m => m.id === id);
         if(!member) continue;
-        
+
         const oldLevel = member.level || 0; 
         const newLevel = oldLevel + up;
-        
-        // [A] 회원 정보 업데이트 (레벨 수치만큼 상승)
+
+        // [A] 회원 정보 업데이트 (레벨/최근날짜)
         await updateDoc(doc(db, "sanwoori", id), { 
             level: newLevel, 
             lastDate: ts 
         });
-        
+
         // [B] 우정 포인트 업데이트 (2명 이상 동행 시)
+        // ✅ 조건: 정기산행 체크 시 up에 상관없이 10점, 일반 산행은 10 * up
         if (selectedMemberIds.size >= 2) {
+            const friendshipIncrement = isOfficial ? 10 : (10 * up);
             await updateDoc(doc(db, "sanwoori", id), { 
-                friendshipPoint: increment(10 * up) 
+                friendshipPoint: increment(friendshipIncrement) 
             });
         }
-        
-        // [C] 로그 기록 (분기 횟수 결정 핵심 로직)
-        // ✅ '분기 체크'가 되어있으면 1회만, 아니면 선택한 레벨업(up) 수만큼 기록 생성
+
+        // [C] 로그 기록 (별자리 생성용 데이터)
         const logLoopCount = isQuarterOnlyOne ? 1 : up;
 
         for(let i = 0; i < logLoopCount; i++) {
@@ -2406,26 +2441,29 @@ window.addMultiActivity = async () => {
                 coords: tempCoord, 
                 isTop100, 
                 isBAC, 
-                region 
+                region,
+                isOfficial, // ✅ 정기산행 여부 저장
+                isRunning, // ✅ 러닝 여부 저장
+                isTracking, // ✅ 트레킹 여부 저장
+                quarter: currentQuarter // ✅ 분기 정보 저장 (색상 결정용)
             });
         }
         
-        // 레벨업 축하 알림 체크
-        checkLevelUpgrade(member.name, oldLevel, newLevel);
+        // 레벨업 알림 체크 함수 실행
+        if (typeof checkLevelUpgrade === 'function') {
+            checkLevelUpgrade(member.name, oldLevel, newLevel);
+        }
     }
 
     // 5. 후처리 및 알림
-    if (pendingLevelUpMessages.length > 0) {
-        showCombinedLevelUpAlert();
-    }
-
-    const logMsg = isQuarterOnlyOne ? "분기 1회만 반영" : `분기 ${up}회 반영`;
-    alert(`저장 완료 (레벨 ${up}↑ / ${logMsg})`); 
+    alert(`정상 등록되었습니다! ${isOfficial ? '🌲정기산행 점수가 반영되었습니다.' : ''}`);
     
-    selectedMemberIds.clear(); 
-    tempCoord = null; 
-    updateAdminMemberLists();
-    updateVibeTemp();
+    // 체크박스들 초기화 (다음 등록을 위해)
+    if(document.getElementById('isOfficialCheck')) document.getElementById('isOfficialCheck').checked = false;
+    if(document.getElementById('isRunningCheck')) document.getElementById('isRunningCheck').checked = false;
+    if(document.getElementById('isTrackingCheck')) document.getElementById('isTrackingCheck').checked = false;
+    
+    // (필요 시) 입력창 초기화 로직 추가...
 };
 
 window.loadMemberLogs = async () => {
@@ -2931,55 +2969,87 @@ window.showMilkyWay = async (mId, mName) => {
     
     modal.style.display = 'flex';
     nameLabel.innerText = `${mName}님의 은하수`;
-    board.innerHTML = ""; // 이전 기록 지우기
+    board.innerHTML = ""; 
+
+    // [1] 회원 정보 가져오기 (오로라 배경용)
+    const member = currentData.find(m => m.id === mId);
+    const totalHeight = member?.totalHeight || 0; // 누적 고도
+    
+    // [2] 배경 설정 (오로라 및 계절 성좌 레이어)
+    applyConstellationBackground(board, totalHeight);
 
     try {
-        // 1. 해당 유저의 모든 산행 기록 가져오기
         const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
         const logs = snap.docs
             .map(d => d.data())
-            .filter(l => l.coords) // 좌표가 있는 것만 골라내기
-            .sort((a, b) => a.date.toDate() - b.date.toDate()); // 날짜순 정렬
+            .filter(l => l.coords)
+            .sort((a, b) => a.date.toDate() - b.date.toDate());
 
         if (logs.length === 0) {
             board.innerHTML = "<div class='text-white/20 text-xs h-full flex items-center justify-center'>아직 기록된 별이 없습니다.</div>";
             return;
         }
 
-        // 2. 별과 선 그리기
+        // 색상 정의
+        const colors = {
+            q1: '#00FFFF', // 시안 블루
+            q2: '#FBCEB1', // 살구빛 애프리콧
+            q3: '#FBE7E9', // 미스티 로즈
+            q4: '#E6E6FA', // 페일 라벤더
+            gold: '#F7E7CE' // 샴페인 골드 (100대 명산)
+        };
+
         logs.forEach((log, index) => {
-            // 별 생성
             const star = document.createElement('div');
-            star.className = 'absolute w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_8px_#fff] z-10';
-            star.style.left = log.coords.x + "%";
-            star.style.top = log.coords.y + "%";
-            star.style.transition = "all 1s ease";
-            star.style.opacity = "0";
-            board.appendChild(star);
             
-            // 서서히 나타나는 효과
+            // [3] 색상 및 크기 결정 로직
+            let starColor = "white";
+            let starSize = 6; // 기본 크기 (px 단위 환산)
+
+            if (log.isTop100) {
+                starColor = colors.gold; // 100대 명산 우선 적용
+            } else if (log.isOfficial) {
+                // 정기산행인 경우 분기별 색상 적용
+                const q = log.quarter || 1;
+                starColor = colors[`q${q}`];
+                starSize = 6 + 1.2; // 0.2정도 살짝 크게 (기본 6px 기준)
+            }
+
+            // [4] 별 스타일 설정 및 깜빡임 효과
+            star.className = 'absolute rounded-full z-10';
+            if (log.isOfficial) star.classList.add('star-blink'); // 정기산행만 깜빡임
+
+            star.style.cssText = `
+                width: ${starSize}px; height: ${starSize}px;
+                left: ${log.coords.x}%; top: ${log.coords.y}%;
+                background: ${starColor};
+                box-shadow: 0 0 8px ${starColor};
+                opacity: 0; transition: all 1s ease;
+            `;
+            board.appendChild(star);
             setTimeout(() => { star.style.opacity = "1"; }, index * 100);
 
-            // 3. 이전 별과 연결선 그리기 (2번째 별부터)
+            // [5] 연결선 그리기
             if (index > 0) {
                 const prev = logs[index - 1];
-                const line = document.createElement('div');
-                
-                // 두 점 사이의 거리와 각도 계산 (초보자용 공식)
                 const x1 = prev.coords.x, y1 = prev.coords.y;
                 const x2 = log.coords.x, y2 = log.coords.y;
                 const dist = Math.sqrt(Math.pow(x2-x1, 2) + Math.pow(y2-y1, 2));
                 const angle = Math.atan2(y2-y1, x2-x1) * 180 / Math.PI;
 
-                line.className = 'absolute bg-blue-400/20 origin-left z-0';
-                line.style.height = '0.5px';
-                line.style.width = dist + "%";
-                line.style.left = x1 + "%";
-                line.style.top = y1 + "%";
-                line.style.transform = `rotate(${angle}deg)`;
-                line.style.transition = "width 1s ease";
-                
+                const line = document.createElement('div');
+                line.className = 'absolute bg-white/10 origin-left z-0';
+                line.style.cssText = `
+                    height: 0.5px; width: ${dist}%;
+                    left: ${x1}%; top: ${y1}%;
+                    transform: rotate(${angle}deg);
+                `;
                 board.appendChild(line);
+            }
+
+            // [6] 마지막 등록 산 유성 효과
+            if (index === logs.length - 1) {
+                setTimeout(() => createMeteorEffect(log.coords, board, starColor), 1000);
             }
         });
 
@@ -2988,6 +3058,52 @@ window.showMilkyWay = async (mId, mName) => {
         alert("성좌를 불러오는데 실패했습니다.");
     }
 };
+
+// --- 보조 함수: 배경 레이어 설정 ---
+function applyConstellationBackground(board, height) {
+    const month = new Date().getMonth() + 1;
+    let nebulaEffect = "";
+    
+    // 1. 계절별 성좌 레이어
+    if (month >= 3 && month <= 8) {
+        // 봄/여름: 녹색/분홍색 성운
+        nebulaEffect = "radial-gradient(circle at 20% 30%, rgba(144,238,144,0.1) 0%, transparent 50%), radial-gradient(circle at 80% 70%, rgba(255,182,193,0.1) 0%, transparent 50%)";
+    } else {
+        // 가을/겨울: 차가운 청색/황금빛 성단
+        nebulaEffect = "radial-gradient(circle at 30% 70%, rgba(70,130,180,0.1) 0%, transparent 50%), radial-gradient(circle at 70% 20%, rgba(255,215,0,0.08) 0%, transparent 50%)";
+    }
+
+    // 2. 오로라 효과 (8848m 이상)
+    if (height >= 8848) {
+        board.classList.add('aurora-active');
+    } else {
+        board.classList.remove('aurora-active');
+    }
+    
+    board.style.backgroundImage = nebulaEffect;
+}
+
+// --- 보조 함수: 유성 효과 ---
+function createMeteorEffect(coords, board, color) {
+    const meteor = document.createElement('div');
+    meteor.className = 'meteor-trail';
+    meteor.style.cssText = `
+        position: absolute; width: 2px; height: 50px;
+        background: linear-gradient(to bottom, ${color}, transparent);
+        left: ${coords.x + 5}%; top: ${coords.y - 20}%;
+        transform: rotate(-45deg); opacity: 0; z-index: 50;
+    `;
+    board.appendChild(meteor);
+    
+    // 애니메이션 실행
+    setTimeout(() => {
+        meteor.style.transition = "all 1s cubic-bezier(0.1, 0.5, 0.5, 1)";
+        meteor.style.left = coords.x + "%";
+        meteor.style.top = coords.y + "%";
+        meteor.style.opacity = "1";
+        setTimeout(() => { meteor.style.opacity = "0"; }, 800);
+    }, 100);
+}
 
 window.showFadingScroll = function(dday, level = 0) {
     const modal = document.getElementById('scrollModal');
