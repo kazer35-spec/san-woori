@@ -12,22 +12,22 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-/* 정기산행 별 전용 박동 애니메이션 */
-@keyframes vivid-glow {
+@keyframes soft-twinkle {
     0%, 100% { 
-        transform: scale(1); 
-        opacity: 0.8;
-        filter: brightness(1);
+        opacity: 0.4;
+        transform: scale(0.9);
+        box-shadow: 0 0 3px rgba(255,255,255,0.2);
     }
     50% { 
-        transform: scale(1.4); 
         opacity: 1;
-        filter: brightness(1.5); /* 중간에 확 밝아짐 */
+        transform: scale(1.1);
+        box-shadow: 0 0 8px rgba(255,255,255,0.5);
     }
 }
 
-.animate-vivid-pulse {
-    animation: vivid-glow 1.5s infinite ease-in-out;
+.animate-soft-twinkle {
+    /* 3초 동안 아주 천천히 박동 */
+    animation: soft-twinkle 3s infinite ease-in-out;
 }
 
 @keyframes star-blink {
@@ -3007,48 +3007,40 @@ window.showMilkyWay = async (mId, mName) => {
         }
 
         logs.forEach((log, index) => {
-            // --- [설정] 별 디자인 구성 ---
-            const regularColors = ["#00FFFF", "#FBCEB1", "#D32F2F", "#9B84D8"];
-            let starColor = "white";
-            let shadowColor = "rgba(255, 255, 255, 0.8)";
+            const regularColors = ["#E0FFFF", "#FFF0F5", "#F0F8FF", "#F5F5F5"]; // 은은한 파스텔 톤
+            let starColor = "rgba(255, 255, 255, 0.9)";
+            let shadowColor = "rgba(255, 255, 255, 0.4)";
             let extraClass = "";
-            let starSize = "w-1.5 h-1.5"; 
+            let starSize = "w-1 h-1"; // 조금 더 작고 섬세하게 변경
 
-            // 1. 정기산행 별 디자인 (가장 화려하게)
             if (log.isRegular) {
+                // 정기산행: 부드러운 파스텔 색상 + 은은한 트윙클 효과
                 starColor = regularColors[Math.floor(Math.random() * regularColors.length)];
                 shadowColor = starColor;
-                // 'animate-pulse'는 Tailwind 기본 클래스이며, 아래 CSS로 커스텀 'vivid-glow'를 추가하면 더 효과적입니다.
-                extraClass = "animate-vivid-pulse"; 
-            } 
-            // 2. 100대 명산 별 디자인
-            else if (log.isTop100) {
+                extraClass = "animate-soft-twinkle"; 
+                starSize = "w-1.5 h-1.5"; // 정기산행은 아주 살짝만 크게
+            } else if (log.isTop100) {
                 starColor = "#F7E7CE";
-                shadowColor = "#F7E7CE";
+                shadowColor = "rgba(247, 231, 206, 0.5)";
             }
 
-            // 별(Star) 객체 생성
             const star = document.createElement('div');
             star.className = `absolute ${starSize} rounded-full z-10 ${extraClass}`;
             star.style.backgroundColor = starColor;
             
-            // 광채 효과 (정기산행일 경우 더 강력하게 3중 섀도우)
-            if (log.isRegular) {
-                star.style.boxShadow = `0 0 8px ${shadowColor}, 0 0 16px ${shadowColor}, 0 0 24px ${shadowColor}`;
-            } else {
-                star.style.boxShadow = `0 0 4px ${shadowColor}, 0 0 8px ${shadowColor}`;
-            }
-
+            // 그림자를 넓고 흐리게(Blur) 설정하여 은은한 잔상 효과
+            star.style.boxShadow = `0 0 5px ${shadowColor}, 0 0 10px ${shadowColor}`;
             star.style.left = log.coords.x + "%";
             star.style.top = log.coords.y + "%";
-            star.style.transition = "opacity 1s ease";
+            
+            star.style.transition = "opacity 1.5s ease-in";
             star.style.opacity = "0";
             
             board.appendChild(star);
 
-            setTimeout(() => { star.style.opacity = "1"; }, index * 100);
+            setTimeout(() => { star.style.opacity = "1"; }, index * 120);
 
-            // 선(Line) 연결 로직
+            // 선(Line) 연결: 더 가늘고 투명하게
             if (index > 0) {
                 const prev = logs[index - 1];
                 const x1 = prev.coords.x, y1 = prev.coords.y;
@@ -3057,22 +3049,21 @@ window.showMilkyWay = async (mId, mName) => {
                 const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
 
                 const line = document.createElement('div');
-                line.className = 'absolute bg-blue-400/10 origin-left z-0';
-                line.style.height = '0.5px';
+                line.className = 'absolute bg-white/5 origin-left z-0'; // 투명도를 매우 낮춤
+                line.style.height = '0.3px';
                 line.style.width = dist + "%";
                 line.style.left = x1 + "%";
                 line.style.top = y1 + "%";
                 line.style.transform = `rotate(${angle}deg)`;
-                line.style.transition = "opacity 1.5s ease";
+                line.style.transition = "opacity 2s ease";
                 line.style.opacity = "0";
                 
                 board.appendChild(line);
-                setTimeout(() => { line.style.opacity = "1"; }, index * 100);
+                setTimeout(() => { line.style.opacity = "1"; }, index * 120);
             }
         });
     } catch (e) {
         console.error(e);
-        alert("성좌를 불러오는데 실패했습니다.");
     }
 };
 
