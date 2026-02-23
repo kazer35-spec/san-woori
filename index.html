@@ -1482,15 +1482,18 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 </label>
 </div>
 </div>
-<div class="flex gap-3 mt-2 py-1 border-t border-gray-100">
-    <label class="text-[10px] flex items-center gap-1">
-        <input type="checkbox" id="isRegularCheck" class="w-3.5 h-3.5"> 정기산행 🚩
+<div class="flex items-center justify-between mt-2 py-1.5 border-t border-gray-100 overflow-x-auto">
+    <label class="text-[10px] flex items-center gap-1 shrink-0 cursor-pointer whitespace-nowrap">
+        <input type="checkbox" id="isRegularCheck" class="w-3.5 h-3.5"> 정기🚩
     </label>
-    <label class="text-[10px] flex items-center gap-1">
-        <input type="checkbox" id="isRunningCheck" class="w-3.5 h-3.5"> 런닝 🏃
+    <label class="text-[10px] flex items-center gap-1 shrink-0 cursor-pointer whitespace-nowrap">
+        <input type="checkbox" id="isRunningCheck" class="w-3.5 h-3.5"> 런닝🏃
     </label>
-    <label class="text-[10px] flex items-center gap-1">
-        <input type="checkbox" id="isTrackingCheck" class="w-3.5 h-3.5"> 트래킹 👟
+    <label class="text-[10px] flex items-center gap-1 shrink-0 cursor-pointer whitespace-nowrap">
+        <input type="checkbox" id="isTrackingCheck" class="w-3.5 h-3.5"> 트래킹👟
+    </label>
+    <label class="text-[10px] flex items-center gap-1 shrink-0 cursor-pointer whitespace-nowrap">
+        <input type="checkbox" id="isQuarterCheck" class="w-3.5 h-3.5"> 분기1회☝️
     </label>
 </div>
 <input type="text" id="mountainName" onblur="autoFindCoords()" placeholder="등산한 산 이름 (예: 관악산)" class="mb-2 h-9 text-xs">
@@ -2374,16 +2377,23 @@ window.addMultiActivity = async () => {
     const height = parseInt(document.getElementById('mountainHeight').value) || 0;
     const isTop100 = document.getElementById('isTop100Check').checked;
     const isBAC = document.getElementById('isBACCheck').checked;
+    
+    // ✅ 누락되었던 체크박스 변수 정의 추가
+    const isRegular = document.getElementById('isRegularCheck')?.checked || false;
+    const isRunning = document.getElementById('isRunningCheck')?.checked || false;
+    const isTracking = document.getElementById('isTrackingCheck')?.checked || false;
+    
     const region = document.getElementById('adminManualRegionSelect').value;
 
-    // ✅ 분기 체크박스 상태 확인 (ID: isQuarterCheck)
-    // 화면에 체크박스가 없을 경우를 대비해 기본값 false 설정
+    // ✅ 분기 체크박스 상태 확인
     const isQuarterOnlyOne = document.getElementById('isQuarterCheck')?.checked || false;
 
     if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜 확인");
 
     // 2. 레벨업 수치 및 날짜 타임스탬프 설정
-    const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
+    const upElement = document.querySelector('input[name="upAmount"]:checked');
+    if(!upElement) return alert("레벨업 수치를 선택해주세요.");
+    const up = parseInt(upElement.value);
     const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
 
     // 3. 산 정보가 있을 경우 산 DB 업데이트
@@ -2395,64 +2405,68 @@ window.addMultiActivity = async () => {
 
     pendingLevelUpMessages = [];
 
-    // 4. 선택된 회원별 업데이트 루프
-    for(const id of selectedMemberIds){
-        const member = currentData.find(m => m.id === id);
-        if(!member) continue;
-        
-        const oldLevel = member.level || 0; 
-        const newLevel = oldLevel + up;
-        
-        // [A] 회원 정보 업데이트 (레벨 수치만큼 상승)
-        await updateDoc(doc(db, "sanwoori", id), { 
-            level: newLevel, 
-            lastDate: ts 
-        });
-        
-        // [B] 우정 포인트 업데이트
-if (selectedMemberIds.size >= 2) {
-    // 기본은 10 * up 이지만, 정기산행(isRegular) 체크 시 무조건 10점만
-    const pointToAdd = isRegular ? 10 : (10 * up); 
-    await updateDoc(doc(db, "sanwoori", id), { 
-        friendshipPoint: increment(pointToAdd) 
-    });
-}
-        
-        // [C] 로그 기록 (분기 횟수 결정 핵심 로직)
-        // ✅ '분기 체크'가 되어있으면 1회만, 아니면 선택한 레벨업(up) 수만큼 기록 생성
-        const logLoopCount = isQuarterOnlyOne ? 1 : up;
+    try {
+        // 4. 선택된 회원별 업데이트 루프
+        for(const id of selectedMemberIds){
+            const member = currentData.find(m => m.id === id);
+            if(!member) continue;
+            
+            const oldLevel = member.level || 0; 
+            const newLevel = oldLevel + up;
+            
+            // [A] 회원 정보 업데이트
+            await updateDoc(doc(db, "sanwoori", id), { 
+                level: newLevel, 
+                lastDate: ts 
+            });
+            
+            // [B] 우정 포인트 업데이트
+            if (selectedMemberIds.size >= 2) {
+                // 정기산행이면 10점, 아니면 원래대로 10 * up
+                const pointToAdd = isRegular ? 10 : (10 * up); 
+                await updateDoc(doc(db, "sanwoori", id), { 
+                    friendshipPoint: increment(pointToAdd) 
+                });
+            }
+            
+            // [C] 로그 기록 (분기 횟수 결정)
+            const logLoopCount = isQuarterOnlyOne ? 1 : up;
 
-        for(let i = 0; i < logLoopCount; i++) {
-            await addDoc(collection(db, `sanwoori/${id}/logs`), { 
-    date: ts, 
-    mountain: mName, 
-    height, 
-    coords: tempCoord, 
-    isTop100, 
-    isBAC, 
-    isRegular, // 스펠링 확인
-    isRunning, // 스펠링 확인
-    isTracking, // 스펠링 확인
-    region
-});
+            for(let i = 0; i < logLoopCount; i++) {
+                await addDoc(collection(db, `sanwoori/${id}/logs`), { 
+                    date: ts, 
+                    mountain: mName, 
+                    height, 
+                    coords: tempCoord, 
+                    isTop100, 
+                    isBAC, 
+                    isRegular, 
+                    isRunning, 
+                    isTracking, 
+                    region
+                });
+            }
+            
+            // 레벨업 축하 알림 체크
+            checkLevelUpgrade(member.name, oldLevel, newLevel);
         }
+
+        // 5. 후처리 및 알림
+        if (pendingLevelUpMessages.length > 0) {
+            showCombinedLevelUpAlert();
+        }
+
+        const logMsg = isQuarterOnlyOne ? "분기 1회만 반영" : `분기 ${up}회 반영`;
+        alert(`저장 완료 (레벨 ${up}↑ / ${logMsg})`); 
         
-        // 레벨업 축하 알림 체크
-        checkLevelUpgrade(member.name, oldLevel, newLevel);
+        selectedMemberIds.clear(); 
+        tempCoord = null; 
+        updateAdminMemberLists();
+        updateVibeTemp();
+    } catch (error) {
+        console.error("저장 중 에러 발생:", error);
+        alert("저장에 실패했습니다: " + error.message);
     }
-
-    // 5. 후처리 및 알림
-    if (pendingLevelUpMessages.length > 0) {
-        showCombinedLevelUpAlert();
-    }
-
-    const logMsg = isQuarterOnlyOne ? "분기 1회만 반영" : `분기 ${up}회 반영`;
-    alert(`저장 완료 (레벨 ${up}↑ / ${logMsg})`); 
-    
-    selectedMemberIds.clear(); 
-    tempCoord = null; 
-    updateAdminMemberLists();
-    updateVibeTemp();
 };
 
 window.loadMemberLogs = async () => {
