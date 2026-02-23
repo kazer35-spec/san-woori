@@ -12,33 +12,6 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-/* [효과 2] 계절 성운 레이어 */
-.nebula-spring-summer { background-image: radial-gradient(circle at 20% 30%, rgba(144, 238, 144, 0.06), transparent 40%), radial-gradient(circle at 80% 70%, rgba(255, 182, 193, 0.06), transparent 40%); }
-.nebula-fall-winter { background-image: radial-gradient(circle at 30% 20%, rgba(0, 191, 255, 0.06), transparent 40%), radial-gradient(circle at 70% 80%, rgba(255, 215, 0, 0.06), transparent 40%); }
-
-/* [효과 3] 별똥별 (꼬리가 뒤로 가도록 수정) */
-.shooting-star {
-    position: absolute;
-    width: 3px; height: 3px; 
-    background: white;
-    border-radius: 50%;
-    box-shadow: 0 0 10px white;
-    z-index: 100;
-    pointer-events: none;
-    opacity: 0;
-}
-/* 별똥별 꼬리: 머리 왼쪽(뒤쪽)으로 배치 */
-.shooting-star::after {
-    content: "";
-    position: absolute;
-    top: 50%; 
-    left: 0; 
-    transform: translate(-100%, -50%); /* 핵심: 머리 뒤로 보냄 */
-    width: 60px; 
-    height: 1.5px;
-    background: linear-gradient(to right, transparent, white);
-}
-
 @keyframes gentle-shine {
     0%, 100% { 
         opacity: 1;
@@ -2668,86 +2641,59 @@ const q = document.getElementById('adminSearchInput').value.toLowerCase();
 document.querySelectorAll('.member-chip').forEach(c => { c.style.display = c.innerText.toLowerCase().includes(q) ? "block" : "none"; });
 };
 
-/* [최종 수정본] 열정 온도 10% 가산 로직 보완 */
+/* [완성본] 원형 열정 온도 로직 */
 async function updateVibeTemp() {
-    try {
-        const nowMs = Date.now();
-        const twentyFourHoursAgo = Timestamp.fromMillis(nowMs - 86400000);
-        
-        // 1. [핵심] 24시간 내 산행 기록이 '하나라도' 있는지 직접 DB 쿼리
-        // 개별 멤버 루프를 돌지 않고, 전체 로그 중 최근 것이 있는지 확인하는 방식이 더 정확합니다.
-        let hasRecentActivity = false;
-        let totalRecentLogs = 0;
+try {
+const twentyFourHoursAgo = Timestamp.fromMillis(Date.now() - 86400000);
+let recentLogCount = 0;
+for (const member of currentData) {
+const logSnap = await getDocs(query(collection(db, `sanwoori/${member.id}/logs`), where("date", ">=", twentyFourHoursAgo)));
+recentLogCount += logSnap.size;
+}
+const visitorSnap = await getDocs(query(collection(db, "visitor_logs"), where("timestamp", ">=", twentyFourHoursAgo)));
+const recentVisitorCount = visitorSnap.size;
 
-        // currentData를 순회하며 각 멤버의 최근 로그 개수를 합산
-        // Promise.all을 사용하여 속도를 개선합니다.
-        const logCounts = await Promise.all(currentData.map(async (member) => {
-            const q = query(collection(db, `sanwoori/${member.id}/logs`), where("date", ">=", twentyFourHoursAgo));
-            const snap = await getDocs(q);
-            return snap.size;
-        }));
+let visitorScore = (recentVisitorCount / 5) * 10;
+let logScore = recentLogCount * 10;
+let tempPercent = Math.min(visitorScore + logScore, 100);
 
-        totalRecentLogs = logCounts.reduce((a, b) => a + b, 0);
-        hasRecentActivity = totalRecentLogs > 0;
+// 원형 게이지 업데이트 (Circle)
+const circleProgress = document.getElementById('vibeCircleProgress');
+const circleIcon = document.getElementById('vibeCircleIcon');
+const circleBtn = document.getElementById('vibeCircleBtn');
 
-        // 2. 방문자 로그 조회
-        const visitorSnap = await getDocs(query(collection(db, "visitor_logs"), where("timestamp", ">=", twentyFourHoursAgo)));
-        const recentVisitorCount = visitorSnap.size;
+const offset = 100 - tempPercent;
+if(circleProgress) circleProgress.style.strokeDashoffset = offset;
 
-        // 3. 점수 계산 로직
-        let visitorScore = (recentVisitorCount / 5) * 10; // 방문자 5명당 10점
-        let logScore = totalRecentLogs * 10; // 로그 1개당 10점
-        
-        let tempPercent = visitorScore + logScore;
+// 모달 및 바 업데이트
+const gauge = document.getElementById('vibeGauge');
+const modalIcon = document.getElementById('vibeModalIcon');
+const status = document.getElementById('vibeStatusTxt');
+const desc = document.getElementById('vibeDesc');
+const scoreTxt = document.getElementById('vibeScoreTxt');
 
-        // 4. [보정] 산행 기록이 있다면 10% 가산 (최소 10점이라도 부여해서 티가 나게 함)
-        if (hasRecentActivity) {
-            // 점수가 너무 낮아도 10% 가산이 티가 안 날 수 있으므로 최소 기본값 보정
-            tempPercent = (tempPercent + 5) * 1.1; 
-        }
+if(gauge) gauge.style.width = `${tempPercent}%`;
+if(scoreTxt) scoreTxt.innerText = `${Math.floor(tempPercent)}%`;
 
-        tempPercent = Math.min(Math.floor(tempPercent), 100);
+let currentEmoji = "🍀";
+if (tempPercent >= 80) {
+currentEmoji = "🔥"; status.innerText = "EXPLOSIVE PASSION"; desc.innerText = "현재 활동지수 최고조! 산행의 열기가 가득합니다.";
+circleBtn.classList.add('hot-vibe');
+} else if (tempPercent >= 50) {
+currentEmoji = "☀️"; status.innerText = "VERY ACTIVE"; desc.innerText = "커뮤니티가 아주 활발합니다. 함께 등산해요!";
+circleBtn.classList.remove('hot-vibe');
+} else if (tempPercent >= 20) {
+currentEmoji = "🍀"; status.innerText = "WARMING UP"; desc.innerText = "산행의 온기가 느껴집니다.";
+circleBtn.classList.remove('hot-vibe');
+} else {
+currentEmoji = "❄️"; status.innerText = "CHILLING"; desc.innerText = "조용한 숲속 같네요. 첫 산행 기록을 남겨보세요!";
+circleBtn.classList.remove('hot-vibe');
+}
 
-        // --- UI 업데이트 ---
-        const elements = {
-            circleProgress: document.getElementById('vibeCircleProgress'),
-            circleIcon: document.getElementById('vibeCircleIcon'),
-            circleBtn: document.getElementById('vibeCircleBtn'),
-            gauge: document.getElementById('vibeGauge'),
-            modalIcon: document.getElementById('vibeModalIcon'),
-            status: document.getElementById('vibeStatusTxt'),
-            desc: document.getElementById('vibeDesc'),
-            scoreTxt: document.getElementById('vibeScoreTxt')
-        };
+if(circleIcon) circleIcon.innerText = currentEmoji;
+if(modalIcon) modalIcon.innerText = currentEmoji;
 
-        if (elements.circleProgress) elements.circleProgress.style.strokeDashoffset = 100 - tempPercent;
-        if (elements.gauge) elements.gauge.style.width = `${tempPercent}%`;
-        if (elements.scoreTxt) elements.scoreTxt.innerText = `${tempPercent}%`;
-
-        // 5. 상태 결정
-        let state = { emoji: "🍀", status: "WARMING UP", desc: "산행의 온기가 느껴집니다.", hot: false };
-        
-        if (tempPercent >= 80) {
-            state = { emoji: "🔥", status: "EXPLOSIVE PASSION", desc: "현재 활동지수 최고조! 산행의 열기가 가득합니다.", hot: true };
-        } else if (tempPercent >= 50) {
-            state = { emoji: "☀️", status: "VERY ACTIVE", desc: "커뮤니티가 아주 활발합니다. 함께 등산해요!", hot: false };
-        } else if (tempPercent < 20) {
-            state = { emoji: "❄️", status: "CHILLING", desc: "조용한 숲속 같네요. 첫 산행 기록을 남겨보세요!", hot: false };
-        }
-
-        if (elements.circleIcon) elements.circleIcon.innerText = state.emoji;
-        if (elements.modalIcon) elements.modalIcon.innerText = state.emoji;
-        if (elements.status) elements.status.innerText = state.status;
-        if (elements.desc) elements.desc.innerText = state.desc;
-        
-        if (elements.circleBtn) {
-            if (state.hot) elements.circleBtn.classList.add('hot-vibe');
-            else elements.circleBtn.classList.remove('hot-vibe');
-        }
-
-    } catch (e) { 
-        console.error("온도 갱신 오류 상세:", e); 
-    }
+} catch (e) { console.error("온도 갱신 오류:", e); }
 }
 
 if (!sessionStorage.getItem('visited')) { updateVisitorCount(); sessionStorage.setItem('visited', 'true'); }
@@ -3053,34 +2999,18 @@ window.showMilkyWay = async (mId, mName) => {
             .filter(l => l.coords)
             .sort((a, b) => a.date.toDate() - b.date.toDate());
 
-        // --- [기능 1] 계절 성좌 레이어 (오로라는 삭제됨) ---
-        const month = new Date().getMonth() + 1;
-        board.classList.remove('nebula-spring-summer', 'nebula-fall-winter');
-        if (month >= 3 && month <= 8) board.classList.add('nebula-spring-summer');
-        else board.classList.add('nebula-fall-winter');
-
-        // --- [기능 2] 활동지수 10% 상승 로직 ---
-        // 최근 24시간 이내에 등록된 기록이 있는지 확인
-        const now = new Date();
-        const oneDayAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
-        
-        const hasRecentLog = logs.some(log => log.date.toDate() > oneDayAgo);
-        
-        // 활동지수 업데이트 (예시: UI에 표시하거나 DB에 반영)
-        let activityBonus = hasRecentLog ? 1.1 : 1.0; 
-        console.log(`${mName}님의 활동지수 배율: ${activityBonus}`);
-
         if (logs.length === 0) {
             board.innerHTML = "<div class='text-white/20 text-xs h-full flex items-center justify-center'>아직 기록된 별이 없습니다.</div>";
             return;
         }
 
         logs.forEach((log, index) => {
+            // --- 원래 색상 및 설정 유지 ---
             const regularColors = ["#00FFFF", "#FBCEB1", "#D32F2F", "#9B84D8"];
             let starColor = "white";
             let shadowColor = "#FFFFFF";
             let extraClass = "";
-            let starSize = "w-1.5 h-1.5";
+            let starSize = "w-1.5 h-1.5"; // 요청하신 대로 크기 통일
 
             if (log.isTop100) {
                 starColor = "#F7E7CE";
@@ -3088,12 +3018,14 @@ window.showMilkyWay = async (mId, mName) => {
             } else if (log.isRegular) {
                 starColor = regularColors[Math.floor(Math.random() * regularColors.length)];
                 shadowColor = starColor;
+                // 천천히 반짝이는 클래스만 추가
                 extraClass = "animate-gentle-shine"; 
             }
 
             const star = document.createElement('div');
             star.className = `absolute ${starSize} rounded-full z-10 ${extraClass}`;
             star.style.backgroundColor = starColor;
+            // 광채 효과 원래 수치 유지 (6px, 12px)
             star.style.boxShadow = `0 0 6px ${shadowColor}, 0 0 12px ${shadowColor}`;
             star.style.left = log.coords.x + "%";
             star.style.top = log.coords.y + "%";
@@ -3103,12 +3035,13 @@ window.showMilkyWay = async (mId, mName) => {
             board.appendChild(star);
             setTimeout(() => { star.style.opacity = "1"; }, index * 100);
 
+            // 선 연결 로직 유지
             if (index > 0) {
                 const prev = logs[index - 1];
                 const x1 = prev.coords.x, y1 = prev.coords.y;
                 const x2 = log.coords.x, y2 = log.coords.y;
-                const dist = Math.sqrt(Math.pow(x2-x1, 2) + Math.pow(y2-y1, 2));
-                const angle = Math.atan2(y2-y1, x2-x1) * 180 / Math.PI;
+                const dist = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+                const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
 
                 const line = document.createElement('div');
                 line.className = 'absolute bg-blue-400/20 origin-left z-0';
@@ -3119,40 +3052,12 @@ window.showMilkyWay = async (mId, mName) => {
                 line.style.transform = `rotate(${angle}deg)`;
                 board.appendChild(line);
             }
-
-            // --- [기능 3] 마지막 별 별똥별 ---
-            if (index === logs.length - 1) {
-                setTimeout(() => createShootingStar(board, log.coords.x, log.coords.y), (index * 100) + 500);
-            }
         });
     } catch (e) {
         console.error(e);
         alert("성좌를 불러오는데 실패했습니다.");
     }
 };
-
-function createShootingStar(board, tx, ty) {
-    const s = document.createElement('div');
-    s.className = 'shooting-star';
-    const startX = tx - 20;
-    const startY = ty - 20;
-    s.style.left = startX + "%";
-    s.style.top = startY + "%";
-    s.style.transform = "rotate(45deg)";
-    board.appendChild(s);
-
-    setTimeout(() => {
-        s.style.transition = "all 0.8s cubic-bezier(0.25, 0.1, 0.25, 1)";
-        s.style.left = tx + "%";
-        s.style.top = ty + "%";
-        s.style.opacity = "1";
-    }, 50);
-
-    setTimeout(() => {
-        s.style.opacity = "0";
-        setTimeout(() => s.remove(), 500);
-    }, 850);
-}
 
 window.showFadingScroll = function(dday, level = 0) {
     const modal = document.getElementById('scrollModal');
