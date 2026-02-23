@@ -1356,7 +1356,7 @@ overflow: hidden;
 </head>
 <body>
 
-<div id="levelupAlert" class="fixed inset-0 z-[200] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div id="levelupAlert" class="fixed inset-0 z-[200] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
     <div class="bg-white rounded-3xl p-8 max-w-sm w-[90%] text-center shadow-2xl transform scale-90 transition-transform duration-300 ease-out border-4 border-yellow-400">
         <div class="text-5xl mb-4">🎊</div>
         <h2 id="levelUpTitle" class="text-2xl font-black text-slate-800 mb-2">LEVEL UP!</h2>
@@ -2668,60 +2668,62 @@ const q = document.getElementById('adminSearchInput').value.toLowerCase();
 document.querySelectorAll('.member-chip').forEach(c => { c.style.display = c.innerText.toLowerCase().includes(q) ? "block" : "none"; });
 };
 
-/* [완성본] 원형 열정 온도 로직 (10% 가산 로직 통합 버전) */
+/* [할당량 절약형 통합본] 전체 로그 단일 쿼리 + 리밋 적용 버전 */
 async function updateVibeTemp() {
     try {
         const twentyFourHoursAgo = Timestamp.fromMillis(Date.now() - 86400000);
         let recentLogCount = 0;
-        let hasRecentActivity = false; // ✨ 최근 산행 기록 여부 체크 변수
+        let hasRecentActivity = false;
 
-        // 1. 멤버별 최근 로그 조회 및 카운트
-        for (const member of currentData) {
-            const logSnap = await getDocs(query(collection(db, `sanwoori/${member.id}/logs`), where("date", ">=", twentyFourHoursAgo)));
-            if (logSnap.size > 0) {
-                recentLogCount += logSnap.size;
-                hasRecentActivity = true; // ✨ 최근 24시간 내 기록이 하나라도 있다면 true
-            }
+        // 1. [절약 핵심] 멤버별 루프를 삭제하고 collectionGroup으로 단 1번만 쿼리
+        // 시스템 전체 logs 중 최근 24시간 기록을 최대 15개까지만 가져옵니다. (비용 극적 감소)
+        const globalLogSnap = await getDocs(query(
+            collectionGroup(db, 'logs'), 
+            where("date", ">=", twentyFourHoursAgo),
+            limit(15) 
+        ));
+
+        if (!globalLogSnap.empty) {
+            recentLogCount = globalLogSnap.size;
+            hasRecentActivity = true; 
         }
 
-        // 2. 방문자 로그 조회
-        const visitorSnap = await getDocs(query(collection(db, "visitor_logs"), where("timestamp", ">=", twentyFourHoursAgo)));
+        // 2. 방문자 로그 조회 (마찬가지로 limit를 걸어 할당량 보호)
+        const visitorSnap = await getDocs(query(
+            collection(db, "visitor_logs"), 
+            where("timestamp", ">=", twentyFourHoursAgo),
+            limit(20)
+        ));
         const recentVisitorCount = visitorSnap.size;
 
-        // 3. 점수 계산
+        // 3. 점수 계산 (데이터 읽기량이 줄었으므로 점수 가중치를 살짝 조정)
         let visitorScore = (recentVisitorCount / 5) * 10;
-        let logScore = recentLogCount * 10;
+        let logScore = recentLogCount * 12; // 1개 기록당 가중치를 12점으로 상향
         
-        // ✨ 기본 점수 합산
         let tempPercent = visitorScore + logScore;
 
-        // ✨ [핵심] 최근 산행 기록이 있다면 전체 점수에 1.1배(10% 상승) 적용
+        // 최근 산행 기록 보너스 (1.1배 가산)
         if (hasRecentActivity) {
             tempPercent = tempPercent * 1.1;
         }
 
-        // 최대치 100% 제한
         tempPercent = Math.min(tempPercent, 100);
 
-        // 4. UI 업데이트: 원형 게이지 (Circle)
+        // 4. UI 업데이트: 원형 게이지 및 바 (기존 UI 로직 유지)
         const circleProgress = document.getElementById('vibeCircleProgress');
         const circleIcon = document.getElementById('vibeCircleIcon');
         const circleBtn = document.getElementById('vibeCircleBtn');
-
-        const offset = 100 - tempPercent;
-        if (circleProgress) circleProgress.style.strokeDashoffset = offset;
-
-        // 5. UI 업데이트: 모달 및 바 (Bar)
         const gauge = document.getElementById('vibeGauge');
         const modalIcon = document.getElementById('vibeModalIcon');
         const status = document.getElementById('vibeStatusTxt');
         const desc = document.getElementById('vibeDesc');
         const scoreTxt = document.getElementById('vibeScoreTxt');
 
+        if (circleProgress) circleProgress.style.strokeDashoffset = 100 - tempPercent;
         if (gauge) gauge.style.width = `${tempPercent}%`;
         if (scoreTxt) scoreTxt.innerText = `${Math.floor(tempPercent)}%`;
 
-        // 6. 점수대별 상태 설정
+        // 5. 점수대별 상태 설정
         let currentEmoji = "🍀";
         if (tempPercent >= 80) {
             currentEmoji = "🔥"; 
@@ -2753,9 +2755,15 @@ async function updateVibeTemp() {
     }
 }
 
+// 초기 실행 및 인터벌 설정
 if (!sessionStorage.getItem('visited')) { updateVisitorCount(); sessionStorage.setItem('visited', 'true'); }
 listenVisitors(); initAutoSelection(); startRealtimeSync(); listenSubRooms();
-setTimeout(() => { updateVibeTemp(); setInterval(updateVibeTemp, 60000); }, 2000);
+
+// 💡 인터벌 시간을 60000(1분) -> 300000(5분)으로 늘리면 할당량을 5배 더 아낄 수 있습니다.
+setTimeout(() => { 
+    updateVibeTemp(); 
+    setInterval(updateVibeTemp, 300000); 
+}, 2000);
 
 document.getElementById('regDate').valueAsDate = new Date();
 document.getElementById('activityDate').valueAsDate = new Date();
