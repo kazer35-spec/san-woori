@@ -12,6 +12,107 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+/* 산행(초록) + 러닝(분홍) 혼합 */
+.grass-hike-run {
+    background: linear-gradient(135deg, #2ecc71 50%, #ffd1dc 50%) !important;
+}
+
+/* 산행(초록) + 트레킹(주황) 혼합 */
+.grass-hike-track {
+    background: linear-gradient(135deg, #2ecc71 50%, #ffe4b5 50%) !important;
+}
+
+/* 러닝 + 트레킹 혼합 */
+.grass-run-track {
+    background: linear-gradient(135deg, #ffd1dc 50%, #ffe4b5 50%) !important;
+}
+
+/* 팝업 스타일 (차트 툴팁 스타일과 유사하게) */
+.grass-popup {
+    position: fixed;
+    z-index: 9999;
+    background: rgba(30, 41, 59, 0.95);
+    color: white;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 11px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    pointer-events: none;
+    display: none;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+
+/* 러닝: 연분홍 */
+.grass-running {
+    background-color: #ffd1dc !important;
+    border: 1px solid #ffb6c1;
+}
+
+/* 트레킹: 연주황 */
+.grass-tracking {
+    background-color: #ffe4b5 !important;
+    border: 1px solid #ffcc80;
+}
+
+/* 잔디 기본 호버 효과 */
+.grass-day:hover {
+    transform: scale(1.2);
+    z-index: 10;
+    transition: transform 0.1s;
+}
+
+/* [효과 2] 계절 성운 레이어 */
+.nebula-spring-summer { background-image: radial-gradient(circle at 20% 30%, rgba(144, 238, 144, 0.06), transparent 40%), radial-gradient(circle at 80% 70%, rgba(255, 182, 193, 0.06), transparent 40%); }
+.nebula-fall-winter { background-image: radial-gradient(circle at 30% 20%, rgba(0, 191, 255, 0.06), transparent 40%), radial-gradient(circle at 70% 80%, rgba(255, 215, 0, 0.06), transparent 40%); }
+
+/* [효과 3] 별똥별 (꼬리가 뒤로 가도록 수정) */
+.shooting-star {
+    position: absolute;
+    width: 3px; height: 3px; 
+    background: white;
+    border-radius: 50%;
+    box-shadow: 0 0 10px white;
+    z-index: 100;
+    pointer-events: none;
+    opacity: 0;
+}
+/* 별똥별 꼬리: 머리 왼쪽(뒤쪽)으로 배치 */
+.shooting-star::after {
+    content: "";
+    position: absolute;
+    top: 50%; 
+    left: 0; 
+    transform: translate(-100%, -50%); /* 핵심: 머리 뒤로 보냄 */
+    width: 60px; 
+    height: 1.5px;
+    background: linear-gradient(to right, transparent, white);
+}
+
+@keyframes gentle-shine {
+    0%, 100% { 
+        opacity: 1;
+        filter: brightness(1);
+    }
+    50% { 
+        opacity: 0.6;
+        filter: brightness(1.2); /* 아주 미세하게만 밝아짐 */
+    }
+}
+
+.animate-gentle-shine {
+    /* 4초 주기로 아주 천천히 반짝임 */
+    animation: gentle-shine 4s infinite ease-in-out;
+}
+
+@keyframes star-blink {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.8); }
+}
+.animate-pulse {
+    animation: star-blink 1.5s infinite ease-in-out;
+}
+
     /* 칭호 스타일: 다시 원래대로 이름 위에 위치 */
 .rank-badge {
     display: inline-block;
@@ -1304,7 +1405,6 @@ overflow: hidden;
 </style>
 </head>
 <body>
-
 <div id="levelupAlert" class="fixed inset-0 z-[200] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
     <div class="bg-white rounded-3xl p-8 max-w-sm w-[90%] text-center shadow-2xl transform scale-90 transition-transform duration-300 ease-out border-4 border-yellow-400">
         <div class="text-5xl mb-4">🎊</div>
@@ -1473,6 +1573,20 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 <span class="text-[10px] font-black text-red-500">BAC인증지</span>
 </label>
 </div>
+</div>
+<div class="flex items-center justify-between mt-2 py-1.5 border-t border-gray-100 overflow-x-auto">
+    <label class="text-[10px] flex items-center gap-1 shrink-0 cursor-pointer whitespace-nowrap">
+        <input type="checkbox" id="isRegularCheck" class="w-3.5 h-3.5"> 정기🚩
+    </label>
+    <label class="text-[10px] flex items-center gap-1 shrink-0 cursor-pointer whitespace-nowrap">
+        <input type="checkbox" id="isRunningCheck" class="w-3.5 h-3.5"> 런닝🏃
+    </label>
+    <label class="text-[10px] flex items-center gap-1 shrink-0 cursor-pointer whitespace-nowrap">
+        <input type="checkbox" id="isTrackingCheck" class="w-3.5 h-3.5"> 트래킹👟
+    </label>
+    <label class="text-[10px] flex items-center gap-1 shrink-0 cursor-pointer whitespace-nowrap">
+        <input type="checkbox" id="isQuarterCheck" class="w-3.5 h-3.5"> 분기1회☝️
+    </label>
 </div>
 <input type="text" id="mountainName" onblur="autoFindCoords()" placeholder="등산한 산 이름 (예: 관악산)" class="mb-2 h-9 text-xs">
 
@@ -2041,114 +2155,206 @@ listArea.innerHTML = combinedHtml;
 
 window.toggleVibeModal = (show) => { document.getElementById('vibeModal').style.display = show ? 'flex' : 'none'; };
 
+/* [통합 버전] 운동 잔디 + km 단위 + 상세 일지 팝업 */
+/* [최종 통합본] 그라데이션 잔디 + 커스텀 팝업 + 런닝/트레킹 구분 */
 window.showMemberTimeline = async (mId, mName) => {
-toggleTimelineModal(true);
-const modalContent = document.getElementById('timelineModalContent');
-modalContent.scrollTop = 0;
-const container = document.getElementById('timelineContent');
-const grassBoard = document.getElementById('grassBoard');
-const vibeArea = document.getElementById('passionVibeArea');
-const chartBox = document.getElementById('chartBox');
+    toggleTimelineModal(true);
+    const modalContent = document.getElementById('timelineModalContent');
+    modalContent.scrollTop = 0;
+    const container = document.getElementById('timelineContent');
+    const grassBoard = document.getElementById('grassBoard');
+    const vibeArea = document.getElementById('passionVibeArea');
+    const chartBox = document.getElementById('chartBox');
 
-document.getElementById('timelineMemberName').innerText = mName;
-const memberInfo = currentData.find(m => m.id === mId); // 명단에서 이 사람을 찾아서
-const friendshipPoint = memberInfo?.friendshipPoint || 0; // 포인트 점수를 확인한 뒤
-document.getElementById('memberFriendshipPoint').innerText = friendshipPoint.toLocaleString();
-container.innerHTML = "<p class='text-center text-xs py-5 text-gray-400'>조회 중...</p>";
-grassBoard.innerHTML = vibeArea.innerHTML = "";
-chartBox.className = `chart-container-box chart-bg-q${selectedQuarter}`;
+    document.getElementById('timelineMemberName').innerText = mName;
+    const memberInfo = currentData.find(m => m.id === mId);
+    const friendshipPoint = memberInfo?.friendshipPoint || 0;
+    document.getElementById('memberFriendshipPoint').innerText = friendshipPoint.toLocaleString();
+    
+    if(document.getElementById('grassTitle')) document.getElementById('grassTitle').innerText = "운동 잔디";
+    container.innerHTML = "<p class='text-center text-xs py-5 text-gray-400'>조회 중...</p>";
+    grassBoard.innerHTML = vibeArea.innerHTML = "";
+    chartBox.className = `chart-container-box chart-bg-q${selectedQuarter}`;
 
-try {
-const start = new Date(selectedYear, (selectedQuarter - 1) * 3, 1);
-const end = new Date(selectedYear, selectedQuarter * 3, 1);
-const totalDaysInQ = Math.floor((end - start) / (1000 * 60 * 60 * 24));
-const snapAll = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc"), limit(30)));
-const logsAll = snapAll.docs.map(doc => ({ ...doc.data(), date: doc.data().date.toDate() }));
-const logsQuarter = logsAll.filter(l => l.date >= start && l.date < end);
-const chartData = await calculateGrowthData(mId);
-renderGrowthChart(chartData);
+    try {
+        const start = new Date(selectedYear, (selectedQuarter - 1) * 3, 1);
+        const end = new Date(selectedYear, selectedQuarter * 3, 1);
+        const totalDaysInQ = Math.floor((end - start) / (1000 * 60 * 60 * 24));
+        
+        const snapAll = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc"), limit(50)));
+        const logsAll = snapAll.docs.map(doc => ({ ...doc.data(), date: doc.data().date.toDate() }));
+        const logsQuarter = logsAll.filter(l => l.date >= start && l.date < end);
+        
+        const chartData = await calculateGrowthData(mId);
+        renderGrowthChart(chartData);
 
-const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-const recentCount = logsAll.filter(l => l.date >= thirtyDaysAgo).length;
-if(recentCount >= 4) vibeArea.innerHTML = vibeArea.innerHTML = `<span class="hot-vibe flex items-center h-[18px] text-[9px] font-black text-orange-500 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-100">🔥 HOT</span>`;
+        // 🔥 최근 30일 활동 지수
+        const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const recentCount = logsAll.filter(l => l.date >= thirtyDaysAgo).length;
+        if(recentCount >= 4) vibeArea.innerHTML = `<span class="hot-vibe flex items-center h-[18px] text-[9px] font-black text-orange-500 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-100">🔥 HOT</span>`;
 
-const dateCounts = {}; logsQuarter.forEach(l => { const key = `${l.date.getFullYear()}-${l.date.getMonth() + 1}-${l.date.getDate()}`; dateCounts[key] = (dateCounts[key] || 0) + 1; });
-let grassHtml = "";
-for (let i = 0; i < totalDaysInQ; i++) {
-const cur = new Date(start); cur.setDate(start.getDate() + i);
-const k = `${cur.getFullYear()}-${cur.getMonth() + 1}-${cur.getDate()}`;
-const c = dateCounts[k] || 0;
-let cl = (c >= 4) ? "grass-active-4" : (c === 3 ? "grass-active-3" : (c === 2 ? "grass-active-2" : (c === 1 ? "grass-active-1" : "")));
-grassHtml += `<div class="grass-day ${cl}"></div>`;
-}
-grassBoard.innerHTML = grassHtml;
-document.getElementById('timelineCountBadge').innerText = `분기 ${logsQuarter.length}회 / 최근 ${logsAll.length}회`;
-if(logsAll.length === 0) { container.innerHTML = "<p class='text-center text-[10px] py-10 text-gray-400'>기록 없음</p>"; return; }
-container.innerHTML = logsAll.map(log => {
-const dayName = ['일','월','화','수','목','금','토'][log.date.getDay()];
-const top100Class = log.isTop100 ? 'text-blue-600 font-black' : '';
-const bacTag = log.isBAC ? '<span class="bac-txt">BAC</span>' : '';
-return `<div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-date">${log.date.getFullYear()}.${log.date.getMonth()+1}.${log.date.getDate()} (${dayName})</div><div class="timeline-desc ${top100Class}">${bacTag}${log.mountain || '기록'} (${log.height || 0}m) ${log.isTop100 ? '⭐' : '✔️'}</div></div>`;
-}).join('');
-} catch (e) { container.innerHTML = "<p class='text-center text-xs text-red-400'>실패</p>"; }
+        // 🟢 날짜별 데이터 그룹화 (그라데이션 및 팝업용)
+        const dateMap = {}; 
+        logsQuarter.forEach(l => { 
+            const key = `${l.date.getFullYear()}-${l.date.getMonth() + 1}-${l.date.getDate()}`;
+            if(!dateMap[key]) dateMap[key] = [];
+            dateMap[key].push({
+                mountain: l.mountain,
+                val: l.height || 0,
+                unit: (l.isRunning || l.isTracking) ? 'km' : 'm',
+                type: l.isRunning ? 'run' : (l.isTracking ? 'track' : 'hike')
+            });
+        });
+
+        let grassHtml = "";
+        for (let i = 0; i < totalDaysInQ; i++) {
+            const cur = new Date(start); cur.setDate(start.getDate() + i);
+            const k = `${cur.getFullYear()}-${cur.getMonth() + 1}-${cur.getDate()}`;
+            const activities = dateMap[k];
+            
+            let cl = "";
+            let popContent = "";
+
+            if (activities) {
+                const types = activities.map(a => a.type);
+                const hasHike = types.includes('hike');
+                const hasRun = types.includes('run');
+                const hasTrack = types.includes('track');
+
+                // 클래스(색상) 결정 로직
+                if (hasHike && hasRun && hasTrack) cl = "grass-all-mix";
+                else if (hasHike && hasRun) cl = "grass-hike-run";
+                else if (hasHike && hasTrack) cl = "grass-hike-track";
+                else if (hasRun && hasTrack) cl = "grass-run-track";
+                else if (hasHike) cl = "grass-active-1";
+                else if (hasRun) cl = "grass-running";
+                else if (hasTrack) cl = "grass-tracking";
+
+                // 팝업 텍스트 생성
+                popContent = `<b style='color:#94a3b8; font-size:10px;'>${k}</b><br>`;
+                popContent += activities.map(a => {
+                    const icon = a.type === 'run' ? '🏃' : a.type === 'track' ? '🚶' : '⛰️';
+                    return `${icon} ${a.mountain}: ${a.val}${a.unit}`;
+                }).join('<br>');
+            }
+            
+            grassHtml += `<div class="grass-day ${cl}" 
+                               onmouseover="showGrassPopup(event, \`${popContent}\`)" 
+                               onmouseout="hideGrassPopup()"
+                               style="cursor:pointer;"></div>`;
+        }
+        grassBoard.innerHTML = grassHtml;
+
+        const pureHikingCount = logsQuarter.filter(l => !l.isRunning && !l.isTracking).length;
+        document.getElementById('timelineCountBadge').innerText = `분기산행 ${pureHikingCount}회 / 최근운동 ${logsAll.length}회`;
+
+        if(logsAll.length === 0) { 
+            container.innerHTML = "<p class='text-center text-[10px] py-10 text-gray-400'>기록 없음</p>"; 
+            return; 
+        }
+
+        container.innerHTML = logsAll.map(log => {
+            const dayName = ['일','월','화','수','목','금','토'][log.date.getDay()];
+            const unit = (log.isRunning || log.isTracking) ? 'km' : 'm';
+            const icon = log.isRunning ? '🏃' : (log.isTracking ? '🚶' : '⛰️');
+            return `
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-date">${log.date.getFullYear()}.${log.date.getMonth()+1}.${log.date.getDate()} (${dayName})</div>
+                    <div class="timeline-desc ${log.isTop100 ? 'text-blue-600 font-black' : ''}">
+                        ${icon} ${log.isBAC ? '<span class="bac-txt">BAC</span>' : ''}${log.mountain || '기록'} (${log.height || 0}${unit}) 
+                        ${log.isTop100 ? '⭐' : '✔️'}
+                    </div>
+                </div>`;
+        }).join('');
+    } catch (e) { container.innerHTML = "<p class='text-center text-xs text-red-400'>로드 실패</p>"; }
 };
 
+/* [성장 데이터] 런닝/트레킹은 통계에서 제외 */
 async function calculateGrowthData(mId) {
-const labels = []; const counts = []; const heights = []; const peaks = [];
-for (let i = 3; i >= 0; i--) {
-let q = selectedQuarter - i; let y = selectedYear;
-while (q <= 0) { q += 4; y -= 1; }
-labels.push(`${q}Q`);
-const qStart = new Date(y, (q - 1) * 3, 1);
-const qEnd = new Date(y, q * 3, 1);
-const qSnap = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), where("date", ">=", Timestamp.fromDate(qStart)), where("date", "<", Timestamp.fromDate(qEnd))));
-counts.push(qSnap.size);
-let qH = 0; let maxH = 0; let peakName = "-";
-qSnap.forEach(d => {
-const data = d.data(); qH += (data.height || 0);
-if((data.height || 0) > maxH) { maxH = data.height; peakName = data.mountain || "기록"; }
-});
-heights.push(qH); peaks.push(peakName);
-}
-return { labels, counts, heights, peaks };
+    const labels = []; const counts = []; const heights = []; const peaks = [];
+    for (let i = 3; i >= 0; i--) {
+        let q = selectedQuarter - i; let y = selectedYear;
+        while (q <= 0) { q += 4; y -= 1; }
+        labels.push(`${q}Q`);
+        const qStart = new Date(y, (q - 1) * 3, 1);
+        const qEnd = new Date(y, q * 3, 1);
+        
+        const qSnap = await getDocs(query(
+            collection(db, `sanwoori/${mId}/logs`), 
+            where("date", ">=", Timestamp.fromDate(qStart)), 
+            where("date", "<", Timestamp.fromDate(qEnd))
+        ));
+
+        let hikingCount = 0; let totalH = 0; let maxH = 0; let peakName = "-";
+        qSnap.forEach(d => {
+            const data = d.data();
+            if (!data.isRunning && !data.isTracking) {
+                hikingCount++;
+                totalH += (data.height || 0);
+                if((data.height || 0) > maxH) { maxH = data.height; peakName = data.mountain || "기록"; }
+            }
+        });
+        counts.push(hikingCount); heights.push(totalH); peaks.push(peakName);
+    }
+    return { labels, counts, heights, peaks };
 }
 
+/* 차트 렌더링 */
 function renderGrowthChart(data) {
-const ctx = document.getElementById('growthChart').getContext('2d');
-if (growthChartInstance) growthChartInstance.destroy();
-growthChartInstance = new Chart(ctx, {
-type: 'bar',
-data: {
-labels: data.labels,
-datasets: [
-{ label: '산행 횟수', data: data.counts, backgroundColor: 'rgba(59, 130, 246, 0.6)', borderRadius: 5, yAxisID: 'y', order: 2 },
-{ label: '누적 고도', data: data.heights, type: 'line', borderColor: '#ef4444', borderWidth: 2, pointBackgroundColor: '#ef4444', pointRadius: 4, tension: 0.4, yAxisID: 'y1', order: 1 }
-]
-},
-options: {
-responsive: true, maintainAspectRatio: false,
-plugins: {
-legend: { display: false },
-tooltip: {
-backgroundColor: 'rgba(30, 41, 59, 0.95)',
-padding: 10,
-titleFont: { size: 12, weight: '900' },
-bodyFont: { size: 11, weight: '700' },
-callbacks: {
-label: function(context) {
-const i = context.dataIndex;
-return [ ` ⛰️ 누적: ${data.heights[i].toLocaleString()}m`, ` 🏔️ 최고봉: ${data.peaks[i]}`, ` 📈 횟수: ${data.counts[i]}회` ];
+    const ctx = document.getElementById('growthChart').getContext('2d');
+    if (window.growthChartInstance) window.growthChartInstance.destroy();
+    window.growthChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: data.labels,
+            datasets: [
+                { label: '산행 횟수', data: data.counts, backgroundColor: 'rgba(59, 130, 246, 0.6)', borderRadius: 5, yAxisID: 'y', order: 2 },
+                { label: '누적 고도', data: data.heights, type: 'line', borderColor: '#ef4444', borderWidth: 2, pointBackgroundColor: '#ef4444', pointRadius: 4, tension: 0.4, yAxisID: 'y1', order: 1 }
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(30, 41, 59, 0.95)',
+                    padding: 10,
+                    callbacks: {
+                        label: function(context) {
+                            const i = context.dataIndex;
+                            return [ ` ⛰️ 누적: ${data.heights[i].toLocaleString()}m`, ` 🏔️ 최고봉: ${data.peaks[i]}`, ` 📈 횟수: ${data.counts[i]}회` ];
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { grid: { display: false }, ticks: { font: { size: 10, weight: '800' } } },
+                y: { beginAtZero: true, position: 'left', ticks: { font: { size: 8 } } },
+                y1: { beginAtZero: true, position: 'right', display: false }
+            }
+        }
+    });
 }
+
+// 팝업 제어 함수
+function showGrassPopup(e, content) {
+    if (!content) return;
+    let popup = document.getElementById('grassPopup');
+    if (!popup) {
+        popup = document.createElement('div');
+        popup.id = 'grassPopup';
+        document.body.appendChild(popup);
+    }
+    popup.innerHTML = content;
+    popup.style.display = 'block';
+    popup.style.left = `${e.clientX + 15}px`;
+    popup.style.top = `${e.clientY - 20}px`;
 }
-}
-},
-scales: {
-x: { grid: { display: false }, ticks: { font: { size: 10, weight: '800' } } },
-y: { beginAtZero: true, position: 'left', grid: { color: '#f1f5f9' }, ticks: { font: { size: 8 } } },
-y1: { beginAtZero: true, position: 'right', display: false }
-}
-}
-});
+
+function hideGrassPopup() {
+    const popup = document.getElementById('grassPopup');
+    if (popup) popup.style.display = 'none';
 }
 
 window.toggleMapView = () => {
@@ -2243,6 +2449,9 @@ const mName = document.getElementById('mountainName').value.trim();
 const height = parseInt(document.getElementById('mountainHeight').value) || 0;
 const isTop100 = document.getElementById('isTop100Check').checked;
 const isBAC = document.getElementById('isBACCheck').checked;
+const isRegular = document.getElementById('isRegularCheck').checked;
+const isRunning = document.getElementById('isRunningCheck').checked;
+const isTracking = document.getElementById('isTrackingCheck').checked;
 const region = document.getElementById('adminManualRegionSelect').value;
 if(!mName || !tempCoord) return alert("산 이름과 좌표 필수");
 if(!confirm(`[${mName}] 정보를 일괄 수정하시겠습니까?`)) return;
@@ -2263,21 +2472,40 @@ alert("수정 완료"); startRealtimeSync();
 
 let unsubscribe = null;
 function startRealtimeSync() {
-if (unsubscribe) unsubscribe();
-unsubscribe = onSnapshot(collection(db, "sanwoori"), async (snapshot) => {
-const start = Timestamp.fromDate(new Date(selectedYear, (selectedQuarter - 1) * 3, 1));
-const end = Timestamp.fromDate(new Date(selectedYear, selectedQuarter * 3, 1));
-const results = await Promise.all(snapshot.docs.map(async (docSnap) => {
-const m = { id: docSnap.id, ...docSnap.data() };
-const allLogs = await getDocs(collection(db, `sanwoori/${m.id}/logs`));
-m.qCount = allLogs.docs.filter(l => l.data().date >= start && l.data().date < end).length;
-m.totalHeight = allLogs.docs.reduce((acc, l) => acc + (l.data().height || 0), 0);
-const latestLogSnap = await getDocs(query(collection(db, `sanwoori/${m.id}/logs`), orderBy("date", "desc"), limit(1)));
-if (!latestLogSnap.empty) m.lastDate = latestLogSnap.docs[0].data().date;
-return m;
-}));
-currentData = results; updateAdminMemberLists(); renderStatusTable();
-});
+    if (unsubscribe) unsubscribe();
+    unsubscribe = onSnapshot(collection(db, "sanwoori"), async (snapshot) => {
+        const start = Timestamp.fromDate(new Date(selectedYear, (selectedQuarter - 1) * 3, 1));
+        const end = Timestamp.fromDate(new Date(selectedYear, selectedQuarter * 3, 1));
+        
+        const results = await Promise.all(snapshot.docs.map(async (docSnap) => {
+            const m = { id: docSnap.id, ...docSnap.data() };
+            
+            // [절약형 쿼리] 해당 분기의 로그만 가져옴
+            const q = query(
+                collection(db, `sanwoori/${m.id}/logs`),
+                where("date", ">=", start),
+                where("date", "<", end)
+            );
+            const qSnap = await getDocs(q);
+            
+            // ✨ [필터링] 런닝(isRunning)과 트레킹(isTracking)은 분기 횟수에서 제외
+            const hikingLogs = qSnap.docs.filter(l => {
+                const data = l.data();
+                return !data.isRunning && !data.isTracking;
+            });
+            
+            m.qCount = hikingLogs.length; // 순수 산행만 카운트
+            
+            // 누적 고도는 기존 데이터 활용 (할당량 절약을 위해 로그 전수조사 지양)
+            m.totalHeight = m.totalHeight || 0; 
+            
+            return m;
+        }));
+        
+        currentData = results; 
+        updateAdminMemberLists(); 
+        renderStatusTable();
+    });
 }
 
 // 1. 전역 변수 선언 (스크립트 최상단 혹은 함수 위쪽에 배치)
@@ -2346,86 +2574,94 @@ window.closeLevelupAlert = () => {
 };
 
 window.addMultiActivity = async () => {
-    // 1. 필요한 기본 데이터 가져오기
     const dateVal = document.getElementById('activityDate').value;
     const mName = document.getElementById('mountainName').value.trim();
-    const height = parseInt(document.getElementById('mountainHeight').value) || 0;
+    const heightValue = parseFloat(document.getElementById('mountainHeight').value) || 0;
+    
     const isTop100 = document.getElementById('isTop100Check').checked;
     const isBAC = document.getElementById('isBACCheck').checked;
+    const isRegular = document.getElementById('isRegularCheck')?.checked || false;
+    const isRunning = document.getElementById('isRunningCheck')?.checked || false;
+    const isTracking = document.getElementById('isTrackingCheck')?.checked || false;
+    
+    // ✨ 런닝 또는 트레킹 여부 확인
+    const isSpecialWorkout = isRunning || isTracking; 
+    
     const region = document.getElementById('adminManualRegionSelect').value;
-
-    // ✅ 분기 체크박스 상태 확인 (ID: isQuarterCheck)
-    // 화면에 체크박스가 없을 경우를 대비해 기본값 false 설정
     const isQuarterOnlyOne = document.getElementById('isQuarterCheck')?.checked || false;
 
     if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜 확인");
 
-    // 2. 레벨업 수치 및 날짜 타임스탬프 설정
-    const up = parseInt(document.querySelector('input[name="upAmount"]:checked').value);
+    const upElement = document.querySelector('input[name="upAmount"]:checked');
+    if(!upElement) return alert("수치를 선택해주세요.");
+    const up = parseInt(upElement.value);
     const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
 
-    // 3. 산 정보가 있을 경우 산 DB 업데이트
-    if(mName && tempCoord) {
+    // 일반 산행 정보일 때만 산 DB 업데이트
+    if(mName && tempCoord && !isSpecialWorkout) {
         await setDoc(doc(db, "mountains", mName), { 
-            x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region 
+            x: tempCoord.x, y: tempCoord.y, height: heightValue, isTop100, isBAC, region 
         }, { merge: true });
     }
 
     pendingLevelUpMessages = [];
 
-    // 4. 선택된 회원별 업데이트 루프
-    for(const id of selectedMemberIds){
-        const member = currentData.find(m => m.id === id);
-        if(!member) continue;
-        
-        const oldLevel = member.level || 0; 
-        const newLevel = oldLevel + up;
-        
-        // [A] 회원 정보 업데이트 (레벨 수치만큼 상승)
-        await updateDoc(doc(db, "sanwoori", id), { 
-            level: newLevel, 
-            lastDate: ts 
-        });
-        
-        // [B] 우정 포인트 업데이트 (2명 이상 동행 시)
-        if (selectedMemberIds.size >= 2) {
-            await updateDoc(doc(db, "sanwoori", id), { 
-                friendshipPoint: increment(10 * up) 
-            });
+    try {
+        for(const id of selectedMemberIds){
+            const member = currentData.find(m => m.id === id);
+            if(!member) continue;
+            
+            // 🔥 [수정] 일반 산행(Hiking)일 때만 회원 정보(레벨, 날짜, 포인트) 업데이트
+            if (!isSpecialWorkout) {
+                const oldLevel = member.level || 0; 
+                const newLevel = oldLevel + up;
+                
+                await updateDoc(doc(db, "sanwoori", id), { 
+                    level: newLevel, 
+                    lastDate: ts 
+                });
+                
+                if (selectedMemberIds.size >= 2) {
+                    const pointToAdd = isRegular ? 10 : (10 * up); 
+                    await updateDoc(doc(db, "sanwoori", id), { 
+                        friendshipPoint: increment(pointToAdd) 
+                    });
+                }
+                checkLevelUpgrade(member.name, oldLevel, newLevel);
+            }
+            
+            // 📝 로그 기록 (런닝/트레킹은 height 자리에 km 저장)
+            // 런닝/트레킹은 up 수치와 상관없이 무조건 로그 1회만 기록
+            const logLoopCount = isSpecialWorkout ? 1 : (isQuarterOnlyOne ? 1 : up);
+
+            for(let i = 0; i < logLoopCount; i++) {
+                await addDoc(collection(db, `sanwoori/${id}/logs`), { 
+                    date: ts, 
+                    mountain: mName, 
+                    height: heightValue, 
+                    coords: tempCoord, 
+                    isTop100, 
+                    isBAC, 
+                    isRegular, 
+                    isRunning, 
+                    isTracking, 
+                    region
+                });
+            }
         }
+
+        if (pendingLevelUpMessages.length > 0) showCombinedLevelUpAlert();
+
+        const typeMsg = isRunning ? "런닝" : (isTracking ? "트레킹" : "산행");
+        alert(`${typeMsg} 기록 완료!`); 
         
-        // [C] 로그 기록 (분기 횟수 결정 핵심 로직)
-        // ✅ '분기 체크'가 되어있으면 1회만, 아니면 선택한 레벨업(up) 수만큼 기록 생성
-        const logLoopCount = isQuarterOnlyOne ? 1 : up;
-
-        for(let i = 0; i < logLoopCount; i++) {
-            await addDoc(collection(db, `sanwoori/${id}/logs`), { 
-                date: ts, 
-                mountain: mName, 
-                height, 
-                coords: tempCoord, 
-                isTop100, 
-                isBAC, 
-                region 
-            });
-        }
-        
-        // 레벨업 축하 알림 체크
-        checkLevelUpgrade(member.name, oldLevel, newLevel);
+        selectedMemberIds.clear(); 
+        tempCoord = null; 
+        updateAdminMemberLists();
+        updateVibeTemp();
+    } catch (error) {
+        alert("실패: " + error.message);
     }
-
-    // 5. 후처리 및 알림
-    if (pendingLevelUpMessages.length > 0) {
-        showCombinedLevelUpAlert();
-    }
-
-    const logMsg = isQuarterOnlyOne ? "분기 1회만 반영" : `분기 ${up}회 반영`;
-    alert(`저장 완료 (레벨 ${up}↑ / ${logMsg})`); 
-    
-    selectedMemberIds.clear(); 
-    tempCoord = null; 
-    updateAdminMemberLists();
-    updateVibeTemp();
 };
 
 window.loadMemberLogs = async () => {
@@ -2584,64 +2820,102 @@ const q = document.getElementById('adminSearchInput').value.toLowerCase();
 document.querySelectorAll('.member-chip').forEach(c => { c.style.display = c.innerText.toLowerCase().includes(q) ? "block" : "none"; });
 };
 
-/* [완성본] 원형 열정 온도 로직 */
+/* [할당량 절약형 통합본] 전체 로그 단일 쿼리 + 리밋 적용 버전 */
 async function updateVibeTemp() {
-try {
-const twentyFourHoursAgo = Timestamp.fromMillis(Date.now() - 86400000);
-let recentLogCount = 0;
-for (const member of currentData) {
-const logSnap = await getDocs(query(collection(db, `sanwoori/${member.id}/logs`), where("date", ">=", twentyFourHoursAgo)));
-recentLogCount += logSnap.size;
+    try {
+        const twentyFourHoursAgo = Timestamp.fromMillis(Date.now() - 86400000);
+        let recentLogCount = 0;
+        let hasRecentActivity = false;
+
+        // 1. [절약 핵심] 멤버별 루프를 삭제하고 collectionGroup으로 단 1번만 쿼리
+        // 시스템 전체 logs 중 최근 24시간 기록을 최대 15개까지만 가져옵니다. (비용 극적 감소)
+        const globalLogSnap = await getDocs(query(
+            collectionGroup(db, 'logs'), 
+            where("date", ">=", twentyFourHoursAgo),
+            limit(15) 
+        ));
+
+        if (!globalLogSnap.empty) {
+            recentLogCount = globalLogSnap.size;
+            hasRecentActivity = true; 
+        }
+
+        // 2. 방문자 로그 조회 (마찬가지로 limit를 걸어 할당량 보호)
+        const visitorSnap = await getDocs(query(
+            collection(db, "visitor_logs"), 
+            where("timestamp", ">=", twentyFourHoursAgo),
+            limit(20)
+        ));
+        const recentVisitorCount = visitorSnap.size;
+
+        // 3. 점수 계산 (데이터 읽기량이 줄었으므로 점수 가중치를 살짝 조정)
+        let visitorScore = (recentVisitorCount / 5) * 10;
+        let logScore = recentLogCount * 12; // 1개 기록당 가중치를 12점으로 상향
+        
+        let tempPercent = visitorScore + logScore;
+
+        // 최근 산행 기록 보너스 (1.1배 가산)
+        if (hasRecentActivity) {
+            tempPercent = tempPercent * 1.1;
+        }
+
+        tempPercent = Math.min(tempPercent, 100);
+
+        // 4. UI 업데이트: 원형 게이지 및 바 (기존 UI 로직 유지)
+        const circleProgress = document.getElementById('vibeCircleProgress');
+        const circleIcon = document.getElementById('vibeCircleIcon');
+        const circleBtn = document.getElementById('vibeCircleBtn');
+        const gauge = document.getElementById('vibeGauge');
+        const modalIcon = document.getElementById('vibeModalIcon');
+        const status = document.getElementById('vibeStatusTxt');
+        const desc = document.getElementById('vibeDesc');
+        const scoreTxt = document.getElementById('vibeScoreTxt');
+
+        if (circleProgress) circleProgress.style.strokeDashoffset = 100 - tempPercent;
+        if (gauge) gauge.style.width = `${tempPercent}%`;
+        if (scoreTxt) scoreTxt.innerText = `${Math.floor(tempPercent)}%`;
+
+        // 5. 점수대별 상태 설정
+        let currentEmoji = "🍀";
+        if (tempPercent >= 80) {
+            currentEmoji = "🔥"; 
+            if(status) status.innerText = "EXPLOSIVE PASSION"; 
+            if(desc) desc.innerText = "현재 활동지수 최고조! 산행의 열기가 가득합니다.";
+            if(circleBtn) circleBtn.classList.add('hot-vibe');
+        } else if (tempPercent >= 50) {
+            currentEmoji = "☀️"; 
+            if(status) status.innerText = "VERY ACTIVE"; 
+            if(desc) desc.innerText = "커뮤니티가 아주 활발합니다. 함께 등산해요!";
+            if(circleBtn) circleBtn.classList.remove('hot-vibe');
+        } else if (tempPercent >= 20) {
+            currentEmoji = "🍀"; 
+            if(status) status.innerText = "WARMING UP"; 
+            if(desc) desc.innerText = "산행의 온기가 느껴집니다.";
+            if(circleBtn) circleBtn.classList.remove('hot-vibe');
+        } else {
+            currentEmoji = "❄️"; 
+            if(status) status.innerText = "CHILLING"; 
+            if(desc) desc.innerText = "조용한 숲속 같네요. 첫 산행 기록을 남겨보세요!";
+            if(circleBtn) circleBtn.classList.remove('hot-vibe');
+        }
+
+        if (circleIcon) circleIcon.innerText = currentEmoji;
+        if (modalIcon) modalIcon.innerText = currentEmoji;
+
+    } catch (e) { 
+        console.error("온도 갱신 오류:", e); 
+    }
 }
-const visitorSnap = await getDocs(query(collection(db, "visitor_logs"), where("timestamp", ">=", twentyFourHoursAgo)));
-const recentVisitorCount = visitorSnap.size;
 
-let visitorScore = (recentVisitorCount / 5) * 10;
-let logScore = recentLogCount * 10;
-let tempPercent = Math.min(visitorScore + logScore, 100);
-
-// 원형 게이지 업데이트 (Circle)
-const circleProgress = document.getElementById('vibeCircleProgress');
-const circleIcon = document.getElementById('vibeCircleIcon');
-const circleBtn = document.getElementById('vibeCircleBtn');
-
-const offset = 100 - tempPercent;
-if(circleProgress) circleProgress.style.strokeDashoffset = offset;
-
-// 모달 및 바 업데이트
-const gauge = document.getElementById('vibeGauge');
-const modalIcon = document.getElementById('vibeModalIcon');
-const status = document.getElementById('vibeStatusTxt');
-const desc = document.getElementById('vibeDesc');
-const scoreTxt = document.getElementById('vibeScoreTxt');
-
-if(gauge) gauge.style.width = `${tempPercent}%`;
-if(scoreTxt) scoreTxt.innerText = `${Math.floor(tempPercent)}%`;
-
-let currentEmoji = "🍀";
-if (tempPercent >= 80) {
-currentEmoji = "🔥"; status.innerText = "EXPLOSIVE PASSION"; desc.innerText = "현재 활동지수 최고조! 산행의 열기가 가득합니다.";
-circleBtn.classList.add('hot-vibe');
-} else if (tempPercent >= 50) {
-currentEmoji = "☀️"; status.innerText = "VERY ACTIVE"; desc.innerText = "커뮤니티가 아주 활발합니다. 함께 등산해요!";
-circleBtn.classList.remove('hot-vibe');
-} else if (tempPercent >= 20) {
-currentEmoji = "🍀"; status.innerText = "WARMING UP"; desc.innerText = "산행의 온기가 느껴집니다.";
-circleBtn.classList.remove('hot-vibe');
-} else {
-currentEmoji = "❄️"; status.innerText = "CHILLING"; desc.innerText = "조용한 숲속 같네요. 첫 산행 기록을 남겨보세요!";
-circleBtn.classList.remove('hot-vibe');
-}
-
-if(circleIcon) circleIcon.innerText = currentEmoji;
-if(modalIcon) modalIcon.innerText = currentEmoji;
-
-} catch (e) { console.error("온도 갱신 오류:", e); }
-}
-
+// 초기 실행 및 인터벌 설정
 if (!sessionStorage.getItem('visited')) { updateVisitorCount(); sessionStorage.setItem('visited', 'true'); }
 listenVisitors(); initAutoSelection(); startRealtimeSync(); listenSubRooms();
-setTimeout(() => { updateVibeTemp(); setInterval(updateVibeTemp, 60000); }, 2000);
+
+// 💡 인터벌 시간을 60000(1분) -> 300000(5분)으로 늘리면 할당량을 5배 더 아낄 수 있습니다.
+setTimeout(() => { 
+    updateVibeTemp(); 
+    setInterval(updateVibeTemp, 300000); 
+}, 2000);
 
 document.getElementById('regDate').valueAsDate = new Date();
 document.getElementById('activityDate').valueAsDate = new Date();
@@ -2929,65 +3203,119 @@ window.showMilkyWay = async (mId, mName) => {
     const board = document.getElementById('constellationBoard');
     const nameLabel = document.getElementById('mwMemberName');
     
+    if (!modal || !board) return;
+
     modal.style.display = 'flex';
-    nameLabel.innerText = `${mName}님의 은하수`;
-    board.innerHTML = ""; // 이전 기록 지우기
+    if (nameLabel) nameLabel.innerText = `${mName}님의 은하수`;
+    board.innerHTML = ""; 
 
     try {
-        // 1. 해당 유저의 모든 산행 기록 가져오기
         const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
         const logs = snap.docs
             .map(d => d.data())
-            .filter(l => l.coords) // 좌표가 있는 것만 골라내기
-            .sort((a, b) => a.date.toDate() - b.date.toDate()); // 날짜순 정렬
+            .filter(l => l.coords)
+            .sort((a, b) => a.date.toDate() - b.date.toDate());
+
+        // --- [기능 1] 계절 성좌 레이어 (오로라는 삭제됨) ---
+        const month = new Date().getMonth() + 1;
+        board.classList.remove('nebula-spring-summer', 'nebula-fall-winter');
+        if (month >= 3 && month <= 8) board.classList.add('nebula-spring-summer');
+        else board.classList.add('nebula-fall-winter');
+
+        // --- [기능 2] 활동지수 10% 상승 로직 ---
+        // 최근 24시간 이내에 등록된 기록이 있는지 확인
+        const now = new Date();
+        const oneDayAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+        
+        const hasRecentLog = logs.some(log => log.date.toDate() > oneDayAgo);
+        
+        // 활동지수 업데이트 (예시: UI에 표시하거나 DB에 반영)
+        let activityBonus = hasRecentLog ? 1.1 : 1.0; 
+        console.log(`${mName}님의 활동지수 배율: ${activityBonus}`);
 
         if (logs.length === 0) {
             board.innerHTML = "<div class='text-white/20 text-xs h-full flex items-center justify-center'>아직 기록된 별이 없습니다.</div>";
             return;
         }
 
-        // 2. 별과 선 그리기
         logs.forEach((log, index) => {
-            // 별 생성
+            const regularColors = ["#00FFFF", "#FBCEB1", "#D32F2F", "#9B84D8"];
+            let starColor = "white";
+            let shadowColor = "#FFFFFF";
+            let extraClass = "";
+            let starSize = "w-1.5 h-1.5";
+
+            if (log.isTop100) {
+                starColor = "#F7E7CE";
+                shadowColor = "#F7E7CE";
+            } else if (log.isRegular) {
+                starColor = regularColors[Math.floor(Math.random() * regularColors.length)];
+                shadowColor = starColor;
+                extraClass = "animate-gentle-shine"; 
+            }
+
             const star = document.createElement('div');
-            star.className = 'absolute w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_8px_#fff] z-10';
+            star.className = `absolute ${starSize} rounded-full z-10 ${extraClass}`;
+            star.style.backgroundColor = starColor;
+            star.style.boxShadow = `0 0 6px ${shadowColor}, 0 0 12px ${shadowColor}`;
             star.style.left = log.coords.x + "%";
             star.style.top = log.coords.y + "%";
-            star.style.transition = "all 1s ease";
+            star.style.transition = "opacity 1s ease";
             star.style.opacity = "0";
-            board.appendChild(star);
             
-            // 서서히 나타나는 효과
+            board.appendChild(star);
             setTimeout(() => { star.style.opacity = "1"; }, index * 100);
 
-            // 3. 이전 별과 연결선 그리기 (2번째 별부터)
             if (index > 0) {
                 const prev = logs[index - 1];
-                const line = document.createElement('div');
-                
-                // 두 점 사이의 거리와 각도 계산 (초보자용 공식)
                 const x1 = prev.coords.x, y1 = prev.coords.y;
                 const x2 = log.coords.x, y2 = log.coords.y;
                 const dist = Math.sqrt(Math.pow(x2-x1, 2) + Math.pow(y2-y1, 2));
                 const angle = Math.atan2(y2-y1, x2-x1) * 180 / Math.PI;
 
+                const line = document.createElement('div');
                 line.className = 'absolute bg-blue-400/20 origin-left z-0';
                 line.style.height = '0.5px';
                 line.style.width = dist + "%";
                 line.style.left = x1 + "%";
                 line.style.top = y1 + "%";
                 line.style.transform = `rotate(${angle}deg)`;
-                line.style.transition = "width 1s ease";
-                
                 board.appendChild(line);
             }
-        });
 
+            // --- [기능 3] 마지막 별 별똥별 ---
+            if (index === logs.length - 1) {
+                setTimeout(() => createShootingStar(board, log.coords.x, log.coords.y), (index * 100) + 500);
+            }
+        });
     } catch (e) {
         console.error(e);
         alert("성좌를 불러오는데 실패했습니다.");
     }
 };
+
+function createShootingStar(board, tx, ty) {
+    const s = document.createElement('div');
+    s.className = 'shooting-star';
+    const startX = tx - 20;
+    const startY = ty - 20;
+    s.style.left = startX + "%";
+    s.style.top = startY + "%";
+    s.style.transform = "rotate(45deg)";
+    board.appendChild(s);
+
+    setTimeout(() => {
+        s.style.transition = "all 0.8s cubic-bezier(0.25, 0.1, 0.25, 1)";
+        s.style.left = tx + "%";
+        s.style.top = ty + "%";
+        s.style.opacity = "1";
+    }, 50);
+
+    setTimeout(() => {
+        s.style.opacity = "0";
+        setTimeout(() => s.remove(), 500);
+    }, 850);
+}
 
 window.showFadingScroll = function(dday, level = 0) {
     const modal = document.getElementById('scrollModal');
@@ -3118,3 +3446,5 @@ window.showFadingScroll = function(dday, level = 0) {
 </script>
 </body>
     </html>   
+    
+    
