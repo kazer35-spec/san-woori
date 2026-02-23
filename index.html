@@ -12,36 +12,26 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-/* 산행(초록) + 러닝(분홍) 혼합 */
-.grass-hike-run {
-    background: linear-gradient(135deg, #2ecc71 50%, #ffd1dc 50%) !important;
-}
-
-/* 산행(초록) + 트레킹(주황) 혼합 */
-.grass-hike-track {
-    background: linear-gradient(135deg, #2ecc71 50%, #ffe4b5 50%) !important;
-}
-
-/* 러닝 + 트레킹 혼합 */
-.grass-run-track {
-    background: linear-gradient(135deg, #ffd1dc 50%, #ffe4b5 50%) !important;
-}
-
-/* 팝업 스타일 (차트 툴팁 스타일과 유사하게) */
-.grass-popup {
-    position: fixed;
-    z-index: 9999;
-    background: rgba(30, 41, 59, 0.95);
+#grassPopup {
+    position: fixed; 
+    display: none; 
+    z-index: 100000 !important; /* 모달보다 훨씬 높게 설정 */
+    background: rgba(15, 23, 42, 0.98); /* 진한 네이비/블랙 배경 */
     color: white;
-    padding: 12px;
-    border-radius: 8px;
+    padding: 10px 14px; 
+    border-radius: 8px; 
     font-size: 11px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-    pointer-events: none;
-    display: none;
-    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5); 
+    border: 1px solid rgba(255,255,255,0.2);
+    pointer-events: none; /* 클릭 방해 금지 */
+    line-height: 1.6;
 }
 
+/* 그라데이션 잔디 색상들 */
+.grass-hike-run { background: linear-gradient(135deg, #2ecc71 50%, #ffd1dc 50%) !important; }
+.grass-hike-track { background: linear-gradient(135deg, #2ecc71 50%, #ffe4b5 50%) !important; }
+.grass-run-track { background: linear-gradient(135deg, #ffd1dc 50%, #ffe4b5 50%) !important; }
+.grass-all-mix { background: linear-gradient(135deg, #2ecc71 33%, #ffd1dc 33% 66%, #ffe4b5 66%) !important; }
 
 /* 러닝: 연분홍 */
 .grass-running {
@@ -1405,7 +1395,8 @@ overflow: hidden;
 </style>
 </head>
 <body>
-<div id="levelupAlert" class="fixed inset-0 z-[200] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
+
+    <div id="levelupAlert" class="fixed inset-0 z-[200] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
     <div class="bg-white rounded-3xl p-8 max-w-sm w-[90%] text-center shadow-2xl transform scale-90 transition-transform duration-300 ease-out border-4 border-yellow-400">
         <div class="text-5xl mb-4">🎊</div>
         <h2 id="levelUpTitle" class="text-2xl font-black text-slate-800 mb-2">LEVEL UP!</h2>
@@ -1726,7 +1717,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 </div>
 
 <div class="flex justify-between items-center mb-2">
-<p class="text-[10px] font-extrabold text-slate-500">🌱 분기 산행 잔디</p>
+<p class="text-[10px] font-extrabold text-slate-500">🌱 분기 운동 잔디</p>
 
 <div class="flex items-center gap-1.5">
 <div id="passionVibeArea"></div>
@@ -1754,7 +1745,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 </div>
 
 <button onclick="toggleLogPopup(true)" class="btn-open-log">
-<span>📜 최근 산행 일지 자세히 보기</span>
+<span>📜 최근 운동 일지 자세히 보기</span>
 <span class="text-sky-300">▶</span>
 </button>
 
@@ -2155,9 +2146,8 @@ listArea.innerHTML = combinedHtml;
 
 window.toggleVibeModal = (show) => { document.getElementById('vibeModal').style.display = show ? 'flex' : 'none'; };
 
-/* [통합 버전] 운동 잔디 + km 단위 + 상세 일지 팝업 */
-/* [최종 통합본] 그라데이션 잔디 + 커스텀 팝업 + 런닝/트레킹 구분 */
-window.showMemberTimeline = async (mId, mName) => {
+/* [완전 통합본] 차트 툴팁 상세 + 그라데이션 잔디 + 클릭 팝업 + 통계 분리 */
+Window.showMemberTimeline = async (mId, mName) => {
     toggleTimelineModal(true);
     const modalContent = document.getElementById('timelineModalContent');
     modalContent.scrollTop = 0;
@@ -2185,6 +2175,7 @@ window.showMemberTimeline = async (mId, mName) => {
         const logsAll = snapAll.docs.map(doc => ({ ...doc.data(), date: doc.data().date.toDate() }));
         const logsQuarter = logsAll.filter(l => l.date >= start && l.date < end);
         
+        // 📊 차트 데이터 계산 및 렌더링
         const chartData = await calculateGrowthData(mId);
         renderGrowthChart(chartData);
 
@@ -2193,7 +2184,7 @@ window.showMemberTimeline = async (mId, mName) => {
         const recentCount = logsAll.filter(l => l.date >= thirtyDaysAgo).length;
         if(recentCount >= 4) vibeArea.innerHTML = `<span class="hot-vibe flex items-center h-[18px] text-[9px] font-black text-orange-500 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-100">🔥 HOT</span>`;
 
-        // 🟢 날짜별 데이터 그룹화 (그라데이션 및 팝업용)
+        // 🟢 날짜별 데이터 그룹화
         const dateMap = {}; 
         logsQuarter.forEach(l => { 
             const key = `${l.date.getFullYear()}-${l.date.getMonth() + 1}-${l.date.getDate()}`;
@@ -2221,7 +2212,6 @@ window.showMemberTimeline = async (mId, mName) => {
                 const hasRun = types.includes('run');
                 const hasTrack = types.includes('track');
 
-                // 클래스(색상) 결정 로직
                 if (hasHike && hasRun && hasTrack) cl = "grass-all-mix";
                 else if (hasHike && hasRun) cl = "grass-hike-run";
                 else if (hasHike && hasTrack) cl = "grass-hike-track";
@@ -2230,7 +2220,6 @@ window.showMemberTimeline = async (mId, mName) => {
                 else if (hasRun) cl = "grass-running";
                 else if (hasTrack) cl = "grass-tracking";
 
-                // 팝업 텍스트 생성
                 popContent = `<b style='color:#94a3b8; font-size:10px;'>${k}</b><br>`;
                 popContent += activities.map(a => {
                     const icon = a.type === 'run' ? '🏃' : a.type === 'track' ? '🚶' : '⛰️';
@@ -2238,9 +2227,9 @@ window.showMemberTimeline = async (mId, mName) => {
                 }).join('<br>');
             }
             
+            // ✨ 클릭 이벤트 통합
             grassHtml += `<div class="grass-day ${cl}" 
-                               onmouseover="showGrassPopup(event, \`${popContent}\`)" 
-                               onmouseout="hideGrassPopup()"
+                               onclick="showGrassPopup(event, \`${popContent}\`)" 
                                style="cursor:pointer;"></div>`;
         }
         grassBoard.innerHTML = grassHtml;
@@ -2270,7 +2259,7 @@ window.showMemberTimeline = async (mId, mName) => {
     } catch (e) { container.innerHTML = "<p class='text-center text-xs text-red-400'>로드 실패</p>"; }
 };
 
-/* [성장 데이터] 런닝/트레킹은 통계에서 제외 */
+/* [성장 데이터] */
 async function calculateGrowthData(mId) {
     const labels = []; const counts = []; const heights = []; const peaks = [];
     for (let i = 3; i >= 0; i--) {
@@ -2279,13 +2268,7 @@ async function calculateGrowthData(mId) {
         labels.push(`${q}Q`);
         const qStart = new Date(y, (q - 1) * 3, 1);
         const qEnd = new Date(y, q * 3, 1);
-        
-        const qSnap = await getDocs(query(
-            collection(db, `sanwoori/${mId}/logs`), 
-            where("date", ">=", Timestamp.fromDate(qStart)), 
-            where("date", "<", Timestamp.fromDate(qEnd))
-        ));
-
+        const qSnap = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), where("date", ">=", Timestamp.fromDate(qStart)), where("date", "<", Timestamp.fromDate(qEnd))));
         let hikingCount = 0; let totalH = 0; let maxH = 0; let peakName = "-";
         qSnap.forEach(d => {
             const data = d.data();
@@ -2300,7 +2283,7 @@ async function calculateGrowthData(mId) {
     return { labels, counts, heights, peaks };
 }
 
-/* 차트 렌더링 */
+/* [차트 렌더링] - 툴팁 상세 데이터 포함 */
 function renderGrowthChart(data) {
     const ctx = document.getElementById('growthChart').getContext('2d');
     if (window.growthChartInstance) window.growthChartInstance.destroy();
@@ -2323,7 +2306,12 @@ function renderGrowthChart(data) {
                     callbacks: {
                         label: function(context) {
                             const i = context.dataIndex;
-                            return [ ` ⛰️ 누적: ${data.heights[i].toLocaleString()}m`, ` 🏔️ 최고봉: ${data.peaks[i]}`, ` 📈 횟수: ${data.counts[i]}회` ];
+                            // 요청하신 데이터 빼먹지 않고 추가!
+                            return [ 
+                                ` ⛰️ 누적: ${data.heights[i].toLocaleString()}m`, 
+                                ` 🏔️ 최고봉: ${data.peaks[i]}`, 
+                                ` 📈 횟수: ${data.counts[i]}회` 
+                            ];
                         }
                     }
                 }
@@ -2337,24 +2325,32 @@ function renderGrowthChart(data) {
     });
 }
 
-// 팝업 제어 함수
+/* [팝업 제어] 클릭 시 고정 및 외부 클릭 시 닫기 */
 function showGrassPopup(e, content) {
-    if (!content) return;
+    e.stopPropagation();
+    if (!content || content.includes('undefined')) return;
+
     let popup = document.getElementById('grassPopup');
     if (!popup) {
         popup = document.createElement('div');
         popup.id = 'grassPopup';
         document.body.appendChild(popup);
     }
+
     popup.innerHTML = content;
     popup.style.display = 'block';
-    popup.style.left = `${e.clientX + 15}px`;
-    popup.style.top = `${e.clientY - 20}px`;
+    popup.style.left = `${e.clientX + 10}px`;
+    popup.style.top = `${e.clientY - 40}px`;
+
+    const closeHandler = () => {
+        popup.style.display = 'none';
+        document.removeEventListener('click', closeHandler);
+    };
+    setTimeout(() => document.addEventListener('click', closeHandler), 10);
 }
 
 function hideGrassPopup() {
-    const popup = document.getElementById('grassPopup');
-    if (popup) popup.style.display = 'none';
+    // 클릭 방식으로 변경하여 호버 시 닫히는 기능은 유지하되 내용은 비워둘 수 있음
 }
 
 window.toggleMapView = () => {
@@ -3446,5 +3442,4 @@ window.showFadingScroll = function(dday, level = 0) {
 </script>
 </body>
     </html>   
-    
     
