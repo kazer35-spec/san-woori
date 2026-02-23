@@ -12,22 +12,20 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-@keyframes soft-twinkle {
+@keyframes gentle-shine {
     0%, 100% { 
-        opacity: 0.4;
-        transform: scale(0.9);
-        box-shadow: 0 0 3px rgba(255,255,255,0.2);
+        opacity: 1;
+        filter: brightness(1);
     }
     50% { 
-        opacity: 1;
-        transform: scale(1.1);
-        box-shadow: 0 0 8px rgba(255,255,255,0.5);
+        opacity: 0.6;
+        filter: brightness(1.2); /* 아주 미세하게만 밝아짐 */
     }
 }
 
-.animate-soft-twinkle {
-    /* 3초 동안 아주 천천히 박동 */
-    animation: soft-twinkle 3s infinite ease-in-out;
+.animate-gentle-shine {
+    /* 4초 주기로 아주 천천히 반짝임 */
+    animation: gentle-shine 4s infinite ease-in-out;
 }
 
 @keyframes star-blink {
@@ -3007,40 +3005,37 @@ window.showMilkyWay = async (mId, mName) => {
         }
 
         logs.forEach((log, index) => {
-            const regularColors = ["#E0FFFF", "#FFF0F5", "#F0F8FF", "#F5F5F5"]; // 은은한 파스텔 톤
-            let starColor = "rgba(255, 255, 255, 0.9)";
-            let shadowColor = "rgba(255, 255, 255, 0.4)";
+            // --- 원래 색상 및 설정 유지 ---
+            const regularColors = ["#00FFFF", "#FBCEB1", "#D32F2F", "#9B84D8"];
+            let starColor = "white";
+            let shadowColor = "#FFFFFF";
             let extraClass = "";
-            let starSize = "w-1 h-1"; // 조금 더 작고 섬세하게 변경
+            let starSize = "w-1.5 h-1.5"; // 요청하신 대로 크기 통일
 
-            if (log.isRegular) {
-                // 정기산행: 부드러운 파스텔 색상 + 은은한 트윙클 효과
+            if (log.isTop100) {
+                starColor = "#F7E7CE";
+                shadowColor = "#F7E7CE";
+            } else if (log.isRegular) {
                 starColor = regularColors[Math.floor(Math.random() * regularColors.length)];
                 shadowColor = starColor;
-                extraClass = "animate-soft-twinkle"; 
-                starSize = "w-1.5 h-1.5"; // 정기산행은 아주 살짝만 크게
-            } else if (log.isTop100) {
-                starColor = "#F7E7CE";
-                shadowColor = "rgba(247, 231, 206, 0.5)";
+                // 천천히 반짝이는 클래스만 추가
+                extraClass = "animate-gentle-shine"; 
             }
 
             const star = document.createElement('div');
             star.className = `absolute ${starSize} rounded-full z-10 ${extraClass}`;
             star.style.backgroundColor = starColor;
-            
-            // 그림자를 넓고 흐리게(Blur) 설정하여 은은한 잔상 효과
-            star.style.boxShadow = `0 0 5px ${shadowColor}, 0 0 10px ${shadowColor}`;
+            // 광채 효과 원래 수치 유지 (6px, 12px)
+            star.style.boxShadow = `0 0 6px ${shadowColor}, 0 0 12px ${shadowColor}`;
             star.style.left = log.coords.x + "%";
             star.style.top = log.coords.y + "%";
-            
-            star.style.transition = "opacity 1.5s ease-in";
+            star.style.transition = "opacity 1s ease";
             star.style.opacity = "0";
             
             board.appendChild(star);
+            setTimeout(() => { star.style.opacity = "1"; }, index * 100);
 
-            setTimeout(() => { star.style.opacity = "1"; }, index * 120);
-
-            // 선(Line) 연결: 더 가늘고 투명하게
+            // 선 연결 로직 유지
             if (index > 0) {
                 const prev = logs[index - 1];
                 const x1 = prev.coords.x, y1 = prev.coords.y;
@@ -3049,21 +3044,18 @@ window.showMilkyWay = async (mId, mName) => {
                 const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
 
                 const line = document.createElement('div');
-                line.className = 'absolute bg-white/5 origin-left z-0'; // 투명도를 매우 낮춤
-                line.style.height = '0.3px';
+                line.className = 'absolute bg-blue-400/20 origin-left z-0';
+                line.style.height = '0.5px';
                 line.style.width = dist + "%";
                 line.style.left = x1 + "%";
                 line.style.top = y1 + "%";
                 line.style.transform = `rotate(${angle}deg)`;
-                line.style.transition = "opacity 2s ease";
-                line.style.opacity = "0";
-                
                 board.appendChild(line);
-                setTimeout(() => { line.style.opacity = "1"; }, index * 120);
             }
         });
     } catch (e) {
         console.error(e);
+        alert("성좌를 불러오는데 실패했습니다.");
     }
 };
 
