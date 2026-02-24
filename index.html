@@ -1970,7 +1970,8 @@ container.innerHTML = subRoomsData.map(room => `
 <button onclick="updateSubRoom('${room.id}', ${!room.isActive})" class="admin-room-toggle ${room.isActive ? 'bg-red-500 text-white' : 'bg-gray-300 text-gray-600'}">${room.isActive ? 'ON' : 'OFF'}</button>
 </div>`).join('');
 }
-window.updateSubRoom = async (roomId, nextActive) => {
+
+    window.updateSubRoom = async (roomId, nextActive) => {
 let msgInput = document.getElementById(`msg-${roomId}`);
 let msg = msgInput.value;
 if (!nextActive) { msg = ""; msgInput.value = ""; }
@@ -2137,22 +2138,77 @@ const recentCount = logsAll.filter(l => l.date >= thirtyDaysAgo).length;
 if(recentCount >= 4) vibeArea.innerHTML = vibeArea.innerHTML = `<span class="hot-vibe flex items-center h-[18px] text-[9px] font-black text-orange-500 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-100">🔥 HOT</span>`;
 
 const dateCounts = {}; logsQuarter.forEach(l => { const key = `${l.date.getFullYear()}-${l.date.getMonth() + 1}-${l.date.getDate()}`; dateCounts[key] = (dateCounts[key] || 0) + 1; });
-let grassHtml = "";
-for (let i = 0; i < totalDaysInQ; i++) {
-const cur = new Date(start); cur.setDate(start.getDate() + i);
-const k = `${cur.getFullYear()}-${cur.getMonth() + 1}-${cur.getDate()}`;
-const c = dateCounts[k] || 0;
-let cl = (c >= 4) ? "grass-active-4" : (c === 3 ? "grass-active-3" : (c === 2 ? "grass-active-2" : (c === 1 ? "grass-active-1" : "")));
-grassHtml += `<div class="grass-day ${cl}"></div>`;
-}
-grassBoard.innerHTML = grassHtml;
+        // --- 이 부분을 찾아서 아래 내용으로 교체하세요 ---
+        let grassHtml = "";
+        for (let i = 0; i < totalDaysInQ; i++) {
+            const cur = new Date(start); cur.setDate(start.getDate() + i);
+            const k = `${cur.getFullYear()}-${cur.getMonth() + 1}-${cur.getDate()}`;
+            
+            // [교체 시작점] 날짜별 활동 판별 로직
+            let hasHiking = false; 
+            let hasRunning = false; 
+            let hasTracking = false;
+            let dayLogsCount = 0;
+
+            logsQuarter.forEach(l => {
+                const lk = `${l.date.getFullYear()}-${l.date.getMonth()+1}-${l.date.getDate()}`;
+                if(lk === k) {
+                    dayLogsCount++;
+                    if(l.isRunning) hasRunning = true;
+                    else if(l.isTracking) hasTracking = true;
+                    else hasHiking = true;
+                }
+            });
+
+            let bgColor = "";
+            if(dayLogsCount > 0) {
+                if(hasHiking && (hasRunning || hasTracking)) {
+                    // 산행 + 운동 섞인 날: 반반 그라데이션
+                    bgColor = "linear-gradient(135deg, #3b82f6 50%, #f472b6 50%)"; 
+                } else if(hasRunning) {
+                    bgColor = "#fbcfe8"; // 연분홍
+                } else if(hasTracking) {
+                    bgColor = "#ffedd5"; // 연주황
+                } else if(hasHiking) {
+                    // 일반 산행은 기존처럼 횟수가 많으면 진한 파랑색으로 표시
+                    bgColor = (dayLogsCount >= 4) ? "#1e3a8a" : (dayLogsCount === 3 ? "#1d4ed8" : (dayLogsCount === 2 ? "#3b82f6" : "#60a5fa"));
+                }
+            } else {
+                bgColor = "#ebedf0"; // 기록 없는 날 기본 색상
+            }
+
+            // 잔디 생성 및 클릭 이벤트 연결
+            grassHtml += `<div class="grass-day" 
+                style="background: ${bgColor}; cursor:pointer;" 
+               
+ onclick="window.showExercisePopup('${k}', '${mId}')"></div>`;
+            // [교체 끝점]
+        }
+        grassBoard.innerHTML = grassHtml;
 document.getElementById('timelineCountBadge').innerText = `분기 ${logsQuarter.length}회 / 최근 ${logsAll.length}회`;
 if(logsAll.length === 0) { container.innerHTML = "<p class='text-center text-[10px] py-10 text-gray-400'>기록 없음</p>"; return; }
 container.innerHTML = logsAll.map(log => {
-const dayName = ['일','월','화','수','목','금','토'][log.date.getDay()];
-const top100Class = log.isTop100 ? 'text-blue-600 font-black' : '';
-const bacTag = log.isBAC ? '<span class="bac-txt">BAC</span>' : '';
-return `<div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-date">${log.date.getFullYear()}.${log.date.getMonth()+1}.${log.date.getDate()} (${dayName})</div><div class="timeline-desc ${top100Class}">${bacTag}${log.mountain || '기록'} (${log.height || 0}m) ${log.isTop100 ? '⭐' : '✔️'}</div></div>`;
+    const dayName = ['일','월','화','수','목','금','토'][log.date.getDay()];
+    
+    // 1. 운동 여부 및 스타일 판별
+    const isEx = log.isRunning || log.isTracking;
+    const unit = isEx ? "km" : "m";
+    const exClass = log.isRunning ? "text-pink-400 font-bold" : (log.isTracking ? "text-orange-400 font-bold" : "");
+    const exIcon = log.isRunning ? "🏃" : (log.isTracking ? "🚶" : "⛰️");
+
+    // 2. 산행 전용 태그 (100대 명산, BAC) - 운동 기록일 때는 안 나오게 처리
+    const top100Class = (!isEx && log.isTop100) ? 'text-blue-600 font-black' : '';
+    const bacTag = (!isEx && log.isBAC) ? '<span class="bac-txt">BAC</span>' : '';
+    const mountainSuffix = (!isEx) ? (log.isTop100 ? '⭐' : '✔️') : '';
+
+    return `
+        <div class="timeline-item">
+            <div class="timeline-dot"></div>
+            <div class="timeline-date">${log.date.getFullYear()}.${log.date.getMonth()+1}.${log.date.getDate()} (${dayName})</div>
+            <div class="timeline-desc ${top100Class} ${exClass}">
+                ${bacTag}${exIcon} ${log.mountain || '기록'} (${log.height || 0}${unit}) ${mountainSuffix}
+            </div>
+        </div>`;
 }).join('');
 } catch (e) { container.innerHTML = "<p class='text-center text-xs text-red-400'>실패</p>"; }
 };
@@ -2412,99 +2468,158 @@ window.closeLevelupAlert = () => {
     }, 500);
 };
 
+<div id="exerciseMiniPopup" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:white; padding:15px; border-radius:15px; box-shadow:0 10px 25px rgba(0,0,0,0.2); z-index:1000; width:200px; text-align:center;">
+    <h4 id="popDate" style="font-size:12px; color:#888; margin-bottom:5px;"></h4>
+    <div id="popContent" style="font-size:14px; font-weight:bold;"></div>
+    <button onclick="this.parentElement.style.display='none'" style="margin-top:10px; font-size:11px; color:#aaa; border:none; background:none;">닫기</button>
+</div>
+
+/* -----------------------------------------------------------
+   1. 잔디 클릭 시 상세 활동 팝업 (showExercisePopup)
+----------------------------------------------------------- */
+window.showExercisePopup = async (dateStr, mId) => {
+    const pop = document.getElementById('exerciseMiniPopup');
+    const content = document.getElementById('popContent');
+    const dateLabel = document.getElementById('popDate');
+    
+    if (!pop || !content) return;
+
+    dateLabel.innerText = dateStr;
+    content.innerHTML = "<div class='text-xs text-gray-400'>불러오는 중...</div>";
+    pop.style.display = 'block';
+    
+    try {
+        // 해당 날짜 로그만 필터링 (쿼리 최적화)
+        const snap = await getDocs(query(collection(db, `sanwoori/${mId}/logs`)));
+        const targetLogs = snap.docs.map(d => d.data()).filter(l => {
+            const d = l.date.toDate();
+            const lk = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+            return lk === dateStr;
+        });
+
+        if (targetLogs.length === 0) {
+            content.innerHTML = "<div class='text-xs text-gray-400'>기록이 없습니다.</div>";
+        } else {
+            content.innerHTML = targetLogs.map(l => {
+                const unit = (l.isRunning || l.isTracking) ? "km" : "m";
+                const icon = l.isRunning ? "🏃" : (l.isTracking ? "🚶" : "⛰️");
+                const mtName = l.mountain || "활동";
+                return `<div class="py-1 border-b border-gray-50 last:border-0">${icon} ${mtName} (${l.height}${unit})</div>`;
+            }).join('');
+        }
+    } catch (e) {
+        console.error("팝업 로드 에러:", e);
+        content.innerHTML = "<div class='text-xs text-red-400'>로드 실패</div>";
+    }
+};
+
+/* -----------------------------------------------------------
+   2. 일괄 활동 등록 로직 (addMultiActivity)
+----------------------------------------------------------- */
 window.addMultiActivity = async () => {
-    // 1. 필요한 기본 데이터 가져오기
+    // [기본 데이터 수집]
     const dateVal = document.getElementById('activityDate').value;
     const mName = document.getElementById('mountainName').value.trim();
     const height = parseInt(document.getElementById('mountainHeight').value) || 0;
     const isTop100 = document.getElementById('isTop100Check').checked;
     const isBAC = document.getElementById('isBACCheck').checked;
     
-    // ✅ 누락되었던 체크박스 변수 정의 추가
     const isRegular = document.getElementById('isRegularCheck')?.checked || false;
     const isRunning = document.getElementById('isRunningCheck')?.checked || false;
     const isTracking = document.getElementById('isTrackingCheck')?.checked || false;
-    
+    const isQuarterOnlyOne = document.getElementById('isQuarterCheck')?.checked || false;
     const region = document.getElementById('adminManualRegionSelect').value;
 
-    // ✅ 분기 체크박스 상태 확인
-    const isQuarterOnlyOne = document.getElementById('isQuarterCheck')?.checked || false;
+    const isExercise = isRunning || isTracking; // 운동 모드 여부
 
-    if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜 확인");
+    if(!selectedMemberIds.size || !dateVal) return alert("대상 회원과 날짜를 확인해주세요.");
 
-    // 2. 레벨업 수치 및 날짜 타임스탬프 설정
+    // [레벨업 수치 확인]
     const upElement = document.querySelector('input[name="upAmount"]:checked');
     if(!upElement) return alert("레벨업 수치를 선택해주세요.");
     const up = parseInt(upElement.value);
     const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
 
-    // 3. 산 정보가 있을 경우 산 DB 업데이트
+    // [산 정보 업데이트]
     if(mName && tempCoord) {
         await setDoc(doc(db, "mountains", mName), { 
             x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region 
         }, { merge: true });
     }
 
-    pendingLevelUpMessages = [];
+    pendingLevelUpMessages = []; // 레벨업 알림 초기화
 
     try {
-        // 4. 선택된 회원별 업데이트 루프
         for(const id of selectedMemberIds){
             const member = currentData.find(m => m.id === id);
             if(!member) continue;
             
-            const oldLevel = member.level || 0; 
-            const newLevel = oldLevel + up;
-            
-            // [A] 회원 정보 업데이트
-            await updateDoc(doc(db, "sanwoori", id), { 
-                level: newLevel, 
-                lastDate: ts 
-            });
-            
-            // [B] 우정 포인트 업데이트
-            if (selectedMemberIds.size >= 2) {
-                // 정기산행이면 10점, 아니면 원래대로 10 * up
-                const pointToAdd = isRegular ? 10 : (10 * up); 
-                await updateDoc(doc(db, "sanwoori", id), { 
-                    friendshipPoint: increment(pointToAdd) 
-                });
-            }
-            
-            // [C] 로그 기록 (분기 횟수 결정)
-            const logLoopCount = isQuarterOnlyOne ? 1 : up;
-
-            for(let i = 0; i < logLoopCount; i++) {
+            if (isExercise) {
+                // 🏃 [운동 모드] 로그만 1회 기록 (레벨/D-Day/우정점수 영향 없음)
                 await addDoc(collection(db, `sanwoori/${id}/logs`), { 
                     date: ts, 
-                    mountain: mName, 
+                    mountain: mName || (isRunning ? "러닝" : "트레킹"), 
                     height, 
-                    coords: tempCoord, 
-                    isTop100, 
-                    isBAC, 
-                    isRegular, 
+                    coords: tempCoord || null,
                     isRunning, 
                     isTracking, 
+                    isRegular: false,
+                    isExercise: true,
                     region
                 });
+            } else {
+                // ⛰️ [일반 산행 모드] 기존 로직 수행
+                const oldLevel = member.level || 0; 
+                const newLevel = oldLevel + up;
+                
+                // [A] 회원 정보 업데이트
+                await updateDoc(doc(db, "sanwoori", id), { 
+                    level: newLevel, 
+                    lastDate: ts 
+                });
+                
+                // [B] 우정 포인트 업데이트 (2인 이상 산행 시)
+                if (selectedMemberIds.size >= 2) {
+                    const pointToAdd = isRegular ? 10 : (10 * up); 
+                    await updateDoc(doc(db, "sanwoori", id), { 
+                        friendshipPoint: increment(pointToAdd) 
+                    });
+                }
+                
+                // [C] 로그 기록 (up 횟수만큼 또는 1회)
+                const logLoopCount = isQuarterOnlyOne ? 1 : up;
+                for(let i = 0; i < logLoopCount; i++) {
+                    await addDoc(collection(db, `sanwoori/${id}/logs`), { 
+                        date: ts, 
+                        mountain: mName, 
+                        height, 
+                        coords: tempCoord || null, 
+                        isTop100, isBAC, isRegular, 
+                        isRunning: false, isTracking: false, 
+                        region
+                    });
+                }
+                // 레벨업 체크 함수 호출
+                if(typeof checkLevelUpgrade === 'function') {
+                    checkLevelUpgrade(member.name, oldLevel, newLevel);
+                }
             }
-            
-            // 레벨업 축하 알림 체크
-            checkLevelUpgrade(member.name, oldLevel, newLevel);
         }
 
-        // 5. 후처리 및 알림
-        if (pendingLevelUpMessages.length > 0) {
+        // [알림 및 후처리]
+        if (!isExercise && pendingLevelUpMessages.length > 0) {
             showCombinedLevelUpAlert();
         }
 
-        const logMsg = isQuarterOnlyOne ? "분기 1회만 반영" : `분기 ${up}회 반영`;
-        alert(`저장 완료 (레벨 ${up}↑ / ${logMsg})`); 
+        const logMsg = isExercise ? "운동 기록 완료(km)" : (isQuarterOnlyOne ? "분기 1회만 반영" : `분기 ${up}회 반영`);
+        alert(`저장 완료! (${logMsg})`); 
         
+        // 상태 초기화
         selectedMemberIds.clear(); 
         tempCoord = null; 
-        updateAdminMemberLists();
-        updateVibeTemp();
+        if(typeof updateAdminMemberLists === 'function') updateAdminMemberLists();
+        if(typeof updateVibeTemp === 'function') updateVibeTemp();
+
     } catch (error) {
         console.error("저장 중 에러 발생:", error);
         alert("저장에 실패했습니다: " + error.message);
@@ -3293,5 +3408,3 @@ window.showFadingScroll = function(dday, level = 0) {
 </script>
 </body>
     </html>   
-
-    
