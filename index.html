@@ -1405,7 +1405,8 @@ overflow: hidden;
 </style>
 </head>
 <body>
-<div id="levelupAlert" class="fixed inset-0 z-[200] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
+
+    <div id="levelupAlert" class="fixed inset-0 z-[200] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
     <div class="bg-white rounded-3xl p-8 max-w-sm w-[90%] text-center shadow-2xl transform scale-90 transition-transform duration-300 ease-out border-4 border-yellow-400">
         <div class="text-5xl mb-4">🎊</div>
         <h2 id="levelUpTitle" class="text-2xl font-black text-slate-800 mb-2">LEVEL UP!</h2>
@@ -2664,7 +2665,7 @@ window.addMultiActivity = async () => {
     }
 };
 
-window.loadMemberLogs = async () => {
+    window.loadMemberLogs = async () => {
 const id = document.getElementById('memberSelectEdit').value;
 const area = document.getElementById('logListArea'); area.innerHTML = ""; if(!id) return;
 const snap = await getDocs(query(collection(db, `sanwoori/${id}/logs`), orderBy("date", "desc"), limit(20)));
@@ -2682,17 +2683,32 @@ area.innerHTML += `<div class="log-item-box" onclick="selectLogToMap('${logJson}
 };
 
 window.selectLogToMap = (logDataStr) => {
-const log = JSON.parse(logDataStr.replace(/&quot;/g, '"'));
-document.getElementById('mountainName').value = log.mountain;
-document.getElementById('mountainHeight').value = log.height;
-document.getElementById('isTop100Check').checked = log.isTop100;
-document.getElementById('isBACCheck').checked = log.isBAC || false;
-document.getElementById('adminManualRegionSelect').value = log.region || '기타';
-toggleMarkerStyle();
-if (log.coords) {
-tempCoord = log.coords; const marker = document.getElementById('adminMapMarker');
-marker.style.left = log.coords.x + "%"; marker.style.top = log.coords.y + "%"; marker.classList.remove('hidden');
-}
+    const log = JSON.parse(logDataStr.replace(/&quot;/g, '"'));
+    
+    // 1. 기존 Input 필드 값 채우기 (관리자 수정창)
+    const heightInput = document.getElementById('mountainHeight');
+    if(heightInput) heightInput.value = log.height || 0;
+    
+    const nameInput = document.getElementById('mountainName');
+    if(nameInput) nameInput.value = log.mountain || '';
+
+    // 2. [추가] 지도 위 마커 옆에 고도를 표시 (ID가 존재할 경우)
+    const heightDisplay = document.getElementById('adminMapHeightDisplay'); 
+    if(heightDisplay) heightDisplay.innerText = `${log.height || 0}m`;
+
+    document.getElementById('isTop100Check').checked = log.isTop100;
+    document.getElementById('isBACCheck').checked = log.isBAC || false;
+    document.getElementById('adminManualRegionSelect').value = log.region || '기타';
+    
+    toggleMarkerStyle();
+
+    if (log.coords) {
+        tempCoord = log.coords;
+        const marker = document.getElementById('adminMapMarker');
+        marker.style.left = log.coords.x + "%";
+        marker.style.top = log.coords.y + "%";
+        marker.classList.remove('hidden');
+    }
 };
 
 window.updateLogHeight = async (mId, logId) => {
