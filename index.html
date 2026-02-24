@@ -2114,7 +2114,8 @@ window.showMemberTimeline = async (mId, mName) => {
     const vibeArea = document.getElementById('passionVibeArea');
     const chartBox = document.getElementById('chartBox');
 
-    // 기본 정보 세팅
+    // 1. 기본 텍스트 및 정보 세팅
+    document.getElementById('timelineMemberName').innerText = mName;
     const memberInfo = currentData.find(m => m.id === mId);
     const friendshipPoint = memberInfo?.friendshipPoint || 0;
     document.getElementById('memberFriendshipPoint').innerText = friendshipPoint.toLocaleString();
@@ -2128,34 +2129,28 @@ window.showMemberTimeline = async (mId, mName) => {
         const end = new Date(selectedYear, selectedQuarter * 3, 1);
         const totalDaysInQ = Math.floor((end - start) / (1000 * 60 * 60 * 24));
 
-        // 데이터 로드
+        // 2. 데이터 로드 (원래 코드 스타일 유지)
         const snapAll = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc")));
         const logsAll = snapAll.docs.map(doc => ({ ...doc.data(), date: doc.data().date.toDate() }));
         const logsQuarter = logsAll.filter(l => l.date >= start && l.date < end);
-        
-        // --- [1. 상단 통계 복구 및 HOT 뱃지] ---
-        const thirtyDaysAgo = new Date(); 
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        // --- [복구] 우측 상단 배지에 분기/최근 횟수 표시 ---
+        const badge = document.getElementById('timelineCountBadge');
+        if(badge) {
+            badge.innerText = `분기 ${logsQuarter.length}회 / 최근 ${logsAll.length}회`;
+        }
+
+        // 3. 차트 및 HOT 뱃지
+        const chartData = await calculateGrowthData(mId);
+        renderGrowthChart(chartData);
+
+        const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
         const recentCount = logsAll.filter(l => l.date >= thirtyDaysAgo).length;
-        const quarterCount = logsQuarter.length;
-
-        // 이름 옆에 통계 표시
-        document.getElementById('timelineMemberName').innerHTML = `
-            ${mName} 
-            <span style="font-size:10px; margin-left:8px; color:#94a3b8; font-weight:normal;">
-                최근 <b style="color:#3b82f6">${recentCount}</b> / 분기 <b style="color:#10b981">${quarterCount}</b>
-            </span>`;
-
-        // HOT 뱃지 조건
         if(recentCount >= 4) {
             vibeArea.innerHTML = `<span class="hot-vibe flex items-center h-[18px] text-[9px] font-black text-orange-500 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-100">🔥 HOT</span>`;
         }
 
-        // 차트 렌더링
-        const chartData = await calculateGrowthData(mId);
-        renderGrowthChart(chartData);
-
-        // --- [2. 잔디 데이터 분석] ---
+        // 4. 잔디 보드 분석 및 생성
         const dateActivities = {}; 
         logsQuarter.forEach(l => { 
             const key = `${l.date.getFullYear()}-${l.date.getMonth() + 1}-${l.date.getDate()}`;
@@ -2165,7 +2160,6 @@ window.showMemberTimeline = async (mId, mName) => {
             else dateActivities[key].hike++;
         });
 
-        // --- [3. 잔디 보드 HTML 생성 (통합)] ---
         let grassHtml = "";
         for (let i = 0; i < totalDaysInQ; i++) {
             const cur = new Date(start); 
@@ -2178,50 +2172,45 @@ window.showMemberTimeline = async (mId, mName) => {
 
             if (act) {
                 const hasHike = act.hike > 0;
-                const hasRun = act.run > 0;
-                const hasTrek = act.trek > 0;
-                
-                if (hasHike && (hasRun || hasTrek)) {
-                    const subColor = hasRun ? "#FFD1DC" : "#E0B0FF";
+                const hasExtra = act.run > 0 || act.trek > 0;
+                if (hasHike && hasExtra) {
+                    const subColor = act.run > 0 ? "#FFD1DC" : "#E0B0FF";
                     style = `background: linear-gradient(135deg, #2ecc71 50%, ${subColor} 50%);`;
-                } else if (hasRun) {
-                    style = "background: #FFD1DC;"; 
-                } else if (hasTrek) {
-                    style = "background: #E0B0FF;"; 
-                } else if (hasHike) {
+                } else if (act.run > 0) { style = "background: #FFD1DC;"; }
+                else if (act.trek > 0) { style = "background: #E0B0FF;"; }
+                else if (act.hike > 0) {
                     const level = (act.hike >= 4) ? 4 : (act.hike === 3 ? 3 : (act.hike === 2 ? 2 : 1));
                     cl += ` grass-active-${level}`;
                 }
             }
 
-            // 안전한 팝업 호출을 위해 데이터 인코딩
             const encodedAct = act ? btoa(JSON.stringify(act)) : "";
-
-            grassHtml += `
-                <div class="${cl}" 
-                     style="${style}" 
-                     onclick="window.showGrassPopup(event, '${k}', '${encodedAct}')">
-                </div>`;
+            grassHtml += `<div class="${cl}" style="${style}" onclick="window.showGrassPopup(event, '${k}', '${encodedAct}')"></div>`;
         }
         grassBoard.innerHTML = grassHtml;
 
-        // --- [4. 하단 타임라인 리스트 생성] ---
-        container.innerHTML = logsAll.map(log => {
-            const dayName = ['일','월','화','수','목','금','토'][log.date.getDay()];
-            const top100Class = log.isTop100 ? 'text-blue-600 font-black' : '';
-            const bacTag = log.isBAC ? '<span class="bac-txt">BAC</span>' : '';
-            const unit = (log.isRunning || log.isTracking) ? 'km' : 'm';
-            
-            return `<div class="timeline-item">
-                <div class="timeline-dot"></div>
-                <div class="timeline-date">${log.date.getFullYear()}.${log.date.getMonth()+1}.${log.date.getDate()} (${dayName})</div>
-                <div class="timeline-desc ${top100Class}">${bacTag}${log.mountain || '기록'} (${log.height || 0}${unit}) ${log.isTop100 ? '⭐' : '✔️'}</div>
-            </div>`;
-        }).join('');
+        // 5. 하단 타임라인 리스트 생성 (원래 코드 로직 복구)
+        if(logsAll.length === 0) { 
+            container.innerHTML = "<p class='text-center text-[10px] py-10 text-gray-400'>기록 없음</p>"; 
+        } else {
+            container.innerHTML = logsAll.map(log => {
+                const dayName = ['일','월','화','수','목','금','토'][log.date.getDay()];
+                const top100Class = log.isTop100 ? 'text-blue-600 font-black' : '';
+                const bacTag = log.isBAC ? '<span class="bac-txt">BAC</span>' : '';
+                const unit = (log.isRunning || log.isTracking) ? 'km' : 'm';
+                
+                return `
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-date">${log.date.getFullYear()}.${log.date.getMonth()+1}.${log.date.getDate()} (${dayName})</div>
+                        <div class="timeline-desc ${top100Class}">${bacTag}${log.mountain || '기록'} (${log.height || 0}${unit}) ${log.isTop100 ? '⭐' : '✔️'}</div>
+                    </div>`;
+            }).join('');
+        }
 
     } catch (e) { 
         console.error(e);
-        container.innerHTML = "<p class='text-center text-xs text-red-400'>데이터를 불러오는 중 오류가 발생했습니다.</p>"; 
+        container.innerHTML = "<p class='text-center text-xs text-red-400'>데이터 조회 실패</p>"; 
     }
 };
 
