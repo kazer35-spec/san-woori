@@ -2147,7 +2147,6 @@ logsQuarter.forEach(l => {
 });
 
 // 2. 잔디 보드 생성 (그라데이션 로직 + 클릭 이벤트 통합)
-// --- [통합본] 잔디 보드 생성 로직 ---
 let grassHtml = "";
 for (let i = 0; i < totalDaysInQ; i++) {
     const cur = new Date(start); 
@@ -2155,37 +2154,36 @@ for (let i = 0; i < totalDaysInQ; i++) {
     const k = `${cur.getFullYear()}-${cur.getMonth() + 1}-${cur.getDate()}`;
     const act = dateActivities[k];
     
-    let cl = "grass-day"; 
+    let cl = "grass-day"; // 기본 클래스
     let style = ""; 
 
     if (act) {
         const hasHike = act.hike > 0;
-        const hasRun = act.run > 0;
-        const hasTrek = act.trek > 0;
+        const hasExtra = act.run > 0 || act.trek > 0;
         
-        if (hasHike && (hasRun || hasTrek)) {
-            // 산행 + (런닝/트레킹) 혼합: 135도 반반 그라데이션
-            const subColor = hasRun ? "#FFD1DC" : "#E0B0FF";
+        if (hasHike && hasExtra) {
+            // 산행 + (런닝/트레킹) 혼합: 반반 그라데이션
+            const subColor = act.run > 0 ? "#FFD1DC" : "#E0B0FF";
             style = `background: linear-gradient(135deg, #2ecc71 50%, ${subColor} 50%);`;
-        } else if (hasRun) {
+        } else if (act.run > 0) {
             style = "background: #FFD1DC;"; // 런닝: 연분홍
-        } else if (hasTrek) {
+        } else if (act.trek > 0) {
             style = "background: #E0B0FF;"; // 트레킹: 연보라
-        } else if (hasHike) {
-            // 산행만 한 날: 활동량에 따른 레벨 클래스 (CSS에서 처리)
+        } else if (act.hike > 0) {
+            // 산행만 한 날: 단계별 클래스
             const level = (act.hike >= 4) ? 4 : (act.hike === 3 ? 3 : (act.hike === 2 ? 2 : 1));
             cl += ` grass-active-${level}`;
         }
     }
 
-    // 데이터를 Base64로 인코딩하여 HTML 속성 내의 따옴표 충돌 방지
-    const encodedAct = act ? btoa(JSON.stringify(act)) : ''; 
+    // [중요] act 데이터를 안전하게 문자열로 변환하여 클릭 이벤트에 삽입
+    const actJson = act ? JSON.stringify(act) : 'null';
+    const encodedAct = encodeURIComponent(actJson);
 
-    // 중복 제거: div 하나만 생성되도록 통합
     grassHtml += `
         <div class="${cl}" 
              style="${style}" 
-             onclick="window.showGrassPopup(event, '${k}', '${encodedAct}')">
+             onclick="showGrassPopup(event, '${k}', '${encodedAct}')">
         </div>`;
 }
 grassBoard.innerHTML = grassHtml;
@@ -3348,65 +3346,67 @@ style="position:absolute; top:15px; right:15px; color:white; background:none; bo
     </div>
 </div>
 
-<div id="grassPopup" class="hidden" style="position: absolute; z-index: 9999; background: white; border: 1px solid #e2e8f0; padding: 12px; border-radius: 12px; shadow: 0 10px 15px -3px rgba(0,0,0,0.1); min-width: 140px; pointer-events: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
-    <div id="popupDate" style="font-size: 10px; font-weight: bold; color: #94a3b8; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; margin-bottom: 8px;"></div>
-    <div id="popupContent" style="display: flex; flex-direction: column; gap: 4px;"></div>
+<div id="grassPopup" class="hidden fixed z-[9999] bg-white border border-slate-200 p-3 rounded-xl shadow-2xl min-w-[140px] pointer-events-auto">
+    <div id="popupDate" class="text-[10px] font-bold text-slate-400 border-b pb-1 mb-2"></div>
+    <div id="popupContent" class="space-y-1"></div>
 </div>
 
 <script>
-   // --- 잔디 상세 팝업 및 이벤트 제어 (통합본) ---
+    /* 여기에 기존의 모든 자바스크립트 함수들(Window.toggleHallModal 등)이 들어있어야 합니다.
+       보내주신 잔디 팝업 관련 함수를 아래와 같이 스크립트 영역 안에 배치합니다.
+    */
 
-window.showGrassPopup = (event, date, encodedAct) => {
-    event.stopPropagation(); // 부모 요소로 클릭 이벤트 전파 방지
-    
-    const popup = document.getElementById('grassPopup');
-    const content = document.getElementById('popupContent');
-    const dateEl = document.getElementById('popupDate');
-    
-    if (!encodedAct || encodedAct === "") {
-        popup.classList.add('hidden');
-        return;
-    }
+    // 잔디 상세 정보 팝업 함수
+    window.showGrassPopup = (event, date, encodedAct) => {
+        event.stopPropagation(); 
+        
+        const popup = document.getElementById('grassPopup');
+        const content = document.getElementById('popupContent');
+        const dateEl = document.getElementById('popupDate');
+        
+        // 데이터 복구
+        let act;
+        try {
+            act = JSON.parse(decodeURIComponent(encodedAct));
+        } catch (e) {
+            console.error("데이터 복구 실패:", e);
+            return;
+        }
 
-    let act;
-    try {
-        // Base64 디코딩 후 JSON 파싱
-        act = JSON.parse(atob(encodedAct));
-    } catch (e) {
-        console.error("데이터 복구 실패:", e);
-        return;
-    }
+        if (!act || (!act.hike && !act.run && !act.trek)) {
+            popup.classList.add('hidden');
+            return;
+        }
 
-    // 팝업 내용 작성
-    dateEl.innerText = date;
-    let items = "";
-    if (act.hike > 0) items += `<div class="flex justify-between gap-4 text-[12px]"><span>⛰️ 산행</span><b>${act.hike}회</b></div>`;
-    if (act.run > 0) items += `<div class="flex justify-between gap-4 text-[12px] text-pink-500 font-bold"><span>🏃 러닝</span><b>${act.run}회</b></div>`;
-    if (act.trek > 0) items += `<div class="flex justify-between gap-4 text-[12px] text-purple-500 font-bold"><span>🥾 트레킹</span><b>${act.trek}회</b></div>`;
-    
-    content.innerHTML = items;
+        // 날짜 및 내용 채우기
+        dateEl.innerText = date;
+        let items = "";
+        if (act.hike > 0) items += `<div class='flex justify-between gap-4 text-[12px]'><span>⛰️ 산행</span><b>${act.hike}회</b></div>`;
+        if (act.run > 0) items += `<div class='flex justify-between gap-4 text-[12px] text-pink-500 font-bold'><span>🏃 러닝</span><b>${act.run}회</b></div>`;
+        if (act.trek > 0) items += `<div class='flex justify-between gap-4 text-[12px] text-purple-500 font-bold'><span>🥾 트레킹</span><b>${act.trek}회</b></div>`;
+        
+        content.innerHTML = items;
 
-    // 팝업 노출
-    popup.classList.remove('hidden');
+        // 팝업 노출 및 위치 결정
+        popup.classList.remove('hidden');
 
-    // 위치 계산 (마우스 클릭 좌표 기준)
-    let left = event.pageX + 10;
-    // 팝업이 화면 오른쪽으로 벗어나면 왼쪽으로 띄우기
-    if (left + 160 > window.innerWidth) {
-        left = event.pageX - 160;
-    }
+        // 화면 오른쪽 끝에서 클릭 시 팝업이 잘리지 않도록 위치 계산
+        let left = event.pageX + 10;
+        if (left + 150 > window.innerWidth) {
+            left = event.pageX - 160;
+        }
 
-    popup.style.left = `${left}px`;
-    popup.style.top = `${event.pageY - 60}px`;
-};
+        popup.style.left = `${left}px`;
+        popup.style.top = `${event.pageY - 60}px`;
+    };
 
-// 화면 바깥 클릭 시 팝업 닫기
-document.addEventListener('click', (e) => {
-    const popup = document.getElementById('grassPopup');
-    if (popup && !popup.contains(e.target)) {
-        popup.classList.add('hidden');
-    }
-});
+    // 화면 빈 곳을 누르면 팝업이 닫히는 기능
+    document.addEventListener('click', (e) => {
+        const popup = document.getElementById('grassPopup');
+        if (popup && !popup.contains(e.target)) {
+            popup.classList.add('hidden');
+        }
+    });
 </script>
 </body>
 </html>
