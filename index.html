@@ -1090,7 +1090,7 @@ box-sizing: border-box;
 100% { opacity: 1; }
 }
 
-/* 30일 남음: 노란색 + 느린 깜빡임 (2초 간격) */
+    /* 30일 남음: 노란색 + 느린 깜빡임 (2초 간격) */
 .blink-slow {
 animation: dday-blink 2s infinite;
 background-color: #fefce8 !important; /* 노랑 */
@@ -1356,7 +1356,7 @@ overflow: hidden;
 </head>
 <body>
 
-        <div id="levelupAlert" class="fixed inset-0 z-[200] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div id="levelupAlert" class="fixed inset-0 z-[200] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
     <div class="bg-white rounded-3xl p-8 max-w-sm w-[90%] text-center shadow-2xl transform scale-90 transition-transform duration-300 ease-out border-4 border-yellow-400">
         <div class="text-5xl mb-4">🎊</div>
         <h2 id="levelUpTitle" class="text-2xl font-black text-slate-800 mb-2">LEVEL UP!</h2>
@@ -2079,7 +2079,7 @@ window.renderStatusTable = () => {
     });
 };
 
-window.toggleHallModal = async (show) => {
+    window.toggleHallModal = async (show) => {
 const modal = document.getElementById('hallModal');
 modal.style.display = show ? 'flex' : 'none';
 if(show) {
@@ -2136,14 +2136,42 @@ const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() 
 const recentCount = logsAll.filter(l => l.date >= thirtyDaysAgo).length;
 if(recentCount >= 4) vibeArea.innerHTML = vibeArea.innerHTML = `<span class="hot-vibe flex items-center h-[18px] text-[9px] font-black text-orange-500 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-100">🔥 HOT</span>`;
 
-const dateCounts = {}; logsQuarter.forEach(l => { const key = `${l.date.getFullYear()}-${l.date.getMonth() + 1}-${l.date.getDate()}`; dateCounts[key] = (dateCounts[key] || 0) + 1; });
+// [교체] 날짜별로 산행, 런닝, 트레킹 횟수를 따로 기록합니다
+const dateActivities = {}; 
+logsQuarter.forEach(l => { 
+    const key = `${l.date.getFullYear()}-${l.date.getMonth() + 1}-${l.date.getDate()}`;
+    if(!dateActivities[key]) dateActivities[key] = { hike: 0, run: 0, trek: 0 };
+    if(l.isRunning) dateActivities[key].run++;
+    else if(l.isTracking) dateActivities[key].trek++;
+    else dateActivities[key].hike++;
+});
+
 let grassHtml = "";
 for (let i = 0; i < totalDaysInQ; i++) {
-const cur = new Date(start); cur.setDate(start.getDate() + i);
-const k = `${cur.getFullYear()}-${cur.getMonth() + 1}-${cur.getDate()}`;
-const c = dateCounts[k] || 0;
-let cl = (c >= 4) ? "grass-active-4" : (c === 3 ? "grass-active-3" : (c === 2 ? "grass-active-2" : (c === 1 ? "grass-active-1" : "")));
-grassHtml += `<div class="grass-day ${cl}"></div>`;
+    const cur = new Date(start); cur.setDate(start.getDate() + i);
+    const k = `${cur.getFullYear()}-${cur.getMonth() + 1}-${cur.getDate()}`;
+    const act = dateActivities[k];
+    let cl = ""; 
+    let style = ""; 
+
+    if (act) {
+        const hasHike = act.hike > 0;
+        const hasExtra = act.run > 0 || act.trek > 0;
+        
+        if (hasHike && hasExtra) {
+            // 산행과 (런닝 or 트레킹)이 겹친 날: 반반 그라데이션
+            const subColor = act.run > 0 ? "#FFD1DC" : "#E0B0FF"; // 연분홍 or 연보라
+            style = `background: linear-gradient(135deg, #2ecc71 50%, ${subColor} 50%);`;
+        } else if (act.run > 0) {
+            style = "background: #FFD1DC;"; // 런닝만 한 날 (연분홍)
+        } else if (act.trek > 0) {
+            style = "background: #E0B0FF;"; // 트레킹만 한 날 (연보라)
+        } else if (act.hike > 0) {
+            // 산행만 한 날: 기존 잔디 색상 적용
+            cl = (act.hike >= 4) ? "grass-active-4" : (act.hike === 3 ? "grass-active-3" : (act.hike === 2 ? "grass-active-2" : "grass-active-1"));
+        }
+    }
+    grassHtml += `<div class="grass-day ${cl}" style="${style}"></div>`;
 }
 grassBoard.innerHTML = grassHtml;
 document.getElementById('timelineCountBadge').innerText = `분기 ${logsQuarter.length}회 / 최근 ${logsAll.length}회`;
@@ -2152,10 +2180,14 @@ container.innerHTML = logsAll.map(log => {
 const dayName = ['일','월','화','수','목','금','토'][log.date.getDay()];
 const top100Class = log.isTop100 ? 'text-blue-600 font-black' : '';
 const bacTag = log.isBAC ? '<span class="bac-txt">BAC</span>' : '';
-return `<div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-date">${log.date.getFullYear()}.${log.date.getMonth()+1}.${log.date.getDate()} (${dayName})</div><div class="timeline-desc ${top100Class}">${bacTag}${log.mountain || '기록'} (${log.height || 0}m) ${log.isTop100 ? '⭐' : '✔️'}</div></div>`;
+const unit = (log.isRunning || log.isTracking) ? 'km' : 'm';
+    
+    return `<div class="timeline-item">
+        <div class="timeline-dot"></div>
+        <div class="timeline-date">${log.date.getFullYear()}.${log.date.getMonth()+1}.${log.date.getDate()} (${dayName})</div>
+        <div class="timeline-desc ${top100Class}">${bacTag}${log.mountain || '기록'} (${log.height || 0}${unit}) ${log.isTop100 ? '⭐' : '✔️'}</div>
+    </div>`;
 }).join('');
-} catch (e) { container.innerHTML = "<p class='text-center text-xs text-red-400'>실패</p>"; }
-};
 
 async function calculateGrowthData(mId) {
 const labels = []; const counts = []; const heights = []; const peaks = [];
@@ -2436,6 +2468,7 @@ window.addMultiActivity = async () => {
     const upElement = document.querySelector('input[name="upAmount"]:checked');
     if(!upElement) return alert("레벨업 수치를 선택해주세요.");
     const up = parseInt(upElement.value);
+const effectiveUp = (isRunning || isTracking) ? 0 : up;
     const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
 
     // 3. 산 정보가 있을 경우 산 DB 업데이트
@@ -2454,7 +2487,7 @@ window.addMultiActivity = async () => {
             if(!member) continue;
             
             const oldLevel = member.level || 0; 
-            const newLevel = oldLevel + up;
+            const newLevel = oldLevel + effectiveUp;
             
             // [A] 회원 정보 업데이트
             await updateDoc(doc(db, "sanwoori", id), { 
@@ -2463,13 +2496,13 @@ window.addMultiActivity = async () => {
             });
             
             // [B] 우정 포인트 업데이트
-            if (selectedMemberIds.size >= 2) {
-                // 정기산행이면 10점, 아니면 원래대로 10 * up
-                const pointToAdd = isRegular ? 10 : (10 * up); 
-                await updateDoc(doc(db, "sanwoori", id), { 
-                    friendshipPoint: increment(pointToAdd) 
-                });
-            }
+            // 수정 후: 런닝/트레킹이 아닐 때만 우정포인트 지급
+if (selectedMemberIds.size >= 2 && !isRunning && !isTracking) {
+    const pointToAdd = isRegular ? 10 : (10 * effectiveUp); 
+    await updateDoc(doc(db, "sanwoori", id), { 
+        friendshipPoint: increment(pointToAdd) 
+    });
+}
             
             // [C] 로그 기록 (분기 횟수 결정)
             const logLoopCount = isQuarterOnlyOne ? 1 : up;
@@ -3294,5 +3327,4 @@ window.showFadingScroll = function(dday, level = 0) {
 </body>
     </html>   
 
-    
     
