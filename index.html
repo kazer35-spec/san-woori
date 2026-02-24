@@ -1356,7 +1356,7 @@ overflow: hidden;
 </head>
 <body>
 
-    <div id="levelupAlert" class="fixed inset-0 z-[200] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div id="levelupAlert" class="fixed inset-0 z-[200] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
     <div class="bg-white rounded-3xl p-8 max-w-sm w-[90%] text-center shadow-2xl transform scale-90 transition-transform duration-300 ease-out border-4 border-yellow-400">
         <div class="text-5xl mb-4">🎊</div>
         <h2 id="levelUpTitle" class="text-2xl font-black text-slate-800 mb-2">LEVEL UP!</h2>
@@ -1677,7 +1677,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 </div>
 
 <div class="flex justify-between items-center mb-2">
-<p class="text-[10px] font-extrabold text-slate-500">🌱 분기 산행 잔디</p>
+<p class="text-[10px] font-extrabold text-slate-500">🌱 분기 운동 잔디</p>
 
 <div class="flex items-center gap-1.5">
 <div id="passionVibeArea"></div>
@@ -1705,7 +1705,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 </div>
 
 <button onclick="toggleLogPopup(true)" class="btn-open-log">
-<span>📜 최근 산행 일지 자세히 보기</span>
+<span>📜 최근 운동 일지 자세히 보기</span>
 <span class="text-sky-300">▶</span>
 </button>
 
@@ -1715,7 +1715,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 <div id="logPopup" class="log-popup-overlay" onclick="toggleLogPopup(false)">
 <div class="modal-content !max-h-[80vh] !p-6" onclick="event.stopPropagation()">
 <div class="flex justify-between items-center mb-4">
-<h3 class="text-base font-black text-slate-800">📜 최근 산행 일지</h3>
+<h3 class="text-base font-black text-slate-800">📜 최근 운동 일지</h3>
 <button onclick="toggleLogPopup(false)" class="text-gray-400 text-xl font-bold">&times;</button>
 </div>
 <div class="timeline-scroll-area" id="timelineScrollContainer">
@@ -2075,6 +2075,35 @@ window.renderStatusTable = () => {
             ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
         </span>
     </td>
+<td class="px-1 py-2">
+  <div class="grid-container" style="display: grid; grid-template-columns: repeat(31, 1fr); gap: 1px;">
+    ${(() => {
+        let gridHtml = '';
+        // 1일부터 31일까지 칸을 만듭니다.
+        for (let d = 1; d <= 31; d++) {
+            const dayLogs = m.logs.filter(l => l.date.toDate().getDate() === d);
+            const hasMountain = dayLogs.some(l => !l.isRunning && !l.isTrekking);
+            const hasRun = dayLogs.some(l => l.isRunning);
+            const hasTrk = dayLogs.some(l => l.isTrekking);
+
+            let bgColor = "#ebedf0"; // 기본 회색
+            if (dayLogs.length > 0) {
+                if (hasMountain && (hasRun || hasTrk)) {
+                    bgColor = "linear-gradient(135deg, #22c55e 50%, #ffc0cb 50%)"; // 반반
+                } else if (hasRun) {
+                    bgColor = "#ffc0cb"; // 런닝 (연분홍)
+                } else if (hasTrk) {
+                    bgColor = "#e0b0ff"; // 트레킹 (연보라)
+                } else if (hasMountain) {
+                    bgColor = "#22c55e"; // 산행 (초록)
+                }
+            }
+            gridHtml += `<div style="width: 8px; height: 8px; background: ${bgColor}; border-radius: 1px;"></div>`;
+        }
+        return gridHtml;
+    })()}
+  </div>
+</td>
 </tr>`;
     });
 };
@@ -2456,20 +2485,19 @@ window.addMultiActivity = async () => {
             const oldLevel = member.level || 0; 
             const newLevel = oldLevel + up;
             
-            // [A] 회원 정보 업데이트
-            await updateDoc(doc(db, "sanwoori", id), { 
-                level: newLevel, 
-                lastDate: ts 
-            });
+            // 런닝/트레킹이 아닐 때만 레벨(newLevel)을 올리고, 맞으면 날짜만 갱신합니다.
+await updateDoc(doc(db, "sanwoori", id), {
+    level: (isRunning || isTrekking) ? oldLevel : newLevel, 
+    lastDate: ts
+});
             
-            // [B] 우정 포인트 업데이트
-            if (selectedMemberIds.size >= 2) {
-                // 정기산행이면 10점, 아니면 원래대로 10 * up
-                const pointToAdd = isRegular ? 10 : (10 * up); 
-                await updateDoc(doc(db, "sanwoori", id), { 
-                    friendshipPoint: increment(pointToAdd) 
-                });
-            }
+          // 런닝/트레킹이 아닐 때(산행일 때)만 포인트 점수를 더합니다.
+if (!isRunning && !isTrekking && selectedMemberIds.size >= 2) {
+    const pointToAdd = isRegular ? 10 : (10 * up);
+    await updateDoc(doc(db, "sanwoori", id), {
+        totalHeight: increment(pointToAdd) 
+    });
+}
             
             // [C] 로그 기록 (분기 횟수 결정)
             const logLoopCount = isQuarterOnlyOne ? 1 : up;
@@ -2510,14 +2538,22 @@ window.addMultiActivity = async () => {
         alert("저장에 실패했습니다: " + error.message);
     }
 };
-
 window.loadMemberLogs = async () => {
 const id = document.getElementById('memberSelectEdit').value;
 const area = document.getElementById('logListArea'); area.innerHTML = ""; if(!id) return;
 const snap = await getDocs(query(collection(db, `sanwoori/${id}/logs`), orderBy("date", "desc"), limit(20)));
 snap.forEach(ld => {
 const logData = ld.data(); const d = logData.date.toDate(); const dateStr = `${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()}`;
-const logJson = JSON.stringify({ mountain: logData.mountain || '', height: logData.height || 0, coords: logData.coords || null, isTop100: logData.isTop100 || false, isBAC: logData.isBAC || false, region: logData.region || '기타' }).replace(/"/g, '&quot;');
+// --- 여기서부터 복사 ---
+let hVal = logData.height || 0;
+let unit = "m";
+if (logData.isRunning || logData.isTrekking) {
+    hVal = (hVal / 1000).toFixed(1); // 1000m -> 1.0km 변환
+    unit = "km";
+}
+// --- 여기까지 복사 ---
+const logJson = JSON.stringify({ mountain: logData.mountain || '', height: hVal + unit
+​, coords: logData.coords || null, isTop100: logData.isTop100 || false, isBAC: logData.isBAC || false, region: logData.region || '기타' }).replace(/"/g, '&quot;');
 area.innerHTML += `<div class="log-item-box" onclick="selectLogToMap('${logJson}')">
 <div class="log-info-group"><span class="log-date-txt">${dateStr}</span><span class="log-mt-txt">${logData.isBAC ? '<span class="bac-txt">BAC</span>' : ''}${logData.mountain || '기록'}</span>
 <div class="flex items-center gap-1"><input type="number" id="h-${ld.id}" value="${logData.height || 0}" class="log-height-input border rounded-md" onclick="event.stopPropagation()">
