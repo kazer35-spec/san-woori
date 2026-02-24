@@ -12,6 +12,8 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+    .hidden { display: none !important; }
+
 /* [효과 2] 계절 성운 레이어 */
 .nebula-spring-summer { background-image: radial-gradient(circle at 20% 30%, rgba(144, 238, 144, 0.06), transparent 40%), radial-gradient(circle at 80% 70%, rgba(255, 182, 193, 0.06), transparent 40%); }
 .nebula-fall-winter { background-image: radial-gradient(circle at 30% 20%, rgba(0, 191, 255, 0.06), transparent 40%), radial-gradient(circle at 70% 80%, rgba(255, 215, 0, 0.06), transparent 40%); }
@@ -1090,7 +1092,7 @@ box-sizing: border-box;
 100% { opacity: 1; }
 }
 
-/* 30일 남음: 노란색 + 느린 깜빡임 (2초 간격) */
+    /* 30일 남음: 노란색 + 느린 깜빡임 (2초 간격) */
 .blink-slow {
 animation: dday-blink 2s infinite;
 background-color: #fefce8 !important; /* 노랑 */
@@ -2146,31 +2148,47 @@ logsQuarter.forEach(l => {
     else dateActivities[key].hike++;
 });
 
-// 2. 잔디 보드 생성 (그라데이션 로직)
+// 2. 잔디 보드 생성 (그라데이션 로직 + 클릭 이벤트 통합)
+// --- [통합본] 잔디 보드 생성 로직 ---
 let grassHtml = "";
 for (let i = 0; i < totalDaysInQ; i++) {
-    const cur = new Date(start); cur.setDate(start.getDate() + i);
+    const cur = new Date(start); 
+    cur.setDate(start.getDate() + i);
     const k = `${cur.getFullYear()}-${cur.getMonth() + 1}-${cur.getDate()}`;
     const act = dateActivities[k];
-    let cl = ""; 
+    
+    let cl = "grass-day"; 
     let style = ""; 
 
     if (act) {
         const hasHike = act.hike > 0;
-        const hasExtra = act.run > 0 || act.trek > 0;
-        if (hasHike && hasExtra) {
-            // 산행 + (런닝/트레킹) 혼합: 반반 그라데이션
-            const subColor = act.run > 0 ? "#FFD1DC" : "#E0B0FF";
+        const hasRun = act.run > 0;
+        const hasTrek = act.trek > 0;
+        
+        if (hasHike && (hasRun || hasTrek)) {
+            // 산행 + (런닝/트레킹) 혼합: 135도 반반 그라데이션
+            const subColor = hasRun ? "#FFD1DC" : "#E0B0FF";
             style = `background: linear-gradient(135deg, #2ecc71 50%, ${subColor} 50%);`;
-        } else if (act.run > 0) {
+        } else if (hasRun) {
             style = "background: #FFD1DC;"; // 런닝: 연분홍
-        } else if (act.trek > 0) {
+        } else if (hasTrek) {
             style = "background: #E0B0FF;"; // 트레킹: 연보라
-        } else if (act.hike > 0) {
-            cl = (act.hike >= 4) ? "grass-active-4" : (act.hike === 3 ? "grass-active-3" : (act.hike === 2 ? "grass-active-2" : "grass-active-1"));
+        } else if (hasHike) {
+            // 산행만 한 날: 활동량에 따른 레벨 클래스 (CSS에서 처리)
+            const level = (act.hike >= 4) ? 4 : (act.hike === 3 ? 3 : (act.hike === 2 ? 2 : 1));
+            cl += ` grass-active-${level}`;
         }
     }
-    grassHtml += `<div class="grass-day ${cl}" style="${style}"></div>`;
+
+    // 데이터를 Base64로 인코딩하여 HTML 속성 내의 따옴표 충돌 방지
+    const encodedAct = act ? btoa(JSON.stringify(act)) : ''; 
+
+    // 중복 제거: div 하나만 생성되도록 통합
+    grassHtml += `
+        <div class="${cl}" 
+             style="${style}" 
+             onclick="window.showGrassPopup(event, '${k}', '${encodedAct}')">
+        </div>`;
 }
 grassBoard.innerHTML = grassHtml;
 
@@ -2448,106 +2466,110 @@ pendingLevelUpMessages = []; // 메시지 대기열 초기화
 };
 
 window.addMultiActivity = async () => {
-// 1. 필요한 기본 데이터 가져오기
-const dateVal = document.getElementById('activityDate').value;
-const mName = document.getElementById('mountainName').value.trim();
-const height = parseInt(document.getElementById('mountainHeight').value) || 0;
-const isTop100 = document.getElementById('isTop100Check').checked;
-const isBAC = document.getElementById('isBACCheck').checked;
+    // 1. 필요한 기본 데이터 가져오기
+    const dateVal = document.getElementById('activityDate').value;
+    const mName = document.getElementById('mountainName').value.trim();
+    const height = parseInt(document.getElementById('mountainHeight').value) || 0;
+    const isTop100 = document.getElementById('isTop100Check').checked;
+    const isBAC = document.getElementById('isBACCheck').checked;
 
-// ✅ 누락되었던 체크박스 변수 정의 추가
-const isRegular = document.getElementById('isRegularCheck')?.checked || false;
-const isRunning = document.getElementById('isRunningCheck')?.checked || false;
-const isTracking = document.getElementById('isTrackingCheck')?.checked || false;
+    const isRegular = document.getElementById('isRegularCheck')?.checked || false;
+    const isRunning = document.getElementById('isRunningCheck')?.checked || false;
+    const isTracking = document.getElementById('isTrackingCheck')?.checked || false;
+    const region = document.getElementById('adminManualRegionSelect').value;
 
-const region = document.getElementById('adminManualRegionSelect').value;
+    const isQuarterOnlyOne = document.getElementById('isQuarterCheck')?.checked || false;
 
-// ✅ 분기 체크박스 상태 확인
-const isQuarterOnlyOne = document.getElementById('isQuarterCheck')?.checked || false;
+    if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜 확인");
 
-if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜 확인");
+    // 2. 레벨업 수치 및 날짜 설정
+    const upElement = document.querySelector('input[name="upAmount"]:checked');
+    if(!upElement) return alert("레벨업 수치를 선택해주세요.");
+    const up = parseInt(upElement.value);
 
-// 2. 레벨업 수치 및 날짜 타임스탬프 설정
-const upElement = document.querySelector('input[name="upAmount"]:checked');
-if(!upElement) return alert("레벨업 수치를 선택해주세요.");
-const up = parseInt(upElement.value);
-// 런닝이나 트레킹 체크 시 수치를 0으로 강제 조정
-const effectiveUp = (isRunning || isTracking) ? 0 : up;
-const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
+    // [로직 통합] 러닝/트레킹 시 레벨업 0, 기록은 잔디용으로 1회 고정
+    const isSpecial = isRunning || isTracking;
+    const effectiveUp = isSpecial ? 0 : up;
+    const logLoopCount = isSpecial ? 1 : (isQuarterOnlyOne ? 1 : up);
 
-// 3. 산 정보가 있을 경우 산 DB 업데이트
-if(mName && tempCoord) {
-await setDoc(doc(db, "mountains", mName), {
-x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region
-}, { merge: true });
-}
+    const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
 
-pendingLevelUpMessages = [];
+    // 3. 산 정보 업데이트
+    if(mName && tempCoord) {
+        await setDoc(doc(db, "mountains", mName), {
+            x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region
+        }, { merge: true });
+    }
 
-try {
-// 4. 선택된 회원별 업데이트 루프
-for(const id of selectedMemberIds){
-const member = currentData.find(m => m.id === id);
-if(!member) continue;
+    pendingLevelUpMessages = [];
 
-const oldLevel = member.level || 0;
-// 수정 후
-const newLevel = oldLevel + effectiveUp;
+    try {
+        // 4. 선택된 회원별 업데이트 루프
+        for(const id of selectedMemberIds){
+            const member = currentData.find(m => m.id === id);
+            if(!member) continue;
 
+            const oldLevel = member.level || 0;
+            const newLevel = oldLevel + effectiveUp;
 
-// [A] 회원 정보 업데이트
-await updateDoc(doc(db, "sanwoori", id), {
-level: newLevel,
-lastDate: ts
-});
+            // [A] 회원 정보 업데이트
+            await updateDoc(doc(db, "sanwoori", id), {
+                level: newLevel,
+                lastDate: ts
+            });
 
-// [B] 우정 포인트 업데이트
-// 수정 후: 런닝/트레킹이 아닐 때만 우정포인트 지급
-if (selectedMemberIds.size >= 2 && !isRunning && !isTracking) {
-    const pointToAdd = isRegular ? 10 : (10 * effectiveUp); 
-    await updateDoc(doc(db, "sanwoori", id), { 
-        friendshipPoint: increment(pointToAdd) 
-    });
-}
+            // [B] 우정 포인트 업데이트 (런닝/트레킹 제외)
+            if (selectedMemberIds.size >= 2 && !isSpecial) {
+                const pointToAdd = isRegular ? 10 : (10 * effectiveUp); 
+                await updateDoc(doc(db, "sanwoori", id), { 
+                    friendshipPoint: increment(pointToAdd) 
+                });
+            }
 
-// [C] 로그 기록 (분기 횟수 결정)
-const logLoopCount = isQuarterOnlyOne ? 1 : up;
+            // [C] 로그 기록 (logLoopCount에 따라 실행)
+            for(let i = 0; i < logLoopCount; i++) {
+                await addDoc(collection(db, `sanwoori/${id}/logs`), {
+                    date: ts,
+                    mountain: mName,
+                    height,
+                    coords: tempCoord,
+                    isTop100,
+                    isBAC,
+                    isRegular,
+                    isRunning,
+                    isTracking,
+                    region
+                });
+            }
 
-for(let i = 0; i < logLoopCount; i++) {
-await addDoc(collection(db, `sanwoori/${id}/logs`), {
-date: ts,
-mountain: mName,
-height,
-coords: tempCoord,
-isTop100,
-isBAC,
-isRegular,
-isRunning,
-isTracking,
-region
-});
-}
+            if (!isSpecial) {
+                checkLevelUpgrade(member.name, oldLevel, newLevel);
+            }
+        }
 
-// 레벨업 축하 알림 체크
-checkLevelUpgrade(member.name, oldLevel, newLevel);
-}
+        // 5. 후처리 및 알림
+        if (pendingLevelUpMessages.length > 0) {
+            showCombinedLevelUpAlert();
+        }
 
-// 5. 후처리 및 알림
-if (pendingLevelUpMessages.length > 0) {
-showCombinedLevelUpAlert();
-}
+        // 알림 메시지 분기 처리
+        let finalMsg = "";
+        if (isSpecial) {
+            finalMsg = `${isRunning ? '런닝' : '트레킹'} 기록 완료 (분기 횟수 미포함)`;
+        } else {
+            const logMsg = isQuarterOnlyOne ? "분기 1회만 반영" : `분기 ${up}회 반영`;
+            finalMsg = `저장 완료 (레벨 ${up}↑ / ${logMsg})`;
+        }
+        alert(finalMsg);
 
-const logMsg = isQuarterOnlyOne ? "분기 1회만 반영" : `분기 ${up}회 반영`;
-alert(`저장 완료 (레벨 ${up}↑ / ${logMsg})`);
-
-selectedMemberIds.clear();
-tempCoord = null;
-updateAdminMemberLists();
-updateVibeTemp();
-} catch (error) {
-console.error("저장 중 에러 발생:", error);
-alert("저장에 실패했습니다: " + error.message);
-}
+        selectedMemberIds.clear();
+        tempCoord = null;
+        updateAdminMemberLists();
+        updateVibeTemp();
+    } catch (error) {
+        console.error("저장 중 에러 발생:", error);
+        alert("저장에 실패했습니다: " + error.message);
+    }
 };
 
 window.loadMemberLogs = async () => {
@@ -3322,16 +3344,71 @@ style="position:absolute; top:15px; right:15px; color:white; background:none; bo
 </div>
 <p class="footer-note">기록 연장이 필요하면 요청해 주세요.</p>
 <p class="ancient-signature">Guardian of History</p>
-
 <button onclick="document.getElementById('scrollModal').style.display='none'" class="scroll-close-btn">
-닫기
-</button>
-</div>
+            닫기
+        </button>
+    </div>
 </div>
 
+<div id="grassPopup" class="hidden" style="position: absolute; z-index: 9999; background: white; border: 1px solid #e2e8f0; padding: 12px; border-radius: 12px; shadow: 0 10px 15px -3px rgba(0,0,0,0.1); min-width: 140px; pointer-events: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+    <div id="popupDate" style="font-size: 10px; font-weight: bold; color: #94a3b8; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; margin-bottom: 8px;"></div>
+    <div id="popupContent" style="display: flex; flex-direction: column; gap: 4px;"></div>
+</div>
+
+<script>
+   // --- 잔디 상세 팝업 및 이벤트 제어 (통합본) ---
+
+window.showGrassPopup = (event, date, encodedAct) => {
+    event.stopPropagation(); // 부모 요소로 클릭 이벤트 전파 방지
+    
+    const popup = document.getElementById('grassPopup');
+    const content = document.getElementById('popupContent');
+    const dateEl = document.getElementById('popupDate');
+    
+    if (!encodedAct || encodedAct === "") {
+        popup.classList.add('hidden');
+        return;
+    }
+
+    let act;
+    try {
+        // Base64 디코딩 후 JSON 파싱
+        act = JSON.parse(atob(encodedAct));
+    } catch (e) {
+        console.error("데이터 복구 실패:", e);
+        return;
+    }
+
+    // 팝업 내용 작성
+    dateEl.innerText = date;
+    let items = "";
+    if (act.hike > 0) items += `<div class="flex justify-between gap-4 text-[12px]"><span>⛰️ 산행</span><b>${act.hike}회</b></div>`;
+    if (act.run > 0) items += `<div class="flex justify-between gap-4 text-[12px] text-pink-500 font-bold"><span>🏃 러닝</span><b>${act.run}회</b></div>`;
+    if (act.trek > 0) items += `<div class="flex justify-between gap-4 text-[12px] text-purple-500 font-bold"><span>🥾 트레킹</span><b>${act.trek}회</b></div>`;
+    
+    content.innerHTML = items;
+
+    // 팝업 노출
+    popup.classList.remove('hidden');
+
+    // 위치 계산 (마우스 클릭 좌표 기준)
+    let left = event.pageX + 10;
+    // 팝업이 화면 오른쪽으로 벗어나면 왼쪽으로 띄우기
+    if (left + 160 > window.innerWidth) {
+        left = event.pageX - 160;
+    }
+
+    popup.style.left = `${left}px`;
+    popup.style.top = `${event.pageY - 60}px`;
+};
+
+// 화면 바깥 클릭 시 팝업 닫기
+document.addEventListener('click', (e) => {
+    const popup = document.getElementById('grassPopup');
+    if (popup && !popup.contains(e.target)) {
+        popup.classList.add('hidden');
+    }
+});
 </script>
 </body>
 </html>
-
-
-    
