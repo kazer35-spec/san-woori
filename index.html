@@ -1089,8 +1089,7 @@ box-sizing: border-box;
 50% { opacity: 0.3; }
 100% { opacity: 1; }
 }
-
-    /* 30일 남음: 노란색 + 느린 깜빡임 (2초 간격) */
+/* 30일 남음: 노란색 + 느린 깜빡임 (2초 간격) */
 .blink-slow {
 animation: dday-blink 2s infinite;
 background-color: #fefce8 !important; /* 노랑 */
@@ -2227,42 +2226,45 @@ return { labels, counts, heights, peaks };
 // 필수 변수 선언 (코드 맨 위에 추가)
 let growthChartInstance = null; 
 let tempCoord = null;
-let selectedMemberIds = new Set();
-function renderGrowthChart(data) {
-if (growthChartInstance) growthChartInstance.destroy();
-growthChartInstance = new Chart(ctx, {
-type: 'bar',
-data: {
-labels: data.labels,
-datasets: [
-{ label: '산행 횟수', data: data.counts, backgroundColor: 'rgba(59, 130, 246, 0.6)', borderRadius: 5, yAxisID: 'y', order: 2 },
-{ label: '누적 고도', data: data.heights, type: 'line', borderColor: '#ef4444', borderWidth: 2, pointBackgroundColor: '#ef4444', pointRadius: 4, tension: 0.4, yAxisID: 'y1', order: 1 }
-]
-},
-options: {
-responsive: true, maintainAspectRatio: false,
-plugins: {
-legend: { display: false },
-tooltip: {
-backgroundColor: 'rgba(30, 41, 59, 0.95)',
-padding: 10,
-titleFont: { size: 12, weight: '900' },
-bodyFont: { size: 11, weight: '700' },
-callbacks: {
-label: function(context) {
-const i = context.dataIndex;
-return [ ` ⛰️ 누적: ${data.heights[i].toLocaleString()}m`, ` 🏔️ 최고봉: ${data.peaks[i]}`, ` 📈 횟수: ${data.counts[i]}회` ];
-}
-}
-}
-},
-scales: {
-x: { grid: { display: false }, ticks: { font: { size: 10, weight: '800' } } },
-y: { beginAtZero: true, position: 'left', grid: { color: '#f1f5f9' }, ticks: { font: { size: 8 } } },
-y1: { beginAtZero: true, position: 'right', display: false }
-}
-}
-});
+let selectedMemberIds = new Set();function renderGrowthChart(data) {
+    const canvas = document.getElementById('growthChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+
+    if (growthChartInstance) growthChartInstance.destroy();
+    growthChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: data.labels,
+            datasets: [
+                { label: '산행 횟수', data: data.counts, backgroundColor: 'rgba(59, 130, 246, 0.6)', borderRadius: 5, yAxisID: 'y', order: 2 },
+                { label: '누적 고도', data: data.heights, type: 'line', borderColor: '#ef4444', borderWidth: 2, pointBackgroundColor: '#ef4444', pointRadius: 4, tension: 0.4, yAxisID: 'y1', order: 1 }
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(30, 41, 59, 0.95)',
+                    padding: 10,
+                    titleFont: { size: 12, weight: '900' },
+                    bodyFont: { size: 11, weight: '700' },
+                    callbacks: {
+                        label: function(context) {
+                            const i = context.dataIndex;
+                            return [ ` ⛰️ 누적: ${data.heights[i].toLocaleString()}m`, ` 🏔️ 최고봉: ${data.peaks[i]}`, ` 📈 횟수: ${data.counts[i]}회` ];
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { grid: { display: false }, ticks: { font: { size: 10, weight: '800' } } },
+                y: { beginAtZero: true, position: 'left', grid: { color: '#f1f5f9' }, ticks: { font: { size: 8 } } },
+                y1: { beginAtZero: true, position: 'right', display: false }
+            }
+        }
+    });
 }
 
 window.toggleMapView = () => {
@@ -3369,6 +3371,7 @@ window.showGrassPopup = (event, date, encodedAct) => {
 
     if (!encodedAct || encodedAct === "") {
         popup.classList.add('hidden');
+        popup.style.display = 'none';
         return;
     }
 
@@ -3376,13 +3379,15 @@ window.showGrassPopup = (event, date, encodedAct) => {
         const act = JSON.parse(atob(encodedAct));
         dateEl.innerText = date;
         let items = "";
-        // 팝업에는 모든 활동을 다 보여줌
         if (act.hike > 0) items += `<div class="flex justify-between gap-4 text-[12px]"><span>⛰️ 산행</span><b>${act.hike}회</b></div>`;
         if (act.run > 0) items += `<div class="flex justify-between gap-4 text-[12px] text-pink-500 font-bold"><span>🏃 러닝</span><b>${act.run}회</b></div>`;
         if (act.trek > 0) items += `<div class="flex justify-between gap-4 text-[12px] text-purple-500 font-bold"><span>🥾 트레킹</span><b>${act.trek}회</b></div>`;
         
         content.innerHTML = items;
+        
+        // 중요: hidden 제거와 동시에 display block 처리
         popup.classList.remove('hidden');
+        popup.style.display = 'block';
 
         let left = event.pageX + 10;
         if (left + 160 > window.innerWidth) left = event.pageX - 160;
@@ -3392,9 +3397,13 @@ window.showGrassPopup = (event, date, encodedAct) => {
         console.error("데이터 해독 실패", e);
     }
 };
+
 window.addEventListener('click', () => {
     const popup = document.getElementById('grassPopup');
-    if (popup) popup.classList.add('hidden');
+    if (popup) {
+        popup.classList.add('hidden');
+        popup.style.display = 'none';
+    }
 });
 </script>
 </body>
