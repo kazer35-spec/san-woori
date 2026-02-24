@@ -12,6 +12,26 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+/* 1. 운동 종류별 잔디 색상 및 그라데이션 */
+.grass-running { background-color: #FFD1DC !important; } /* 연분홍 */
+.grass-trekking { background-color: #FFE4B5 !important; } /* 연주황 */
+.grass-mountain { background-color: #2ecc71 !important; } /* 기존 산행(녹색) */
+
+/* 산행 + 운동이 겹친 날 (반반 그라데이션) */
+.grass-mixed-run { background: linear-gradient(135deg, #2ecc71 50%, #FFD1DC 50%) !important; }
+.grass-mixed-trek { background: linear-gradient(135deg, #2ecc71 50%, #FFE4B5 50%) !important; }
+
+/* 2. 모바일 미니 팝업 스타일 */
+.mini-pop {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    z-index: 9999; width: 180px; padding: 15px; text-align: center; border: 1px solid #eee;
+}
+.mini-pop-date { font-size: 10px; color: #888; margin-bottom: 5px; }
+.mini-pop-title { font-weight: bold; font-size: 14px; color: #333; }
+.mini-pop-val { font-size: 13px; color: #666; margin-top: 3px; }
+.mini-pop-close { position: absolute; top: 5px; right: 8px; cursor: pointer; color: #aaa; font-size: 18px; }
+
 /* [효과 2] 계절 성운 레이어 */
 .nebula-spring-summer { background-image: radial-gradient(circle at 20% 30%, rgba(144, 238, 144, 0.06), transparent 40%), radial-gradient(circle at 80% 70%, rgba(255, 182, 193, 0.06), transparent 40%); }
 .nebula-fall-winter { background-image: radial-gradient(circle at 30% 20%, rgba(0, 191, 255, 0.06), transparent 40%), radial-gradient(circle at 70% 80%, rgba(255, 215, 0, 0.06), transparent 40%); }
@@ -1356,7 +1376,7 @@ overflow: hidden;
 </head>
 <body>
 
-    <div id="levelupAlert" class="fixed inset-0 z-[200] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div id="levelupAlert" class="fixed inset-0 z-[200] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
     <div class="bg-white rounded-3xl p-8 max-w-sm w-[90%] text-center shadow-2xl transform scale-90 transition-transform duration-300 ease-out border-4 border-yellow-400">
         <div class="text-5xl mb-4">🎊</div>
         <h2 id="levelUpTitle" class="text-2xl font-black text-slate-800 mb-2">LEVEL UP!</h2>
@@ -1979,7 +1999,7 @@ await setDoc(doc(db, "sub_rooms", roomId), { isActive: nextActive, statusMsg: ms
 
 window.copySubRoomUrl = (url, name) => { navigator.clipboard.writeText(url); alert(`[${name}] 링크 복사 완료`); };
 
-window.renderStatusTable = () => {
+Window.renderStatusTable = () => {
     const list = document.getElementById('statusList');
     const search = document.getElementById('searchInput').value.trim();
     const sort = document.getElementById('statusSortOrder').value;
@@ -2008,19 +2028,49 @@ window.renderStatusTable = () => {
 
     const topNames = [...processedData].filter(m => !m.isHidden && m.name !== "오즈").sort((a, b) => b.qCount - a.qCount || b.level - a.level).slice(0, 3).map(m => m.name);
     
-    // 첫 번째 노출되는 행에만 CLICK 문구를 넣기 위한 플래그
     let isFirstVisible = true;
 
     processedData.forEach((m) => {
         if (!isAdminLoggedIn && m.isHidden) return;
         if (search && !m.name.includes(search)) return;
         
-        // ✨ [핵심 수정] 첫 번째 보이는 데이터 행인 경우 모든 열에 들어갈 네온 태그 생성
         let clickTag = "";
         if (isFirstVisible && !m.isHidden) {
             clickTag = `<span class="click-neon">CLICK</span>`;
-            isFirstVisible = false; // 한 번 그렸으면 플래그 해제
+            isFirstVisible = false;
         }
+
+        // --- 🟩 [잔디 로직 시작] 🟩 ---
+        // 각 회원의 로그를 가져와서 잔디 HTML 생성 (최근 15개 정도 표시 권장)
+        let grassHtml = "";
+        if (m.logs && m.logs.length > 0) {
+            // 최근 순 정렬 후 14개만 추출
+            const recentLogs = [...m.logs].sort((a, b) => b.date.toMillis() - a.date.toMillis()).slice(0, 14);
+            
+            recentLogs.forEach(log => {
+                const isRun = log.isRunning === true;
+                const isTrack = log.isTracking === true;
+                // 산행 이름이 기록된 경우 (즉, mName이 있을 때) 산행으로 간주
+                const hasMountain = log.mountain && log.mountain !== "런닝" && log.mountain !== "트레킹";
+
+                let gClass = "bg-mountain"; // 기본 초록
+                if (hasMountain && (isRun || isTrack)) {
+                    gClass = isRun ? "grass-mixed-run" : "grass-mixed-track";
+                } else if (isRun) {
+                    gClass = "grass-running"; // 연분홍
+                } else if (isTrack) {
+                    gClass = "grass-tracking"; // 연주황
+                }
+
+                const unit = (isRun || isTrack) ? 'km' : 'm';
+                const d = log.date.toDate();
+                const dStr = `${d.getMonth()+1}/${d.getDate()}`;
+
+                // 미니 팝업 호출 포함된 잔디 한 칸
+                grassHtml += `<div class="grass-dot ${gClass}" onclick="openMiniPop('${dStr}', '${log.mountain}', ${log.height}, '${unit}')"></div>`;
+            });
+        }
+        // --- 🟩 [잔디 로직 끝] 🟩 ---
 
         let rankT = ""; let rankC = "";
         if (m.name !== "오즈" && m.qCount > 0 && !m.isHidden) {
@@ -2035,47 +2085,40 @@ window.renderStatusTable = () => {
         const nameColor = m.gender === '여' ? 'text-pink-600' : (m.gender === '남' ? 'text-blue-600' : 'text-slate-800');
 
         list.innerHTML += `<tr class="${m.isHidden ? 'opacity-40' : ''}">
-    <td class="text-xs text-center" style="position: relative; vertical-align: middle; height: 65px; padding-top: 15px;">
-        
-        <div style="position: absolute; top: -2.8px; left: 50%; transform: translateX(-50%); width: 100%;">
-            ${clickTag}
-        </div>
-        
-        <div class="flex flex-col items-center justify-center">
-            ${rankT ? `<span class="rank-badge ${rankC}" style="margin-bottom: 2px;">${rankT}</span>` : ''}
-            <span class="font-bold ${nameColor} cursor-pointer hover:underline" 
-                  onclick="showMemberMountain('${m.id}', '${m.name}')">
-                ${m.name}
-            </span>
-        </div>
-    </td>
-    <td>
-        ${clickTag}
-        <div class="badge-level">
-            <div class="badge-icon-box ${style.blink} cursor-pointer" 
-                 onclick="showMilkyWay('${m.id}', '${m.name}')" 
-                 style="background-color: ${style.bg}; border: 1.5px solid ${style.border} !important;">
-                <span class="badge-icon-txt" style="color:${style.text}; font-weight: bold;">${getLevelBadge(m.level)}</span>
-            </div>
-            <span class="badge-lv-txt" style="color:${style.text}; font-weight: bold;">Lv ${m.level}</span>
-        </div>
-    </td>
-    <td>
-        ${clickTag}
-        <button onclick="showMemberTimeline('${m.id}', '${m.name}')" class="qcount-box bg-gray-soft border-none hover:bg-slate-200 text-slate-600">${m.qCount}회 📈</button>
-    </td>
-    <td>
-        ${clickTag}
-        <button onclick="showMemberMap('${m.id}', '${m.name}')" class="height-badge hover:scale-105 active:scale-95 transition-all">🚩${m.totalHeight || 0}m</button>
-    </td>
-    <td>
-        ${clickTag}
-        <span class="dday-box ${ddayClass} cursor-pointer" 
-              onclick="window.showFadingScroll(${m.ddayVal}, ${m.level})">
-            ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
-        </span>
-    </td>
-</tr>`;
+            <td class="text-xs text-center" style="position: relative; vertical-align: middle; height: 65px; padding-top: 15px;">
+                <div style="position: absolute; top: -2.8px; left: 50%; transform: translateX(-50%); width: 100%;">${clickTag}</div>
+                <div class="flex flex-col items-center justify-center">
+                    ${rankT ? `<span class="rank-badge ${rankC}" style="margin-bottom: 2px;">${rankT}</span>` : ''}
+                    <span class="font-bold ${nameColor} cursor-pointer hover:underline" onclick="showMemberMountain('${m.id}', '${m.name}')">${m.name}</span>
+                </div>
+            </td>
+            <td>
+                ${clickTag}
+                <div class="badge-level">
+                    <div class="badge-icon-box ${style.blink} cursor-pointer" onclick="showMilkyWay('${m.id}', '${m.name}')" style="background-color: ${style.bg}; border: 1.5px solid ${style.border} !important;">
+                        <span class="badge-icon-txt" style="color:${style.text}; font-weight: bold;">${getLevelBadge(m.level)}</span>
+                    </div>
+                    <span class="badge-lv-txt" style="color:${style.text}; font-weight: bold;">Lv ${m.level}</span>
+                </div>
+            </td>
+            <td>
+                ${clickTag}
+                <div class="flex flex-col items-center">
+                    <div class="grass-wrapper mb-1">${grassHtml}</div>
+                    <button onclick="showMemberTimeline('${m.id}', '${m.name}')" class="qcount-box bg-gray-soft border-none hover:bg-slate-200 text-slate-600">${m.qCount}회 📈</button>
+                </div>
+            </td>
+            <td>
+                ${clickTag}
+                <button onclick="showMemberMap('${m.id}', '${m.name}')" class="height-badge hover:scale-105 active:scale-95 transition-all">🚩${m.totalHeight || 0}m</button>
+            </td>
+            <td>
+                ${clickTag}
+                <span class="dday-box ${ddayClass} cursor-pointer" onclick="window.showFadingScroll(${m.ddayVal}, ${m.level})">
+                    ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
+                </span>
+            </td>
+        </tr>`;
     });
 };
 
@@ -2420,15 +2463,16 @@ window.addMultiActivity = async () => {
     const isTop100 = document.getElementById('isTop100Check').checked;
     const isBAC = document.getElementById('isBACCheck').checked;
     
-    // ✅ 누락되었던 체크박스 변수 정의 추가
+    // ✅ 체크박스 변수 정의
     const isRegular = document.getElementById('isRegularCheck')?.checked || false;
     const isRunning = document.getElementById('isRunningCheck')?.checked || false;
     const isTracking = document.getElementById('isTrackingCheck')?.checked || false;
-    
     const region = document.getElementById('adminManualRegionSelect').value;
-
-    // ✅ 분기 체크박스 상태 확인
     const isQuarterOnlyOne = document.getElementById('isQuarterCheck')?.checked || false;
+
+    // ✅ 운동 여부 및 타입 정의
+    const isExercise = isRunning || isTracking;
+    const activityType = isRunning ? 'running' : (isTracking ? 'tracking' : 'mountain');
 
     if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜 확인");
 
@@ -2438,8 +2482,8 @@ window.addMultiActivity = async () => {
     const up = parseInt(upElement.value);
     const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
 
-    // 3. 산 정보가 있을 경우 산 DB 업데이트
-    if(mName && tempCoord) {
+    // 3. 산 정보가 있을 경우 산 DB 업데이트 (운동이 아닐 때 권장)
+    if(!isExercise && mName && tempCoord) {
         await setDoc(doc(db, "mountains", mName), { 
             x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region 
         }, { merge: true });
@@ -2454,43 +2498,49 @@ window.addMultiActivity = async () => {
             if(!member) continue;
             
             const oldLevel = member.level || 0; 
-            const newLevel = oldLevel + up;
             
-            // [A] 회원 정보 업데이트
-            await updateDoc(doc(db, "sanwoori", id), { 
-                level: newLevel, 
-                lastDate: ts 
-            });
-            
-            // [B] 우정 포인트 업데이트
-            if (selectedMemberIds.size >= 2) {
-                // 정기산행이면 10점, 아니면 원래대로 10 * up
-                const pointToAdd = isRegular ? 10 : (10 * up); 
+            // [A] 회원 정보 업데이트 (중요: 운동일 때는 레벨/점수 업데이트 패스)
+            if (!isExercise) {
+                const newLevel = oldLevel + up;
                 await updateDoc(doc(db, "sanwoori", id), { 
-                    friendshipPoint: increment(pointToAdd) 
+                    level: newLevel, 
+                    lastDate: ts 
                 });
+                
+                // [B] 우정 포인트 업데이트 (산행 시 2인 이상)
+                if (selectedMemberIds.size >= 2) {
+                    const pointToAdd = isRegular ? 10 : (10 * up); 
+                    await updateDoc(doc(db, "sanwoori", id), { 
+                        friendshipPoint: increment(pointToAdd) 
+                    });
+                }
+                // 레벨업 축하 알림 체크
+                checkLevelUpgrade(member.name, oldLevel, newLevel);
+            } else {
+                // 운동일 경우: 레벨업 없이 기록 완료 알림만 예약
+                pendingLevelUpMessages.push(`${member.name}님 ${isRunning ? '런닝' : '트레킹'} 기록 완료 (점수 미반영)`);
             }
             
             // [C] 로그 기록 (분기 횟수 결정)
-            const logLoopCount = isQuarterOnlyOne ? 1 : up;
+            // 운동은 무조건 1회 기록, 산행은 체크여부에 따라 1회 또는 up회 기록
+            const logLoopCount = isExercise ? 1 : (isQuarterOnlyOne ? 1 : up);
 
             for(let i = 0; i < logLoopCount; i++) {
                 await addDoc(collection(db, `sanwoori/${id}/logs`), { 
                     date: ts, 
-                    mountain: mName, 
+                    mountain: mName || (isRunning ? "런닝" : "트레킹"), 
                     height, 
                     coords: tempCoord, 
                     isTop100, 
                     isBAC, 
                     isRegular, 
                     isRunning, 
-                    isTracking, 
+                    isTracking,
+                    type: activityType, // 잔디 색상 구분을 위한 필드
+                    isExercise: isExercise, // km/m 구분을 위한 필드
                     region
                 });
             }
-            
-            // 레벨업 축하 알림 체크
-            checkLevelUpgrade(member.name, oldLevel, newLevel);
         }
 
         // 5. 후처리 및 알림
@@ -2498,8 +2548,8 @@ window.addMultiActivity = async () => {
             showCombinedLevelUpAlert();
         }
 
-        const logMsg = isQuarterOnlyOne ? "분기 1회만 반영" : `분기 ${up}회 반영`;
-        alert(`저장 완료 (레벨 ${up}↑ / ${logMsg})`); 
+        const successMsg = isExercise ? "운동 기록이 저장되었습니다." : `산행 저장 완료 (레벨 ${up}↑)`;
+        alert(successMsg); 
         
         selectedMemberIds.clear(); 
         tempCoord = null; 
@@ -2511,21 +2561,46 @@ window.addMultiActivity = async () => {
     }
 };
 
-window.loadMemberLogs = async () => {
-const id = document.getElementById('memberSelectEdit').value;
-const area = document.getElementById('logListArea'); area.innerHTML = ""; if(!id) return;
-const snap = await getDocs(query(collection(db, `sanwoori/${id}/logs`), orderBy("date", "desc"), limit(20)));
-snap.forEach(ld => {
-const logData = ld.data(); const d = logData.date.toDate(); const dateStr = `${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()}`;
-const logJson = JSON.stringify({ mountain: logData.mountain || '', height: logData.height || 0, coords: logData.coords || null, isTop100: logData.isTop100 || false, isBAC: logData.isBAC || false, region: logData.region || '기타' }).replace(/"/g, '&quot;');
-area.innerHTML += `<div class="log-item-box" onclick="selectLogToMap('${logJson}')">
-<div class="log-info-group"><span class="log-date-txt">${dateStr}</span><span class="log-mt-txt">${logData.isBAC ? '<span class="bac-txt">BAC</span>' : ''}${logData.mountain || '기록'}</span>
-<div class="flex items-center gap-1"><input type="number" id="h-${ld.id}" value="${logData.height || 0}" class="log-height-input border rounded-md" onclick="event.stopPropagation()">
-<button onclick="event.stopPropagation(); updateLogHeight('${id}', '${ld.id}')" class="text-[9px] bg-slate-200 px-1 py-1 rounded">높이수정</button>
-<button onclick="event.stopPropagation(); updateLogCoord('${id}', '${ld.id}')" class="text-[9px] bg-emerald-500 text-white px-1 py-1 rounded">좌표수정</button></div></div>
-<div class="log-btn-group" onclick="event.stopPropagation()"><button class="del-btn-mini" onclick="deleteLog('${id}', '${ld.id}', true)">레벨-1 삭제</button>
-<button class="del-only-btn-mini" onclick="deleteLog('${id}', '${ld.id}', false)">기록만 삭제</button></div></div>`;
-});
+    window.loadMemberLogs = async () => {
+    const id = document.getElementById('memberSelectEdit').value;
+    const area = document.getElementById('logListArea'); area.innerHTML = ""; if(!id) return;
+    const snap = await getDocs(query(collection(db, `sanwoori/${id}/logs`), orderBy("date", "desc"), limit(20)));
+    
+    snap.forEach(ld => {
+        const logData = ld.data(); 
+        const d = logData.date.toDate(); 
+        const dateStr = `${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()}`;
+        
+        // ✅ [수정] 운동 여부에 따라 단위 결정 (km 또는 m)
+        const isEx = logData.isRunning || logData.isTracking;
+        const unit = isEx ? 'km' : 'm';
+        const typeLabel = logData.isRunning ? '🏃런닝' : (logData.isTracking ? '🚶트레킹' : '');
+
+        const logJson = JSON.stringify({ 
+            mountain: logData.mountain || '', 
+            height: logData.height || 0, 
+            coords: logData.coords || null, 
+            isTop100: logData.isTop100 || false, 
+            isBAC: logData.isBAC || false, 
+            region: logData.region || '기타' 
+        }).replace(/"/g, '&quot;');
+
+        area.innerHTML += `<div class="log-item-box" onclick="selectLogToMap('${logJson}')">
+            <div class="log-info-group">
+                <span class="log-date-txt">${dateStr}</span>
+                <span class="log-mt-txt">${logData.isBAC ? '<span class="bac-txt">BAC</span>' : ''}${typeLabel} ${logData.mountain || '기록'}</span>
+                <div class="flex items-center gap-1">
+                    <input type="number" id="h-${ld.id}" value="${logData.height || 0}" class="log-height-input border rounded-md" onclick="event.stopPropagation()">
+                    <span class="text-[10px] text-gray-500">${unit}</span>
+                    <button onclick="event.stopPropagation(); updateLogHeight('${id}', '${ld.id}')" class="text-[9px] bg-slate-200 px-1 py-1 rounded">수정</button>
+                </div>
+            </div>
+            <div class="log-btn-group" onclick="event.stopPropagation()">
+                <button class="del-btn-mini" onclick="deleteLog('${id}', '${ld.id}', true)">레벨-1 삭제</button>
+                <button class="del-only-btn-mini" onclick="deleteLog('${id}', '${ld.id}', false)">기록만 삭제</button>
+            </div>
+        </div>`;
+    });
 };
 
 window.selectLogToMap = (logDataStr) => {
