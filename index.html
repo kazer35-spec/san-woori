@@ -1089,7 +1089,8 @@ box-sizing: border-box;
 50% { opacity: 0.3; }
 100% { opacity: 1; }
 }
-/* 30일 남음: 노란색 + 느린 깜빡임 (2초 간격) */
+
+    /* 30일 남음: 노란색 + 느린 깜빡임 (2초 간격) */
 .blink-slow {
 animation: dday-blink 2s infinite;
 background-color: #fefce8 !important; /* 노랑 */
@@ -2120,8 +2121,6 @@ window.showMemberTimeline = async (mId, mName) => {
     container.innerHTML = "<p class='text-center text-xs py-5 text-gray-400'>조회 중...</p>";
 
     try {
-const growthData = await calculateGrowthData(mId);
-        renderGrowthChart(growthData);
         const start = new Date(selectedYear, (selectedQuarter - 1) * 3, 1);
         const end = new Date(selectedYear, selectedQuarter * 3, 1);
         const totalDaysInQ = Math.floor((end - start) / (1000 * 60 * 60 * 24));
@@ -2218,53 +2217,47 @@ qSnap.forEach(d => {
 const data = d.data(); qH += (data.height || 0);
 if((data.height || 0) > maxH) { maxH = data.height; peakName = data.mountain || "기록"; }
 });
-
+heights.push(qH); peaks.push(peakName);
 }
 return { labels, counts, heights, peaks };
 }
 
-// 필수 변수 선언 (코드 맨 위에 추가)
-let growthChartInstance = null; 
-let tempCoord = null;
-let selectedMemberIds = new Set();function renderGrowthChart(data) {
-    const canvas = document.getElementById('growthChart');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-
-    if (growthChartInstance) growthChartInstance.destroy();
-    growthChartInstance = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: data.labels,
-            datasets: [
-                { label: '산행 횟수', data: data.counts, backgroundColor: 'rgba(59, 130, 246, 0.6)', borderRadius: 5, yAxisID: 'y', order: 2 },
-                { label: '누적 고도', data: data.heights, type: 'line', borderColor: '#ef4444', borderWidth: 2, pointBackgroundColor: '#ef4444', pointRadius: 4, tension: 0.4, yAxisID: 'y1', order: 1 }
-            ]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    backgroundColor: 'rgba(30, 41, 59, 0.95)',
-                    padding: 10,
-                    titleFont: { size: 12, weight: '900' },
-                    bodyFont: { size: 11, weight: '700' },
-                    callbacks: {
-                        label: function(context) {
-                            const i = context.dataIndex;
-                            return [ ` ⛰️ 누적: ${data.heights[i].toLocaleString()}m`, ` 🏔️ 최고봉: ${data.peaks[i]}`, ` 📈 횟수: ${data.counts[i]}회` ];
-                        }
-                    }
-                }
-            },
-            scales: {
-                x: { grid: { display: false }, ticks: { font: { size: 10, weight: '800' } } },
-                y: { beginAtZero: true, position: 'left', grid: { color: '#f1f5f9' }, ticks: { font: { size: 8 } } },
-                y1: { beginAtZero: true, position: 'right', display: false }
-            }
-        }
-    });
+function renderGrowthChart(data) {
+const ctx = document.getElementById('growthChart').getContext('2d');
+if (growthChartInstance) growthChartInstance.destroy();
+growthChartInstance = new Chart(ctx, {
+type: 'bar',
+data: {
+labels: data.labels,
+datasets: [
+{ label: '산행 횟수', data: data.counts, backgroundColor: 'rgba(59, 130, 246, 0.6)', borderRadius: 5, yAxisID: 'y', order: 2 },
+{ label: '누적 고도', data: data.heights, type: 'line', borderColor: '#ef4444', borderWidth: 2, pointBackgroundColor: '#ef4444', pointRadius: 4, tension: 0.4, yAxisID: 'y1', order: 1 }
+]
+},
+options: {
+responsive: true, maintainAspectRatio: false,
+plugins: {
+legend: { display: false },
+tooltip: {
+backgroundColor: 'rgba(30, 41, 59, 0.95)',
+padding: 10,
+titleFont: { size: 12, weight: '900' },
+bodyFont: { size: 11, weight: '700' },
+callbacks: {
+label: function(context) {
+const i = context.dataIndex;
+return [ ` ⛰️ 누적: ${data.heights[i].toLocaleString()}m`, ` 🏔️ 최고봉: ${data.peaks[i]}`, ` 📈 횟수: ${data.counts[i]}회` ];
+}
+}
+}
+},
+scales: {
+x: { grid: { display: false }, ticks: { font: { size: 10, weight: '800' } } },
+y: { beginAtZero: true, position: 'left', grid: { color: '#f1f5f9' }, ticks: { font: { size: 8 } } },
+y1: { beginAtZero: true, position: 'right', display: false }
+}
+}
+});
 }
 
 window.toggleMapView = () => {
@@ -3352,10 +3345,7 @@ style="position:absolute; top:15px; right:15px; color:white; background:none; bo
     </div>
 </div>
 
-<div id="grassPopup" class="hidden" 
-     style="position: absolute; z-index: 10000; background: white; border: 1px solid #e2e8f0; 
-            padding: 12px; border-radius: 12px; min-width: 140px; 
-            pointer-events: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.2); display: none;">
+<div id="grassPopup" class="hidden" style="position: absolute; z-index: 9999; background: white; border: 1px solid #e2e8f0; padding: 12px; border-radius: 12px; shadow: 0 10px 15px -3px rgba(0,0,0,0.1); min-width: 140px; pointer-events: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
     <div id="popupDate" style="font-size: 10px; font-weight: bold; color: #94a3b8; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; margin-bottom: 8px;"></div>
     <div id="popupContent" style="display: flex; flex-direction: column; gap: 4px;"></div>
 </div>
@@ -3371,7 +3361,6 @@ window.showGrassPopup = (event, date, encodedAct) => {
 
     if (!encodedAct || encodedAct === "") {
         popup.classList.add('hidden');
-        popup.style.display = 'none';
         return;
     }
 
@@ -3379,15 +3368,13 @@ window.showGrassPopup = (event, date, encodedAct) => {
         const act = JSON.parse(atob(encodedAct));
         dateEl.innerText = date;
         let items = "";
+        // 팝업에는 모든 활동을 다 보여줌
         if (act.hike > 0) items += `<div class="flex justify-between gap-4 text-[12px]"><span>⛰️ 산행</span><b>${act.hike}회</b></div>`;
         if (act.run > 0) items += `<div class="flex justify-between gap-4 text-[12px] text-pink-500 font-bold"><span>🏃 러닝</span><b>${act.run}회</b></div>`;
         if (act.trek > 0) items += `<div class="flex justify-between gap-4 text-[12px] text-purple-500 font-bold"><span>🥾 트레킹</span><b>${act.trek}회</b></div>`;
         
         content.innerHTML = items;
-        
-        // 중요: hidden 제거와 동시에 display block 처리
         popup.classList.remove('hidden');
-        popup.style.display = 'block';
 
         let left = event.pageX + 10;
         if (left + 160 > window.innerWidth) left = event.pageX - 160;
@@ -3397,13 +3384,9 @@ window.showGrassPopup = (event, date, encodedAct) => {
         console.error("데이터 해독 실패", e);
     }
 };
-
 window.addEventListener('click', () => {
     const popup = document.getElementById('grassPopup');
-    if (popup) {
-        popup.classList.add('hidden');
-        popup.style.display = 'none';
-    }
+    if (popup) popup.classList.add('hidden');
 });
 </script>
 </body>
