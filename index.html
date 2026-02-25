@@ -2116,8 +2116,7 @@ window.renderStatusTable = () => {
 </tr>`;
     });
 };
-
-    window.toggleHallModal = async (show) => {
+window.toggleHallModal = async (show) => {
 const modal = document.getElementById('hallModal');
 modal.style.display = show ? 'flex' : 'none';
 if(show) {
@@ -2152,7 +2151,7 @@ window.showMemberTimeline = async (mId, mName) => {
     const vibeArea = document.getElementById('passionVibeArea');
     const chartBox = document.getElementById('chartBox');
 
-    // 1. 기본 텍스트 및 정보 세팅
+    // 1. 기본 세팅
     document.getElementById('timelineMemberName').innerText = mName;
     const memberInfo = currentData.find(m => m.id === mId);
     const friendshipPoint = memberInfo?.friendshipPoint || 0;
@@ -2167,18 +2166,13 @@ window.showMemberTimeline = async (mId, mName) => {
         const end = new Date(selectedYear, selectedQuarter * 3, 1);
         const totalDaysInQ = Math.floor((end - start) / (1000 * 60 * 60 * 24));
 
-        // 2. 데이터 로드 (원래 코드 스타일 유지)
         const snapAll = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc")));
         const logsAll = snapAll.docs.map(doc => ({ ...doc.data(), date: doc.data().date.toDate() }));
         const logsQuarter = logsAll.filter(l => l.date >= start && l.date < end);
 
-        // --- [복구] 우측 상단 배지에 분기/최근 횟수 표시 ---
         const badge = document.getElementById('timelineCountBadge');
-        if(badge) {
-            badge.innerText = `분기 ${logsQuarter.length}회 / 최근 ${logsAll.length}회`;
-        }
+        if(badge) badge.innerText = `분기 ${logsQuarter.length}회 / 최근 ${logsAll.length}회`;
 
-        // 3. 차트 및 HOT 뱃지
         const chartData = await calculateGrowthData(mId);
         renderGrowthChart(chartData);
 
@@ -2188,7 +2182,7 @@ window.showMemberTimeline = async (mId, mName) => {
             vibeArea.innerHTML = `<span class="hot-vibe flex items-center h-[18px] text-[9px] font-black text-orange-500 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-100">🔥 HOT</span>`;
         }
 
-        // 4. 잔디 보드 분석 및 생성
+        // 2. 잔디 데이터 집계
         const dateActivities = {}; 
         logsQuarter.forEach(l => { 
             const key = `${l.date.getFullYear()}-${l.date.getMonth() + 1}-${l.date.getDate()}`;
@@ -2198,20 +2192,19 @@ window.showMemberTimeline = async (mId, mName) => {
             else dateActivities[key].hike++;
         });
 
+        // 3. 잔디 HTML 생성 (중복 선언 해결)
         let grassHtml = "";
         for (let i = 0; i < totalDaysInQ; i++) {
             const cur = new Date(start); 
             cur.setDate(start.getDate() + i);
             const k = `${cur.getFullYear()}-${cur.getMonth() + 1}-${cur.getDate()}`;
-            const act = dateActivities[k];
+            const act = dateActivities[k]; // 여기서 한 번만 선언
             
             let cl = "grass-day";
             let style = ""; 
 
             if (act) {
-                const hasHike = act.hike > 0;
-                const hasExtra = act.run > 0 || act.trek > 0;
-                if (hasHike && hasExtra) {
+                if (act.hike > 0 && (act.run > 0 || act.trek > 0)) {
                     const subColor = act.run > 0 ? "#FFD1DC" : "#E0B0FF";
                     style = `background: linear-gradient(135deg, #2ecc71 50%, ${subColor} 50%);`;
                 } else if (act.run > 0) { style = "background: #FFD1DC;"; }
@@ -2222,12 +2215,12 @@ window.showMemberTimeline = async (mId, mName) => {
                 }
             }
 
-            const act = dateActivities[k];
-const encodedAct = act ? encodeURIComponent(JSON.stringify(act)) : ""; 
+            const encodedAct = act ? encodeURIComponent(JSON.stringify(act)) : ""; 
+            grassHtml += `<div class="${cl}" style="${style}" onclick="window.showGrassPopup(event, '${k}', '${encodedAct}')"></div>`;
+        } // for loop 종료
+        grassBoard.innerHTML = grassHtml;
 
-grassHtml += `<div class="${cl}" style="${style}" onclick="window.showGrassPopup(event, '${k}', '${encodedAct}')"></div>`;
-
-        // 5. 하단 타임라인 리스트 생성 (원래 코드 로직 복구)
+        // 4. 하단 타임라인 리스트
         if(logsAll.length === 0) { 
             container.innerHTML = "<p class='text-center text-[10px] py-10 text-gray-400'>기록 없음</p>"; 
         } else {
@@ -2236,7 +2229,6 @@ grassHtml += `<div class="${cl}" style="${style}" onclick="window.showGrassPopup
                 const top100Class = log.isTop100 ? 'text-blue-600 font-black' : '';
                 const bacTag = log.isBAC ? '<span class="bac-txt">BAC</span>' : '';
                 const unit = (log.isRunning || log.isTracking) ? 'km' : 'm';
-                
                 return `
                     <div class="timeline-item">
                         <div class="timeline-dot"></div>
@@ -2247,7 +2239,7 @@ grassHtml += `<div class="${cl}" style="${style}" onclick="window.showGrassPopup
         }
 
     } catch (e) { 
-        console.error(e);
+        console.error("Timeline Error:", e);
         container.innerHTML = "<p class='text-center text-xs text-red-400'>데이터 조회 실패</p>"; 
     }
 };
@@ -3492,3 +3484,5 @@ document.addEventListener('click', (e) => {
 
 </body>
 </html>
+
+    
