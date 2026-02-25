@@ -2505,7 +2505,7 @@ pendingLevelUpMessages = []; // 메시지 대기열 초기화
 };
 
 Window.addMultiActivity = async () => {
-    // 1. 필요한 기본 데이터 가져오기
+    // 1. 입력 필드 및 기본 데이터 수집
     const dateVal = document.getElementById('activityDate').value;
     const mName = document.getElementById('mountainName').value.trim();
     const height = parseInt(document.getElementById('mountainHeight').value) || 0;
@@ -2519,31 +2519,35 @@ Window.addMultiActivity = async () => {
 
     const isQuarterOnlyOne = document.getElementById('isQuarterCheck')?.checked || false;
 
-    if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜 확인");
+    // 필수값 체크
+    if(!selectedMemberIds.size || !dateVal) return alert("대상 회원과 날짜를 확인해주세요.");
 
-    // 2. 레벨업 수치 및 날짜 설정
+    // 2. 레벨업 및 로그 반복 횟수 설정
     const upElement = document.querySelector('input[name="upAmount"]:checked');
-    if(!upElement) return alert("레벨업 수치를 선택해주세요.");
+    if(!upElement) return alert("레벨업 수치(1~3)를 선택해주세요.");
     const up = parseInt(upElement.value);
 
-    // [로직 통합] 러닝/트레킹 시 레벨업 0, 기록은 잔디용으로 1회 고정
+    // [특수 활동 분기] 러닝/트레킹은 레벨업 0, 로그는 무조건 1회만 기록
     const isSpecial = isRunning || isTracking;
     const effectiveUp = isSpecial ? 0 : up;
     const logLoopCount = isSpecial ? 1 : (isQuarterOnlyOne ? 1 : up);
 
     const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
 
-    // 3. 산 정보 업데이트
+    // 3. 공통 산 정보 업데이트 (좌표 정보가 있을 경우)
     if(mName && tempCoord) {
-        await setDoc(doc(db, "mountains", mName), {
-            x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region
-        }, { merge: true });
+        try {
+            await setDoc(doc(db, "mountains", mName), {
+                x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region
+            }, { merge: true });
+        } catch(e) { console.error("산 정보 업데이트 실패:", e); }
     }
 
+    // 레벨업 메시지 대기열 초기화
     pendingLevelUpMessages = [];
 
     try {
-        // 4. 선택된 회원별 업데이트 루프
+        // 4. 선택된 회원별 업데이트 루프 (핵심 로직)
         for(const id of selectedMemberIds){
             const member = currentData.find(m => m.id === id);
             if(!member) continue;
@@ -2551,33 +2555,35 @@ Window.addMultiActivity = async () => {
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
-            // [A] 회원 정보 업데이트
+            // [A] 회원 기본 정보 업데이트 (레벨, 마지막 활동일, 누적 고도)
             await updateDoc(doc(db, "sanwoori", id), {
                 level: newLevel,
                 lastDate: ts,
                 totalHeight: increment(height)
             });
 
-            // [B] 우정 포인트 업데이트 (런닝/트레킹 제외)
+            // [B] 우정 포인트 업데이트 (2인 이상 동행 시 & 특수활동 아닐 때)
             if (selectedMemberIds.size >= 2 && !isSpecial) {
+                // 정기산행은 고정 10점, 번개는 (레벨업 수치 * 10)점
                 const pointToAdd = isRegular ? 10 : (10 * effectiveUp); 
                 await updateDoc(doc(db, "sanwoori", id), { 
                     friendshipPoint: increment(pointToAdd) 
                 });
             }
 
-            // [C] 로그 기록 (logLoopCount에 따라 실행)
+            // [C] 상세 로그 기록 (logLoopCount 만큼 반복 저장)
             for(let i = 0; i < logLoopCount; i++) {
-                // --- [추가] 정기산행 별 종류 확률 결정 로직 ---
+                
+                // --- [확률 로직] 정기산행 시 별 종류 결정 ---
                 let assignedStarType = null;
                 if (isRegular) {
                     const rand = Math.random() * 100;
                     if (rand <= 3) {
-                        assignedStarType = "super"; // 3% (노랑+빨강)
+                        assignedStarType = "super"; // 3% 확률: 슈퍼 스타 (노랑+빨강)
                     } else if (rand <= 12) {
-                        assignedStarType = "special"; // 9% (그린+보라)
+                        assignedStarType = "special"; // 9% 확률: 스페셜 스타 (그린+보라)
                     } else if (rand <= 34) {
-                        // 22% (기존 4색 정기별 중 하나 랜덤)
+                        // 22% 확률: 일반 정기별 (1~4번 색상 중 랜덤)
                         assignedStarType = "regular_" + (Math.floor(Math.random() * 4) + 1);
                     }
                 }
@@ -2593,35 +2599,43 @@ Window.addMultiActivity = async () => {
                     isRunning,
                     isTracking,
                     region,
-                    starType: assignedStarType // ★ 결정된 별 종류 저장 (고정의 핵심)
+                    starType: assignedStarType // 은하수 뷰에서 사용할 별 종류 저장
                 });
             }
 
+            // [D] 레벨업 마크 획득 체크 (특수활동 제외)
             if (!isSpecial) {
                 checkLevelUpgrade(member.name, oldLevel, newLevel);
             }
         }
 
-        // 5. 후처리 및 알림
+        // 5. 후처리: 알림 및 UI 갱신
+        
+        // 레벨업 팝업이 있을 경우 노출
         if (pendingLevelUpMessages.length > 0) {
             showCombinedLevelUpAlert();
         }
 
         let finalMsg = "";
         if (isSpecial) {
-            finalMsg = `${isRunning ? '런닝' : '트레킹'} 기록 완료 (분기 횟수 미포함)`;
+            finalMsg = `${isRunning ? '런닝' : '트레킹'} 기록이 완료되었습니다. (레벨/분기 미포함)`;
         } else {
-            const logMsg = isQuarterOnlyOne ? "분기 1회만 반영" : `분기 ${up}회 반영`;
-            finalMsg = `저장 완료 (레벨 ${up}↑ / ${logMsg})`;
+            const logMsg = isQuarterOnlyOne ? "분기 횟수 1회만 반영" : `분기 횟수 ${up}회 반영`;
+            finalMsg = `성공적으로 저장되었습니다!\n(레벨 ${oldLevel} → ${oldLevel + effectiveUp} / ${logMsg})`;
         }
         alert(finalMsg);
 
+        // 상태 초기화
         selectedMemberIds.clear();
         tempCoord = null;
-        updateAdminMemberLists();
-        updateVibeTemp();
+        
+        // 화면 업데이트 함수들 호출
+        if(typeof updateAdminMemberLists === 'function') updateAdminMemberLists();
+        if(typeof updateVibeTemp === 'function') updateVibeTemp();
+        if(typeof startRealtimeSync === 'function') startRealtimeSync();
+
     } catch (error) {
-        console.error("저장 중 에러 발생:", error);
+        console.error("활동 저장 중 에러 발생:", error);
         alert("저장에 실패했습니다: " + error.message);
     }
 };
@@ -3170,7 +3184,6 @@ Window.showMilkyWay = async (mId, mName) => {
     const nameLabel = document.getElementById('mwMemberName');
 
     if (!modal || !board) return;
-
     modal.style.display = 'flex';
     if (nameLabel) nameLabel.innerText = `${mName}님의 은하수`;
     board.innerHTML = "";
@@ -3182,18 +3195,11 @@ Window.showMilkyWay = async (mId, mName) => {
             .filter(l => l.coords)
             .sort((a, b) => a.date.toDate() - b.date.toDate());
 
-        // --- [기능 1] 계절 성좌 레이어 ---
+        // 계절 레이어 처리
         const month = new Date().getMonth() + 1;
         board.classList.remove('nebula-spring-summer', 'nebula-fall-winter');
         if (month >= 3 && month <= 8) board.classList.add('nebula-spring-summer');
         else board.classList.add('nebula-fall-winter');
-
-        // --- [기능 2] 활동지수 배율 확인 ---
-        const now = new Date();
-        const oneDayAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
-        const hasRecentLog = logs.some(log => log.date.toDate() > oneDayAgo);
-        let activityBonus = hasRecentLog ? 1.1 : 1.0;
-        console.log(`${mName}님의 활동지수 배율: ${activityBonus}`);
 
         if (logs.length === 0) {
             board.innerHTML = "<div class='text-white/20 text-xs h-full flex items-center justify-center'>아직 기록된 별이 없습니다.</div>";
@@ -3201,63 +3207,43 @@ Window.showMilkyWay = async (mId, mName) => {
         }
 
         logs.forEach((log, index) => {
-            // 기본값 설정 (일반 별 / 흰색 / 기존 크기)
             let starColor = "white";
             let shadowColor = "#FFFFFF";
             let starSize = "w-1.5 h-1.5";
             let customStyle = "";
             let extraClass = "";
 
-            // --- [핵심] 정기산행 별/100대명산/일반 별 로직 통합 ---
+            // --- [비주얼 통합 로직] ---
             if (log.starType) {
-                // DB에 고정된 starType이 있는 경우 (새로운 정기산행 별 6종)
                 if (log.starType === "super") {
-                    // 3% 확률: 노랑+빨강 (가장 크고 밝은 둥근 광채)
-                    starSize = "w-2.5 h-2.5";
-                    customStyle = `
-                        background: radial-gradient(circle, #FFD700 20%, #FF4500 100%);
-                        box-shadow: 0 0 15px 5px rgba(255, 215, 0, 0.6), 0 0 30px 10px rgba(255, 69, 0, 0.4);
-                        filter: brightness(1.5);
-                    `;
+                    starSize = "w-2.1 h-2.1";
+                    customStyle = `background: radial-gradient(circle, #FFD700 20%, #FF4500 100%); box-shadow: 0 0 15px 5px rgba(255, 215, 0, 0.6), 0 0 30px 10px rgba(255, 69, 0, 0.4); filter: brightness(1.5);`;
                 } else if (log.starType === "special") {
-                    // 9% 확률: 그린+보라 (중간 크기, 밝은 둥근 광채)
-                    starSize = "w-2 h-2";
-                    customStyle = `
-                        background: radial-gradient(circle, #00FF7F 20%, #A020F0 100%);
-                        box-shadow: 0 0 12px 4px rgba(0, 255, 127, 0.5), 0 0 25px 8px rgba(160, 32, 240, 0.4);
-                        filter: brightness(1.3);
-                    `;
+                    starSize = "w-1.8 h-1.8";
+                    customStyle = `background: radial-gradient(circle, #00FF7F 20%, #A020F0 100%); box-shadow: 0 0 12px 4px rgba(0, 255, 127, 0.5), 0 0 25px 8px rgba(160, 32, 240, 0.4); filter: brightness(1.3);`;
                 } else if (log.starType.startsWith("regular_")) {
-                    // 22% 확률: 기존 4색 정기별 (기존 크기 1.5 유지)
                     const colors = ["#00FFFF", "#FBCEB1", "#D32F2F", "#9B84D8"];
                     const idx = parseInt(log.starType.split('_')[1]) - 1;
-                    starColor = colors[idx];
+                    starColor = colors[idx] || "#00FFFF";
                     shadowColor = starColor;
                     extraClass = "animate-gentle-shine";
                 }
             } else if (log.isTop100) {
-                // 100대 명산: 샴페인 골드
-                starColor = "#F7E7CE";
-                shadowColor = "#F7E7CE";
-            } else if (log.isRegular) {
-                // [하위 호환] starType이 없는 예전 정기산행 기록 처리
-                const regularColors = ["#00FFFF", "#FBCEB1", "#D32F2F", "#9B84D8"];
-                starColor = regularColors[Math.floor(Math.random() * regularColors.length)];
+                starColor = "#F7E7CE"; shadowColor = "#F7E7CE";
+            } else if (log.isRegular) { // 하위 호환
+                const regColors = ["#00FFFF", "#FBCEB1", "#D32F2F", "#9B84D8"];
+                starColor = regColors[Math.floor(Math.random() * 4)];
                 shadowColor = starColor;
                 extraClass = "animate-gentle-shine";
             }
 
             const star = document.createElement('div');
             star.className = `absolute ${starSize} rounded-full z-10 ${extraClass}`;
-            
-            // 스타일 적용
-            if (customStyle) {
-                star.style.cssText += customStyle;
-            } else {
+            if (customStyle) star.style.cssText += customStyle;
+            else {
                 star.style.backgroundColor = starColor;
                 star.style.boxShadow = `0 0 6px ${shadowColor}, 0 0 12px ${shadowColor}`;
             }
-
             star.style.left = log.coords.x + "%";
             star.style.top = log.coords.y + "%";
             star.style.transition = "opacity 1s ease";
@@ -3266,33 +3252,25 @@ Window.showMilkyWay = async (mId, mName) => {
             board.appendChild(star);
             setTimeout(() => { star.style.opacity = "1"; }, index * 100);
 
-            // --- [선 연결 로직] ---
+            // 선 연결
             if (index > 0) {
                 const prev = logs[index - 1];
-                const x1 = prev.coords.x, y1 = prev.coords.y;
-                const x2 = log.coords.x, y2 = log.coords.y;
+                const x1 = prev.coords.x, y1 = prev.coords.y, x2 = log.coords.x, y2 = log.coords.y;
                 const dist = Math.sqrt(Math.pow(x2-x1, 2) + Math.pow(y2-y1, 2));
                 const angle = Math.atan2(y2-y1, x2-x1) * 180 / Math.PI;
-
                 const line = document.createElement('div');
                 line.className = 'absolute bg-blue-400/20 origin-left z-0';
-                line.style.height = '0.5px';
-                line.style.width = dist + "%";
-                line.style.left = x1 + "%";
-                line.style.top = y1 + "%";
+                line.style.height = '0.5px'; line.style.width = dist + "%";
+                line.style.left = x1 + "%"; line.style.top = y1 + "%";
                 line.style.transform = `rotate(${angle}deg)`;
                 board.appendChild(line);
             }
 
-            // --- [기능 3] 마지막 별 별똥별 ---
             if (index === logs.length - 1) {
                 setTimeout(() => createShootingStar(board, log.coords.x, log.coords.y), (index * 100) + 500);
             }
         });
-    } catch (e) {
-        console.error(e);
-        alert("성좌를 불러오는데 실패했습니다.");
-    }
+    } catch (e) { alert("성좌 로드 실패"); }
 };
 
 function createShootingStar(board, tx, ty) {
