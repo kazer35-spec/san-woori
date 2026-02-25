@@ -2720,6 +2720,27 @@ const id = document.getElementById('memberSelectManage').value;
 if(id && confirm("삭제하시겠습니까?")) { await deleteDoc(doc(db, "sanwoori", id)); alert("삭제 완료"); }
 };
 
+// 초기 실행 로직 정리
+if (!sessionStorage.getItem('visited')) { 
+    if (typeof updateVisitorCount === 'function') updateVisitorCount(); 
+    sessionStorage.setItem('visited', 'true'); 
+}
+
+// 기본 리스너 및 데이터 동기화 시작
+listenVisitors(); 
+initAutoSelection(); 
+startRealtimeSync(); 
+listenSubRooms();
+
+// 데이터 로딩 시간을 고려하여 2초 후 첫 온도 체크 실행
+setTimeout(() => {
+    updateVibeTemp();
+}, 2000);
+
+// 날짜 입력 칸 기본값 설정
+if (document.getElementById('regDate')) document.getElementById('regDate').valueAsDate = new Date();
+if (document.getElementById('activityDate')) document.getElementById('activityDate').valueAsDate = new Date();
+
 window.toggleSelectMember = (id, el) => {
 if(selectedMemberIds.has(id)){ selectedMemberIds.delete(id); el.classList.remove('selected'); }
 else { selectedMemberIds.add(id); el.classList.add('selected'); }
@@ -2758,117 +2779,88 @@ const q = document.getElementById('adminSearchInput').value.toLowerCase();
 document.querySelectorAll('.member-chip').forEach(c => { c.style.display = c.innerText.toLowerCase().includes(q) ? "block" : "none"; });
 };
 
+// [통합] 활동지수 계산 및 UI 업데이트 함수
 async function updateVibeTemp() {
-    try {
-        console.log("온도 체크 시작...");
-        let totalLogsCount = 0;
-        // 1. 이미 불러온 데이터를 활용해 할당량 절약
-        if (window.currentData) {
-            totalLogsCount = currentData.reduce((acc, m) => acc + (m.qCount || 0), 0);
-        }
+try {
+console.log("활동지수(온도) 갱신 시작...");
 
-        // 2. 최근 24시간 방문자 조회
-        const twentyFourHoursAgo = Timestamp.fromMillis(Date.now() - 86400000);
-        const visitorSnap = await getDocs(query(collection(db, "visitor_logs"), where("timestamp", ">=", twentyFourHoursAgo), limit(10))).catch(() => ({size: 0}));
-        
-        // 3. 점수 계산 로직
-        let tempPercent = 10 + (totalLogsCount * 5) + (visitorSnap.size * 2);
-        tempPercent = Math.min(tempPercent, 100);
-
-        // 4. 화면 게이지 업데이트
-        const gauge = document.getElementById('vibeGauge');
-        const scoreTxt = document.getElementById('vibeScoreTxt');
-        if (gauge) gauge.style.width = `${tempPercent}%`;
-        if (scoreTxt) scoreTxt.innerText = `${Math.floor(tempPercent)}%`;
-        
-        console.log("최종 활동지수:", tempPercent);
-        
-        // 아이콘 변경 함수가 있다면 실행
-        if (typeof updateVibeUI === 'function') updateVibeUI(tempPercent); 
-    } catch (e) {
-        console.error("온도 갱신 오류:", e);
-    }
+// 1. 데이터 준비
+let totalLogsCount = 0;
+if (window.currentData) {
+// 이미 불러온 멤버들의 이번 분기 산행 횟수 합산
+totalLogsCount = currentData.reduce((acc, m) => acc + (m.qCount || 0), 0);
 }
 
-// 2. 방문자 로그 조회 (마찬가지로 limit를 걸어 할당량 보호)
+// 2. 최근 24시간 방문자 조회 (할당량 보호를 위해 limit 20)
+const twentyFourHoursAgo = Timestamp.fromMillis(Date.now() - 86400000);
 const visitorSnap = await getDocs(query(
 collection(db, "visitor_logs"),
 where("timestamp", ">=", twentyFourHoursAgo),
 limit(20)
-));
+)).catch(() => ({ size: 0 }));
+
 const recentVisitorCount = visitorSnap.size;
 
-// 3. 점수 계산 (데이터 읽기량이 줄었으므로 점수 가중치를 살짝 조정)
-let visitorScore = (recentVisitorCount / 5) * 10;
-let logScore = recentLogCount * 12; // 1개 기록당 가중치를 12점으로 상향
+// 3. 점수 계산 로직 (방문자 점수 + 로그 점수)
+let visitorScore = (recentVisitorCount / 5) * 10; // 방문자 5명당 10점
+let logScore = totalLogsCount * 12; // 로그 1개당 12점 (가중치 상향)
 
 let tempPercent = visitorScore + logScore;
 
-// 최근 산행 기록 보너스 (1.1배 가산)
-if (hasRecentActivity) {
-tempPercent = tempPercent * 1.1;
-}
+// 기본 점수 보정 (최소 10% ~ 최대 100%)
+tempPercent = Math.max(10, Math.min(tempPercent, 100));
 
-tempPercent = Math.min(tempPercent, 100);
-
-// 4. UI 업데이트: 원형 게이지 및 바 (기존 UI 로직 유지)
+// 4. UI 구성 요소 찾기
+const gauge = document.getElementById('vibeGauge');
+const scoreTxt = document.getElementById('vibeScoreTxt');
 const circleProgress = document.getElementById('vibeCircleProgress');
 const circleIcon = document.getElementById('vibeCircleIcon');
 const circleBtn = document.getElementById('vibeCircleBtn');
-const gauge = document.getElementById('vibeGauge');
-const modalIcon = document.getElementById('vibeModalIcon');
 const status = document.getElementById('vibeStatusTxt');
 const desc = document.getElementById('vibeDesc');
-const scoreTxt = document.getElementById('vibeScoreTxt');
+const modalIcon = document.getElementById('vibeModalIcon');
 
-if (circleProgress) circleProgress.style.strokeDashoffset = 100 - tempPercent;
+// 5. 점수 및 프로그레스 바 반영
 if (gauge) gauge.style.width = `${tempPercent}%`;
 if (scoreTxt) scoreTxt.innerText = `${Math.floor(tempPercent)}%`;
+if (circleProgress) {
+// 원형 게이지가 있다면 (SVG dashoffset 조절)
+circleProgress.style.strokeDashoffset = 100 - tempPercent;
+}
 
-// 5. 점수대별 상태 설정
+// 6. 점수대별 상태 및 이모지 설정
 let currentEmoji = "🍀";
 if (tempPercent >= 80) {
 currentEmoji = "🔥";
-if(status) status.innerText = "EXPLOSIVE PASSION";
-if(desc) desc.innerText = "현재 활동지수 최고조! 산행의 열기가 가득합니다.";
-if(circleBtn) circleBtn.classList.add('hot-vibe');
+if (status) status.innerText = "EXPLOSIVE PASSION";
+if (desc) desc.innerText = "현재 활동지수 최고조! 산행의 열기가 가득합니다.";
+if (circleBtn) circleBtn.classList.add('hot-vibe');
 } else if (tempPercent >= 50) {
 currentEmoji = "☀️";
-if(status) status.innerText = "VERY ACTIVE";
-if(desc) desc.innerText = "커뮤니티가 아주 활발합니다. 함께 등산해요!";
-if(circleBtn) circleBtn.classList.remove('hot-vibe');
+if (status) status.innerText = "VERY ACTIVE";
+if (desc) desc.innerText = "커뮤니티가 아주 활발합니다. 함께 등산해요!";
+if (circleBtn) circleBtn.classList.remove('hot-vibe');
 } else if (tempPercent >= 20) {
 currentEmoji = "🍀";
-if(status) status.innerText = "WARMING UP";
-if(desc) desc.innerText = "산행의 온기가 느껴집니다.";
-if(circleBtn) circleBtn.classList.remove('hot-vibe');
+if (status) status.innerText = "WARMING UP";
+if (desc) desc.innerText = "산행의 온기가 느껴집니다.";
+if (circleBtn) circleBtn.classList.remove('hot-vibe');
 } else {
 currentEmoji = "❄️";
-if(status) status.innerText = "CHILLING";
-if(desc) desc.innerText = "조용한 숲속 같네요. 첫 산행 기록을 남겨보세요!";
-if(circleBtn) circleBtn.classList.remove('hot-vibe');
+if (status) status.innerText = "CHILLING";
+if (desc) desc.innerText = "조용한 숲속 같네요. 첫 산행 기록을 남겨보세요!";
+if (circleBtn) circleBtn.classList.remove('hot-vibe');
 }
 
 if (circleIcon) circleIcon.innerText = currentEmoji;
 if (modalIcon) modalIcon.innerText = currentEmoji;
 
+console.log("최종 활동지수:", tempPercent + "%");
+
 } catch (e) {
-console.error("온도 갱신 오류:", e);
+console.error("온도 갱신 중 오류 발생:", e);
 }
 }
-
-// 초기 실행 및 인터벌 설정
-if (!sessionStorage.getItem('visited')) { updateVisitorCount(); sessionStorage.setItem('visited', 'true'); }
-listenVisitors(); initAutoSelection(); startRealtimeSync(); listenSubRooms();
-
-// 💡 인터벌 시간을 60000(1분) -> 300000(5분)으로 늘리면 할당량을 5배 더 아낄 수 있습니다.
-setTimeout(() => {
-updateVibeTemp();
-//setInterval(updateVibeTemp, 300000);
-}, 2000);
-
-document.getElementById('regDate').valueAsDate = new Date();
-document.getElementById('activityDate').valueAsDate = new Date();
 
 window.showMemberMountain = async (mId, mName) => {
 const modal = document.getElementById('mountainViewModal');
