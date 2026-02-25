@@ -12,6 +12,43 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+/* 잔디 상세 팝업 스타일 */
+#grassPopup {
+    display: none; /* 기본적으로 숨김 */
+    position: fixed; /* 화면 어디서든 클릭한 위치에 고정 */
+    z-index: 10005; /* 모달보다 위로 배치 */
+    background-color: white; /* 배경색 */
+    border: 1px solid #e2e8f0; /* 테두리선 */
+    border-radius: 12px; /* 둥근 모서리 */
+    padding: 12px; /* 내부 여백 */
+    min-width: 140px; /* 최소 너비 */
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1); /* 그림자 효과 */
+    pointer-events: none; /* 팝업이 마우스를 방해하지 않게 설정 (선택사항) */
+}
+
+/* 날짜 폰트 */
+#popupDate {
+    font-size: 11px;
+    font-weight: 700;
+    color: #94a3b8;
+    margin-bottom: 8px;
+    border-bottom: 1px solid #f1f5f9;
+    padding-bottom: 4px;
+}
+
+/* 내부 텍스트 라인 */
+#popupContent div {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2px;
+}
+
+/* 테일윈드 hidden 클래스와 충돌 방지 */
+.hidden {
+    display: none !important;
+}
+
 /* [효과 2] 계절 성운 레이어 */
 .nebula-spring-summer { background-image: radial-gradient(circle at 20% 30%, rgba(144, 238, 144, 0.06), transparent 40%), radial-gradient(circle at 80% 70%, rgba(255, 182, 193, 0.06), transparent 40%); }
 .nebula-fall-winter { background-image: radial-gradient(circle at 30% 20%, rgba(0, 191, 255, 0.06), transparent 40%), radial-gradient(circle at 70% 80%, rgba(255, 215, 0, 0.06), transparent 40%); }
@@ -1677,7 +1714,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 </div>
 
 <div class="flex justify-between items-center mb-2">
-<p class="text-[10px] font-extrabold text-slate-500">🌱 분기 산행 잔디</p>
+<p class="text-[10px] font-extrabold text-slate-500">🌱 분기 운동 잔디</p>
 
 <div class="flex items-center gap-1.5">
 <div id="passionVibeArea"></div>
@@ -1705,7 +1742,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 </div>
 
 <button onclick="toggleLogPopup(true)" class="btn-open-log">
-<span>📜 최근 산행 일지 자세히 보기</span>
+<span>📜 최근 운동 일지 자세히 보기</span>
 <span class="text-sky-300">▶</span>
 </button>
 
@@ -3393,59 +3430,57 @@ style="position:absolute; top:15px; right:15px; color:white; background:none; bo
    // --- 잔디 상세 팝업 및 이벤트 제어 (통합본) ---
 
 window.showGrassPopup = (event, date, encodedAct) => {
-    // 1. 이벤트 전파 방지 (모달이 닫히거나 다른 작업 방해 금지)
-    if (event) {
-        event.preventDefault();
-        event.stopPropagation();
-    }
+    // 1. 이벤트 전파 중단 (모달이 닫히는 현상 방지)
+    event.stopPropagation();
 
     const popup = document.getElementById('grassPopup');
     const content = document.getElementById('popupContent');
     const dateEl = document.getElementById('popupDate');
 
-    // 데이터가 없으면 숨기기
+    // 2. 데이터가 없으면 즉시 숨기기
     if (!encodedAct || encodedAct === "") {
         popup.classList.add('hidden');
         popup.style.display = 'none';
         return;
     }
 
-    // 2. 데이터 복호화 및 내용 생성
     try {
+        // 데이터 복호화
         const act = JSON.parse(atob(encodedAct));
         dateEl.innerText = date;
         
+        // 내용물 생성
         let items = "";
-        if (act.hike > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:2px;"><span>⛰️ 산행</span><b style="margin-left:10px;">${act.hike}회</b></div>`;
-        if (act.run > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#ec4899; margin-bottom:2px;"><span>🏃 러닝</span><b style="margin-left:10px;">${act.run}회</b></div>`;
-        if (act.trek > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#a855f7;"><span>🥾 트레킹</span><b style="margin-left:10px;">${act.trek}회</b></div>`;
+        if (act.hike > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px;"><span>⛰️ 산행</span><b>${act.hike}회</b></div>`;
+        if (act.run > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#ec4899;"><span>🏃 러닝</span><b>${act.run}회</b></div>`;
+        if (act.trek > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#a855f7;"><span>🥾 트레킹</span><b>${act.trek}회</b></div>`;
         
         content.innerHTML = items || "기록 없음";
+
+        // 3. 화면 표시 설정 (가장 중요!)
+        // CSS hidden 클래스를 강제로 제거하고 display를 block으로 바꿉니다.
+        popup.classList.remove('hidden');
+        popup.style.display = 'block'; 
+        popup.style.visibility = 'visible'; // 투명도 문제 방지
+        popup.style.opacity = '1'; // 투명도 문제 방지
+        popup.style.zIndex = '10005'; // 모달보다 높은 숫자
+
+        // 4. 위치 계산 (모달 안에서도 정확히 뜨도록 fixed 기준 계산)
+        const rect = event.currentTarget.getBoundingClientRect();
+        
+        // 팝업이 화면 위나 왼쪽으로 나가지 않게 보정
+        let leftPos = rect.left - 50;
+        let topPos = rect.top - 90;
+
+        if (leftPos < 10) leftPos = 10; // 왼쪽 벽 붙음 방지
+        
+        popup.style.position = 'fixed'; // absolute 대신 fixed 사용 (강력 추천)
+        popup.style.left = leftPos + "px";
+        popup.style.top = topPos + "px";
+
     } catch (e) {
-        console.error("팝업 데이터 파싱 에러:", e);
-        return;
+        console.error("팝업 생성 중 오류:", e);
     }
-
-    // 3. 팝업 노출 및 위치 결정 (가장 중요!)
-    popup.classList.remove('hidden');
-    popup.style.display = 'block';
-    popup.style.position = 'fixed'; // 모달 위에서도 고정되도록 fixed 사용
-    popup.style.zIndex = '99999'; // 어떤 모달보다도 위에 뜨도록 아주 큰 숫자 부여
-
-    // 마우스/터치 위치 계산
-    const clientX = event.touches ? event.touches[0].clientX : event.clientX;
-    const clientY = event.touches ? event.touches[0].clientY : event.clientY;
-
-    // 화면 끝에 걸리지 않게 위치 미세 조정
-    let leftPos = clientX - 70; 
-    let topPos = clientY - 100;
-
-    // 화면 오른쪽 경계 처리
-    if (leftPos + 150 > window.innerWidth) leftPos = window.innerWidth - 160;
-    if (leftPos < 10) leftPos = 10;
-
-    popup.style.left = leftPos + "px";
-    popup.style.top = topPos + "px";
 };
 
 // 모바일/PC 공용 팝업 닫기
