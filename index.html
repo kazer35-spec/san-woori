@@ -13,9 +13,11 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
 #grassPopup {
-    display: none;
-    position: fixed !important; /* absolute 말고 fixed가 안전합니다 */
-    z-index: 999999 !important; /* 숫자를 더 키워서 모달을 뚫고 나오게 합니다 */
+    position: fixed !important;
+    z-index: 100000 !important; /* 모달 백드롭을 뚫고 나오는 우선순위 */
+    pointer-events: auto !important;
+    display: none; /* 기본은 숨김 */
+}
     background: #ffffff !important;
     border: 1px solid #cbd5e1;
     border-radius: 8px;
@@ -3414,28 +3416,27 @@ style="position:absolute; top:15px; right:15px; color:white; background:none; bo
 </div>
 <p class="footer-note">기록 연장이 필요하면 요청해 주세요.</p>
 <p class="ancient-signature">Guardian of History</p>
-<button onclick="document.getElementById('scrollModal').style.display='none'" class="scroll-close-btn">
+<button     <button onclick="document.getElementById('scrollModal').style.display='none'" class="scroll-close-btn">
             닫기
         </button>
     </div>
 </div>
 
-<div id="grassPopup" class="hidden" style="position: absolute; z-index: 9999; background: white; border: 1px solid #e2e8f0; padding: 12px; border-radius: 12px; shadow: 0 10px 15px -3px rgba(0,0,0,0.1); min-width: 140px; pointer-events: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
-    <div id="popupDate" style="font-size: 10px; font-weight: bold; color: #94a3b8; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; margin-bottom: 8px;"></div>
+<div id="grassPopup" class="hidden" style="position: fixed; display: none; z-index: 100000; background: white; border: 1px solid #cbd5e1; border-radius: 10px; padding: 12px; min-width: 150px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); pointer-events: auto;">
+    <div id="popupDate" style="font-size: 11px; font-weight: bold; color: #64748b; margin-bottom: 6px; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px;"></div>
     <div id="popupContent" style="display: flex; flex-direction: column; gap: 4px;"></div>
 </div>
 
 <script>
-   // --- 잔디 상세 팝업 및 이벤트 제어 (통합본) ---
-
+// --- 잔디 상세 팝업 및 이벤트 제어 (최종본) ---
 window.showGrassPopup = (event, date, encodedAct) => {
-    event.stopPropagation(); // 부모 요소 클릭 이벤트 방지
-
+    event.stopPropagation();
     const popup = document.getElementById('grassPopup');
     const content = document.getElementById('popupContent');
     const dateEl = document.getElementById('popupDate');
 
-    if (!encodedAct || encodedAct === "") {
+    if (!encodedAct) {
+        popup.classList.add('hidden');
         popup.style.display = 'none';
         return;
     }
@@ -3445,38 +3446,36 @@ window.showGrassPopup = (event, date, encodedAct) => {
         dateEl.innerText = date;
         
         let items = "";
-        if (act.hike > 0) items += `<div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span>⛰️ 산행</span><b>${act.hike}회</b></div>`;
-        if (act.run > 0) items += `<div style="display:flex; justify-content:space-between; color:#ec4899; margin-bottom:4px;"><span>🏃 러닝</span><b>${act.run}회</b></div>`;
-        if (act.trek > 0) items += `<div style="display:flex; justify-content:space-between; color:#a855f7;"><span>🥾 트레킹</span><b>${act.trek}회</b></div>`;
-        
-        content.innerHTML = items || "데이터 없음";
+        if (act.hike > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:2px;"><span>⛰️ 산행</span><b>${act.hike}회</b></div>`;
+        if (act.run > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#ec4899; margin-bottom:2px;"><span>🏃 러닝</span><b>${act.run}회</b></div>`;
+        if (act.trek > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#a855f7;"><span>🥾 트레킹</span><b>${act.trek}회</b></div>`;
+        content.innerHTML = items || "기록 없음";
 
-        // 팝업 표시
-        popup.style.display = 'block';
+        // 표시 및 위치 설정
         popup.classList.remove('hidden');
+        popup.style.display = 'block';
+        
+        // 클릭 위치 좌표 계산
+        const x = event.clientX;
+        const y = event.clientY;
 
-        // [핵심] 마우스 클릭 위치 좌표를 그대로 사용
-        // 마우스가 잔디를 가리지 않도록 살짝 위(-80), 왼쪽(-50)으로 조정
-        const mouseX = event.clientX;
-        const mouseY = event.clientY;
-
-        popup.style.left = (mouseX - 60) + "px";
-        popup.style.top = (mouseY - 90) + "px";
-
-        console.log("팝업 좌표:", popup.style.left, popup.style.top); // 콘솔에 좌표 찍어서 확인
+        popup.style.left = (x - 75) + "px"; 
+        popup.style.top = (y - 110) + "px"; // 마우스보다 약간 위쪽
 
     } catch (e) {
-        console.error("팝업 파싱 에러:", e);
+        console.error("데이터 복호화 실패:", e);
     }
 };
 
-// 모바일/PC 공용 팝업 닫기
-document.addEventListener('touchstart', (e) => {
+// 화면 다른 곳 클릭하면 팝업 닫기
+document.addEventListener('mousedown', (e) => {
     const popup = document.getElementById('grassPopup');
     if (popup && !popup.contains(e.target)) {
+        popup.style.display = 'none';
         popup.classList.add('hidden');
     }
-}, {passive: true});
+});
 </script>
+
 </body>
-    </html>
+</html>
