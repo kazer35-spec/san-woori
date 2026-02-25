@@ -1687,7 +1687,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 </div>
 
 <div class="flex justify-between items-center mb-2">
-<p class="text-[10px] font-extrabold text-slate-500">🌱 분기 산행 잔디</p>
+<p class="text-[10px] font-extrabold text-slate-500">🌱 분기 운동 잔디</p>
 
 <div class="flex items-center gap-1.5">
 <div id="passionVibeArea"></div>
@@ -1715,7 +1715,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 </div>
 
 <button onclick="toggleLogPopup(true)" class="btn-open-log">
-<span>📜 최근 산행 일지 자세히 보기</span>
+<span>📜 최근 운동 일지 자세히 보기</span>
 <span class="text-sky-300">▶</span>
 </button>
 
@@ -2505,7 +2505,7 @@ pendingLevelUpMessages = []; // 메시지 대기열 초기화
 };
 
 window.addMultiActivity = async () => {
-    // 1. 기본 데이터 가져오기
+    // 1. 기본 데이터 및 체크박스 상태 가져오기
     const dateVal = document.getElementById('activityDate').value;
     const mName = document.getElementById('mountainName').value.trim();
     const height = parseInt(document.getElementById('mountainHeight').value) || 0;
@@ -2519,16 +2519,15 @@ window.addMultiActivity = async () => {
 
     if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜 확인");
 
-    // 2. 수치 설정
+    // 2. 수치 설정 (레벨업 반영)
     const upElement = document.querySelector('input[name="upAmount"]:checked');
     if(!upElement) return alert("레벨업 수치를 선택해주세요.");
     const up = parseInt(upElement.value);
 
-    // [로직 수정] 런닝/트레킹만 '특별(Special)'로 분류
-    const isSpecial = isRunning || isTracking; // 런닝, 트레킹
-    const isHike = !isSpecial; // 일반산행 또는 정기산행
+    // [로직 분류] 런닝/트레킹 제외 -> 산행 및 정기산행만 혜택 부여
+    const isSpecial = isRunning || isTracking; // 런닝/트레킹 여부
+    const isHike = !isSpecial; // 산행/정기산행 여부
 
-    // 산행/정기산행일 때만 레벨업과 횟수 적용
     const effectiveUp = isHike ? up : 0;
     const logLoopCount = isSpecial ? 1 : (isQuarterOnlyOne ? 1 : up);
     const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
@@ -2550,14 +2549,15 @@ window.addMultiActivity = async () => {
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
-            // [A] 회원 정보 업데이트 (산행/정기산행 시 레벨, 고도, 날짜 갱신)
+            // [A] 회원 정보 업데이트 (레벨, 누적고도, 마지막 산행일(D-Day))
+            // 산행/정기산행 시 무조건 날짜와 레벨이 갱신됩니다.
             await updateDoc(doc(db, "sanwoori", id), {
                 level: newLevel,
-                lastDate: ts, // 남은 날짜(D-Day)를 결정하는 기준
+                lastDate: ts, 
                 totalHeight: increment(height)
             });
 
-            // [B] 우정 포인트 (산행/정기산행 && 2인 이상일 때)
+            // [B] 우정 포인트 (산행/정기산행이면서 2인 이상일 때)
             if (selectedMemberIds.size >= 2 && isHike) {
                 const pointToAdd = isRegular ? 10 : (10 * effectiveUp); 
                 await updateDoc(doc(db, "sanwoori", id), { 
@@ -2565,16 +2565,24 @@ window.addMultiActivity = async () => {
                 });
             }
 
-            // [C] 로그 기록 (별 생성 로직 포함)
+            // [C] 로그 기록 및 별 생성 (요청하신 확률 반영)
             for(let i = 0; i < logLoopCount; i++) {
                 let assignedStarType = null; 
                 
                 if (isRegular) { 
-                    // 정기산행 시 6종 별 중 랜덤 생성 (일반별 제외)
-                    const rand = Math.floor(Math.random() * 6); // 0~5
-                    if (rand === 0) assignedStarType = "super";
-                    else if (rand === 1) assignedStarType = "special";
-                    else assignedStarType = "regular_" + (Math.floor(Math.random() * 4) + 1); // regular_1~4
+                    // 100점 만점으로 확률 주사위
+                    const rand = Math.random() * 100; 
+
+                    if (rand <= 3) {
+                        assignedStarType = "super"; // 3% 확률 (슈퍼별)
+                    } else if (rand <= 12) {
+                        assignedStarType = "special"; // 9% 확률 (스페셜별)
+                    } else {
+                        // 나머지 88% 확률은 정기산행별 1~4번이 균등하게 가져감 (일반별 제외)
+                        // (22%씩 4종 하면 딱 88%가 됩니다.)
+                        const regIdx = Math.floor(Math.random() * 4) + 1;
+                        assignedStarType = "regular_" + regIdx;
+                    }
                 }
 
                 await addDoc(collection(db, `sanwoori/${id}/logs`), {
@@ -2588,7 +2596,7 @@ window.addMultiActivity = async () => {
                     isRunning,
                     isTracking,
                     region,
-                    starType: assignedStarType // 정기산행 별이 있으면 은하수에서 우선 적용됨
+                    starType: assignedStarType // 정기산행 시 100대 명산보다 이 별빛이 우선 적용됨
                 });
             }
 
@@ -2597,22 +2605,22 @@ window.addMultiActivity = async () => {
             }
         }
 
-        // 5. 후처리
+        // 5. 후처리 및 알림
         if (pendingLevelUpMessages.length > 0) {
             showCombinedLevelUpAlert();
         }
 
         let finalMsg = isHike 
-            ? `저장 완료 (레벨 ${up}↑ / 분기 ${logLoopCount}회 / 우정포인트 및 날짜 갱신)`
+            ? `저장 완료 (레벨 ${up}↑ / 분기 ${logLoopCount}회 반영 / 우정포인트 및 날짜 갱신)`
             : `${isRunning ? '런닝' : '트레킹'} 기록 완료 (레벨/분기 미포함)`;
         
         alert(finalMsg);
         selectedMemberIds.clear();
         tempCoord = null;
         updateAdminMemberLists();
-        startRealtimeSync(); // 화면 새로고침
+        startRealtimeSync(); 
     } catch (error) {
-        console.error("저장 에러:", error);
+        console.error("Error:", error);
         alert("저장 실패: " + error.message);
     }
 };
