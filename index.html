@@ -12,6 +12,16 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+@keyframes special-twinkle {
+    0%, 100% { transform: scale(1); opacity: 1; filter: brightness(1.2); }
+    50% { transform: scale(1.1); opacity: 0.7; filter: brightness(1.8); }
+}
+
+/* 특별 별 전용 애니메이션 (기존 twinkle보다 부드러움) */
+.animate-twinkle {
+    animation: special-twinkle 2.5s infinite ease-in-out;
+}
+
 /* [효과 2] 계절 성운 레이어 */
 .nebula-spring-summer { background-image: radial-gradient(circle at 20% 30%, rgba(144, 238, 144, 0.06), transparent 40%), radial-gradient(circle at 80% 70%, rgba(255, 182, 193, 0.06), transparent 40%); }
 .nebula-fall-winter { background-image: radial-gradient(circle at 30% 20%, rgba(0, 191, 255, 0.06), transparent 40%), radial-gradient(circle at 70% 80%, rgba(255, 215, 0, 0.06), transparent 40%); }
@@ -2494,7 +2504,7 @@ pendingLevelUpMessages = []; // 메시지 대기열 초기화
 }, 500);
 };
 
-window.addMultiActivity = async () => {
+Window.addMultiActivity = async () => {
     // 1. 필요한 기본 데이터 가져오기
     const dateVal = document.getElementById('activityDate').value;
     const mName = document.getElementById('mountainName').value.trim();
@@ -2545,7 +2555,7 @@ window.addMultiActivity = async () => {
             await updateDoc(doc(db, "sanwoori", id), {
                 level: newLevel,
                 lastDate: ts,
-totalHeight: increment(height)
+                totalHeight: increment(height)
             });
 
             // [B] 우정 포인트 업데이트 (런닝/트레킹 제외)
@@ -2558,6 +2568,20 @@ totalHeight: increment(height)
 
             // [C] 로그 기록 (logLoopCount에 따라 실행)
             for(let i = 0; i < logLoopCount; i++) {
+                // --- [추가] 정기산행 별 종류 확률 결정 로직 ---
+                let assignedStarType = null;
+                if (isRegular) {
+                    const rand = Math.random() * 100;
+                    if (rand <= 3) {
+                        assignedStarType = "super"; // 3% (노랑+빨강)
+                    } else if (rand <= 12) {
+                        assignedStarType = "special"; // 9% (그린+보라)
+                    } else if (rand <= 34) {
+                        // 22% (기존 4색 정기별 중 하나 랜덤)
+                        assignedStarType = "regular_" + (Math.floor(Math.random() * 4) + 1);
+                    }
+                }
+
                 await addDoc(collection(db, `sanwoori/${id}/logs`), {
                     date: ts,
                     mountain: mName,
@@ -2568,7 +2592,8 @@ totalHeight: increment(height)
                     isRegular,
                     isRunning,
                     isTracking,
-                    region
+                    region,
+                    starType: assignedStarType // ★ 결정된 별 종류 저장 (고정의 핵심)
                 });
             }
 
@@ -2582,7 +2607,6 @@ totalHeight: increment(height)
             showCombinedLevelUpAlert();
         }
 
-        // 알림 메시지 분기 처리
         let finalMsg = "";
         if (isSpecial) {
             finalMsg = `${isRunning ? '런닝' : '트레킹'} 기록 완료 (분기 횟수 미포함)`;
@@ -3140,100 +3164,135 @@ setTimeout(() => starInner.style.opacity = Math.random(), 500);
 }, 100);
 };
 
-window.showMilkyWay = async (mId, mName) => {
-const modal = document.getElementById('milkyWayModal');
-const board = document.getElementById('constellationBoard');
-const nameLabel = document.getElementById('mwMemberName');
+Window.showMilkyWay = async (mId, mName) => {
+    const modal = document.getElementById('milkyWayModal');
+    const board = document.getElementById('constellationBoard');
+    const nameLabel = document.getElementById('mwMemberName');
 
-if (!modal || !board) return;
+    if (!modal || !board) return;
 
-modal.style.display = 'flex';
-if (nameLabel) nameLabel.innerText = `${mName}님의 은하수`;
-board.innerHTML = "";
+    modal.style.display = 'flex';
+    if (nameLabel) nameLabel.innerText = `${mName}님의 은하수`;
+    board.innerHTML = "";
 
-try {
-const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
-const logs = snap.docs
-.map(d => d.data())
-.filter(l => l.coords)
-.sort((a, b) => a.date.toDate() - b.date.toDate());
+    try {
+        const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
+        const logs = snap.docs
+            .map(d => d.data())
+            .filter(l => l.coords)
+            .sort((a, b) => a.date.toDate() - b.date.toDate());
 
-// --- [기능 1] 계절 성좌 레이어 (오로라는 삭제됨) ---
-const month = new Date().getMonth() + 1;
-board.classList.remove('nebula-spring-summer', 'nebula-fall-winter');
-if (month >= 3 && month <= 8) board.classList.add('nebula-spring-summer');
-else board.classList.add('nebula-fall-winter');
+        // --- [기능 1] 계절 성좌 레이어 ---
+        const month = new Date().getMonth() + 1;
+        board.classList.remove('nebula-spring-summer', 'nebula-fall-winter');
+        if (month >= 3 && month <= 8) board.classList.add('nebula-spring-summer');
+        else board.classList.add('nebula-fall-winter');
 
-// --- [기능 2] 활동지수 10% 상승 로직 ---
-// 최근 24시간 이내에 등록된 기록이 있는지 확인
-const now = new Date();
-const oneDayAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+        // --- [기능 2] 활동지수 배율 확인 ---
+        const now = new Date();
+        const oneDayAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+        const hasRecentLog = logs.some(log => log.date.toDate() > oneDayAgo);
+        let activityBonus = hasRecentLog ? 1.1 : 1.0;
+        console.log(`${mName}님의 활동지수 배율: ${activityBonus}`);
 
-const hasRecentLog = logs.some(log => log.date.toDate() > oneDayAgo);
+        if (logs.length === 0) {
+            board.innerHTML = "<div class='text-white/20 text-xs h-full flex items-center justify-center'>아직 기록된 별이 없습니다.</div>";
+            return;
+        }
 
-// 활동지수 업데이트 (예시: UI에 표시하거나 DB에 반영)
-let activityBonus = hasRecentLog ? 1.1 : 1.0;
-console.log(`${mName}님의 활동지수 배율: ${activityBonus}`);
+        logs.forEach((log, index) => {
+            // 기본값 설정 (일반 별 / 흰색 / 기존 크기)
+            let starColor = "white";
+            let shadowColor = "#FFFFFF";
+            let starSize = "w-1.5 h-1.5";
+            let customStyle = "";
+            let extraClass = "";
 
-if (logs.length === 0) {
-board.innerHTML = "<div class='text-white/20 text-xs h-full flex items-center justify-center'>아직 기록된 별이 없습니다.</div>";
-return;
-}
+            // --- [핵심] 정기산행 별/100대명산/일반 별 로직 통합 ---
+            if (log.starType) {
+                // DB에 고정된 starType이 있는 경우 (새로운 정기산행 별 6종)
+                if (log.starType === "super") {
+                    // 3% 확률: 노랑+빨강 (가장 크고 밝은 둥근 광채)
+                    starSize = "w-2.5 h-2.5";
+                    customStyle = `
+                        background: radial-gradient(circle, #FFD700 20%, #FF4500 100%);
+                        box-shadow: 0 0 15px 5px rgba(255, 215, 0, 0.6), 0 0 30px 10px rgba(255, 69, 0, 0.4);
+                        filter: brightness(1.5);
+                    `;
+                } else if (log.starType === "special") {
+                    // 9% 확률: 그린+보라 (중간 크기, 밝은 둥근 광채)
+                    starSize = "w-2 h-2";
+                    customStyle = `
+                        background: radial-gradient(circle, #00FF7F 20%, #A020F0 100%);
+                        box-shadow: 0 0 12px 4px rgba(0, 255, 127, 0.5), 0 0 25px 8px rgba(160, 32, 240, 0.4);
+                        filter: brightness(1.3);
+                    `;
+                } else if (log.starType.startsWith("regular_")) {
+                    // 22% 확률: 기존 4색 정기별 (기존 크기 1.5 유지)
+                    const colors = ["#00FFFF", "#FBCEB1", "#D32F2F", "#9B84D8"];
+                    const idx = parseInt(log.starType.split('_')[1]) - 1;
+                    starColor = colors[idx];
+                    shadowColor = starColor;
+                    extraClass = "animate-gentle-shine";
+                }
+            } else if (log.isTop100) {
+                // 100대 명산: 샴페인 골드
+                starColor = "#F7E7CE";
+                shadowColor = "#F7E7CE";
+            } else if (log.isRegular) {
+                // [하위 호환] starType이 없는 예전 정기산행 기록 처리
+                const regularColors = ["#00FFFF", "#FBCEB1", "#D32F2F", "#9B84D8"];
+                starColor = regularColors[Math.floor(Math.random() * regularColors.length)];
+                shadowColor = starColor;
+                extraClass = "animate-gentle-shine";
+            }
 
-logs.forEach((log, index) => {
-const regularColors = ["#00FFFF", "#FBCEB1", "#D32F2F", "#9B84D8"];
-let starColor = "white";
-let shadowColor = "#FFFFFF";
-let extraClass = "";
-let starSize = "w-1.5 h-1.5";
+            const star = document.createElement('div');
+            star.className = `absolute ${starSize} rounded-full z-10 ${extraClass}`;
+            
+            // 스타일 적용
+            if (customStyle) {
+                star.style.cssText += customStyle;
+            } else {
+                star.style.backgroundColor = starColor;
+                star.style.boxShadow = `0 0 6px ${shadowColor}, 0 0 12px ${shadowColor}`;
+            }
 
-if (log.isTop100) {
-starColor = "#F7E7CE";
-shadowColor = "#F7E7CE";
-} else if (log.isRegular) {
-starColor = regularColors[Math.floor(Math.random() * regularColors.length)];
-shadowColor = starColor;
-extraClass = "animate-gentle-shine";
-}
+            star.style.left = log.coords.x + "%";
+            star.style.top = log.coords.y + "%";
+            star.style.transition = "opacity 1s ease";
+            star.style.opacity = "0";
 
-const star = document.createElement('div');
-star.className = `absolute ${starSize} rounded-full z-10 ${extraClass}`;
-star.style.backgroundColor = starColor;
-star.style.boxShadow = `0 0 6px ${shadowColor}, 0 0 12px ${shadowColor}`;
-star.style.left = log.coords.x + "%";
-star.style.top = log.coords.y + "%";
-star.style.transition = "opacity 1s ease";
-star.style.opacity = "0";
+            board.appendChild(star);
+            setTimeout(() => { star.style.opacity = "1"; }, index * 100);
 
-board.appendChild(star);
-setTimeout(() => { star.style.opacity = "1"; }, index * 100);
+            // --- [선 연결 로직] ---
+            if (index > 0) {
+                const prev = logs[index - 1];
+                const x1 = prev.coords.x, y1 = prev.coords.y;
+                const x2 = log.coords.x, y2 = log.coords.y;
+                const dist = Math.sqrt(Math.pow(x2-x1, 2) + Math.pow(y2-y1, 2));
+                const angle = Math.atan2(y2-y1, x2-x1) * 180 / Math.PI;
 
-if (index > 0) {
-const prev = logs[index - 1];
-const x1 = prev.coords.x, y1 = prev.coords.y;
-const x2 = log.coords.x, y2 = log.coords.y;
-const dist = Math.sqrt(Math.pow(x2-x1, 2) + Math.pow(y2-y1, 2));
-const angle = Math.atan2(y2-y1, x2-x1) * 180 / Math.PI;
+                const line = document.createElement('div');
+                line.className = 'absolute bg-blue-400/20 origin-left z-0';
+                line.style.height = '0.5px';
+                line.style.width = dist + "%";
+                line.style.left = x1 + "%";
+                line.style.top = y1 + "%";
+                line.style.transform = `rotate(${angle}deg)`;
+                board.appendChild(line);
+            }
 
-const line = document.createElement('div');
-line.className = 'absolute bg-blue-400/20 origin-left z-0';
-line.style.height = '0.5px';
-line.style.width = dist + "%";
-line.style.left = x1 + "%";
-line.style.top = y1 + "%";
-line.style.transform = `rotate(${angle}deg)`;
-board.appendChild(line);
-}
-
-// --- [기능 3] 마지막 별 별똥별 ---
-if (index === logs.length - 1) {
-setTimeout(() => createShootingStar(board, log.coords.x, log.coords.y), (index * 100) + 500);
-}
-});
-} catch (e) {
-console.error(e);
-alert("성좌를 불러오는데 실패했습니다.");
-}
+            // --- [기능 3] 마지막 별 별똥별 ---
+            if (index === logs.length - 1) {
+                setTimeout(() => createShootingStar(board, log.coords.x, log.coords.y), (index * 100) + 500);
+            }
+        });
+    } catch (e) {
+        console.error(e);
+        alert("성좌를 불러오는데 실패했습니다.");
+    }
 };
 
 function createShootingStar(board, tx, ty) {
