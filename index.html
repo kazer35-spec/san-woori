@@ -12,29 +12,29 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+/* 잔디 상세 팝업 통합 스타일 */
 #grassPopup {
-    position: fixed !important;
-    z-index: 100000 !important; /* 모달 백드롭을 뚫고 나오는 우선순위 */
-    pointer-events: auto !important;
-    display: none; /* 기본은 숨김 */
-}
+    display: none; /* 기본 숨김 */
+    position: fixed !important; /* 모달 위 고정 */
+    z-index: 100000 !important; /* 최상단 레이어 */
     background: #ffffff !important;
-    border: 1px solid #cbd5e1;
-    border-radius: 8px;
-    padding: 10px;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3); /* 그림자 강화 */
-    min-width: 120px;
-    pointer-events: none; /* 팝업 때문에 클릭이 방해받지 않게 함 */
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 12px !important;
+    padding: 12px !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2) !important;
+    min-width: 140px;
+    pointer-events: auto !important; /* 클릭 가능하게 설정 */
 }
 
 /* 날짜 폰트 */
 #popupDate {
     font-size: 11px;
     font-weight: 700;
-    color: #94a3b8;
+    color: #64748b;
     margin-bottom: 8px;
     border-bottom: 1px solid #f1f5f9;
     padding-bottom: 4px;
+    text-align: left;
 }
 
 /* 내부 텍스트 라인 */
@@ -42,10 +42,11 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 2px;
+    margin-bottom: 4px;
+    font-family: 'Pretendard', sans-serif;
 }
 
-/* 테일윈드 hidden 클래스와 충돌 방지 */
+/* 테일윈드 hidden 클래스 충돌 방지 */
 .hidden {
     display: none !important;
 }
@@ -1127,8 +1128,7 @@ box-sizing: border-box;
 50% { opacity: 0.3; }
 100% { opacity: 1; }
 }
-
-    /* 30일 남음: 노란색 + 느린 깜빡임 (2초 간격) */
+/* 30일 남음: 노란색 + 느린 깜빡임 (2초 간격) */
 .blink-slow {
 animation: dday-blink 2s infinite;
 background-color: #fefce8 !important; /* 노랑 */
@@ -1715,7 +1715,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 </div>
 
 <div class="flex justify-between items-center mb-2">
-<p class="text-[10px] font-extrabold text-slate-500">🌱 분기 운동 잔디</p>
+<p class="text-[10px] font-extrabold text-slate-500">🌱 분기 산행 잔디</p>
 
 <div class="flex items-center gap-1.5">
 <div id="passionVibeArea"></div>
@@ -1743,7 +1743,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 </div>
 
 <button onclick="toggleLogPopup(true)" class="btn-open-log">
-<span>📜 최근 운동 일지 자세히 보기</span>
+<span>📜 최근 산행 일지 자세히 보기</span>
 <span class="text-sky-300">▶</span>
 </button>
 
@@ -3428,20 +3428,24 @@ style="position:absolute; top:15px; right:15px; color:white; background:none; bo
 </div>
 
 <script>
-// --- 잔디 상세 팝업 및 이벤트 제어 (최종본) ---
 window.showGrassPopup = (event, date, encodedAct) => {
-    event.stopPropagation();
+    // 1. 이벤트 전파 방지 (클릭하자마자 닫히는 현상 방지)
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+
     const popup = document.getElementById('grassPopup');
     const content = document.getElementById('popupContent');
     const dateEl = document.getElementById('popupDate');
 
-    if (!encodedAct) {
-        popup.classList.add('hidden');
+    if (!encodedAct || encodedAct === "") {
         popup.style.display = 'none';
         return;
     }
 
     try {
+        // 2. 데이터 복호화 및 HTML 생성
         const act = JSON.parse(atob(encodedAct));
         dateEl.innerText = date;
         
@@ -3449,32 +3453,46 @@ window.showGrassPopup = (event, date, encodedAct) => {
         if (act.hike > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:2px;"><span>⛰️ 산행</span><b>${act.hike}회</b></div>`;
         if (act.run > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#ec4899; margin-bottom:2px;"><span>🏃 러닝</span><b>${act.run}회</b></div>`;
         if (act.trek > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#a855f7;"><span>🥾 트레킹</span><b>${act.trek}회</b></div>`;
-        content.innerHTML = items || "기록 없음";
-
-        // 표시 및 위치 설정
-        popup.classList.remove('hidden');
-        popup.style.display = 'block';
         
-        // 클릭 위치 좌표 계산
-        const x = event.clientX;
-        const y = event.clientY;
+        if (!items) return; // 표시할 데이터가 없으면 중단
+        content.innerHTML = items;
 
-        popup.style.left = (x - 75) + "px"; 
-        popup.style.top = (y - 110) + "px"; // 마우스보다 약간 위쪽
+        // 3. 팝업 표시 (좌표 설정 전 미리 block을 해야 크기 계산이 가능)
+        popup.style.display = 'block';
+        popup.classList.remove('hidden');
+
+        // 4. 개선된 좌표 계산 (clientX/Y 대신 pageX/Y 사용)
+        // 모달 안에서도 클릭한 위치 바로 위에 뜨도록 설정
+        const popupWidth = 150; // 팝업의 대략적인 너비
+        const popupHeight = 100; // 팝업의 대략적인 높이
+        
+        let posX = event.pageX - (popupWidth / 2);
+        let posY = event.pageY - popupHeight - 20; // 클릭 위치보다 20px 위
+
+        // 5. 화면 경계 밖으로 나가지 않게 보정
+        if (posX < 10) posX = 10;
+        if (posX + popupWidth > window.innerWidth) posX = window.innerWidth - popupWidth - 10;
+
+        popup.style.left = posX + "px";
+        popup.style.top = posY + "px";
 
     } catch (e) {
-        console.error("데이터 복호화 실패:", e);
+        console.error("잔디 데이터 로드 에러:", e);
     }
 };
 
-// 화면 다른 곳 클릭하면 팝업 닫기
+// 바깥 클릭 시 닫기 (이벤트 리스너 통합)
 document.addEventListener('mousedown', (e) => {
     const popup = document.getElementById('grassPopup');
-    if (popup && !popup.contains(e.target)) {
-        popup.style.display = 'none';
-        popup.classList.add('hidden');
+    if (popup && popup.style.display === 'block') {
+        // 클릭된 대상이 팝업 자체가 아닐 때만 닫기
+        if (!popup.contains(e.target)) {
+            popup.style.display = 'none';
+            popup.classList.add('hidden');
+        }
     }
 });
+
 </script>
 
 </body>
