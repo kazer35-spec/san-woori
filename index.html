@@ -2505,32 +2505,32 @@ pendingLevelUpMessages = []; // 메시지 대기열 초기화
 };
 
 window.addMultiActivity = async () => {
-    // 1. 필요한 기본 데이터 가져오기
+    // 1. 기본 데이터 가져오기
     const dateVal = document.getElementById('activityDate').value;
     const mName = document.getElementById('mountainName').value.trim();
     const height = parseInt(document.getElementById('mountainHeight').value) || 0;
     const isTop100 = document.getElementById('isTop100Check').checked;
     const isBAC = document.getElementById('isBACCheck').checked;
-
     const isRegular = document.getElementById('isRegularCheck')?.checked || false;
     const isRunning = document.getElementById('isRunningCheck')?.checked || false;
     const isTracking = document.getElementById('isTrackingCheck')?.checked || false;
     const region = document.getElementById('adminManualRegionSelect').value;
-
     const isQuarterOnlyOne = document.getElementById('isQuarterCheck')?.checked || false;
 
     if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜 확인");
 
-    // 2. 레벨업 수치 및 날짜 설정
+    // 2. 수치 설정
     const upElement = document.querySelector('input[name="upAmount"]:checked');
     if(!upElement) return alert("레벨업 수치를 선택해주세요.");
     const up = parseInt(upElement.value);
 
-    // [로직 통합] 러닝/트레킹 시 레벨업 0, 기록은 잔디용으로 1회 고정
-    const isSpecial = isRunning || isTracking;
-    const effectiveUp = isSpecial ? 0 : up;
-    const logLoopCount = isSpecial ? 1 : (isQuarterOnlyOne ? 1 : up);
+    // [로직 수정] 런닝/트레킹만 '특별(Special)'로 분류
+    const isSpecial = isRunning || isTracking; // 런닝, 트레킹
+    const isHike = !isSpecial; // 일반산행 또는 정기산행
 
+    // 산행/정기산행일 때만 레벨업과 횟수 적용
+    const effectiveUp = isHike ? up : 0;
+    const logLoopCount = isSpecial ? 1 : (isQuarterOnlyOne ? 1 : up);
     const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
 
     // 3. 산 정보 업데이트
@@ -2543,7 +2543,6 @@ window.addMultiActivity = async () => {
     pendingLevelUpMessages = [];
 
     try {
-        // 4. 선택된 회원별 업데이트 루프
         for(const id of selectedMemberIds){
             const member = currentData.find(m => m.id === id);
             if(!member) continue;
@@ -2551,36 +2550,32 @@ window.addMultiActivity = async () => {
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
-            // [A] 회원 정보 업데이트
+            // [A] 회원 정보 업데이트 (산행/정기산행 시 레벨, 고도, 날짜 갱신)
             await updateDoc(doc(db, "sanwoori", id), {
                 level: newLevel,
-                lastDate: ts,
-totalHeight: increment(height)
+                lastDate: ts, // 남은 날짜(D-Day)를 결정하는 기준
+                totalHeight: increment(height)
             });
 
-            // [B] 우정 포인트 업데이트 (런닝/트레킹 제외)
-            if (selectedMemberIds.size >= 2 && !isSpecial) {
+            // [B] 우정 포인트 (산행/정기산행 && 2인 이상일 때)
+            if (selectedMemberIds.size >= 2 && isHike) {
                 const pointToAdd = isRegular ? 10 : (10 * effectiveUp); 
                 await updateDoc(doc(db, "sanwoori", id), { 
                     friendshipPoint: increment(pointToAdd) 
                 });
             }
 
-            // [C] 로그 기록 (logLoopCount에 따라 실행)
+            // [C] 로그 기록 (별 생성 로직 포함)
             for(let i = 0; i < logLoopCount; i++) {
-        // --- 확률 로직 시작 ---
-        let assignedStarType = null; 
-        if (isRegular) { 
-            const rand = Math.random() * 100; 
-            if (rand <= 3) {
-                assignedStarType = "super"; 
-            } else if (rand <= 12) {
-                assignedStarType = "special"; 
-            } else if (rand <= 34) {
-                assignedStarType = "regular_" + (Math.floor(Math.random() * 4) + 1);
-            }
-        }
-        // --- 확률 로직 끝 ---
+                let assignedStarType = null; 
+                
+                if (isRegular) { 
+                    // 정기산행 시 6종 별 중 랜덤 생성 (일반별 제외)
+                    const rand = Math.floor(Math.random() * 6); // 0~5
+                    if (rand === 0) assignedStarType = "super";
+                    else if (rand === 1) assignedStarType = "special";
+                    else assignedStarType = "regular_" + (Math.floor(Math.random() * 4) + 1); // regular_1~4
+                }
 
                 await addDoc(collection(db, `sanwoori/${id}/logs`), {
                     date: ts,
@@ -2593,37 +2588,32 @@ totalHeight: increment(height)
                     isRunning,
                     isTracking,
                     region,
-starType: assignedStarType
+                    starType: assignedStarType // 정기산행 별이 있으면 은하수에서 우선 적용됨
                 });
             }
 
-            if (!isSpecial) {
+            if (isHike) {
                 checkLevelUpgrade(member.name, oldLevel, newLevel);
             }
         }
 
-        // 5. 후처리 및 알림
+        // 5. 후처리
         if (pendingLevelUpMessages.length > 0) {
             showCombinedLevelUpAlert();
         }
 
-        // 알림 메시지 분기 처리
-        let finalMsg = "";
-        if (isSpecial) {
-            finalMsg = `${isRunning ? '런닝' : '트레킹'} 기록 완료 (분기 횟수 미포함)`;
-        } else {
-            const logMsg = isQuarterOnlyOne ? "분기 1회만 반영" : `분기 ${up}회 반영`;
-            finalMsg = `저장 완료 (레벨 ${up}↑ / ${logMsg})`;
-        }
+        let finalMsg = isHike 
+            ? `저장 완료 (레벨 ${up}↑ / 분기 ${logLoopCount}회 / 우정포인트 및 날짜 갱신)`
+            : `${isRunning ? '런닝' : '트레킹'} 기록 완료 (레벨/분기 미포함)`;
+        
         alert(finalMsg);
-
         selectedMemberIds.clear();
         tempCoord = null;
         updateAdminMemberLists();
-        updateVibeTemp();
+        startRealtimeSync(); // 화면 새로고침
     } catch (error) {
-        console.error("저장 중 에러 발생:", error);
-        alert("저장에 실패했습니다: " + error.message);
+        console.error("저장 에러:", error);
+        alert("저장 실패: " + error.message);
     }
 };
 
