@@ -1089,7 +1089,8 @@ box-sizing: border-box;
 50% { opacity: 0.3; }
 100% { opacity: 1; }
 }
-/* 30일 남음: 노란색 + 느린 깜빡임 (2초 간격) */
+
+    /* 30일 남음: 노란색 + 느린 깜빡임 (2초 간격) */
 .blink-slow {
 animation: dday-blink 2s infinite;
 background-color: #fefce8 !important; /* 노랑 */
@@ -2425,6 +2426,7 @@ m.totalHeight = allLogsSnap.docs.reduce((acc, l) => acc + (l.data().height || 0)
     currentData = results;
     updateAdminMemberLists();
     renderStatusTable();
+updateVibeTemp();
 }
 
 // 1. 전역 변수 선언 (스크립트 최상단 혹은 함수 위쪽에 배치)
@@ -2756,24 +2758,36 @@ const q = document.getElementById('adminSearchInput').value.toLowerCase();
 document.querySelectorAll('.member-chip').forEach(c => { c.style.display = c.innerText.toLowerCase().includes(q) ? "block" : "none"; });
 };
 
-/* [할당량 절약형 통합본] 전체 로그 단일 쿼리 + 리밋 적용 버전 */
 async function updateVibeTemp() {
-try {
-const twentyFourHoursAgo = Timestamp.fromMillis(Date.now() - 86400000);
-let recentLogCount = 0;
-let hasRecentActivity = false;
+    try {
+        console.log("온도 체크 시작...");
+        let totalLogsCount = 0;
+        // 1. 이미 불러온 데이터를 활용해 할당량 절약
+        if (window.currentData) {
+            totalLogsCount = currentData.reduce((acc, m) => acc + (m.qCount || 0), 0);
+        }
 
-// 1. [절약 핵심] 멤버별 루프를 삭제하고 collectionGroup으로 단 1번만 쿼리
-// 시스템 전체 logs 중 최근 24시간 기록을 최대 15개까지만 가져옵니다. (비용 극적 감소)
-const globalLogSnap = await getDocs(query(
-collectionGroup(db, 'logs'),
-where("date", ">=", twentyFourHoursAgo),
-limit(15)
-));
+        // 2. 최근 24시간 방문자 조회
+        const twentyFourHoursAgo = Timestamp.fromMillis(Date.now() - 86400000);
+        const visitorSnap = await getDocs(query(collection(db, "visitor_logs"), where("timestamp", ">=", twentyFourHoursAgo), limit(10))).catch(() => ({size: 0}));
+        
+        // 3. 점수 계산 로직
+        let tempPercent = 10 + (totalLogsCount * 5) + (visitorSnap.size * 2);
+        tempPercent = Math.min(tempPercent, 100);
 
-if (!globalLogSnap.empty) {
-recentLogCount = globalLogSnap.size;
-hasRecentActivity = true;
+        // 4. 화면 게이지 업데이트
+        const gauge = document.getElementById('vibeGauge');
+        const scoreTxt = document.getElementById('vibeScoreTxt');
+        if (gauge) gauge.style.width = `${tempPercent}%`;
+        if (scoreTxt) scoreTxt.innerText = `${Math.floor(tempPercent)}%`;
+        
+        console.log("최종 활동지수:", tempPercent);
+        
+        // 아이콘 변경 함수가 있다면 실행
+        if (typeof updateVibeUI === 'function') updateVibeUI(tempPercent); 
+    } catch (e) {
+        console.error("온도 갱신 오류:", e);
+    }
 }
 
 // 2. 방문자 로그 조회 (마찬가지로 limit를 걸어 할당량 보호)
@@ -3399,6 +3413,16 @@ window.showGrassPopup = (event, date, encodedAct) => {
 
     const act = JSON.parse(atob(encodedAct));
     dateEl.innerText = date;
+popup.classList.remove('hidden'); // 숨김 해제
+popup.style.display = 'block'; // 화면에 표시
+popup.style.zIndex = '10005'; // 숫자를 크게 해서 모달보다 앞으로 꺼냄
+
+// 클릭한 위치 근처에 띄우기 (고정 좌표)
+const rect = event.currentTarget.getBoundingClientRect();
+popup.style.position = 'fixed';
+popup.style.left = (rect.left - 50) + "px";
+popup.style.top = (rect.top - 85) + "px";
+
     
     let items = "";
     if (act.hike > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px;"><span>⛰️ 산행</span><b>${act.hike}회</b></div>`;
