@@ -3206,14 +3206,14 @@ return;
 }
 
 logs.forEach((log, index) => {
-    // 1. 기본 설정값 (일반 별)
+    // 1. [기본값 설정]
     let starColor = "white";
     let shadowColor = "#FFFFFF";
     let starSize = "w-1.5 h-1.5"; 
-    let extraClass = "";
     let customStyle = "";
+    let extraClass = "animate-twinkle"; // 기본 반짝임 애니메이션
 
-    // 2. 확률형 별 스타일 판별 (DB에 저장된 starType 우선)
+    // 2. [확률별 스타일 배정] - DB에 저장된 starType 기준
     if (log.starType) {
         if (log.starType === "super") {
             starSize = "w-2.5 h-2.5"; 
@@ -3224,7 +3224,7 @@ logs.forEach((log, index) => {
             `;
         } 
         else if (log.starType === "special") {
-            starSize = "w-2.0 h-2.0"; 
+            starSize = "w-2 h-2"; 
             customStyle = `
                 background: radial-gradient(circle, #00FF7F 20%, #A020F0 100%);
                 box-shadow: 0 0 12px 4px rgba(0, 255, 127, 0.5), 0 0 25px 8px rgba(160, 32, 240, 0.4);
@@ -3233,28 +3233,23 @@ logs.forEach((log, index) => {
         } 
         else if (log.starType.startsWith("regular")) {
             const colors = ["#00FFFF", "#FBCEB1", "#D32F2F", "#9B84D8"];
-            const colorIdx = parseInt(log.starType.split('_')[1]) - 1;
-            starColor = colors[colorIdx];
+            const idx = parseInt(log.starType.split('_')[1]) - 1;
+            starColor = colors[idx];
             shadowColor = starColor;
-            extraClass = "animate-gentle-shine";
+            starSize = "w-1.5 h-1.5";
         }
     } 
-    // 기존 로직 유지 (starType이 없는 예전 데이터용)
+    // 예전 데이터 처리용 (starType이 없는 경우)
     else if (log.isTop100) {
         starColor = "#F7E7CE";
         shadowColor = "#F7E7CE";
-    } else if (log.isRegular) {
-        const regularColors = ["#00FFFF", "#FBCEB1", "#D32F2F", "#9B84D8"];
-        starColor = regularColors[Math.floor(Math.random() * regularColors.length)];
-        shadowColor = starColor;
-        extraClass = "animate-gentle-shine";
     }
 
-    // 3. 별 엘리먼트 생성 및 스타일 적용
+    // 3. [별 엘리먼트 생성]
     const star = document.createElement('div');
     star.className = `absolute ${starSize} rounded-full z-10 ${extraClass}`;
     
-    // 확률형 커스텀 스타일이 있으면 적용, 없으면 기본 색상 적용
+    // 스타일 주입
     if (customStyle) {
         star.style.cssText += customStyle;
     } else {
@@ -3262,17 +3257,18 @@ logs.forEach((log, index) => {
         star.style.boxShadow = `0 0 6px ${shadowColor}, 0 0 12px ${shadowColor}`;
     }
 
-    // 위치 및 애니메이션 설정
+    // 위치 설정 및 부드럽게 나타나는 효과 (Fade-in)
     star.style.left = log.coords.x + "%";
     star.style.top = log.coords.y + "%";
     star.style.transition = "opacity 1s ease";
     star.style.opacity = "0";
 
     board.appendChild(star);
-    // 순차적으로 나타나는 효과
+    
+    // 순차적으로 나타나게 함 (0.1초 간격)
     setTimeout(() => { star.style.opacity = "1"; }, index * 100);
 
-    // 4. 별 사이 선 긋기 로직 (기존 유지)
+    // 4. [별 사이 선 긋기 로직] - 이 부분이 살아있어야 선이 보입니다!
     if (index > 0) {
         const prev = logs[index - 1];
         const x1 = prev.coords.x, y1 = prev.coords.y;
@@ -3286,7 +3282,7 @@ logs.forEach((log, index) => {
         line.style.width = dist + "%";
         line.style.left = x1 + "%";
         line.style.top = y1 + "%";
-        line.style.transform = `rotate(${angle}deg) translateZ(0)`; // 성능 최적화 포함
+        line.style.transform = `rotate(${angle}deg)`;
         board.appendChild(line);
     }
 });
