@@ -12,18 +12,17 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-/* 잔디 상세 팝업 스타일 */
 #grassPopup {
-    display: none; /* 기본적으로 숨김 */
-    position: fixed; /* 화면 어디서든 클릭한 위치에 고정 */
-    z-index: 10005; /* 모달보다 위로 배치 */
-    background-color: white; /* 배경색 */
-    border: 1px solid #e2e8f0; /* 테두리선 */
-    border-radius: 12px; /* 둥근 모서리 */
-    padding: 12px; /* 내부 여백 */
-    min-width: 140px; /* 최소 너비 */
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1); /* 그림자 효과 */
-    pointer-events: none; /* 팝업이 마우스를 방해하지 않게 설정 (선택사항) */
+    display: none;
+    position: fixed !important; /* absolute 말고 fixed가 안전합니다 */
+    z-index: 999999 !important; /* 숫자를 더 키워서 모달을 뚫고 나오게 합니다 */
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 10px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3); /* 그림자 강화 */
+    min-width: 120px;
+    pointer-events: none; /* 팝업 때문에 클릭이 방해받지 않게 함 */
 }
 
 /* 날짜 폰트 */
@@ -3430,56 +3429,44 @@ style="position:absolute; top:15px; right:15px; color:white; background:none; bo
    // --- 잔디 상세 팝업 및 이벤트 제어 (통합본) ---
 
 window.showGrassPopup = (event, date, encodedAct) => {
-    // 1. 이벤트 전파 중단 (모달이 닫히는 현상 방지)
-    event.stopPropagation();
+    event.stopPropagation(); // 부모 요소 클릭 이벤트 방지
 
     const popup = document.getElementById('grassPopup');
     const content = document.getElementById('popupContent');
     const dateEl = document.getElementById('popupDate');
 
-    // 2. 데이터가 없으면 즉시 숨기기
     if (!encodedAct || encodedAct === "") {
-        popup.classList.add('hidden');
         popup.style.display = 'none';
         return;
     }
 
     try {
-        // 데이터 복호화
         const act = JSON.parse(atob(encodedAct));
         dateEl.innerText = date;
         
-        // 내용물 생성
         let items = "";
-        if (act.hike > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px;"><span>⛰️ 산행</span><b>${act.hike}회</b></div>`;
-        if (act.run > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#ec4899;"><span>🏃 러닝</span><b>${act.run}회</b></div>`;
-        if (act.trek > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#a855f7;"><span>🥾 트레킹</span><b>${act.trek}회</b></div>`;
+        if (act.hike > 0) items += `<div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span>⛰️ 산행</span><b>${act.hike}회</b></div>`;
+        if (act.run > 0) items += `<div style="display:flex; justify-content:space-between; color:#ec4899; margin-bottom:4px;"><span>🏃 러닝</span><b>${act.run}회</b></div>`;
+        if (act.trek > 0) items += `<div style="display:flex; justify-content:space-between; color:#a855f7;"><span>🥾 트레킹</span><b>${act.trek}회</b></div>`;
         
-        content.innerHTML = items || "기록 없음";
+        content.innerHTML = items || "데이터 없음";
 
-        // 3. 화면 표시 설정 (가장 중요!)
-        // CSS hidden 클래스를 강제로 제거하고 display를 block으로 바꿉니다.
+        // 팝업 표시
+        popup.style.display = 'block';
         popup.classList.remove('hidden');
-        popup.style.display = 'block'; 
-        popup.style.visibility = 'visible'; // 투명도 문제 방지
-        popup.style.opacity = '1'; // 투명도 문제 방지
-        popup.style.zIndex = '10005'; // 모달보다 높은 숫자
 
-        // 4. 위치 계산 (모달 안에서도 정확히 뜨도록 fixed 기준 계산)
-        const rect = event.currentTarget.getBoundingClientRect();
-        
-        // 팝업이 화면 위나 왼쪽으로 나가지 않게 보정
-        let leftPos = rect.left - 50;
-        let topPos = rect.top - 90;
+        // [핵심] 마우스 클릭 위치 좌표를 그대로 사용
+        // 마우스가 잔디를 가리지 않도록 살짝 위(-80), 왼쪽(-50)으로 조정
+        const mouseX = event.clientX;
+        const mouseY = event.clientY;
 
-        if (leftPos < 10) leftPos = 10; // 왼쪽 벽 붙음 방지
-        
-        popup.style.position = 'fixed'; // absolute 대신 fixed 사용 (강력 추천)
-        popup.style.left = leftPos + "px";
-        popup.style.top = topPos + "px";
+        popup.style.left = (mouseX - 60) + "px";
+        popup.style.top = (mouseY - 90) + "px";
+
+        console.log("팝업 좌표:", popup.style.left, popup.style.top); // 콘솔에 좌표 찍어서 확인
 
     } catch (e) {
-        console.error("팝업 생성 중 오류:", e);
+        console.error("팝업 파싱 에러:", e);
     }
 };
 
