@@ -3393,46 +3393,59 @@ style="position:absolute; top:15px; right:15px; color:white; background:none; bo
    // --- 잔디 상세 팝업 및 이벤트 제어 (통합본) ---
 
 window.showGrassPopup = (event, date, encodedAct) => {
-    event.stopPropagation();
+    // 1. 이벤트 전파 방지 (모달이 닫히거나 다른 작업 방해 금지)
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+
     const popup = document.getElementById('grassPopup');
     const content = document.getElementById('popupContent');
     const dateEl = document.getElementById('popupDate');
 
-    if (!encodedAct) {
+    // 데이터가 없으면 숨기기
+    if (!encodedAct || encodedAct === "") {
         popup.classList.add('hidden');
+        popup.style.display = 'none';
         return;
     }
 
-    const act = JSON.parse(atob(encodedAct));
-    dateEl.innerText = date;
-popup.classList.remove('hidden'); // 숨김 해제
-popup.style.display = 'block'; // 화면에 표시
-popup.style.zIndex = '10005'; // 숫자를 크게 해서 모달보다 앞으로 꺼냄
+    // 2. 데이터 복호화 및 내용 생성
+    try {
+        const act = JSON.parse(atob(encodedAct));
+        dateEl.innerText = date;
+        
+        let items = "";
+        if (act.hike > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:2px;"><span>⛰️ 산행</span><b style="margin-left:10px;">${act.hike}회</b></div>`;
+        if (act.run > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#ec4899; margin-bottom:2px;"><span>🏃 러닝</span><b style="margin-left:10px;">${act.run}회</b></div>`;
+        if (act.trek > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#a855f7;"><span>🥾 트레킹</span><b style="margin-left:10px;">${act.trek}회</b></div>`;
+        
+        content.innerHTML = items || "기록 없음";
+    } catch (e) {
+        console.error("팝업 데이터 파싱 에러:", e);
+        return;
+    }
 
-// 클릭한 위치 근처에 띄우기 (고정 좌표)
-const rect = event.currentTarget.getBoundingClientRect();
-popup.style.position = 'fixed';
-popup.style.left = (rect.left - 50) + "px";
-popup.style.top = (rect.top - 85) + "px";
-
-    
-    let items = "";
-    if (act.hike > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px;"><span>⛰️ 산행</span><b>${act.hike}회</b></div>`;
-    if (act.run > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#ec4899;"><span>🏃 러닝</span><b>${act.run}회</b></div>`;
-    if (act.trek > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#a855f7;"><span>🥾 트레킹</span><b>${act.trek}회</b></div>`;
-    
-    content.innerHTML = items;
+    // 3. 팝업 노출 및 위치 결정 (가장 중요!)
     popup.classList.remove('hidden');
+    popup.style.display = 'block';
+    popup.style.position = 'fixed'; // 모달 위에서도 고정되도록 fixed 사용
+    popup.style.zIndex = '99999'; // 어떤 모달보다도 위에 뜨도록 아주 큰 숫자 부여
 
-    // 모바일 대응 좌표 계산
+    // 마우스/터치 위치 계산
     const clientX = event.touches ? event.touches[0].clientX : event.clientX;
     const clientY = event.touches ? event.touches[0].clientY : event.clientY;
 
-    let left = clientX + 10;
-    if (left + 150 > window.innerWidth) left = clientX - 160; // 화면 넘침 방지
+    // 화면 끝에 걸리지 않게 위치 미세 조정
+    let leftPos = clientX - 70; 
+    let topPos = clientY - 100;
 
-    popup.style.left = `${left}px`;
-    popup.style.top = `${clientY + window.scrollY - 80}px`; // 스크롤 높이 반영
+    // 화면 오른쪽 경계 처리
+    if (leftPos + 150 > window.innerWidth) leftPos = window.innerWidth - 160;
+    if (leftPos < 10) leftPos = 10;
+
+    popup.style.left = leftPos + "px";
+    popup.style.top = topPos + "px";
 };
 
 // 모바일/PC 공용 팝업 닫기
