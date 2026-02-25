@@ -3166,136 +3166,112 @@ setTimeout(() => starInner.style.opacity = Math.random(), 500);
 };
 
 window.showMilkyWay = async (mId, mName) => {
-const modal = document.getElementById('milkyWayModal');
-const board = document.getElementById('constellationBoard');
-const nameLabel = document.getElementById('mwMemberName');
+    const modal = document.getElementById('milkyWayModal');
+    const board = document.getElementById('constellationBoard');
+    const nameLabel = document.getElementById('mwMemberName');
 
-if (!modal || !board) return;
+    if (!modal || !board) return;
 
-modal.style.display = 'flex';
-if (nameLabel) nameLabel.innerText = `${mName}님의 은하수`;
-board.innerHTML = "";
+    modal.style.display = 'flex';
+    if (nameLabel) nameLabel.innerText = `${mName}님의 은하수`;
+    board.innerHTML = "";
 
-try {
-const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
-const logs = snap.docs
-.map(d => d.data())
-.filter(l => l.coords)
-.sort((a, b) => a.date.toDate() - b.date.toDate());
+    try {
+        const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
+        const logs = snap.docs
+            .map(d => d.data())
+            .filter(l => l.coords)
+            .sort((a, b) => a.date.toDate() - b.date.toDate());
 
-// --- [기능 1] 계절 성좌 레이어 (오로라는 삭제됨) ---
-const month = new Date().getMonth() + 1;
-board.classList.remove('nebula-spring-summer', 'nebula-fall-winter');
-if (month >= 3 && month <= 8) board.classList.add('nebula-spring-summer');
-else board.classList.add('nebula-fall-winter');
+        // --- [기능 1] 계절 성좌 레이어 ---
+        const month = new Date().getMonth() + 1;
+        board.classList.remove('nebula-spring-summer', 'nebula-fall-winter');
+        if (month >= 3 && month <= 8) board.classList.add('nebula-spring-summer');
+        else board.classList.add('nebula-fall-winter');
 
-// --- [기능 2] 활동지수 10% 상승 로직 ---
-// 최근 24시간 이내에 등록된 기록이 있는지 확인
-const now = new Date();
-const oneDayAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
-
-const hasRecentLog = logs.some(log => log.date.toDate() > oneDayAgo);
-
-// 활동지수 업데이트 (예시: UI에 표시하거나 DB에 반영)
-let activityBonus = hasRecentLog ? 1.1 : 1.0;
-console.log(`${mName}님의 활동지수 배율: ${activityBonus}`);
-
-if (logs.length === 0) {
-board.innerHTML = "<div class='text-white/20 text-xs h-full flex items-center justify-center'>아직 기록된 별이 없습니다.</div>";
-return;
-}
-
-logs.forEach((log, index) => {
-    // 1. [기본값 설정]
-    let starColor = "white";
-    let shadowColor = "#FFFFFF";
-    let starSize = "w-1.5 h-1.5"; 
-    let customStyle = "";
-    let extraClass = "animate-twinkle"; // 기본 반짝임 애니메이션
-
-    // 2. [확률별 스타일 배정] - DB에 저장된 starType 기준
-    if (log.starType) {
-        if (log.starType === "super") {
-            starSize = "w-2.5 h-2.5"; 
-            customStyle = `
-                background: radial-gradient(circle, #FFD700 20%, #FF4500 100%);
-                box-shadow: 0 0 15px 5px rgba(255, 215, 0, 0.6), 0 0 30px 10px rgba(255, 69, 0, 0.4);
-                filter: brightness(1.5);
-            `;
-        } 
-        else if (log.starType === "special") {
-            starSize = "w-2 h-2"; 
-            customStyle = `
-                background: radial-gradient(circle, #00FF7F 20%, #A020F0 100%);
-                box-shadow: 0 0 12px 4px rgba(0, 255, 127, 0.5), 0 0 25px 8px rgba(160, 32, 240, 0.4);
-                filter: brightness(1.3);
-            `;
-        } 
-        else if (log.starType.startsWith("regular")) {
-            const colors = ["#00FFFF", "#FBCEB1", "#D32F2F", "#9B84D8"];
-            const idx = parseInt(log.starType.split('_')[1]) - 1;
-            starColor = colors[idx];
-            shadowColor = starColor;
-            starSize = "w-1.5 h-1.5";
+        if (logs.length === 0) {
+            board.innerHTML = "<div class='text-white/20 text-xs h-full flex items-center justify-center'>아직 기록된 별이 없습니다.</div>";
+            return;
         }
-    } 
-    // 예전 데이터 처리용 (starType이 없는 경우)
-    else if (log.isTop100) {
-        starColor = "#F7E7CE";
-        shadowColor = "#F7E7CE";
+
+        logs.forEach((log, index) => {
+            // 1. [기본값 설정]
+            let starColor = "white";
+            let shadowColor = "#FFFFFF";
+            let starSize = "w-1.5 h-1.5"; 
+            let customStyle = "";
+            let extraClass = "animate-twinkle";
+
+            // 2. [스타일 판별]
+            if (log.starType) {
+                if (log.starType === "super") {
+                    starSize = "w-2.5 h-2.5"; 
+                    customStyle = `
+                        background: radial-gradient(circle, #FFD700 20%, #FF4500 100%);
+                        box-shadow: 0 0 15px 5px rgba(255, 215, 0, 0.6), 0 0 30px 10px rgba(255, 69, 0, 0.4);
+                        filter: brightness(1.5);
+                    `;
+                } else if (log.starType === "special") {
+                    starSize = "w-2 h-2"; 
+                    customStyle = `
+                        background: radial-gradient(circle, #00FF7F 20%, #A020F0 100%);
+                        box-shadow: 0 0 12px 4px rgba(0, 255, 127, 0.5), 0 0 25px 8px rgba(160, 32, 240, 0.4);
+                        filter: brightness(1.3);
+                    `;
+                } else if (log.starType.startsWith("regular")) {
+                    const colors = ["#00FFFF", "#FBCEB1", "#D32F2F", "#9B84D8"];
+                    const idx = parseInt(log.starType.split('_')[1]) - 1;
+                    starColor = colors[idx];
+                    shadowColor = starColor;
+                }
+            } else if (log.isTop100) {
+                starColor = "#F7E7CE";
+                shadowColor = "#F7E7CE";
+            }
+
+            // 3. [별 생성]
+            const star = document.createElement('div');
+            star.className = `absolute ${starSize} rounded-full z-10 ${extraClass}`;
+            if (customStyle) {
+                star.style.cssText += customStyle;
+            } else {
+                star.style.backgroundColor = starColor;
+                star.style.boxShadow = `0 0 6px ${shadowColor}, 0 0 12px ${shadowColor}`;
+            }
+            star.style.left = log.coords.x + "%";
+            star.style.top = log.coords.y + "%";
+            star.style.transition = "opacity 1s ease";
+            star.style.opacity = "0";
+            board.appendChild(star);
+            setTimeout(() => { star.style.opacity = "1"; }, index * 100);
+
+            // 4. [선 긋기]
+            if (index > 0) {
+                const prev = logs[index - 1];
+                const x1 = prev.coords.x, y1 = prev.coords.y;
+                const x2 = log.coords.x, y2 = log.coords.y;
+                const dist = Math.sqrt(Math.pow(x2-x1, 2) + Math.pow(y2-y1, 2));
+                const angle = Math.atan2(y2-y1, x2-x1) * 180 / Math.PI;
+
+                const line = document.createElement('div');
+                line.className = 'absolute bg-blue-400/20 origin-left z-0';
+                line.style.height = '0.5px';
+                line.style.width = dist + "%";
+                line.style.left = x1 + "%";
+                line.style.top = y1 + "%";
+                line.style.transform = `rotate(${angle}deg)`;
+                board.appendChild(line);
+            }
+
+            // 5. [마지막 별 별똥별 효과]
+            if (index === logs.length - 1) {
+                setTimeout(() => createShootingStar(board, log.coords.x, log.coords.y), (index * 100) + 500);
+            }
+        });
+    } catch (e) {
+        console.error(e);
+        alert("성좌를 불러오는데 실패했습니다.");
     }
-
-    // 3. [별 엘리먼트 생성]
-    const star = document.createElement('div');
-    star.className = `absolute ${starSize} rounded-full z-10 ${extraClass}`;
-    
-    // 스타일 주입
-    if (customStyle) {
-        star.style.cssText += customStyle;
-    } else {
-        star.style.backgroundColor = starColor;
-        star.style.boxShadow = `0 0 6px ${shadowColor}, 0 0 12px ${shadowColor}`;
-    }
-
-    // 위치 설정 및 부드럽게 나타나는 효과 (Fade-in)
-    star.style.left = log.coords.x + "%";
-    star.style.top = log.coords.y + "%";
-    star.style.transition = "opacity 1s ease";
-    star.style.opacity = "0";
-
-    board.appendChild(star);
-    
-    // 순차적으로 나타나게 함 (0.1초 간격)
-    setTimeout(() => { star.style.opacity = "1"; }, index * 100);
-
-    // 4. [별 사이 선 긋기 로직] - 이 부분이 살아있어야 선이 보입니다!
-    if (index > 0) {
-        const prev = logs[index - 1];
-        const x1 = prev.coords.x, y1 = prev.coords.y;
-        const x2 = log.coords.x, y2 = log.coords.y;
-        const dist = Math.sqrt(Math.pow(x2-x1, 2) + Math.pow(y2-y1, 2));
-        const angle = Math.atan2(y2-y1, x2-x1) * 180 / Math.PI;
-
-        const line = document.createElement('div');
-        line.className = 'absolute bg-blue-400/20 origin-left z-0';
-        line.style.height = '0.5px';
-        line.style.width = dist + "%";
-        line.style.left = x1 + "%";
-        line.style.top = y1 + "%";
-        line.style.transform = `rotate(${angle}deg)`;
-        board.appendChild(line);
-    }
-});
-
-// --- [기능 3] 마지막 별 별똥별 ---
-if (index === logs.length - 1) {
-setTimeout(() => createShootingStar(board, log.coords.x, log.coords.y), (index * 100) + 500);
-}
-});
-} catch (e) {
-console.error(e);
-alert("성좌를 불러오는데 실패했습니다.");
-}
 };
 
 function createShootingStar(board, tx, ty) {
