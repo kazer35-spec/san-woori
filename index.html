@@ -3247,22 +3247,23 @@ window.showMilkyWay = async (mId, mName) => {
 
     if (!modal || !board) return;
 
-    // --- [1. 가이드 버튼 및 모달 UI 주입] ---
+    // --- [1. 가이드 버튼 및 모달 UI 주입: 중복 생성 방지] ---
     if (!document.getElementById('starGuideBtn')) {
         const guideHTML = `
-            <div class="mw-header-controls" style="position: absolute; top: 20px; right: 60px; z-index: 10010; display: flex; gap: 10px;">
+            <div class="mw-header-controls" style="position: absolute; top: 65px; right: 25px; z-index: 10010;">
                 <button id="starGuideBtn" onclick="toggleStarGuide(true)" class="star-guide-btn">
                     <span class="sparkle-icon">✨</span> 별 가이드
                 </button>
             </div>
-            <div id="starGuideModal" class="star-guide-overlay" style="display: none; position: absolute; top:0; left:0; width:100%; height:100%; z-index:10020; border-radius:inherit;" onclick="toggleStarGuide(false)">
-                <div class="star-guide-content" onclick="event.stopPropagation()">
-                    <div class="guide-header">
-                        <h3>Constellation Guide</h3>
-                        <p>산우리 은하수를 채우는 8가지 별의 기록</p>
+            <div id="starGuideModal" class="star-guide-overlay" style="display: none; position: absolute; top:0; left:0; width:100%; height:100%; z-index:10020; border-radius:inherit; background: rgba(10, 15, 28, 0.98); backdrop-filter: blur(10px); transition: opacity 0.3s ease;" onclick="toggleStarGuide(false)">
+                <div class="star-guide-content" style="width: 100%; height: 100%; padding: 40px 20px; overflow-y: auto;" onclick="event.stopPropagation()">
+                    <div class="guide-header" style="text-align: center; margin-bottom: 25px;">
+                        <h3 style="color: #fff; font-size: 1.2rem; font-weight: 800; letter-spacing: 2px;">STAR GUIDE</h3>
+                        <p style="color: #64748b; font-size: 0.75rem; margin-top: 5px;">산우리 은하수의 8가지 빛나는 기록</p>
                     </div>
-                    <div class="guide-grid" id="guideGrid"></div>
-                    <button onclick="toggleStarGuide(false)" class="guide-close-btn">&times;</button>
+                    <div class="guide-grid" id="guideGrid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+                        </div>
+                    <button onclick="toggleStarGuide(false)" class="guide-close-btn" style="position: absolute; top: 15px; right: 20px; background: none; border: none; color: #fff; font-size: 24px; cursor: pointer;">&times;</button>
                 </div>
             </div>`;
         modal.insertAdjacentHTML('afterbegin', guideHTML);
@@ -3280,7 +3281,7 @@ window.showMilkyWay = async (mId, mName) => {
             .filter(l => l.coords)
             .sort((a, b) => a.date.toDate() - b.date.toDate());
 
-        // 배경 계절 설정
+        // 배경 계절 설정 로직 유지
         const month = new Date().getMonth() + 1;
         board.classList.remove('nebula-spring-summer', 'nebula-fall-winter');
         if (month >= 3 && month <= 8) board.classList.add('nebula-spring-summer');
@@ -3292,12 +3293,8 @@ window.showMilkyWay = async (mId, mName) => {
         }
 
         logs.forEach((log, index) => {
-            // --- [3. 별 스타일 및 반짝임 로직] ---
-            let starColor = "white";
-            let shadowColor = "#FFFFFF";
-            let starSize = "w-1.5 h-1.5"; 
-            let customStyle = "";
-            let shouldTwinkle = false; 
+            // --- [3. 별 스타일 및 반짝임 로직 유지] ---
+            let starColor = "white", shadowColor = "#FFFFFF", starSize = "w-1.5 h-1.5", customStyle = "", shouldTwinkle = false; 
 
             if (log.starType) {
                 shouldTwinkle = true; 
@@ -3315,21 +3312,14 @@ window.showMilkyWay = async (mId, mName) => {
                     customStyle = `background-color: ${starColor}; box-shadow: 0 0 10px ${shadowColor}, 0 0 20px ${shadowColor};`;
                 }
             } else if (log.isTop100) {
-                starColor = "#F7E7CE";
-                shadowColor = "#F7E7CE";
-                shouldTwinkle = false;
+                starColor = "#F7E7CE"; shadowColor = "#F7E7CE";
                 customStyle = `background-color: ${starColor}; box-shadow: 0 0 6px ${shadowColor};`;
             }
 
-            // --- [4. 엘리먼트 생성 및 배치] ---
+            // --- [4. 별 엘리먼트 및 선 생성 로직 유지] ---
             const star = document.createElement('div');
             star.className = `absolute ${starSize} rounded-full z-10`; 
-            if (customStyle) {
-                star.style.cssText += customStyle;
-            } else {
-                star.style.backgroundColor = starColor;
-                star.style.boxShadow = `0 0 6px ${shadowColor}, 0 0 12px ${shadowColor}`;
-            }
+            star.style.cssText += customStyle || `background-color: ${starColor}; box-shadow: 0 0 6px ${shadowColor}, 0 0 12px ${shadowColor}`;
             star.style.left = log.coords.x + "%";
             star.style.top = log.coords.y + "%";
             star.style.opacity = "0"; 
@@ -3339,50 +3329,41 @@ window.showMilkyWay = async (mId, mName) => {
             let line = null;
             if (index > 0) {
                 const prev = logs[index - 1];
-                const x1 = prev.coords.x, y1 = prev.coords.y;
-                const x2 = log.coords.x, y2 = log.coords.y;
+                const x1 = prev.coords.x, y1 = prev.coords.y, x2 = log.coords.x, y2 = log.coords.y;
                 const dist = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
                 const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
-
                 line = document.createElement('div');
                 line.className = 'absolute bg-blue-400/20 origin-left z-0';
-                line.style.height = '0.5px';
-                line.style.width = dist + "%";
-                line.style.left = x1 + "%";
-                line.style.top = y1 + "%";
-                line.style.transform = `rotate(${angle}deg)`;
-                line.style.opacity = "0";
+                line.style.height = '0.5px'; line.style.width = dist + "%";
+                line.style.left = x1 + "%"; line.style.top = y1 + "%";
+                line.style.transform = `rotate(${angle}deg)`; line.style.opacity = "0";
                 line.style.transition = "opacity 1s ease";
                 board.appendChild(line);
             }
 
-            // --- [5. 순차 등장 애니메이션] ---
+            // --- [5. 순차 등장 및 별똥별 효과 트리거 유지] ---
             setTimeout(() => {
                 star.style.opacity = "1";
                 if (line) line.style.opacity = "1";
-                if (shouldTwinkle) {
-                    setTimeout(() => star.classList.add('animate-twinkle'), 1000);
-                }
-                if (index === logs.length - 1) {
-                    setTimeout(() => createShootingStar(board, log.coords.x, log.coords.y), 1000);
-                }
+                if (shouldTwinkle) setTimeout(() => star.classList.add('animate-twinkle'), 1000);
+                if (index === logs.length - 1) setTimeout(() => createShootingStar(board, log.coords.x, log.coords.y), 1000);
             }, index * 150);
         });
-
-    } catch (e) {
-        console.error("은하수 로딩 에러:", e);
-    }
+    } catch (e) { console.error("은하수 로딩 에러:", e); }
 };
 
-// --- [6. 별 가이드 제어 함수 (Window 전역)] ---
+// --- [6. 가이드 제어 및 8종 별 렌더링 함수 추가] ---
 window.toggleStarGuide = (show) => {
     const gModal = document.getElementById('starGuideModal');
     if (!gModal) return;
     if (show) {
         renderStarGuideItems();
         gModal.style.display = 'flex';
+        gModal.style.opacity = '0';
+        setTimeout(() => { gModal.style.opacity = '1'; }, 10);
     } else {
-        gModal.style.display = 'none';
+        gModal.style.opacity = '0';
+        setTimeout(() => { gModal.style.display = 'none'; }, 300);
     }
 };
 
@@ -3390,23 +3371,26 @@ function renderStarGuideItems() {
     const grid = document.getElementById('guideGrid');
     if (!grid) return;
     const stars = [
-        { name: "슈퍼별 (Super)", prob: "3%", desc: "태양처럼 타오르는 강렬한 빛의 전설적인 별", style: "background: radial-gradient(circle, #FF0000 20%, #FFFF00 100%); box-shadow: 0 0 15px #FF0000;", twinkle: true },
-        { name: "스페셜별 (Special)", prob: "7%", desc: "오로라를 머금은 신비로운 보랏빛 에픽 별", style: "background: radial-gradient(circle, #A020F0 20%, #00FF7F 100%); box-shadow: 0 0 12px #A020F0;", twinkle: true },
-        { name: "정기 1~4호", prob: "각 22.5%", desc: "정기산행 참여 시 랜덤으로 부여되는 4색의 별", style: "background: linear-gradient(45deg, #00FFFF, #FF8C00, #D32F2F, #9B84D8);", twinkle: true },
-        { name: "100대 명산별", prob: "인증", desc: "100대 명산의 발자취를 기리는 황금빛 별", style: "background: #F7E7CE; box-shadow: 0 0 6px #F7E7CE;", twinkle: false },
-        { name: "일반 산행별", prob: "상시", desc: "우리의 모든 기록을 담아내는 순백의 별", style: "background: #FFFFFF; box-shadow: 0 0 4px #FFFFFF;", twinkle: false }
+        { name: "슈퍼별", prob: "3%", desc: "전설의 붉은 태양", style: "background: radial-gradient(circle, #FF0000 20%, #FFFF00 100%); box-shadow: 0 0 15px #FF0000;", twinkle: true },
+        { name: "스페셜별", prob: "7%", desc: "신비로운 에픽 오로라", style: "background: radial-gradient(circle, #A020F0 20%, #00FF7F 100%); box-shadow: 0 0 12px #A020F0;", twinkle: true },
+        { name: "정기 1호", prob: "22.5%", desc: "청명한 시안 블루", style: "background: #00FFFF; box-shadow: 0 0 10px #00FFFF;", twinkle: true },
+        { name: "정기 2호", prob: "22.5%", desc: "정열의 오렌지", style: "background: #FF8C00; box-shadow: 0 0 10px #FF8C00;", twinkle: true },
+        { name: "정기 3호", prob: "22.5%", desc: "위엄있는 다크레드", style: "background: #D32F2F; box-shadow: 0 0 10px #D32F2F;", twinkle: true },
+        { name: "정기 4호", prob: "22.5%", desc: "우아한 퍼플라벤더", style: "background: #9B84D8; box-shadow: 0 0 10px #9B84D8;", twinkle: true },
+        { name: "100대 명산", prob: "인증", desc: "영광의 샴페인 골드", style: "background: #F7E7CE; box-shadow: 0 0 6px #F7E7CE;", twinkle: false },
+        { name: "일반 산행", prob: "상시", desc: "소중한 일상의 백색별", style: "background: #FFFFFF; box-shadow: 0 0 4px #FFFFFF;", twinkle: false }
     ];
     grid.innerHTML = stars.map(s => `
-        <div class="star-info-card">
-            <div class="star-preview-box">
-                <div class="star-preview ${s.twinkle ? 'animate-twinkle' : ''}" style="${s.style}"></div>
+        <div class="star-info-card" style="background: rgba(255,255,255,0.05); border-radius: 12px; padding: 10px; display: flex; align-items: center; gap: 10px; border: 1px solid rgba(255,255,255,0.1);">
+            <div style="width: 25px; display: flex; justify-content: center;">
+                <div class="star-preview ${s.twinkle ? 'animate-twinkle' : ''}" style="width: 8px; height: 8px; border-radius: 50%; ${s.style}"></div>
             </div>
-            <div class="star-text-info">
-                <div style="display:flex; align-items:center; gap:8px;">
-                    <span class="star-name">${s.name}</span>
-                    <span class="star-prob">${s.prob}</span>
+            <div style="display: flex; flex-direction: column;">
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <span style="color: #fff; font-size: 11px; font-weight: 700;">${s.name}</span>
+                    <span style="color: #3b82f6; font-size: 9px; font-weight: 800;">${s.prob}</span>
                 </div>
-                <span class="star-desc">${s.desc}</span>
+                <span style="color: #94a3b8; font-size: 9px; line-height: 1.2;">${s.desc}</span>
             </div>
         </div>`).join('');
 }
