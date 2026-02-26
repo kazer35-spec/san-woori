@@ -3247,7 +3247,7 @@ window.showMilkyWay = async (mId, mName) => {
 
     if (!modal || !board) return;
 
-    // --- [1. 가이드 UI 주입] ---
+    // --- [1. 가이드 UI: 창 크기 확대 및 레이아웃 최적화] ---
     if (!document.getElementById('starGuideBtn')) {
         const guideHTML = `
             <div class="mw-header-controls" style="position: absolute; top: 60px; right: 20px; z-index: 10010;">
@@ -3256,42 +3256,67 @@ window.showMilkyWay = async (mId, mName) => {
                 </button>
             </div>
             <div id="starGuideModal" class="star-guide-overlay" style="display: none; position: absolute; top:0; left:0; width:100%; height:100%; z-index:10020; border-radius:inherit; background: rgba(7, 10, 20, 0.98); backdrop-filter: blur(15px); transition: opacity 0.3s ease;" onclick="toggleStarGuide(false)">
-                <div class="star-guide-content" style="width: 100%; height: 100%; padding: 30px 20px; display: flex; flex-direction: column;" onclick="event.stopPropagation()">
-                    <div class="guide-header" style="text-align: center; margin-bottom: 15px; flex-shrink: 0;">
-                        <h3 style="color: #fff; font-size: 1.2rem; font-weight: 900; letter-spacing: 3px; text-shadow: 0 0 10px rgba(255,255,255,0.3);">STAR GALLERY</h3>
-                        <p style="color: #94a3b8; font-size: 0.75rem; margin-top: 5px;">산우리의 밤하늘을 수놓는 특별한 별빛들</p>
+                <div class="star-guide-content" style="width: 100%; height: 100%; padding: 40px 25px; display: flex; flex-direction: column;" onclick="event.stopPropagation()">
+                    <div class="guide-header" style="text-align: center; margin-bottom: 25px; flex-shrink: 0;">
+                        <h3 style="color: #fff; font-size: 1.4rem; font-weight: 900; letter-spacing: 4px; text-shadow: 0 0 15px rgba(255,255,255,0.3);">STAR GALLERY</h3>
+                        <p style="color: #94a3b8; font-size: 0.85rem; margin-top: 8px;">산우리의 밤하늘을 수놓는 특별한 별빛들</p>
                     </div>
-                    <div class="guide-grid" id="guideGrid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; flex-grow: 1; align-content: center;">
+                    <div class="guide-grid" id="guideGrid" style="display: grid; grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(4, 1fr); gap: 15px; flex-grow: 1;">
                         </div>
-                    <button onclick="toggleStarGuide(false)" class="guide-close-btn" style="position: absolute; top: 15px; right: 20px; background: none; border: none; color: #fff; font-size: 28px; cursor: pointer; opacity: 0.6;">&times;</button>
+                    <button onclick="toggleStarGuide(false)" class="guide-close-btn" style="position: absolute; top: 15px; right: 20px; background: none; border: none; color: #fff; font-size: 32px; cursor: pointer; opacity: 0.6;">&times;</button>
                 </div>
             </div>`;
         modal.insertAdjacentHTML('afterbegin', guideHTML);
     }
 
-    // --- [2. 기본 UI 초기화 및 이름 설정] ---
     modal.style.display = 'flex';
     if (nameLabel) nameLabel.innerText = `${mName}님의 은하수`;
     board.innerHTML = "";
 
     try {
         const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
-        const logs = snap.docs
+        let logs = snap.docs
             .map(d => d.data())
             .filter(l => l.coords)
             .sort((a, b) => a.date.toDate() - b.date.toDate());
 
+        // --- [2. 핵심 로직: 정기산행 1/2/3업 중복 제거 (별 1개, 횟수 1회로 통합)] ---
+        const processedLogs = [];
+        const visitedQuarters = new Set(); 
+
+        logs.forEach(log => {
+            const date = log.date.toDate();
+            const quarterKey = `${date.getFullYear()}-Q${Math.floor(date.getMonth() / 3) + 1}`;
+
+            // 정기산행 계열(regular, special, super) 체크 시
+            if (log.starType && (log.starType.startsWith("regular") || log.starType === "special" || log.starType === "super")) {
+                if (!visitedQuarters.has(quarterKey)) {
+                    // 이번 분기에 처음 발견된 정기 데이터만 별 생성 목록에 추가
+                    visitedQuarters.add(quarterKey);
+                    processedLogs.push(log);
+                } else {
+                    // 동일 분기 내 1/2/3업으로 인한 추가 기록은 아예 무시 (별/횟수 증가 없음)
+                    return; 
+                }
+            } else {
+                // 일반산행, 100대 명산 등은 그대로 추가
+                processedLogs.push(log);
+            }
+        });
+
+        // 계절 배경 설정
         const month = new Date().getMonth() + 1;
         board.classList.remove('nebula-spring-summer', 'nebula-fall-winter');
         if (month >= 3 && month <= 8) board.classList.add('nebula-spring-summer');
         else board.classList.add('nebula-fall-winter');
 
-        if (logs.length === 0) {
+        if (processedLogs.length === 0) {
             board.innerHTML = "<div class='text-white/20 text-xs h-full flex items-center justify-center'>아직 기록된 별이 없습니다.</div>";
             return;
         }
 
-        logs.forEach((log, index) => {
+        // --- [3. 별 및 선 그리기 (필터링된 processedLogs 사용)] ---
+        processedLogs.forEach((log, index) => {
             let starColor = "white", shadowColor = "#FFFFFF", starSize = "w-1.5 h-1.5", customStyle = "", shouldTwinkle = false; 
 
             if (log.starType) {
@@ -3303,12 +3328,11 @@ window.showMilkyWay = async (mId, mName) => {
                     starSize = "w-2 h-2"; 
                     customStyle = `background: radial-gradient(circle, #A020F0 20%, #00FF7F 100%); box-shadow: 0 0 12px 4px rgba(160, 32, 240, 0.6), 0 0 25px 8px rgba(0, 255, 127, 0.4); filter: brightness(1.3);`;
                 } else if (log.starType.startsWith("regular")) {
-                    // [색상 업데이트] 4번 라벤더를 더 진한 퍼플로 변경
-                    const colors = ["#00FFFF", "#FF8C00", "#D32F2F", "#7C4DFF"]; 
+                    const colors = ["#00FFFF", "#FF8C00", "#D32F2F", "#7C4DFF"]; // 4번 진보라(라벤더 강화)
                     const idx = parseInt(log.starType.split('_')[1]) - 1;
                     starColor = colors[idx] || "white";
                     shadowColor = starColor;
-                    customStyle = `background-color: ${starColor}; box-shadow: 0 0 12px ${shadowColor}, 0 0 22px ${shadowColor};`;
+                    customStyle = `background-color: ${starColor}; box-shadow: 0 0 8px ${shadowColor}, 0 0 12px rgba(255,255,255,0.3);`;
                 }
             } else if (log.isTop100) {
                 starColor = "#F7E7CE"; shadowColor = "#F7E7CE";
@@ -3324,46 +3348,28 @@ window.showMilkyWay = async (mId, mName) => {
             star.style.transition = "opacity 1s ease"; 
             board.appendChild(star);
 
-            let line = null;
             if (index > 0) {
-                const prev = logs[index - 1];
+                const prev = processedLogs[index - 1];
                 const x1 = prev.coords.x, y1 = prev.coords.y, x2 = log.coords.x, y2 = log.coords.y;
                 const dist = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
                 const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
-                line = document.createElement('div');
+                const line = document.createElement('div');
                 line.className = 'absolute bg-blue-400/20 origin-left z-0';
-                line.style.height = '0.5px'; line.style.width = dist + "%";
-                line.style.left = x1 + "%"; line.style.top = y1 + "%";
-                line.style.transform = `rotate(${angle}deg)`; line.style.opacity = "0";
-                line.style.transition = "opacity 1s ease";
+                line.style.cssText = `height:0.5px; width:${dist}%; left:${x1}%; top:${y1}%; transform:rotate(${angle}deg); opacity:0; transition:opacity 1s ease;`;
                 board.appendChild(line);
+                setTimeout(() => line.style.opacity = "1", index * 150);
             }
 
             setTimeout(() => {
                 star.style.opacity = "1";
-                if (line) line.style.opacity = "1";
                 if (shouldTwinkle) setTimeout(() => star.classList.add('animate-twinkle'), 1000);
-                if (index === logs.length - 1) setTimeout(() => createShootingStar(board, log.coords.x, log.coords.y), 1000);
+                if (index === processedLogs.length - 1) setTimeout(() => createShootingStar(board, log.coords.x, log.coords.y), 1000);
             }, index * 150);
         });
     } catch (e) { console.error("은하수 로딩 에러:", e); }
 };
 
-// --- [가이드 렌더링 함수] ---
-window.toggleStarGuide = (show) => {
-    const gModal = document.getElementById('starGuideModal');
-    if (!gModal) return;
-    if (show) {
-        renderStarGuideItems();
-        gModal.style.display = 'flex';
-        gModal.style.opacity = '0';
-        setTimeout(() => { gModal.style.opacity = '1'; }, 10);
-    } else {
-        gModal.style.opacity = '0';
-        setTimeout(() => { gModal.style.display = 'none'; }, 300);
-    }
-};
-
+// --- [가이드 렌더링 함수: 카드 크기 및 간격 다시 확대] ---
 function renderStarGuideItems() {
     const grid = document.getElementById('guideGrid');
     if (!grid) return;
@@ -3373,22 +3379,21 @@ function renderStarGuideItems() {
         { name: "정기 1호", prob: "22.5%", desc: "청명한 시안 블루", style: "background: #00FFFF; box-shadow: 0 0 12px #00FFFF;", twinkle: true },
         { name: "정기 2호", prob: "22.5%", desc: "정열의 오렌지", style: "background: #FF8C00; box-shadow: 0 0 12px #FF8C00;", twinkle: true },
         { name: "정기 3호", prob: "22.5%", desc: "위엄있는 다크레드", style: "background: #D32F2F; box-shadow: 0 0 12px #D32F2F;", twinkle: true },
-        // [수정] 라벤더 색상을 진보라(#7C4DFF)로 변경
-        { name: "정기 4호", prob: "22.5%", desc: "진하고 우아한 퍼플", style: "background: #7C4DFF; box-shadow: 0 0 12px #7C4DFF, 0 0 20px rgba(124,77,255,0.6);", twinkle: true },
+        { name: "정기 4호", prob: "22.5%", desc: "진하고 우아한 퍼플", style: "background: #7C4DFF; box-shadow: 0 0 12px #7C4DFF;", twinkle: true },
         { name: "100대 명산", prob: "인증", desc: "영광의 샴페인 골드", style: "background: #F7E7CE; box-shadow: 0 0 8px #F7E7CE;", twinkle: false },
         { name: "일반 산행", prob: "상시", desc: "소중한 일상의 기록", style: "background: #FFFFFF; box-shadow: 0 0 6px #FFFFFF;", twinkle: false }
     ];
     grid.innerHTML = stars.map(s => `
-        <div class="star-info-card" style="background: rgba(255,255,255,0.04); border-radius: 12px; padding: 12px 15px; display: flex; align-items: center; gap: 12px; border: 1px solid rgba(255,255,255,0.06); min-height: 70px;">
-            <div style="width: 30px; height: 30px; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
-                <div class="star-preview ${s.twinkle ? 'animate-twinkle' : ''}" style="width: 9px; height: 9px; border-radius: 50%; ${s.style}"></div>
+        <div class="star-info-card" style="background: rgba(255,255,255,0.05); border-radius: 15px; padding: 15px; display: flex; align-items: center; gap: 15px; border: 1px solid rgba(255,255,255,0.1); transition: transform 0.2s;">
+            <div style="width: 35px; height: 35px; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
+                <div class="star-preview ${s.twinkle ? 'animate-twinkle' : ''}" style="width: 10px; height: 10px; border-radius: 50%; ${s.style}"></div>
             </div>
             <div style="display: flex; flex-direction: column; justify-content: center;">
-                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 2px;">
-                    <span style="color: #fff; font-size: 12px; font-weight: 800;">${s.name}</span>
-                    <span style="color: #3b82f6; font-size: 9px; font-weight: 900; background: rgba(59,130,246,0.15); padding: 1px 4px; border-radius: 3px;">${s.prob}</span>
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                    <span style="color: #fff; font-size: 14px; font-weight: 800;">${s.name}</span>
+                    <span style="color: #3b82f6; font-size: 10px; font-weight: 900; background: rgba(59,130,246,0.1); padding: 2px 6px; border-radius: 4px;">${s.prob}</span>
                 </div>
-                <span style="color: #94a3b8; font-size: 9px; line-height: 1.3;">${s.desc}</span>
+                <span style="color: #94a3b8; font-size: 10px; line-height: 1.4;">${s.desc}</span>
             </div>
         </div>`).join('');
 }
