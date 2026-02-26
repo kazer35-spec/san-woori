@@ -12,6 +12,17 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+/* CSS 수정: 팝업이 어떤 창 위에서도 보일 수 있도록 설정 */
+#grassPopup {
+    position: fixed; /* absolute 대신 fixed를 사용하여 모달 위치에 영향받지 않음 */
+    z-index: 99999; /* 고대 예언서보다 훨씬 높은 수치 부여 */
+    background: rgba(15, 23, 42, 0.95);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    pointer-events: none; /* 팝업이 클릭을 방해하지 않도록 */
+}
+
 /* 별 가이드 버튼 */
 .star-guide-btn {
     background: rgba(255, 255, 255, 0.05);
@@ -2358,7 +2369,8 @@ y1: { beginAtZero: true, position: 'right', display: false }
 }
 });
 }
-window.toggleMapView = () => {
+
+    window.toggleMapView = () => {
 const main = document.getElementById('mapViewMain');
 const stats = document.getElementById('mapViewStats');
 if (main.classList.contains('hidden-view')) { main.classList.remove('hidden-view'); stats.classList.add('hidden-view'); }
@@ -3540,46 +3552,54 @@ style="position:absolute; top:15px; right:15px; color:white; background:none; bo
    // --- 잔디 상세 팝업 및 이벤트 제어 (통합본) ---
 
 window.showGrassPopup = (event, date, encodedAct) => {
-    event.stopPropagation();
+    // 1. 이벤트 전파 방지 (다른 창이 닫히거나 겹치는 현상 방지)
+    if (event.stopPropagation) event.stopPropagation();
+
     const popup = document.getElementById('grassPopup');
     const content = document.getElementById('popupContent');
     const dateEl = document.getElementById('popupDate');
 
     if (!encodedAct) {
         popup.classList.add('hidden');
+        popup.style.display = 'none';
         return;
     }
 
+    // 2. 데이터 복호화 및 날짜 표시
     const act = JSON.parse(atob(encodedAct));
     dateEl.innerText = date;
-popup.classList.remove('hidden'); // 숨김 해제
-popup.style.display = 'block'; // 화면에 표시
-popup.style.zIndex = '10005'; // 숫자를 크게 해서 모달보다 앞으로 꺼냄
-
-// 클릭한 위치 근처에 띄우기 (고정 좌표)
-const rect = event.currentTarget.getBoundingClientRect();
-popup.style.position = 'fixed';
-popup.style.left = (rect.left - 50) + "px";
-popup.style.top = (rect.top - 85) + "px";
-
     
+    // 3. 내용 구성 (디자인 가독성 유지)
     let items = "";
-    if (act.hike > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px;"><span>⛰️ 산행</span><b>${act.hike}회</b></div>`;
-    if (act.run > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#ec4899;"><span>🏃 러닝</span><b>${act.run}회</b></div>`;
-    if (act.trek > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#a855f7;"><span>🥾 트레킹</span><b>${act.trek}회</b></div>`;
+    if (act.hike > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; gap:10px;"><span>⛰️ 산행</span><b>${act.hike}회</b></div>`;
+    if (act.run > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#ec4899; gap:10px;"><span>🏃 러닝</span><b>${act.run}회</b></div>`;
+    if (act.trek > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#a855f7; gap:10px;"><span>🥾 트레킹</span><b>${act.trek}회</b></div>`;
     
     content.innerHTML = items;
-    popup.classList.remove('hidden');
 
-    // 모바일 대응 좌표 계산
+    // 4. 스타일 및 레이어 우선순위 설정
+    popup.classList.remove('hidden');
+    popup.style.display = 'block';
+    popup.style.position = 'fixed'; // 화면 전체 기준 좌표 사용
+    popup.style.zIndex = '30000'; // 예언서 모달(보통 10000)보다 훨씬 높게 설정
+
+    // 5. 좌표 계산 (모든 창 위에서 클릭한 위치 기준)
     const clientX = event.touches ? event.touches[0].clientX : event.clientX;
     const clientY = event.touches ? event.touches[0].clientY : event.clientY;
 
-    let left = clientX + 10;
-    if (left + 150 > window.innerWidth) left = clientX - 160; // 화면 넘침 방지
+    // 팝업이 화면 우측이나 하단으로 나가지 않게 보정
+    let left = clientX + 15;
+    let top = clientY - 85; // 클릭 지점보다 약간 위로
+
+    if (left + 160 > window.innerWidth) {
+        left = clientX - 170; // 오른쪽 끝이면 왼쪽으로 이동
+    }
+    if (top < 10) {
+        top = clientY + 20; // 상단 공간 부족하면 아래로 이동
+    }
 
     popup.style.left = `${left}px`;
-    popup.style.top = `${clientY + window.scrollY - 80}px`; // 스크롤 높이 반영
+    popup.style.top = `${top}px`;
 };
 
 // 모바일/PC 공용 팝업 닫기
@@ -3592,4 +3612,3 @@ document.addEventListener('touchstart', (e) => {
 </script>
 </body>
     </html>
-    
