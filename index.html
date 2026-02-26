@@ -1453,6 +1453,7 @@ overflow: hidden;
 </style>
 </head>
 <body>
+
     <div id="levelupAlert" class="fixed inset-0 z-[200] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
     <div class="bg-white rounded-3xl p-8 max-w-sm w-[90%] text-center shadow-2xl transform scale-90 transition-transform duration-300 ease-out border-4 border-yellow-400">
         <div class="text-5xl mb-4">🎊</div>
@@ -3551,6 +3552,7 @@ style="position:absolute; top:15px; right:15px; color:white; background:none; bo
    // --- 잔디 상세 팝업 및 이벤트 제어 (통합본) ---
 
 window.showGrassPopup = (event, date, encodedAct) => {
+    // [중요] 클릭 이벤트가 body까지 퍼져서 바로 닫히는 것을 방지
     if (event.stopPropagation) event.stopPropagation();
 
     const popup = document.getElementById('grassPopup');
@@ -3563,8 +3565,7 @@ window.showGrassPopup = (event, date, encodedAct) => {
         return;
     }
 
-    // [핵심 추가] 팝업의 부모가 body가 아니라면 body 바로 아래로 옮깁니다.
-    // 이렇게 하면 어떤 모달(예언서 등)의 좌표 영향도 받지 않습니다.
+    // 팝업 부모를 body로 강제 이동 (좌표 꼬임 방지)
     if (popup.parentElement !== document.body) {
         document.body.appendChild(popup);
     }
@@ -3579,44 +3580,46 @@ window.showGrassPopup = (event, date, encodedAct) => {
     
     content.innerHTML = items;
 
-    // 초기 표시 설정
+    // 표시 및 레이어 설정
     popup.classList.remove('hidden');
     popup.style.display = 'block';
     popup.style.position = 'fixed';
-    popup.style.zIndex = '999999'; // 어떤 모달보다도 높게
+    popup.style.zIndex = '999999';
 
-    // 좌표 계산 (뷰포트 기준)
+    // 좌표 계산
     const clientX = event.touches ? event.touches[0].clientX : event.clientX;
     const clientY = event.touches ? event.touches[0].clientY : event.clientY;
 
-    // 화면 우측 및 하단 잘림 방지 보정
     let left = clientX + 15;
     let top = clientY - 85;
 
-    const popupWidth = 160;
-    const popupHeight = 100;
-
-    if (left + popupWidth > window.innerWidth) {
-        left = clientX - popupWidth - 10;
-    }
-    if (top < 10) {
-        top = clientY + 20;
-    }
-    if (top + popupHeight > window.innerHeight) {
-        top = window.innerHeight - popupHeight - 10;
-    }
+    // 화면 밖으로 나감 방지
+    if (left + 160 > window.innerWidth) left = clientX - 170;
+    if (top < 10) top = clientY + 20;
 
     popup.style.left = `${left}px`;
     popup.style.top = `${top}px`;
 };
 
-// 모바일/PC 공용 팝업 닫기
+// 화면 아무 곳이나 클릭하거나 터치하면 잔디 팝업 닫기
+document.addEventListener('mousedown', (e) => {
+    const popup = document.getElementById('grassPopup');
+    // 팝업이 열려 있고, 클릭한 대상이 팝업 자체가 아닐 때만 닫음
+    if (popup && !popup.classList.contains('hidden') && !popup.contains(e.target)) {
+        popup.classList.add('hidden');
+        popup.style.display = 'none';
+    }
+});
+
+// 모바일 터치 대응
 document.addEventListener('touchstart', (e) => {
     const popup = document.getElementById('grassPopup');
-    if (popup && !popup.contains(e.target)) {
+    if (popup && !popup.classList.contains('hidden') && !popup.contains(e.target)) {
         popup.classList.add('hidden');
+        popup.style.display = 'none';
     }
-}, {passive: true});
+}, { passive: true });
+
 </script>
 </body>
     </html>
