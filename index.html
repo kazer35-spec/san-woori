@@ -2358,7 +2358,6 @@ y1: { beginAtZero: true, position: 'right', display: false }
 }
 });
 }
-
 window.toggleMapView = () => {
 const main = document.getElementById('mapViewMain');
 const stats = document.getElementById('mapViewStats');
@@ -2582,7 +2581,7 @@ pendingLevelUpMessages = []; // 메시지 대기열 초기화
 };
 
 window.addMultiActivity = async () => {
-    // 1. 기본 데이터 및 체크박스 상태 가져오기
+    // 1. 기본 데이터 수집
     const dateVal = document.getElementById('activityDate').value;
     const mName = document.getElementById('mountainName').value.trim();
     const height = parseInt(document.getElementById('mountainHeight').value) || 0;
@@ -2596,20 +2595,22 @@ window.addMultiActivity = async () => {
 
     if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜 확인");
 
-    // 2. 수치 설정 (레벨업 반영)
+    // 2. 레벨업 설정
     const upElement = document.querySelector('input[name="upAmount"]:checked');
     if(!upElement) return alert("레벨업 수치를 선택해주세요.");
     const up = parseInt(upElement.value);
 
-    // [로직 분류] 런닝/트레킹 제외 -> 산행 및 정기산행만 혜택 부여
-    const isSpecial = isRunning || isTracking; // 런닝/트레킹 여부
-    const isHike = !isSpecial; // 산행/정기산행 여부
-
+    const isSpecial = isRunning || isTracking; 
+    const isHike = !isSpecial; 
     const effectiveUp = isHike ? up : 0;
-    const logLoopCount = isSpecial ? 1 : (isQuarterOnlyOne ? 1 : up);
+
+    // [중요 로직] 정기산행 체크 시, up 수치와 상관없이 별(로그)은 1개만 생성
+    // 그 외 일반산행은 선택된 up 수치만큼(혹은 분기1회 옵션만큼) 로그 생성
+    const logLoopCount = isRegular ? 1 : (isSpecial ? 1 : (isQuarterOnlyOne ? 1 : up));
+    
     const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
 
-    // 3. 산 정보 업데이트
+    // 3. 산 데이터 DB 업데이트
     if(mName && tempCoord) {
         await setDoc(doc(db, "mountains", mName), {
             x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region
@@ -2626,15 +2627,14 @@ window.addMultiActivity = async () => {
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
-            // [A] 회원 정보 업데이트 (레벨, 누적고도, 마지막 산행일(D-Day))
-            // 산행/정기산행 시 무조건 날짜와 레벨이 갱신됩니다.
+            // [A] 회원 문서 업데이트 (레벨업은 up 수치 그대로 반영)
             await updateDoc(doc(db, "sanwoori", id), {
                 level: newLevel,
                 lastDate: ts, 
                 totalHeight: increment(height)
             });
 
-            // [B] 우정 포인트 (산행/정기산행이면서 2인 이상일 때)
+            // [B] 우정 포인트 계산 (2인 이상 산행 시)
             if (selectedMemberIds.size >= 2 && isHike) {
                 const pointToAdd = isRegular ? 10 : (10 * effectiveUp); 
                 await updateDoc(doc(db, "sanwoori", id), { 
@@ -2642,25 +2642,19 @@ window.addMultiActivity = async () => {
                 });
             }
 
-            // [C] 로그 기록 및 별 생성 (요청하신 확률 반영)
+            // [C] 로그 기록 및 별 생성 (정기산행 시 단 1회 실행)
             for(let i = 0; i < logLoopCount; i++) {
                 let assignedStarType = null; 
                 
-               if (isRegular) { 
-    // 100점 만점으로 확률 주사위
-    const rand = Math.random() * 100; 
-
-    if (rand <= 3) {
-        assignedStarType = "super"; // 3% 확률 (슈퍼별)
-    } else if (rand <= 10) { 
-        // 수정됨: 3% 초과 ~ 10% 이하 (즉, 7% 확률)
-        assignedStarType = "special"; // 7% 확률 (스페셜별)
-    } else {
-        // 나머지 90% 확률은 정기산행별 1~4번이 균등하게 가져감 (각 22.5%)
-        const regIdx = Math.floor(Math.random() * 4) + 1;
-        assignedStarType = "regular_" + regIdx;
-    }
-}
+                if (isRegular) { 
+                    const rand = Math.random() * 100; 
+                    if (rand <= 3) assignedStarType = "super"; 
+                    else if (rand <= 10) assignedStarType = "special"; 
+                    else {
+                        const regIdx = Math.floor(Math.random() * 4) + 1;
+                        assignedStarType = "regular_" + regIdx;
+                    }
+                }
 
                 await addDoc(collection(db, `sanwoori/${id}/logs`), {
                     date: ts,
@@ -2673,23 +2667,19 @@ window.addMultiActivity = async () => {
                     isRunning,
                     isTracking,
                     region,
-                    starType: assignedStarType // 정기산행 시 100대 명산보다 이 별빛이 우선 적용됨
+                    starType: assignedStarType // 정기산행 별빛 우선 부여
                 });
             }
 
-            if (isHike) {
-                checkLevelUpgrade(member.name, oldLevel, newLevel);
-            }
+            if (isHike) checkLevelUpgrade(member.name, oldLevel, newLevel);
         }
 
-        // 5. 후처리 및 알림
-        if (pendingLevelUpMessages.length > 0) {
-            showCombinedLevelUpAlert();
-        }
+        // 4. 알림 및 UI 갱신
+        if (pendingLevelUpMessages.length > 0) showCombinedLevelUpAlert();
 
-        let finalMsg = isHike 
-            ? `저장 완료 (레벨 ${up}↑ / 분기 ${logLoopCount}회 반영 / 우정포인트 및 날짜 갱신)`
-            : `${isRunning ? '런닝' : '트레킹'} 기록 완료 (레벨/분기 미포함)`;
+        let finalMsg = isRegular 
+            ? `정기산행 저장 완료 (레벨 ${up}↑ / 별 1개 생성 / 우정포인트 반영)`
+            : (isHike ? `일반산행 저장 완료 (레벨 ${up}↑ / 기록 ${logLoopCount}회 반영)` : `기록 완료`);
         
         alert(finalMsg);
         selectedMemberIds.clear();
@@ -3373,22 +3363,22 @@ function renderStarGuideItems() {
         { name: "정기 1호", prob: "22.5%", desc: "청명한 시안 블루", style: "background: #00FFFF; box-shadow: 0 0 12px #00FFFF;", twinkle: true },
         { name: "정기 2호", prob: "22.5%", desc: "정열의 오렌지", style: "background: #FF8C00; box-shadow: 0 0 12px #FF8C00;", twinkle: true },
         { name: "정기 3호", prob: "22.5%", desc: "위엄있는 다크레드", style: "background: #D32F2F; box-shadow: 0 0 12px #D32F2F;", twinkle: true },
-        // [수정] 라벤더 색상을 진보라(#7C4DFF)로 변경
-        { name: "정기 4호", prob: "22.5%", desc: "진하고 우아한 퍼플", style: "background: #7C4DFF; box-shadow: 0 0 12px #7C4DFF, 0 0 20px rgba(124,77,255,0.6);", twinkle: true },
+        { name: "정기 4호", prob: "22.5%", desc: "진하고 우아한 퍼플", style: "background: #7C4DFF; box-shadow: 0 0 12px #7C4DFF;", twinkle: true },
         { name: "100대 명산", prob: "인증", desc: "영광의 샴페인 골드", style: "background: #F7E7CE; box-shadow: 0 0 8px #F7E7CE;", twinkle: false },
         { name: "일반 산행", prob: "상시", desc: "소중한 일상의 기록", style: "background: #FFFFFF; box-shadow: 0 0 6px #FFFFFF;", twinkle: false }
     ];
+
     grid.innerHTML = stars.map(s => `
-        <div class="star-info-card" style="background: rgba(255,255,255,0.04); border-radius: 12px; padding: 12px 15px; display: flex; align-items: center; gap: 12px; border: 1px solid rgba(255,255,255,0.06); min-height: 70px;">
-            <div style="width: 30px; height: 30px; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
-                <div class="star-preview ${s.twinkle ? 'animate-twinkle' : ''}" style="width: 9px; height: 9px; border-radius: 50%; ${s.style}"></div>
+        <div class="star-info-card" style="background: rgba(255,255,255,0.04); border-radius: 14px; padding: 20px 15px; display: flex; align-items: center; gap: 15px; border: 1px solid rgba(255,255,255,0.08); min-height: 90px;">
+            <div style="width: 40px; height: 40px; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
+                <div class="star-preview ${s.twinkle ? 'animate-twinkle' : ''}" style="width: 12px; height: 12px; border-radius: 50%; ${s.style}"></div>
             </div>
             <div style="display: flex; flex-direction: column; justify-content: center;">
-                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 2px;">
-                    <span style="color: #fff; font-size: 12px; font-weight: 800;">${s.name}</span>
-                    <span style="color: #3b82f6; font-size: 9px; font-weight: 900; background: rgba(59,130,246,0.15); padding: 1px 4px; border-radius: 3px;">${s.prob}</span>
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                    <span style="color: #fff; font-size: 14px; font-weight: 800; letter-spacing: 0.5px;">${s.name}</span>
+                    <span style="color: #3b82f6; font-size: 10px; font-weight: 900; background: rgba(59,130,246,0.15); padding: 2px 6px; border-radius: 4px;">${s.prob}</span>
                 </div>
-                <span style="color: #94a3b8; font-size: 9px; line-height: 1.3;">${s.desc}</span>
+                <span style="color: #94a3b8; font-size: 11px; line-height: 1.4; opacity: 0.8;">${s.desc}</span>
             </div>
         </div>`).join('');
 }
@@ -3602,3 +3592,4 @@ document.addEventListener('touchstart', (e) => {
 </script>
 </body>
     </html>
+    
