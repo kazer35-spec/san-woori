@@ -1453,7 +1453,6 @@ overflow: hidden;
 </style>
 </head>
 <body>
-
     <div id="levelupAlert" class="fixed inset-0 z-[200] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
     <div class="bg-white rounded-3xl p-8 max-w-sm w-[90%] text-center shadow-2xl transform scale-90 transition-transform duration-300 ease-out border-4 border-yellow-400">
         <div class="text-5xl mb-4">🎊</div>
@@ -3552,7 +3551,6 @@ style="position:absolute; top:15px; right:15px; color:white; background:none; bo
    // --- 잔디 상세 팝업 및 이벤트 제어 (통합본) ---
 
 window.showGrassPopup = (event, date, encodedAct) => {
-    // 1. 이벤트 전파 방지 (다른 창이 닫히거나 겹치는 현상 방지)
     if (event.stopPropagation) event.stopPropagation();
 
     const popup = document.getElementById('grassPopup');
@@ -3565,37 +3563,47 @@ window.showGrassPopup = (event, date, encodedAct) => {
         return;
     }
 
-    // 2. 데이터 복호화 및 날짜 표시
+    // [핵심 추가] 팝업의 부모가 body가 아니라면 body 바로 아래로 옮깁니다.
+    // 이렇게 하면 어떤 모달(예언서 등)의 좌표 영향도 받지 않습니다.
+    if (popup.parentElement !== document.body) {
+        document.body.appendChild(popup);
+    }
+
     const act = JSON.parse(atob(encodedAct));
     dateEl.innerText = date;
     
-    // 3. 내용 구성 (디자인 가독성 유지)
     let items = "";
-    if (act.hike > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; gap:10px;"><span>⛰️ 산행</span><b>${act.hike}회</b></div>`;
-    if (act.run > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#ec4899; gap:10px;"><span>🏃 러닝</span><b>${act.run}회</b></div>`;
-    if (act.trek > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#a855f7; gap:10px;"><span>🥾 트레킹</span><b>${act.trek}회</b></div>`;
+    if (act.hike > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; gap:12px;"><span>⛰️ 산행</span><b>${act.hike}회</b></div>`;
+    if (act.run > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#ec4899; gap:12px;"><span>🏃 러닝</span><b>${act.run}회</b></div>`;
+    if (act.trek > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#a855f7; gap:12px;"><span>🥾 트레킹</span><b>${act.trek}회</b></div>`;
     
     content.innerHTML = items;
 
-    // 4. 스타일 및 레이어 우선순위 설정
+    // 초기 표시 설정
     popup.classList.remove('hidden');
     popup.style.display = 'block';
-    popup.style.position = 'fixed'; // 화면 전체 기준 좌표 사용
-    popup.style.zIndex = '30000'; // 예언서 모달(보통 10000)보다 훨씬 높게 설정
+    popup.style.position = 'fixed';
+    popup.style.zIndex = '999999'; // 어떤 모달보다도 높게
 
-    // 5. 좌표 계산 (모든 창 위에서 클릭한 위치 기준)
+    // 좌표 계산 (뷰포트 기준)
     const clientX = event.touches ? event.touches[0].clientX : event.clientX;
     const clientY = event.touches ? event.touches[0].clientY : event.clientY;
 
-    // 팝업이 화면 우측이나 하단으로 나가지 않게 보정
+    // 화면 우측 및 하단 잘림 방지 보정
     let left = clientX + 15;
-    let top = clientY - 85; // 클릭 지점보다 약간 위로
+    let top = clientY - 85;
 
-    if (left + 160 > window.innerWidth) {
-        left = clientX - 170; // 오른쪽 끝이면 왼쪽으로 이동
+    const popupWidth = 160;
+    const popupHeight = 100;
+
+    if (left + popupWidth > window.innerWidth) {
+        left = clientX - popupWidth - 10;
     }
     if (top < 10) {
-        top = clientY + 20; // 상단 공간 부족하면 아래로 이동
+        top = clientY + 20;
+    }
+    if (top + popupHeight > window.innerHeight) {
+        top = window.innerHeight - popupHeight - 10;
     }
 
     popup.style.left = `${left}px`;
