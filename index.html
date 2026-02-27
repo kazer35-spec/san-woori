@@ -12,23 +12,6 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-/* 중앙 코어 심장박동 효과 */
-@keyframes corePulse {
-    0%, 100% { transform: scale(1); opacity: 0.6; }
-    50% { transform: scale(1.3); opacity: 1; }
-}
-
-/* 활동 포인트 반짝임 효과 */
-@keyframes starBlink {
-    from { transform: scale(0.8); opacity: 0.5; }
-    to { transform: scale(1.2); opacity: 1; }
-}
-
-/* 네온 텍스트 효과 */
-.cosmic-neon-text {
-    text-shadow: 0 0 10px var(--glow-color), 0 0 20px var(--glow-color);
-}
-
 /* CSS 수정: 팝업이 어떤 창 위에서도 보일 수 있도록 설정 */
 #grassPopup {
     position: fixed; /* absolute 대신 fixed를 사용하여 모달 위치에 영향받지 않음 */
@@ -613,7 +596,7 @@ animation: borderGlow 2s infinite;
 padding: 5px 15px;
 font-size: 9px;
 }
-
+​
 /* 나이테 정중앙 시작점 강조 */
 .ring-center-flash {
 filter: brightness(3) !important;
@@ -3138,134 +3121,134 @@ card.classList.add('glow-active');
 } catch (e) { console.error("통합 로딩 에러:", e); }
 }
 
-window.renderTreeRings = async (memberName, regDate, memberLevel, logs = []) => {
-    const container = document.getElementById('treeRingContainer');
-    const monthLabel = document.getElementById('activityMonths');
+window.renderTreeRings = async (memberName, regDate, memberLevel) => {
+const container = document.getElementById('treeRingContainer');
+const monthLabel = document.getElementById('activityMonths');
+const mainTitle = document.querySelector('.ring-main-title');
+const mountainName = document.getElementById('mwMountainName');
 
-    if (!container) return;
-    container.innerHTML = "";
-    container.style.position = "relative"; // 별빛 배치를 위해 relative 설정
+if (!container) return;
 
-    // [1] 기본 정보 세팅
-    const fixedList = ["오즈","나스","해수","용삼","지니","아랑","민이","몰랑","길치","등초","무니","식이","구름","뚜벅","윤윤","승이","이구","후후","튜브","피치","사랑","송돌","호프","이제","얌얌","태기","희야","멸치","성민","루이","섭섭"];
-    let jDate = fixedList.includes(memberName) ? new Date('2025-11-24') : (regDate?.toDate ? regDate.toDate() : new Date());
-    const now = new Date();
-    const diffMonths = Math.max(1, (now.getFullYear() - jDate.getFullYear()) * 12 + (now.getMonth() - jDate.getMonth()) + 1);
+// [1] 초기화: 기존 내용 비우기 및 텍스트 스타일 적용
+container.innerHTML = "";
+if (mainTitle) mainTitle.classList.add('cosmic-neon-text');
+if (mountainName) mountainName.classList.add('cosmic-neon-text');
 
-    const style = getLevelStyle(memberLevel);
-    const ringColor = style.border;
+// [2] 배경 별빛 생성 (Canvas 대신 가벼운 div 기반)
+for (let i = 0; i < 80; i++) {
+const star = document.createElement('div');
+star.className = 'tree-ring-star';
+star.style.cssText = `
+position: absolute;
+width: ${Math.random() * 2}px; height: ${Math.random() * 2}px;
+left: ${Math.random() * 100}%; top: ${Math.random() * 100}%;
+background: white; opacity: ${Math.random()}; border-radius: 50%;
+pointer-events: none;
+`;
+container.appendChild(star);
+}
 
-    // [2] SVG 생성
-    const svgNS = "http://www.w3.org/2000/svg";
-    const svg = document.createElementNS(svgNS, "svg");
-    svg.setAttribute("viewBox", "0 0 240 240");
-    svg.style.cssText = "width:100%; height:100%; overflow:visible; position:relative; z-index:2;";
-    svg.style.setProperty('--glow-color', ringColor);
-    container.appendChild(svg);
+// [3] 기간 계산 (가입일 기준)
+const fixedList = ["오즈","나스","해수","용삼","지니","아랑","민이","몰랑","길치","등초","무니","식이","구름","뚜벅","윤윤","승이","이구","후후","튜브","피치","사랑","송돌","호프","이제","얌얌","태기","희야","멸치","성민","루이","섭섭"];
+let jDate = fixedList.includes(memberName) ? new Date('2025-11-24') : (regDate?.toDate ? regDate.toDate() : new Date());
+const now = new Date();
+const diffMonths = Math.max(1, (now.getFullYear() - jDate.getFullYear()) * 12 + (now.getMonth() - jDate.getMonth()) + 1);
 
-    // [3] 중앙 코어 및 그룹 생성 (클래스 부여)
-    const coreGroup = document.createElementNS(svgNS, "g");
-    coreGroup.setAttribute("class", "planet-core-group");
-    const coreCircle = document.createElementNS(svgNS, "circle");
-    coreCircle.setAttribute("cx", "120"); coreCircle.setAttribute("cy", "120"); coreCircle.setAttribute("r", "5");
-    coreCircle.setAttribute("fill", ringColor);
-    coreCircle.style.filter = `drop-shadow(0 0 8px ${ringColor})`;
-    coreCircle.style.animation = "corePulse 3s infinite ease-in-out";
-    coreGroup.appendChild(coreCircle);
-    svg.appendChild(coreGroup);
+const style = getLevelStyle(memberLevel);
+const ringColor = style.border;
 
-    // [4] 나이테 및 정기산행 노드 생성
-    const rings = [];
-    const seed = memberName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+// [4] SVG 및 중앙 코어 생성
+const svgNS = "http://www.w3.org/2000/svg";
+const svg = document.createElementNS(svgNS, "svg");
+svg.setAttribute("viewBox", "0 0 240 240");
+svg.style.cssText = "width:100%; height:100%; overflow:visible;";
 
-    for (let i = 1; i <= diffMonths; i++) {
-        const radius = 10 + (i * (95 / diffMonths));
-        const isYearly = i % 12 === 0;
-        
-        // 정기산행 여부 확인
-        const currentRingDate = new Date(jDate.getFullYear(), jDate.getMonth() + i - 1, 1);
-        const hasRegularHike = logs.some(log => {
-            if (!log.date || !log.isRegular) return false;
-            const logDate = log.date.toDate ? log.date.toDate() : new Date(log.date);
-            return logDate.getFullYear() === currentRingDate.getFullYear() && logDate.getMonth() === currentRingDate.getMonth();
-        });
+// 중앙 행성 코어 그룹
+const coreGroup = document.createElementNS(svgNS, "g");
+coreGroup.setAttribute("class", "planet-core-group");
 
-        const path = document.createElementNS(svgNS, "path");
-        let d = "";
-        let points = [];
-        for (let a = 0; a <= 360; a += 6) {
-            const angle = (a * Math.PI) / 180;
-            const wave = Math.sin(angle * (seed % 4 + 3) + i) * (1.5 + memberLevel/100);
-            const r = radius + wave;
-            const x = 120 + r * Math.cos(angle);
-            const y = 120 + r * Math.sin(angle);
-            d += (a === 0 ? "M" : "L") + `${x},${y} `;
-            points.push({x, y});
-        }
-        d += "Z";
-        path.setAttribute("d", d);
-        path.setAttribute("stroke", ringColor);
-        path.setAttribute("fill", "none");
-        path.setAttribute("stroke-width", isYearly ? "1.5" : "0.4");
-        path.style.strokeOpacity = "0";
-        path.style.filter = isYearly ? `drop-shadow(0 0 4px ${ringColor})` : "none";
-        
-        const length = radius * Math.PI * 2.5;
-        path.style.strokeDasharray = length;
-        path.style.strokeDashoffset = length;
-        svg.appendChild(path);
-        rings.push({ path, i });
+// 코어 자체 별무리 효과 (함수 내부에서 직접 생성하도록 통합)
+const coreCircle = document.createElementNS(svgNS, "circle");
+coreCircle.setAttribute("cx", "120"); coreCircle.setAttribute("cy", "120"); coreCircle.setAttribute("r", "5");
+coreCircle.setAttribute("fill", ringColor);
+coreCircle.style.filter = `drop-shadow(0 0 10px ${ringColor})`;
+coreGroup.appendChild(coreCircle);
+svg.appendChild(coreGroup);
 
-        // 정기산행 노드(큰 별)
-        if (hasRegularHike) {
-            const pt = points[Math.floor(Math.random() * points.length)];
-            const star = document.createElementNS(svgNS, "circle");
-            star.setAttribute("cx", pt.x); star.setAttribute("cy", pt.y); star.setAttribute("r", "1.8");
-            star.setAttribute("fill", "#fff");
-            star.style.filter = `drop-shadow(0 0 5px #fff) drop-shadow(0 0 10px ${ringColor})`;
-            star.style.opacity = "0";
-            setTimeout(() => {
-                star.style.transition = "opacity 1s ease";
-                star.style.opacity = "1";
-                star.style.animation = "starBlink 1.5s infinite alternate";
-            }, i * 60 + 800);
-            svg.appendChild(star);
-        }
-    }
+// [5] 나이테(Path) 경로 생성
+const rings = [];
+const seed = memberName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
 
-    // [5] 나이테 드로잉 실행
-    rings.forEach((ringObj, index) => {
-        setTimeout(() => {
-            ringObj.path.style.strokeOpacity = (ringObj.i % 12 === 0) ? "0.9" : "0.3";
-            ringObj.path.style.transition = "stroke-dashoffset 2s ease-out, stroke-opacity 0.5s ease";
-            ringObj.path.style.strokeDashoffset = "0";
-            if (monthLabel) monthLabel.innerText = ringObj.i;
-        }, index * 60);
-    });
+for (let i = 1; i <= diffMonths; i++) {
+const radius = 10 + (i * (95 / diffMonths));
+const path = document.createElementNS(svgNS, "path");
+path.setAttribute("class", "tree-ring-path");
 
-    // [6] 내부 행성 별빛 추가 생성 (말씀하신 7번 로직 통합)
-    setTimeout(() => {
-        const coreDOM = container.querySelector('.planet-core-group');
-        if (coreDOM) {
-            for (let i = 0; i < 20; i++) {
-                const starInner = document.createElement('div');
-                // 중심(50%, 50%) 기준으로 랜덤하게 흩뿌림
-                starInner.style.cssText = `
-                    position: absolute;
-                    width: 1.5px; height: 1.5px;
-                    left: ${50 + (Math.random() - 0.5) * 15}%;
-                    top: ${50 + (Math.random() - 0.5) * 15}%;
-                    background: white; border-radius: 50%; 
-                    opacity: 0; z-index: 1;
-                    filter: blur(0.5px) drop-shadow(0 0 2px white);
-                    animation: starBlink ${Math.random() * 2 + 1}s infinite;
-                `;
-                container.appendChild(starInner);
-                // 순차적으로 나타나게 설정
-                setTimeout(() => starInner.style.opacity = Math.random() * 0.7 + 0.3, Math.random() * 1000);
-            }
-        }
-    }, 500);
+let d = "";
+for (let a = 0; a <= 360; a += 6) {
+const angle = (a * Math.PI) / 180;
+// 고유한 물결 모양 생성 (이름 기반 seed + 월별 인덱스 i)
+const wave = Math.sin(angle * (seed % 4 + 3) + i) * 2.5;
+const r = radius + wave;
+const x = 120 + r * Math.cos(angle);
+const y = 120 + r * Math.sin(angle);
+d += (a === 0 ? "M" : "L") + `${x},${y} `;
+}
+d += "Z";
+
+path.setAttribute("d", d);
+path.setAttribute("fill", "none");
+path.setAttribute("stroke", ringColor);
+path.setAttribute("stroke-width", i % 12 === 0 ? "1.2" : "0.35"); // 1년 단위 링 강조
+path.setAttribute("stroke-opacity", "0"); // 초기엔 투명
+path.style.transition = "stroke-opacity 0.5s ease-in, stroke-width 0.5s ease";
+
+svg.appendChild(path);
+rings.push(path);
+}
+container.appendChild(svg);
+
+// [6] 애니메이션 실행: 안쪽부터 순차적으로 등장
+const totalAnimTime = 1200; // 전체 등장 시간 1.2초
+const delayStep = Math.min(60, totalAnimTime / diffMonths);
+
+rings.forEach((ring, index) => {
+setTimeout(() => {
+// 연단위(12개월)는 더 진하게, 나머지는 은은하게
+const targetOpacity = (index + 1) % 12 === 0 ? "0.8" : "0.25";
+ring.setAttribute("stroke-opacity", targetOpacity);
+
+// 숫자 카운트 증가 효과
+if(monthLabel) monthLabel.innerText = index + 1;
+
+// 마지막 링(현재 시점) 강조 효과
+if(index === rings.length - 1) {
+ring.setAttribute("stroke-width", "2");
+ring.style.filter = `drop-shadow(0 0 5px ${ringColor})`;
+ring.setAttribute("stroke-opacity", "1");
+}
+}, index * delayStep);
+});
+
+// [7] 내부 행성 별빛 추가 생성 (코어 그룹 내부)
+setTimeout(() => {
+const coreDOM = container.querySelector('.planet-core-group');
+if (coreDOM) {
+for (let i = 0; i < 20; i++) {
+const starInner = document.createElement('div');
+starInner.style.cssText = `
+position: absolute;
+width: 1px; height: 1px;
+left: ${50 + (Math.random() - 0.5) * 10}%;
+top: ${50 + (Math.random() - 0.5) * 10}%;
+background: white; border-radius: 50%; opacity: 0;
+animation: twinkle ${Math.random() * 2 + 1}s infinite;
+`;
+container.appendChild(starInner);
+setTimeout(() => starInner.style.opacity = Math.random(), 500);
+}
+}
+}, 100);
 };
 
 window.showMilkyWay = async (mId, mName) => {
