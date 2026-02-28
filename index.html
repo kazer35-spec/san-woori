@@ -1215,7 +1215,8 @@ color: #991b1b !important;
 50% { border-color: #ea580c; box-shadow: 0 0 8px rgba(234, 88, 12, 0.5); }
 100% { border-color: #f97316; }
 }
-/* 실제 적용되는 클래스 */
+
+    /* 실제 적용되는 클래스 */
 .level-blink-orange {
 animation: glow-orange 1.5s infinite ease-in-out;
 border-width: 1.8px !important;
@@ -2247,22 +2248,26 @@ if(recentCount >= 4) {
 vibeArea.innerHTML = `<span class="hot-vibe flex items-center h-[18px] text-[9px] font-black text-orange-500 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-100">🔥 HOT</span>`;
 }
 
-// 1. 데이터 분석
+// 1. 잔디 데이터 분석
 const dateActivities = {};
 logsQuarter.forEach(l => {
     const key = `${l.date.getFullYear()}-${l.date.getMonth() + 1}-${l.date.getDate()}`;
+    
     if(!dateActivities[key]) {
         dateActivities[key] = { hike: 0, run: 0, trek: 0, isRegular: false };
     }
-    if(l.isRunning) dateActivities[key].run++;
-    else if(l.isTracking) dateActivities[key].trek++;
-    else {
+    
+    if(l.isRunning) {
+        dateActivities[key].run++;
+    } else if(l.isTracking) {
+        dateActivities[key].trek++;
+    } else {
         dateActivities[key].hike++;
-        if(l.isRegular) dateActivities[key].isRegular = true;
+        if(l.isRegular) dateActivities[key].isRegular = true; // 정기산행 체크
     }
 });
 
-// 2. 잔디 생성
+// 2. 잔디 보드 HTML 생성
 let grassHtml = "";
 for (let i = 0; i < totalDaysInQ; i++) {
     const cur = new Date(start);
@@ -2275,33 +2280,41 @@ for (let i = 0; i < totalDaysInQ; i++) {
     let iconTag = ""; 
 
     if (act) {
+        // [수정] 정기산행인 경우: 연한 회색 배경(#f3f4f6) + 마크 표시
         if (act.isRegular) {
             style = "background-color: #f3f4f6 !important; border: 1px solid #e5e7eb;"; 
+            
             const month = cur.getMonth() + 1;
-            const qIcon = (month >= 3 && month <= 5) ? "🌸" : (month >= 6 && month <= 8) ? "🍀" : (month >= 9 && month <= 11) ? "🍁" : "❄️";
+            let qIcon = "";
+            // 분기별 마크 (🌸봄, 🍀여름, 🍁가을, ❄️겨울)
+            if (month >= 3 && month <= 5) qIcon = "🌸";
+            else if (month >= 6 && month <= 8) qIcon = "🍀";
+            else if (month >= 9 && month <= 11) qIcon = "🍁";
+            else qIcon = "❄️";
+
             iconTag = `<span style="font-size: 11px; display: flex; align-items: center; justify-content: center; height: 100%; pointer-events: none;">${qIcon}</span>`;
-        } else {
+        } 
+        // 일반 기록인 경우: 기존 색상 로직 유지
+        else {
             const hasHike = act.hike > 0;
-            const hasExtra = (act.run > 0 || act.trek > 0);
+            const hasExtra = act.run > 0 || act.trek > 0;
+            
             if (hasHike && hasExtra) {
                 const subColor = act.run > 0 ? "#FFD1DC" : "#E0B0FF";
                 style = `background: linear-gradient(135deg, #2ecc71 50%, ${subColor} 50%);`;
-            } else if (act.run > 0) style = "background: #FFD1DC;";
-            else if (act.trek > 0) style = "background: #E0B0FF;";
-            else if (act.hike > 0) {
-                const level = Math.min(Math.max(act.hike, 1), 4);
+            } else if (act.run > 0) { 
+                style = "background: #FFD1DC;"; 
+            } else if (act.trek > 0) { 
+                style = "background: #E0B0FF;"; 
+            } else if (act.hike > 0) {
+                const level = (act.hike >= 4) ? 4 : (act.hike === 3 ? 3 : (act.hike === 2 ? 2 : 1));
                 cl += ` grass-active-${level}`;
             }
         }
     }
 
-    // [수정] 따옴표 에러를 피하기 위해 데이터를 최소화해서 보냅니다.
-    const hikeCount = act ? act.hike : 0;
-    const runCount = act ? act.run : 0;
-    const trekCount = act ? act.trek : 0;
-    const isReg = act ? act.isRegular : false;
-
-    grassHtml += `<div class="${cl}" style="${style}" onclick="window.handleGrassClick(event, '${k}', ${hikeCount}, ${runCount}, ${trekCount}, ${isReg})">${iconTag}</div>`;
+    const encodedAct = act ? btoa(JSON.stringify({...act})) : "";
+    grassHtml += `<div class="${cl}" style="${style}" onclick="window.showGrassPopup(event, '${k}', '${encodedAct}')">${iconTag}</div>`;
 }
 
 grassBoard.innerHTML = grassHtml;
@@ -3625,44 +3638,54 @@ style="position:absolute; top:15px; right:15px; color:white; background:none; bo
 <script>
    // --- 잔디 상세 팝업 및 이벤트 제어 (통합본) ---
 
-window.handleGrassClick = function(event, date, hike, run, trek, isRegular) {
-    if (event && event.stopPropagation) event.stopPropagation();
+window.showGrassPopup = (event, date, encodedAct) => {
+    // [중요] 클릭 이벤트가 body까지 퍼져서 바로 닫히는 것을 방지
+    if (event.stopPropagation) event.stopPropagation();
 
     const popup = document.getElementById('grassPopup');
     const content = document.getElementById('popupContent');
     const dateEl = document.getElementById('popupDate');
 
-    if (!popup) return;
-
-    dateEl.innerText = date;
-
-    // 분기 아이콘 계산
-    const m = new Date(date).getMonth() + 1;
-    const qMark = (m >= 3 && m <= 5) ? "🌸" : (m >= 6 && m <= 8) ? "🍀" : (m >= 9 && m <= 11) ? "🍁" : "❄️";
-
-    let items = "";
-    if (hike > 0) {
-        const icon = isRegular ? qMark : "⛰️";
-        const title = isRegular ? "정기산행 등산" : "일반 산행";
-        items += `<div style="display:flex; justify-content:space-between; font-size:12px; gap:12px;"><span>${icon} ${title}</span><b>${hike}회</b></div>`;
+    if (!encodedAct) {
+        popup.classList.add('hidden');
+        popup.style.display = 'none';
+        return;
     }
-    if (run > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#ec4899; gap:12px;"><span>🏃 러닝</span><b>${run}회</b></div>`;
-    if (trek > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#a855f7; gap:12px;"><span>🥾 트레킹</span><b>${trek}회</b></div>`;
 
+    // 팝업 부모를 body로 강제 이동 (좌표 꼬임 방지)
+    if (popup.parentElement !== document.body) {
+        document.body.appendChild(popup);
+    }
+
+    const act = JSON.parse(atob(encodedAct));
+    dateEl.innerText = date;
+    
+    let items = "";
+    if (act.hike > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; gap:12px;"><span>⛰️ 산행</span><b>${act.hike}회</b></div>`;
+    if (act.run > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#ec4899; gap:12px;"><span>🏃 러닝</span><b>${act.run}회</b></div>`;
+    if (act.trek > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#a855f7; gap:12px;"><span>🥾 트레킹</span><b>${act.trek}회</b></div>`;
+    
     content.innerHTML = items;
 
-    // 팝업 강제 노출
+    // 표시 및 레이어 설정
     popup.classList.remove('hidden');
     popup.style.display = 'block';
-    popup.style.opacity = '1';
-    popup.style.visibility = 'visible';
-    popup.style.zIndex = '10000';
+    popup.style.position = 'fixed';
+    popup.style.zIndex = '999999';
 
+    // 좌표 계산
     const clientX = event.touches ? event.touches[0].clientX : event.clientX;
     const clientY = event.touches ? event.touches[0].clientY : event.clientY;
-    
-    popup.style.left = `${clientX + 10}px`;
-    popup.style.top = `${clientY - 80}px`;
+
+    let left = clientX + 15;
+    let top = clientY - 85;
+
+    // 화면 밖으로 나감 방지
+    if (left + 160 > window.innerWidth) left = clientX - 170;
+    if (top < 10) top = clientY + 20;
+
+    popup.style.left = `${left}px`;
+    popup.style.top = `${top}px`;
 };
 
 // 화면 아무 곳이나 클릭하거나 터치하면 잔디 팝업 닫기
@@ -3687,4 +3710,3 @@ document.addEventListener('touchstart', (e) => {
 </script>
 </body>
     </html>
-    
