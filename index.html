@@ -1215,7 +1215,8 @@ color: #991b1b !important;
 50% { border-color: #ea580c; box-shadow: 0 0 8px rgba(234, 88, 12, 0.5); }
 100% { border-color: #f97316; }
 }
-/* 실제 적용되는 클래스 */
+
+    /* 실제 적용되는 클래스 */
 .level-blink-orange {
 animation: glow-orange 1.5s infinite ease-in-out;
 border-width: 1.8px !important;
@@ -2434,7 +2435,7 @@ document.getElementById('adminManualRegionSelect').value = detectedRegion;
 document.getElementById('coordDisplay').innerText = `좌표: X ${tempCoord.x} / Y ${tempCoord.y} (${detectedRegion})`;
 };
 
-window.toggleMarkerStyle = () => {
+    window.toggleMarkerStyle = () => {
 const marker = document.getElementById('adminMapMarker');
 if(document.getElementById('isTop100Check').checked) marker.classList.add('top-100');
 else marker.classList.remove('top-100');
@@ -2638,12 +2639,19 @@ window.addMultiActivity = async () => {
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
-            // [A] 회원 문서 업데이트 (레벨업은 up 수치 그대로 반영)
-            await updateDoc(doc(db, "sanwoori", id), {
+                       // [A] 회원 문서 업데이트
+            const updateData = {
                 level: newLevel,
-                lastDate: ts, 
                 totalHeight: increment(height)
-            });
+            };
+
+            // 중요: 일반 산행(isHike)일 때만 최근 활동일(lastDate)을 갱신해서 D-Day 초기화
+            // 런닝, 트레킹은 기록만 쌓고 lastDate는 건드리지 않음
+            if (isHike) {
+                updateData.lastDate = ts;
+            }
+
+            await updateDoc(doc(db, "sanwoori", id), updateData);
 
             // [B] 우정 포인트 계산 (2인 이상 산행 시)
             if (selectedMemberIds.size >= 2 && isHike) {
@@ -2745,30 +2753,26 @@ await updateDoc(doc(db, `sanwoori/${mId}/logs`, logId), { coords: tempCoord, reg
 alert("좌표 수정 완료"); loadMemberLogs();
 };
 
-// [추가] 삭제 후 남은 기록 중 가장 최근 날짜를 찾아 lastDate를 갱신하는 함수
 window.syncLastDateAfterDelete = async (mId) => {
     try {
-        // 해당 멤버의 모든 로그를 날짜 내림차순으로 1개만 가져옴
-        const lastLogQuery = query(
+        // 런닝(isRunning)과 트레킹(isTracking)이 모두 false인 '산행' 기록만 필터링
+        const lastHikeQuery = query(
             collection(db, `sanwoori/${mId}/logs`),
+            where("isRunning", "==", false),
+            where("isTracking", "==", false),
             orderBy("date", "desc"),
             limit(1)
         );
-        const lastLogSnap = await getDocs(lastLogQuery);
+        const lastHikeSnap = await getDocs(lastHikeQuery);
 
-        let newLastDate;
-        if (!lastLogSnap.empty) {
-            // 남은 기록이 있으면 그 중 가장 최근 날짜 사용
-            newLastDate = lastLogSnap.docs[0].data().date;
-        } else {
-            // 남은 기록이 아예 없으면 가입일이나 현재 시간으로 설정 (여기선 현재시간)
-            newLastDate = Timestamp.now();
+        if (!lastHikeSnap.empty) {
+            // 남은 '산행' 기록이 있으면 그 날짜로 D-Day 복구
+            const latestHikeDate = lastHikeSnap.docs[0].data().date;
+            await updateDoc(doc(db, "sanwoori", mId), { lastDate: latestHikeDate });
         }
-
-        // 멤버 정보의 lastDate 업데이트
-        await updateDoc(doc(db, "sanwoori", mId), { lastDate: newLastDate });
+        // 산행 기록이 아예 없으면 lastDate를 건드리지 않거나 가입일로 유지됩니다.
     } catch (e) {
-        console.error("날짜 동기화 실패:", e);
+        console.error("D-Day 복구 실패:", e);
     }
 };
 
@@ -2776,14 +2780,11 @@ window.deleteLog = async (mId, logId, shouldDownLevel) => {
 if(!confirm("삭제하시겠습니까?")) return;
 await deleteDoc(doc(db, `sanwoori/${mId}/logs`, logId));
 if(shouldDownLevel) await updateDoc(doc(db, "sanwoori", mId), { level: increment(-1) });
-  // [여기에 추가] 삭제 후 남은 기록 중 최신 날짜로 lastDate 갱신
-    await window.syncLastDateAfterDelete(mId);
-
-    loadMemberLogs(); 
-    updateVibeTemp();
-    // 리스트를 다시 불러와야 남은 날짜(D-day)가 화면에 즉시 반영됩니다.
-    startRealtimeSync(); 
-};
+  // window.deleteLog 함수 안의 마지막 부분
+await window.syncLastDateAfterDelete(mId); // 산행 날짜 기준으로 D-Day 재설정
+loadMemberLogs(); 
+updateVibeTemp();
+startRealtimeSync(); 
 
 window.updateMemberName = async () => {
 const id = document.getElementById('memberSelectEdit').value;
@@ -3664,5 +3665,3 @@ document.addEventListener('touchstart', (e) => {
 </script>
 </body>
     </html>
-    
-    
