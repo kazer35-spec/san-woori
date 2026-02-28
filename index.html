@@ -2435,7 +2435,7 @@ document.getElementById('adminManualRegionSelect').value = detectedRegion;
 document.getElementById('coordDisplay').innerText = `좌표: X ${tempCoord.x} / Y ${tempCoord.y} (${detectedRegion})`;
 };
 
-    window.toggleMarkerStyle = () => {
+window.toggleMarkerStyle = () => {
 const marker = document.getElementById('adminMapMarker');
 if(document.getElementById('isTop100Check').checked) marker.classList.add('top-100');
 else marker.classList.remove('top-100');
@@ -2777,14 +2777,27 @@ window.syncLastDateAfterDelete = async (mId) => {
 };
 
 window.deleteLog = async (mId, logId, shouldDownLevel) => {
-if(!confirm("삭제하시겠습니까?")) return;
-await deleteDoc(doc(db, `sanwoori/${mId}/logs`, logId));
-if(shouldDownLevel) await updateDoc(doc(db, "sanwoori", mId), { level: increment(-1) });
-  // window.deleteLog 함수 안의 마지막 부분
-await window.syncLastDateAfterDelete(mId); // 산행 날짜 기준으로 D-Day 재설정
-loadMemberLogs(); 
-updateVibeTemp();
-startRealtimeSync(); 
+    if(!confirm("삭제하시겠습니까?")) return;
+    
+    try {
+        await deleteDoc(doc(db, `sanwoori/${mId}/logs`, logId));
+        
+        if(shouldDownLevel) {
+            await updateDoc(doc(db, "sanwoori", mId), { level: increment(-1) });
+        }
+
+        // 삭제 후 남은 기록 중 '진짜 산행' 날짜로 D-Day 복구
+        await window.syncLastDateAfterDelete(mId);
+
+        // UI 갱신
+        loadMemberLogs(); 
+        updateVibeTemp();
+        startRealtimeSync(); 
+    } catch (e) {
+        console.error("삭제 중 오류:", e);
+        alert("삭제 실패: " + e.message);
+    }
+}; 
 
 window.updateMemberName = async () => {
 const id = document.getElementById('memberSelectEdit').value;
@@ -3665,3 +3678,4 @@ document.addEventListener('touchstart', (e) => {
 </script>
 </body>
     </html>
+    
