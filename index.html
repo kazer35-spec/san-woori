@@ -2263,7 +2263,7 @@ logsQuarter.forEach(l => {
     }
 });
 
-// 2. 잔디 보드 HTML 생성
+// 2. 잔디 생성
 let grassHtml = "";
 for (let i = 0; i < totalDaysInQ; i++) {
     const cur = new Date(start);
@@ -2277,13 +2277,13 @@ for (let i = 0; i < totalDaysInQ; i++) {
 
     if (act) {
         if (act.isRegular) {
-            // 연한 회색 배경 + 분기 마크
+            // 정기산행: 연한 회색 배경 + 분기 마크
             style = "background-color: #f3f4f6 !important; border: 1px solid #e5e7eb;"; 
             const month = cur.getMonth() + 1;
             const qIcon = (month >= 3 && month <= 5) ? "🌸" : (month >= 6 && month <= 8) ? "🍀" : (month >= 9 && month <= 11) ? "🍁" : "❄️";
             iconTag = `<span style="font-size: 11px; display: flex; align-items: center; justify-content: center; height: 100%; pointer-events: none;">${qIcon}</span>`;
         } else {
-            // 일반 기록 색상 로직
+            // 일반 산행 색상 로직
             const hasHike = act.hike > 0;
             const hasExtra = (act.run > 0 || act.trek > 0);
             if (hasHike && hasExtra) {
@@ -2298,10 +2298,11 @@ for (let i = 0; i < totalDaysInQ; i++) {
         }
     }
 
-    // [중요] 데이터를 안전하게 인코딩해서 전달
-    const dataStr = act ? btoa(encodeURIComponent(JSON.stringify(act))) : "";
-    grassHtml += `<div class="${cl}" style="${style}" onclick="window.handleGrassClick(event, '${k}', '${dataStr}')">${iconTag}</div>`;
+    // [중요] 팝업 호출 함수 이름을 handleGrassClick으로 맞춤
+    const safeData = act ? btoa(encodeURIComponent(JSON.stringify(act))) : "";
+    grassHtml += `<div class="${cl}" style="${style}" onclick="window.handleGrassClick(event, '${k}', '${safeData}')">${iconTag}</div>`;
 }
+
 grassBoard.innerHTML = grassHtml;
 
 // 5. 하단 타임라인 리스트 생성 (원래 코드 로직 복구)
@@ -3631,7 +3632,7 @@ window.handleGrassClick = function(event, date, dataStr) {
 
     if (!dataStr || !popup) return;
 
-    // 데이터 복구
+    // 데이터 복구 (안전한 방식)
     const act = JSON.parse(decodeURIComponent(atob(dataStr)));
     dateEl.innerText = date;
 
@@ -3649,10 +3650,12 @@ window.handleGrassClick = function(event, date, dataStr) {
     if (act.trek > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#a855f7; gap:12px;"><span>🥾 트레킹</span><b>${act.trek}회</b></div>`;
 
     content.innerHTML = items;
+    
+    // 팝업 보이기
     popup.classList.remove('hidden');
     popup.style.display = 'block';
 
-    // 위치 잡기
+    // 클릭한 위치 근처에 팝업 띄우기
     const clientX = event.touches ? event.touches[0].clientX : event.clientX;
     const clientY = event.touches ? event.touches[0].clientY : event.clientY;
     popup.style.left = `${clientX + 10}px`;
