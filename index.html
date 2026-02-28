@@ -1215,8 +1215,7 @@ color: #991b1b !important;
 50% { border-color: #ea580c; box-shadow: 0 0 8px rgba(234, 88, 12, 0.5); }
 100% { border-color: #f97316; }
 }
-
-    /* 실제 적용되는 클래스 */
+/* 실제 적용되는 클래스 */
 .level-blink-orange {
 animation: glow-orange 1.5s infinite ease-in-out;
 border-width: 1.8px !important;
@@ -2277,13 +2276,11 @@ for (let i = 0; i < totalDaysInQ; i++) {
 
     if (act) {
         if (act.isRegular) {
-            // 정기산행: 연한 회색 배경 + 분기 마크
             style = "background-color: #f3f4f6 !important; border: 1px solid #e5e7eb;"; 
             const month = cur.getMonth() + 1;
             const qIcon = (month >= 3 && month <= 5) ? "🌸" : (month >= 6 && month <= 8) ? "🍀" : (month >= 9 && month <= 11) ? "🍁" : "❄️";
             iconTag = `<span style="font-size: 11px; display: flex; align-items: center; justify-content: center; height: 100%; pointer-events: none;">${qIcon}</span>`;
         } else {
-            // 일반 산행 색상 로직
             const hasHike = act.hike > 0;
             const hasExtra = (act.run > 0 || act.trek > 0);
             if (hasHike && hasExtra) {
@@ -2298,7 +2295,7 @@ for (let i = 0; i < totalDaysInQ; i++) {
         }
     }
 
-    // [중요] 팝업 호출 함수 이름을 handleGrassClick으로 맞춤
+    // [체크!] 함수 이름을 window.handleGrassClick 으로 확실히 맞췄습니다.
     const safeData = act ? btoa(encodeURIComponent(JSON.stringify(act))) : "";
     grassHtml += `<div class="${cl}" style="${style}" onclick="window.handleGrassClick(event, '${k}', '${safeData}')">${iconTag}</div>`;
 }
@@ -3624,42 +3621,67 @@ style="position:absolute; top:15px; right:15px; color:white; background:none; bo
 <script>
    // --- 잔디 상세 팝업 및 이벤트 제어 (통합본) ---
 
+// --- 팝업 표시 함수 (이름과 인코딩 방식을 맞췄습니다) ---
 window.handleGrassClick = function(event, date, dataStr) {
-    if (event.stopPropagation) event.stopPropagation();
-    const popup = document.getElementById('grassPopup');
-    const content = document.getElementById('popupContent');
-    const dateEl = document.getElementById('popupDate');
+// 1. 클릭 이벤트가 딴 데로 퍼지는 걸 막음
+if (event && event.stopPropagation) event.stopPropagation();
 
-    if (!dataStr || !popup) return;
+const popup = document.getElementById('grassPopup');
+const content = document.getElementById('popupContent');
+const dateEl = document.getElementById('popupDate');
 
-    // 데이터 복구 (안전한 방식)
-    const act = JSON.parse(decodeURIComponent(atob(dataStr)));
-    dateEl.innerText = date;
+// 팝업 상자 자체가 없거나 데이터가 없으면 실행 안 함
+if (!popup || !dataStr) return;
 
-    // 분기 아이콘 계산
-    const m = new Date(date).getMonth() + 1;
-    const qMark = (m >= 3 && m <= 5) ? "🌸" : (m >= 6 && m <= 8) ? "🍀" : (m >= 9 && m <= 11) ? "🍁" : "❄️";
+try {
+// 2. 전달받은 데이터를 안전하게 해독(디코딩)
+const act = JSON.parse(decodeURIComponent(atob(dataStr)));
+dateEl.innerText = date;
 
-    let items = "";
-    if (act.hike > 0) {
-        const icon = act.isRegular ? qMark : "⛰️";
-        const title = act.isRegular ? "정기산행 등산" : "일반 산행";
-        items += `<div style="display:flex; justify-content:space-between; font-size:12px; gap:12px;"><span>${icon} ${title}</span><b>${act.hike}회</b></div>`;
-    }
-    if (act.run > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#ec4899; gap:12px;"><span>🏃 러닝</span><b>${act.run}회</b></div>`;
-    if (act.trek > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#a855f7; gap:12px;"><span>🥾 트레킹</span><b>${act.trek}회</b></div>`;
+// 분기별 마크 결정 (팝업용)
+const m = new Date(date).getMonth() + 1;
+const qMark = (m >= 3 && m <= 5) ? "🌸" : (m >= 6 && m <= 8) ? "🍀" : (m >= 9 && m <= 11) ? "🍁" : "❄️";
 
-    content.innerHTML = items;
-    
-    // 팝업 보이기
-    popup.classList.remove('hidden');
-    popup.style.display = 'block';
+let items = "";
+// 산행 기록이 있을 때
+if (act.hike > 0) {
+const icon = act.isRegular ? qMark : "⛰️";
+const title = act.isRegular ? "정기산행 등산" : "일반 산행";
+items += `
 
-    // 클릭한 위치 근처에 팝업 띄우기
-    const clientX = event.touches ? event.touches[0].clientX : event.clientX;
-    const clientY = event.touches ? event.touches[0].clientY : event.clientY;
-    popup.style.left = `${clientX + 10}px`;
-    popup.style.top = `${clientY - 80}px`;
+${icon} ${title}
+${act.hike}회
+
+`;
+}
+// 러닝 기록
+if (act.run > 0) items += `
+🏃 러닝
+${act.run}회
+`;
+// 트레킹 기록
+if (act.trek > 0) items += `
+🥾 트레킹
+${act.trek}회
+`;
+
+// 3. 내용 채워넣고 팝업 강제로 보이게 설정
+content.innerHTML = items;
+popup.classList.remove('hidden'); // hidden 클래스 제거
+popup.style.display = 'block'; // 화면에 보이게 함
+popup.style.zIndex = '10000'; // 다른 것보다 위에 오게 함
+
+// 4. 클릭한 곳 근처에 팝업 위치 잡기
+const clientX = event.touches ? event.touches[0].clientX : event.clientX;
+const clientY = event.touches ? event.touches[0].clientY : event.clientY;
+
+popup.style.left = `${clientX + 10}px`;
+popup.style.top = `${clientY - 80}px`;
+
+} catch (e) {
+// 에러가 나면 콘솔창(F12)에 표시
+console.error("팝업 데이터 처리 오류:", e);
+}
 };
 
     // 화면 밖으로 나감 방지
@@ -3692,3 +3714,4 @@ document.addEventListener('touchstart', (e) => {
 </script>
 </body>
     </html>
+    
