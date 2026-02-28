@@ -1209,13 +1209,6 @@ background-color: #fee2e2 !important; /* 빨강 */
 color: #991b1b !important;
 }
 
-/* 90레벨 전용 주황색 글로우 효과 */
-@keyframes glow-orange {
-0% { border-color: #f97316; }
-50% { border-color: #ea580c; box-shadow: 0 0 8px rgba(234, 88, 12, 0.5); }
-100% { border-color: #f97316; }
-}
-
     /* 실제 적용되는 클래스 */
 .level-blink-orange {
 animation: glow-orange 1.5s infinite ease-in-out;
@@ -3643,31 +3636,25 @@ window.showGrassPopup = (event, date, encodedAct) => {
     const content = document.getElementById('popupContent');
     const dateEl = document.getElementById('popupDate');
 
-    if (!encodedAct) return;
+    if (!encodedAct) {
+        popup.classList.add('hidden');
+        popup.style.display = 'none';
+        return;
+    }
 
-    // decodeURIComponent를 추가하여 한글 깨짐 방지
-    const act = JSON.parse(decodeURIComponent(atob(encodedAct)));
+    // 팝업 부모를 body로 강제 이동 (좌표 꼬임 방지)
+    if (popup.parentElement !== document.body) {
+        document.body.appendChild(popup);
+    }
+
+    const act = JSON.parse(atob(encodedAct));
+    dateEl.innerText = date;
     
-    // 분기 아이콘 설정
-    const month = new Date(date).getMonth() + 1;
-    const quarter = Math.ceil(month / 3);
-    const qIcons = { 1: "🌸", 2: "🍀", 3: "🍁", 4: "❄️" };
-    const qIcon = qIcons[quarter];
-
     let items = "";
-    if (act.hike > 0) {
-        const names = act.hikeNames.join(', ');
-        const icon = act.isRegular ? qIcon : "⛰️";
-        const title = act.isRegular ? " 정기산행 등산" : " 등산";
-        items += `<div style="font-size:12px;">${icon} <b>${names}</b>${title}</div>`;
-    }
-    if (act.run > 0) {
-        items += `<div style="font-size:12px; color:#ec4899;">🏃 <b>${act.runDist}km</b> 러닝</div>`;
-    }
-    if (act.trek > 0) {
-        items += `<div style="font-size:12px; color:#a855f7;">🥾 <b>${act.trekDist}km</b> 트레킹</div>`;
-    }
-  
+    if (act.hike > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; gap:12px;"><span>⛰️ 산행</span><b>${act.hike}회</b></div>`;
+    if (act.run > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#ec4899; gap:12px;"><span>🏃 러닝</span><b>${act.run}회</b></div>`;
+    if (act.trek > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#a855f7; gap:12px;"><span>🥾 트레킹</span><b>${act.trek}회</b></div>`;
+    
     content.innerHTML = items;
 
     // 표시 및 레이어 설정
@@ -3713,3 +3700,12 @@ document.addEventListener('touchstart', (e) => {
 </script>
 </body>
     </html>
+
+/* 90레벨 전용 주황색 글로우 효과 */
+@keyframes glow-orange {
+0% { border-color: #f97316; }
+50% { border-color: #ea580c; box-shadow: 0 0 8px rgba(234, 88, 12, 0.5); }
+100% { border-color: #f97316; }
+}
+
+    
