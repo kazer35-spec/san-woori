@@ -1215,7 +1215,6 @@ color: #991b1b !important;
 50% { border-color: #ea580c; box-shadow: 0 0 8px rgba(234, 88, 12, 0.5); }
 100% { border-color: #f97316; }
 }
-
 /* 실제 적용되는 클래스 */
 .level-blink-orange {
 animation: glow-orange 1.5s infinite ease-in-out;
@@ -2746,11 +2745,44 @@ await updateDoc(doc(db, `sanwoori/${mId}/logs`, logId), { coords: tempCoord, reg
 alert("좌표 수정 완료"); loadMemberLogs();
 };
 
+// [추가] 삭제 후 남은 기록 중 가장 최근 날짜를 찾아 lastDate를 갱신하는 함수
+window.syncLastDateAfterDelete = async (mId) => {
+    try {
+        // 해당 멤버의 모든 로그를 날짜 내림차순으로 1개만 가져옴
+        const lastLogQuery = query(
+            collection(db, `sanwoori/${mId}/logs`),
+            orderBy("date", "desc"),
+            limit(1)
+        );
+        const lastLogSnap = await getDocs(lastLogQuery);
+
+        let newLastDate;
+        if (!lastLogSnap.empty) {
+            // 남은 기록이 있으면 그 중 가장 최근 날짜 사용
+            newLastDate = lastLogSnap.docs[0].data().date;
+        } else {
+            // 남은 기록이 아예 없으면 가입일이나 현재 시간으로 설정 (여기선 현재시간)
+            newLastDate = Timestamp.now();
+        }
+
+        // 멤버 정보의 lastDate 업데이트
+        await updateDoc(doc(db, "sanwoori", mId), { lastDate: newLastDate });
+    } catch (e) {
+        console.error("날짜 동기화 실패:", e);
+    }
+};
+
 window.deleteLog = async (mId, logId, shouldDownLevel) => {
 if(!confirm("삭제하시겠습니까?")) return;
 await deleteDoc(doc(db, `sanwoori/${mId}/logs`, logId));
 if(shouldDownLevel) await updateDoc(doc(db, "sanwoori", mId), { level: increment(-1) });
-loadMemberLogs(); updateVibeTemp();
+  // [여기에 추가] 삭제 후 남은 기록 중 최신 날짜로 lastDate 갱신
+    await window.syncLastDateAfterDelete(mId);
+
+    loadMemberLogs(); 
+    updateVibeTemp();
+    // 리스트를 다시 불러와야 남은 날짜(D-day)가 화면에 즉시 반영됩니다.
+    startRealtimeSync(); 
 };
 
 window.updateMemberName = async () => {
@@ -3632,3 +3664,5 @@ document.addEventListener('touchstart', (e) => {
 </script>
 </body>
     </html>
+    
+    
