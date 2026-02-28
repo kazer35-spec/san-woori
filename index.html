@@ -1210,21 +1210,7 @@ background-color: #fff7ed !important; /* 주황 */
 color: #c2410c !important;
 }
 
-/* 10일 남음: 빨간색 + 빠른 깜빡임 (0.5초 간격) */
-.blink-fast {
-animation: dday-blink 0.5s infinite;
-background-color: #fee2e2 !important; /* 빨강 */
-color: #991b1b !important;
-}
-
-/* 90레벨 전용 주황색 글로우 효과 */
-@keyframes glow-orange {
-0% { border-color: #f97316; }
-50% { border-color: #ea580c; box-shadow: 0 0 8px rgba(234, 88, 12, 0.5); }
-100% { border-color: #f97316; }
-}
-
-/* 실제 적용되는 클래스 */
+    /* 실제 적용되는 클래스 */
 .level-blink-orange {
 animation: glow-orange 1.5s infinite ease-in-out;
 border-width: 1.8px !important;
@@ -2211,162 +2197,116 @@ listArea.innerHTML = combinedHtml;
 
 window.toggleVibeModal = (show) => { document.getElementById('vibeModal').style.display = show ? 'flex' : 'none'; };
 
-window.showMemberTimeline = async (mId, mName) => {
+window.showMemberTimeline = async (mId, mName) => { // window 소문자 수정
     toggleTimelineModal(true);
     const modalContent = document.getElementById('timelineModalContent');
-    modalContent.scrollTop = 0;
+    if(modalContent) modalContent.scrollTop = 0;
+    
     const container = document.getElementById('timelineContent');
     const grassBoard = document.getElementById('grassBoard');
     const vibeArea = document.getElementById('passionVibeArea');
     const chartBox = document.getElementById('chartBox');
 
-    // 1. 기본 텍스트 및 정보 세팅
+    // 기본 정보 세팅
     document.getElementById('timelineMemberName').innerText = mName;
     const memberInfo = currentData.find(m => m.id === mId);
     const friendshipPoint = memberInfo?.friendshipPoint || 0;
     document.getElementById('memberFriendshipPoint').innerText = friendshipPoint.toLocaleString();
     
     container.innerHTML = "<p class='text-center text-xs py-5 text-gray-400'>조회 중...</p>";
-    grassBoard.innerHTML = vibeArea.innerHTML = "";
+    grassBoard.innerHTML = "";
+    vibeArea.innerHTML = "";
     chartBox.className = `chart-container-box chart-bg-q${selectedQuarter}`;
 
     try {
         const start = new Date(selectedYear, (selectedQuarter - 1) * 3, 1);
         const end = new Date(selectedYear, selectedQuarter * 3, 1);
-        const totalDaysInQ = Math.floor((end - start) / (1000 * 60 * 60 * 24));
+        // 날짜 차이 계산 보정 (24시간 기준)
+        const totalDaysInQ = Math.round((end - start) / (1000 * 60 * 60 * 24));
 
-        // 2. 데이터 로드 (원래 코드 스타일 유지)
         const snapAll = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc")));
         const logsAll = snapAll.docs.map(doc => ({ ...doc.data(), date: doc.data().date.toDate() }));
         const logsQuarter = logsAll.filter(l => l.date >= start && l.date < end);
 
-        // --- [복구] 우측 상단 배지에 분기/최근 횟수 표시 ---
         const badge = document.getElementById('timelineCountBadge');
-        if(badge) {
-            badge.innerText = `분기 ${logsQuarter.length}회 / 최근 ${logsAll.length}회`;
-        }
+        if(badge) badge.innerText = `분기 ${logsQuarter.length}회 / 최근 ${logsAll.length}회`;
 
-        // 3. 차트 및 HOT 뱃지
         const chartData = await calculateGrowthData(mId);
         renderGrowthChart(chartData);
 
-        const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const thirtyDaysAgo = new Date(); 
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
         const recentCount = logsAll.filter(l => l.date >= thirtyDaysAgo).length;
         if(recentCount >= 4) {
             vibeArea.innerHTML = `<span class="hot-vibe flex items-center h-[18px] text-[9px] font-black text-orange-500 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-100">🔥 HOT</span>`;
         }
 
-       // 4. 잔디 보드 분석 및 생성
-const dateActivities = {};
+        // 잔디 데이터 분석
+        const dateActivities = {};
+        logsQuarter.forEach(l => {
+            const key = `${l.date.getFullYear()}-${l.date.getMonth() + 1}-${l.date.getDate()}`;
+            if (!dateActivities[key]) {
+                dateActivities[key] = { hike: 0, run: 0, trek: 0, isRegular: false, mountain: "", distance: 0 };
+            }
+            if (l.isRegular) dateActivities[key].isRegular = true;
+            if (l.isRunning) { dateActivities[key].run++; dateActivities[key].distance = l.height || 0; }
+            else if (l.isTracking) { dateActivities[key].trek++; dateActivities[key].distance = l.height || 0; }
+            else { dateActivities[key].hike++; dateActivities[key].mountain = l.mountain || "산"; }
+        });
 
-logsQuarter.forEach(l => {
-    const key = `${l.date.getFullYear()}-${l.date.getMonth() + 1}-${l.date.getDate()}`;
-    if (!dateActivities[key]) {
-        // [수정] 정기산행 여부(isRegular)와 산이름(mountain), 거리(height)를 저장하도록 확장
-        dateActivities[key] = { hike: 0, run: 0, trek: 0, isRegular: false, mountain: "", distance: 0 };
-    }
-    
-    // 정기산행 체크 여부 저장
-    if (l.isRegular) dateActivities[key].isRegular = true;
+        const getMark = (m) => {
+            if (m >= 3 && m <= 5) return "🌸"; if (m >= 6 && m <= 8) return "🍀";
+            if (m >= 9 && m <= 11) return "🍁"; return "❄️";
+        };
 
-    if (l.isRunning) {
-        dateActivities[key].run++;
-        dateActivities[key].distance = l.height || 0; // 러닝 거리
-    } else if (l.isTracking) {
-        dateActivities[key].trek++;
-        dateActivities[key].distance = l.height || 0; // 트레킹 거리
-    } else {
-        dateActivities[key].hike++;
-        dateActivities[key].mountain = l.mountain || "산"; // 산 이름
-    }
-});
+        let grassHtml = "";
+        for (let i = 0; i < totalDaysInQ; i++) {
+            const cur = new Date(start);
+            cur.setDate(start.getDate() + i);
+            const k = `${cur.getFullYear()}-${cur.getMonth() + 1}-${cur.getDate()}`;
+            const act = dateActivities[k];
 
-let grassHtml = "";
-// 분기별 마크 가져오는 함수
-const getMark = (m) => {
-    if (m >= 3 && m <= 5) return "🌸";
-    if (m >= 6 && m <= 8) return "🍀";
-    if (m >= 9 && m <= 11) return "🍁";
-    return "❄️";
-};
-
-for (let i = 0; i < totalDaysInQ; i++) {
-    const cur = new Date(start);
-    cur.setDate(start.getDate() + i);
-    const k = `${cur.getFullYear()}-${cur.getMonth() + 1}-${cur.getDate()}`;
-    const act = dateActivities[k];
-
-    let cl = "grass-day";
-    let content = ""; // 잔디 칸 안에 넣을 내용
-
-    if (act) {
-        if (act.isRegular) {
-            // ✨ [핵심] 정기산행이면 색상 대신 마크(이모지) 삽입
-            const mark = getMark(cur.getMonth() + 1);
-            content = `<span style="font-size:10px;">${mark}</span>`;
-            cl += " regular-grass"; // 정기산행용 클래스 (배경 투명화용)
-        } else {
-            // 일반 기록은 기존처럼 색상 레벨 적용
-            const level = Math.min(act.hike + act.run + act.trek, 4);
-            cl += ` grass-level-${level}`;
+            let cl = "grass-day";
+            let content = "";
+            if (act) {
+                if (act.isRegular) {
+                    content = `<span style="font-size:10px;">${getMark(cur.getMonth() + 1)}</span>`;
+                    cl += " regular-grass";
+                } else {
+                    const level = Math.min(act.hike + act.run + act.trek, 4);
+                    cl += ` grass-level-${level}`;
+                }
+            }
+            const actJson = act ? encodeURIComponent(JSON.stringify(act)) : "";
+            // 클릭 이벤트에서 에러 방지를 위해 함수 체크 포함
+            grassHtml += `<div class="${cl}" onclick="if(window.showGrassPopup) showGrassPopup(event, '${k}', '${actJson}')">${content}</div>`;
         }
-    }
-
-    // 팝업 호출 시 상세 정보를 넘기도록 구성 (이후 팝업 함수에서 활용)
-    const actJson = act ? encodeURIComponent(JSON.stringify(act)) : "";
-    grassHtml += `<div class="${cl}" onclick="showGrassPopup(event, '${k}', '${actJson}')">${content}</div>`;
-}
         grassBoard.innerHTML = grassHtml;
 
-      // 5. 하단 타임라인 리스트 생성 (정기산행 마크 및 상세 텍스트 적용 버전)
-if (logsAll.length === 0) {
-    container.innerHTML = "<p class='text-center text-[10px] py-10 text-gray-400'>기록 없음</p>";
-} else {
-    container.innerHTML = logsAll.map(log => {
-        const dayName = ['일', '월', '화', '수', '목', '금', '토'][log.date.getDay()];
-        const month = log.date.getMonth() + 1;
-
-        // 1. 분기별 정기산행 마크 결정
-        const getQuarterMark = (m) => {
-            if (m >= 3 && m <= 5) return "🌸"; // 1분기(봄)
-            if (m >= 6 && m <= 8) return "🍀"; // 2분기(여름)
-            if (m >= 9 && m <= 11) return "🍁"; // 3분기(가을)
-            return "❄️"; // 4분기(겨울)
-        };
-        const mark = getQuarterMark(month);
-
-        // 2. 활동 유형에 따른 텍스트 구성 (기록 방식 변경)
-        let activityTxt = "";
-        if (log.isRunning) {
-            activityTxt = `🏃 ${log.height || 0}km 런닝`;
-        } else if (log.isTracking) {
-            activityTxt = `🥾 ${log.height || 0}km 트래킹`;
+        // 하단 리스트 생성
+        if (logsAll.length === 0) {
+            container.innerHTML = "<p class='text-center text-[10px] py-10 text-gray-400'>기록 없음</p>";
         } else {
-            // 등산의 경우: 정기산행 여부에 따라 마크와 문구 변경
-            if (log.isRegular) {
-                activityTxt = `${mark} ${log.mountain || '산'} 정기산행 등산`;
-            } else {
-                activityTxt = `⛰️ ${log.mountain || '산'} 등산`;
-            }
+            container.innerHTML = logsAll.map(log => {
+                const dayName = ['일', '월', '화', '수', '목', '금', '토'][log.date.getDay()];
+                const m = log.date.getMonth() + 1;
+                const mark = getMark(m);
+
+                let activityTxt = "";
+                if (log.isRunning) activityTxt = `🏃 ${log.height || 0}km 런닝`;
+                else if (log.isTracking) activityTxt = `🥾 ${log.height || 0}km 트래킹`;
+                else activityTxt = log.isRegular ? `${mark} ${log.mountain || '산'} 정기산행 등산` : `⛰️ ${log.mountain || '산'} 등산`;
+
+                return `
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-date">${log.date.getFullYear()}.${m}.${log.date.getDate()} (${dayName})</div>
+                        <div class="timeline-desc ${log.isTop100 ? 'text-blue-600 font-black' : ''}">
+                            ${log.isBAC ? '<span class="bac-txt">BAC</span>' : ''} ${activityTxt} ${log.isTop100 ? '⭐' : '✔️'}
+                        </div>
+                    </div>`;
+            }).join('');
         }
-
-        const top100Class = log.isTop100 ? 'text-blue-600 font-black' : '';
-        const bacTag = log.isBAC ? '<span class="bac-txt">BAC</span>' : '';
-        const starIcon = log.isTop100 ? '⭐' : '✔️';
-
-        return `
-            <div class="timeline-item">
-                <div class="timeline-dot"></div>
-                <div class="timeline-date">
-                    ${log.date.getFullYear()}.${month}.${log.date.getDate()} (${dayName})
-                </div>
-                <div class="timeline-desc ${top100Class}">
-                    ${bacTag} ${activityTxt} ${starIcon}
-                </div>
-            </div>`;
-    }).join('');
-}
-
     } catch (e) { 
         console.error(e);
         container.innerHTML = "<p class='text-center text-xs text-red-400'>데이터 조회 실패</p>"; 
@@ -3740,4 +3680,16 @@ document.addEventListener('touchstart', (e) => {
 </body>
     </html>
     
-    
+/* 10일 남음: 빨간색 + 빠른 깜빡임 (0.5초 간격) */
+.blink-fast {
+animation: dday-blink 0.5s infinite;
+background-color: #fee2e2 !important; /* 빨강 */
+color: #991b1b !important;
+}
+
+/* 90레벨 전용 주황색 글로우 효과 */
+@keyframes glow-orange {
+0% { border-color: #f97316; }
+50% { border-color: #ea580c; box-shadow: 0 0 8px rgba(234, 88, 12, 0.5); }
+100% { border-color: #f97316; }
+}
