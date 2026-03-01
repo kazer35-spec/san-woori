@@ -12,44 +12,6 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 ​
-    /* ✨ 정기산행 잔디 전용: 빛나는 그라데이션 스타일 */
-.grass-regular {
-    background: linear-gradient(135deg, #1a237e 0%, #343a40 50%, #f1f3f5 100%) !important;
-    border: 1px solid rgba(255, 255, 255, 0.3) !important;
-    box-shadow: 0 0 8px rgba(26, 35, 126, 0.5);
-    position: relative;
-    overflow: hidden;
-    /* 은은하게 커졌다 작아지는 빛 효과 */
-    animation: grass-glow 2s infinite ease-in-out;
-}
-
-/* 텍스트(이모지)가 더 반짝이게 */
-.grass-regular span {
-    text-shadow: 0 0 5px rgba(255, 255, 255, 0.8);
-}
-
-/* ✨ 애니메이션 정의 */
-@keyframes grass-glow {
-    0%, 100% { transform: scale(1); box-shadow: 0 0 5px rgba(26, 35, 126, 0.3); }
-    50% { transform: scale(1.02); box-shadow: 0 0 15px rgba(255, 255, 255, 0.6); }
-}
-
-/* 칸 내부를 지나가는 광택 효과 */
-.grass-regular::after {
-    content: '';
-    position: absolute;
-    top: -50%; left: -50%;
-    width: 200%; height: 200%;
-    background: linear-gradient(to bottom right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.15) 50%, rgba(255,255,255,0) 100%);
-    transform: rotate(45deg);
-    animation: grass-shine 3s infinite;
-}
-
-@keyframes grass-shine {
-    0% { transform: translateX(-100%) rotate(45deg); }
-    100% { transform: translateX(100%) rotate(45deg); }
-}
-
 /* CSS 수정: 팝업이 어떤 창 위에서도 보일 수 있도록 설정 */
 #grassPopup {
     position: fixed; /* absolute 대신 fixed를 사용하여 모달 위치에 영향받지 않음 */
@@ -2286,26 +2248,55 @@ if(recentCount >= 4) {
 vibeArea.innerHTML = `<span class="hot-vibe flex items-center h-[18px] text-[9px] font-black text-orange-500 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-100">🔥 HOT</span>`;
 }
 
-// 1. 잔디 데이터 분석
+// 1. 빛나는 효과를 위한 스타일을 강제로 삽입 (함수 시작 부분에 넣으세요)
+if (!document.getElementById('grass-glow-style')) {
+    const styleSheet = document.createElement("style");
+    styleSheet.id = 'grass-glow-style';
+    styleSheet.innerText = `
+        @keyframes grass-glow {
+            0%, 100% { box-shadow: 0 0 5px rgba(255,255,255,0.2); transform: scale(1); }
+            50% { box-shadow: 0 0 15px rgba(255,255,255,0.6); transform: scale(1.05); }
+        }
+        @keyframes grass-shine {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+        .grass-regular {
+            background: linear-gradient(135deg, #1a237e 0%, #343a40 50%, #f1f3f5 100%) !important;
+            border: 1px solid rgba(255,255,255,0.4) !important;
+            position: relative;
+            overflow: hidden;
+            animation: grass-glow 2s infinite ease-in-out;
+            z-index: 1;
+        }
+        .grass-regular::after {
+            content: '';
+            position: absolute;
+            top: 0; width: 40px; height: 100%;
+            background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0) 100%);
+            transform: skewX(-25deg);
+            animation: grass-shine 3s infinite;
+        }
+    `;
+    document.head.appendChild(styleSheet);
+}
+
+// 2. 데이터 분석 (이전과 동일)
 const dateActivities = {};
 logsQuarter.forEach(l => {
     const key = `${l.date.getFullYear()}-${l.date.getMonth() + 1}-${l.date.getDate()}`;
-    
     if(!dateActivities[key]) {
         dateActivities[key] = { hike: 0, run: 0, trek: 0, isRegular: false };
     }
-    
-    if(l.isRunning) {
-        dateActivities[key].run++;
-    } else if(l.isTracking) {
-        dateActivities[key].trek++;
-    } else {
+    if(l.isRunning) dateActivities[key].run++;
+    else if(l.isTracking) dateActivities[key].trek++;
+    else {
         dateActivities[key].hike++;
-        if(l.isRegular) dateActivities[key].isRegular = true; // 정기산행 체크
+        if(l.isRegular) dateActivities[key].isRegular = true;
     }
 });
 
-// 2. 잔디 생성 로직
+// 3. 잔디 생성 로직
 let grassHtml = "";
 for (let i = 0; i < totalDaysInQ; i++) {
     const cur = new Date(start);
@@ -2319,15 +2310,13 @@ for (let i = 0; i < totalDaysInQ; i++) {
 
     if (act) {
         if (act.isRegular) {
-            // [수정] 정기산행 전용 클래스 'grass-regular' 추가
-            cl += " grass-regular"; 
-            
+            // 정기산행 클래스 부여
+            cl += " grass-regular";
             const month = cur.getMonth() + 1;
             const qIcon = (month >= 3 && month <= 5) ? "🌸" : (month >= 6 && month <= 8) ? "🍀" : (month >= 9 && month <= 11) ? "🍁" : "❄️";
-            
-            iconTag = `<span style="font-size: 11px; display: flex; align-items: center; justify-content: center; height: 100%; pointer-events: none; z-index: 1;">${qIcon}</span>`;
+            iconTag = `<span style="position:relative; z-index:2; font-size:12px; display:flex; align-items:center; justify-content:center; height:100%; pointer-events:none;">${qIcon}</span>`;
         } else {
-            // 일반 기록 색상 로직 (기존 유지)
+            // 일반 기록 로직
             const hasHike = act.hike > 0;
             const hasExtra = (act.run > 0 || act.trek > 0);
             if (hasHike && hasExtra) {
@@ -2342,7 +2331,7 @@ for (let i = 0; i < totalDaysInQ; i++) {
         }
     }
 
-    // 데이터 전달용 (팝업 오류 방지 위해 숫자만 전달)
+    // 클릭 함수 호출 (인자 전달 방식 통일)
     const h = act ? act.hike : 0;
     const r = act ? act.run : 0;
     const t = act ? act.trek : 0;
