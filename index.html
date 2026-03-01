@@ -2259,7 +2259,7 @@ logsQuarter.forEach(l => {
     }
 });
 
-// 2. 잔디 보드 HTML 생성
+// 2. 잔디 생성 로직
 let grassHtml = "";
 for (let i = 0; i < totalDaysInQ; i++) {
     const cur = new Date(start);
@@ -2272,41 +2272,37 @@ for (let i = 0; i < totalDaysInQ; i++) {
     let iconTag = ""; 
 
     if (act) {
-        // [수정] 정기산행인 경우: 연한 회색 배경(#f3f4f6) + 마크 표시
         if (act.isRegular) {
-            style = "background-color: #f3f4f6 !important; border: 1px solid #e5e7eb;"; 
+            // [수정] 정기산행 전용 클래스 'grass-regular' 추가
+            cl += " grass-regular"; 
             
             const month = cur.getMonth() + 1;
-            let qIcon = "";
-            // 분기별 마크 (🌸봄, 🍀여름, 🍁가을, ❄️겨울)
-            if (month >= 3 && month <= 5) qIcon = "🌸";
-            else if (month >= 6 && month <= 8) qIcon = "🍀";
-            else if (month >= 9 && month <= 11) qIcon = "🍁";
-            else qIcon = "❄️";
-
-            iconTag = `<span style="font-size: 11px; display: flex; align-items: center; justify-content: center; height: 100%; pointer-events: none;">${qIcon}</span>`;
-        } 
-        // 일반 기록인 경우: 기존 색상 로직 유지
-        else {
-            const hasHike = act.hike > 0;
-            const hasExtra = act.run > 0 || act.trek > 0;
+            const qIcon = (month >= 3 && month <= 5) ? "🌸" : (month >= 6 && month <= 8) ? "🍀" : (month >= 9 && month <= 11) ? "🍁" : "❄️";
             
+            iconTag = `<span style="font-size: 11px; display: flex; align-items: center; justify-content: center; height: 100%; pointer-events: none; z-index: 1;">${qIcon}</span>`;
+        } else {
+            // 일반 기록 색상 로직 (기존 유지)
+            const hasHike = act.hike > 0;
+            const hasExtra = (act.run > 0 || act.trek > 0);
             if (hasHike && hasExtra) {
                 const subColor = act.run > 0 ? "#FFD1DC" : "#E0B0FF";
                 style = `background: linear-gradient(135deg, #2ecc71 50%, ${subColor} 50%);`;
-            } else if (act.run > 0) { 
-                style = "background: #FFD1DC;"; 
-            } else if (act.trek > 0) { 
-                style = "background: #E0B0FF;"; 
-            } else if (act.hike > 0) {
-                const level = (act.hike >= 4) ? 4 : (act.hike === 3 ? 3 : (act.hike === 2 ? 2 : 1));
+            } else if (act.run > 0) style = "background: #FFD1DC;";
+            else if (act.trek > 0) style = "background: #E0B0FF;";
+            else if (act.hike > 0) {
+                const level = Math.min(Math.max(act.hike, 1), 4);
                 cl += ` grass-active-${level}`;
             }
         }
     }
 
-    const encodedAct = act ? btoa(JSON.stringify({...act})) : "";
-    grassHtml += `<div class="${cl}" style="${style}" onclick="window.showGrassPopup(event, '${k}', '${encodedAct}')">${iconTag}</div>`;
+    // 데이터 전달용 (팝업 오류 방지 위해 숫자만 전달)
+    const h = act ? act.hike : 0;
+    const r = act ? act.run : 0;
+    const t = act ? act.trek : 0;
+    const ir = act ? (act.isRegular ? 1 : 0) : 0;
+
+    grassHtml += `<div class="${cl}" style="${style}" onclick="window.handleGrassClick(event, '${k}', ${h}, ${r}, ${t}, ${ir})">${iconTag}</div>`;
 }
 
 grassBoard.innerHTML = grassHtml;
