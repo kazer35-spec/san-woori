@@ -3650,66 +3650,74 @@ style="position:absolute; top:15px; right:15px; color:white; background:none; bo
 
 <script>
  
-// --- 잔디 상세 팝업 및 이벤트 제어 (최종 해결 버전) ---
+// 1. 전역 함수 강제 등록 (스크립트 최상단에 배치 권장)
 window.handleGrassClick = function(e, date, hike, run, trek, isRegular) {
-    // 1. 이벤트 전파 즉시 차단 (이게 없으면 떴다가 바로 사라짐)
+    // 이벤트 전파 차단 (가장 중요: 팝업이 바로 닫히는 것 방지)
     if (e) {
         if (e.stopPropagation) e.stopPropagation();
         if (e.preventDefault) e.preventDefault();
+    } else {
+        e = window.event; // 구형 브라우저 대응
     }
 
     const popup = document.getElementById('grassPopup');
     const content = document.getElementById('popupContent');
     const dateEl = document.getElementById('popupDate');
 
-    if (!popup) return console.error("grassPopup 없음");
+    if (!popup) {
+        console.error("오류: HTML에 id='grassPopup' 요소가 없습니다.");
+        return;
+    }
 
-    // 2. 내용 작성
-    dateEl.innerText = date;
+    // 2. 내용 업데이트
+    if (dateEl) dateEl.innerText = date;
+    
     const m = new Date(date).getMonth() + 1;
     const qMark = (m >= 3 && m <= 5) ? "🌸" : (m >= 6 && m <= 8) ? "🍀" : (m >= 9 && m <= 11) ? "🍁" : "❄️";
 
     let items = "";
     if (hike > 0) {
         const icon = (isRegular === 1) ? qMark : "⛰️";
-        const title = (isRegular === 1) ? "정기산행 등산" : "일반 산행";
-        items += `<div style="display:flex; justify-content:space-between; font-size:12px; gap:12px; color:#334155;"><span>${icon} ${title}</span><b>${hike}회</b></div>`;
+        const title = (isRegular === 1) ? "정기산행" : "일반산행";
+        items += `<div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:5px; gap:10px;"><span>${icon} ${title}</span><b>${hike}회</b></div>`;
     }
-    if (run > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#ec4899; gap:12px;"><span>🏃 러닝</span><b>${run}회</b></div>`;
-    if (trek > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#a855f7; gap:12px;"><span>🥾 트레킹</span><b>${trek}회</b></div>`;
+    if (run > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#ec4899; margin-bottom:5px; gap:10px;"><span>🏃 러닝</span><b>${run}회</b></div>`;
+    if (trek > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#a855f7; gap:10px;"><span>🥾 트레킹</span><b>${trek}회</b></div>`;
 
-    content.innerHTML = items || "<div style='color:#94a3b8; font-size:11px;'>기록 없음</div>";
+    if (content) content.innerHTML = items || "<div style='color:#94a3b8; font-size:11px;'>기록 없음</div>";
 
-    // 3. 위치 및 노출 설정
-    popup.classList.remove('hidden');
+    // 3. 팝업 노출 및 강제 스타일 설정
     popup.style.display = 'block';
-    popup.style.position = 'fixed'; // 중요: absolute보다 안전함
+    popup.classList.remove('hidden');
+    popup.style.position = 'fixed'; 
     popup.style.zIndex = '999999';
 
-    // 좌표 계산 (마우스/터치 통합)
+    // 4. 좌표 계산 (클릭/터치 위치 기준)
     const clientX = (e.touches && e.touches[0]) ? e.touches[0].clientX : e.clientX;
     const clientY = (e.touches && e.touches[0]) ? e.touches[0].clientY : e.clientY;
     
-    // 팝업 위치 (클릭 지점 근처)
-    let px = clientX + 10;
-    let py = clientY - 80;
+    let posX = clientX + 10;
+    let posY = clientY - 80;
 
-    // 화면 밖으로 나가는 것 방지
-    if (px + 160 > window.innerWidth) px = clientX - 150;
-    if (py < 0) py = clientY + 20;
+    // 화면 우측/상단 이탈 방지 로직
+    if (posX + 160 > window.innerWidth) posX = clientX - 150;
+    if (posY < 0) posY = clientY + 20;
 
-    popup.style.left = px + "px";
-    popup.style.top = py + "px";
+    popup.style.left = posX + "px";
+    popup.style.top = posY + "px";
 };
 
-// 바깥 클릭 시 닫기 기능
-document.addEventListener('mousedown', (event) => {
+// 5. 팝업 바깥 클릭 시 닫기 (핸들러 하나로 통합)
+document.addEventListener('mousedown', function(event) {
     const popup = document.getElementById('grassPopup');
-    if (popup && popup.style.display === 'block' && !popup.contains(event.target)) {
-        popup.style.display = 'none';
-        popup.classList.add('hidden');
+    if (popup && popup.style.display === 'block') {
+        // 팝업 내부를 클릭한 게 아니라면 닫기
+        if (!popup.contains(event.target)) {
+            popup.style.display = 'none';
+            popup.classList.add('hidden');
+        }
     }
-});
+}, true); // true: 캡처링 단계에서 감지하여 신뢰성 높임
 
 document.addEventListener('mousedown', closeGrassPopup);
 document.addEventListener('touchstart', closeGrassPopup, { passive: true });
