@@ -2328,7 +2328,7 @@ for (let i = 0; i < totalDaysInQ; i++) {
     const t = act ? act.trek : 0;
     const ir = act ? (act.isRegular ? 1 : 0) : 0;
 
-    grassHtml += `<div class="${cl}" style="${style}" onclick="window.handleGrassClick(event, '${k}', ${h}, ${r}, ${t}, ${ir})">${iconTag}</div>`;
+    GrassHtml += `<div class="${cl}" style="${style}" onclick="window.handleGrassClick(event, '${k}', ${h}, ${r}, ${t}, ${ir})">${iconTag}</div>`;
 }
 
 grassBoard.innerHTML = grassHtml;
@@ -3649,74 +3649,78 @@ style="position:absolute; top:15px; right:15px; color:white; background:none; bo
 </div>
 
 <script>
-  // --- 잔디 상세 팝업 및 이벤트 제어 (최종 통합본) ---
+ 
+// --- 잔디 상세 팝업 및 이벤트 제어 (최종 해결 버전) ---
+window.handleGrassClick = function(e, date, hike, run, trek, isRegular) {
+// 1. 이벤트 전파 즉시 차단 (이게 없으면 떴다가 바로 사라짐)
+if (e) {
+if (e.stopPropagation) e.stopPropagation();
+if (e.preventDefault) e.preventDefault();
+}
 
-window.handleGrassClick = function(event, date, hike, run, trek, isRegular) {
-    // 1. 이벤트 전파 방지 (팝업이 즉시 닫히는 현상 방지 핵심)
-    if (event) {
-        if (event.stopPropagation) event.stopPropagation();
-        if (event.preventDefault) event.preventDefault();
-    }
+const popup = document.getElementById('grassPopup');
+const content = document.getElementById('popupContent');
+const dateEl = document.getElementById('popupDate');
 
-    const popup = document.getElementById('grassPopup');
-    const content = document.getElementById('popupContent');
-    const dateEl = document.getElementById('popupDate');
+if (!popup) return console.error("grassPopup 없음");
 
-    if (!popup) {
-        console.error("grassPopup 요소를 찾을 수 없습니다.");
-        return;
-    }
+// 2. 내용 작성
+dateEl.innerText = date;
+const m = new Date(date).getMonth() + 1;
+const qMark = (m >= 3 && m <= 5) ? "🌸" : (m >= 6 && m <= 8) ? "🍀" : (m >= 9 && m <= 11) ? "🍁" : "❄️";
 
-    // 2. 데이터 세팅
-    dateEl.innerText = date;
-    const m = new Date(date).getMonth() + 1;
-    const qMark = (m >= 3 && m <= 5) ? "🌸" : (m >= 6 && m <= 8) ? "🍀" : (m >= 9 && m <= 11) ? "🍁" : "❄️";
+let items = "";
+if (hike > 0) {
+const icon = (isRegular === 1) ? qMark : "⛰️";
+const title = (isRegular === 1) ? "정기산행 등산" : "일반 산행";
+items += `
+${icon} ${title}
+${hike}회
+`;
+}
+if (run > 0) items += `
+🏃 러닝
+${run}회
+`;
+if (trek > 0) items += `
+🥾 트레킹
+${trek}회
+`;
 
-    let items = "";
-    if (hike > 0) {
-        const icon = (isRegular === 1) ? qMark : "⛰️";
-        const title = (isRegular === 1) ? "정기산행 등산" : "일반 산행";
-        items += `<div style="display:flex; justify-content:space-between; font-size:12px; gap:12px; color:#334155;"><span>${icon} ${title}</span><b>${hike}회</b></div>`;
-    }
-    if (run > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#ec4899; gap:12px;"><span>🏃 러닝</span><b>${run}회</b></div>`;
-    if (trek > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#a855f7; gap:12px;"><span>🥾 트레킹</span><b>${trek}회</b></div>`;
+content.innerHTML = items || "
+기록 없음
+";
 
-    content.innerHTML = items || "<div style='color:#94a3b8; font-size:12px;'>기록이 없습니다.</div>";
+// 3. 위치 및 노출 설정
+popup.classList.remove('hidden');
+popup.style.display = 'block';
+popup.style.position = 'fixed'; // 중요: absolute보다 안전함
+popup.style.zIndex = '999999';
 
-    // 3. 스타일 및 위치 설정
-    popup.style.display = 'block';
-    popup.classList.remove('hidden');
-    popup.style.position = 'fixed'; // absolute 대신 fixed 사용 (스크롤 영향 방지)
-    popup.style.zIndex = '200000'; // 모든 모달보다 위에 위치
+// 좌표 계산 (마우스/터치 통합)
+const clientX = (e.touches && e.touches[0]) ? e.touches[0].clientX : e.clientX;
+const clientY = (e.touches && e.touches[0]) ? e.touches[0].clientY : e.clientY;
 
-    // 클릭/터치 좌표 계산
-    const clientX = (event.touches && event.touches[0]) ? event.touches[0].clientX : event.clientX;
-    const clientY = (event.touches && event.touches[0]) ? event.touches[0].clientY : event.clientY;
-    
-    // 화면 우측/하단 잘림 방지 로직
-    let posX = clientX + 10;
-    let posY = clientY - 80;
+// 팝업 위치 (클릭 지점 근처)
+let px = clientX + 10;
+let py = clientY - 80;
 
-    // 팝업이 화면 오른쪽을 벗어날 경우 왼쪽으로 이동
-    if (posX + 160 > window.innerWidth) posX = clientX - 150;
-    // 팝업이 화면 위쪽을 벗어날 경우 아래쪽으로 이동
-    if (posY < 0) posY = clientY + 20;
+// 화면 밖으로 나가는 것 방지
+if (px + 160 > window.innerWidth) px = clientX - 150;
+if (py < 0) py = clientY + 20;
 
-    popup.style.left = `${posX}px`;
-    popup.style.top = `${posY}px`;
+popup.style.left = px + "px";
+popup.style.top = py + "px";
 };
 
-// 4. 외부 클릭 시 닫기 (핸들러 통합)
-const closeGrassPopup = (e) => {
-    const popup = document.getElementById('grassPopup');
-    if (popup && !popup.classList.contains('hidden')) {
-        // 클릭한 대상이 팝업 내부가 아닐 때만 닫기
-        if (!popup.contains(e.target)) {
-            popup.classList.add('hidden');
-            popup.style.display = 'none';
-        }
-    }
-};
+// 바깥 클릭 시 닫기 기능
+document.addEventListener('mousedown', (event) => {
+const popup = document.getElementById('grassPopup');
+if (popup && popup.style.display === 'block' && !popup.contains(event.target)) {
+popup.style.display = 'none';
+popup.classList.add('hidden');
+}
+});
 
 document.addEventListener('mousedown', closeGrassPopup);
 document.addEventListener('touchstart', closeGrassPopup, { passive: true });
