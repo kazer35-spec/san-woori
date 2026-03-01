@@ -1208,15 +1208,7 @@ animation: dday-blink 0.5s infinite;
 background-color: #fee2e2 !important; /* 빨강 */
 color: #991b1b !important;
 }
-
-/* 90레벨 전용 주황색 글로우 효과 */
-@keyframes glow-orange {
-0% { border-color: #f97316; }
-50% { border-color: #ea580c; box-shadow: 0 0 8px rgba(234, 88, 12, 0.5); }
-100% { border-color: #f97316; }
-}
-
-    /* 실제 적용되는 클래스 */
+/* 실제 적용되는 클래스 */
 .level-blink-orange {
 animation: glow-orange 1.5s infinite ease-in-out;
 border-width: 1.8px !important;
@@ -2671,17 +2663,16 @@ window.addMultiActivity = async () => {
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
-                       // [A] 회원 문서 업데이트
-            const updateData = {
-                level: newLevel,
-                totalHeight: increment(height)
-            };
+                      // [A] 회원 문서 업데이트 부분 (수정 후)
+const updateData = {
+    level: newLevel,
+    totalHeight: increment(height)
+};
 
-            // 중요: 일반 산행(isHike)일 때만 최근 활동일(lastDate)을 갱신해서 D-Day 초기화
-            // 런닝, 트레킹은 기록만 쌓고 lastDate는 건드리지 않음
-            if (isHike) {
-                updateData.lastDate = ts;
-            }
+if (isHike) {
+    updateData.lastDate = ts; // 최근 산행일을 오늘(입력일)로 갱신
+    updateData.bonusDays = 0; // 중요: 산행을 했으므로 임의로 조정한 보너스 날짜를 0으로 리셋!
+}
 
             await updateDoc(doc(db, "sanwoori", id), updateData);
 
@@ -3710,3 +3701,11 @@ document.addEventListener('touchstart', (e) => {
 </script>
 </body>
     </html>
+/* 90레벨 전용 주황색 글로우 효과 */
+@keyframes glow-orange {
+0% { border-color: #f97316; }
+50% { border-color: #ea580c; box-shadow: 0 0 8px rgba(234, 88, 12, 0.5); }
+100% { border-color: #f97316; }
+}
+
+    
