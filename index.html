@@ -3563,67 +3563,71 @@ window.showMilkyWay = async (mId, mName) => {
         }
 
         logs.forEach((log, index) => {
-            let starColor = "white", shadowColor = "#FFFFFF", starSize = "w-1.5 h-1.5", customStyle = "", shouldTwinkle = false; 
+    let starColor = "white", shadowColor = "#FFFFFF", starSize = "w-1.5 h-1.5", customStyle = "", shouldTwinkle = false; 
 
-            if (log.starType) {
-                shouldTwinkle = true; 
-                if (log.starType === "super") {
-                    starSize = "w-2 h-2"; 
-                    customStyle = `background: radial-gradient(circle, #FF0000 20%, #FFFF00 100%); box-shadow: 0 0 15px 5px rgba(255, 0, 0, 0.7), 0 0 35px 12px rgba(255, 255, 0, 0.5); filter: brightness(1.5);`;
-                } else if (log.starType === "special") {
-                    starSize = "w-2 h-2"; 
-                    customStyle = `background: radial-gradient(circle, #A020F0 20%, #00FF7F 100%); box-shadow: 0 0 12px 4px rgba(160, 32, 240, 0.6), 0 0 25px 8px rgba(0, 255, 127, 0.4); filter: brightness(1.3);`;
-                } else if (log.starType.startsWith("regular")) {
-                    const colors = ["#00FFFF", "#FF8C00", "#D32F2F", "#7C4DFF"]; 
-                    const idx = parseInt(log.starType.split('_')[1]) - 1;
-                    starColor = colors[idx] || "white";
-                    shadowColor = starColor;
-                    customStyle = `background-color: ${starColor}; box-shadow: 0 0 12px ${shadowColor}, 0 0 22px ${shadowColor};`;
-                }
-            } else if (log.isTop100) {
-                starColor = "#F7E7CE"; shadowColor = "#F7E7CE";
-                customStyle = `background-color: ${starColor}; box-shadow: 0 0 6px ${shadowColor};`;
-            }
+    if (log.starType) {
+        shouldTwinkle = true; 
+        if (log.starType === "super") {
+            starSize = "w-2 h-2"; 
+            customStyle = `background: radial-gradient(circle, #FF0000 20%, #FFFF00 100%); box-shadow: 0 0 15px 5px rgba(255, 0, 0, 0.7), 0 0 35px 12px rgba(255, 255, 0, 0.5); filter: brightness(1.5);`;
+        } else if (log.starType === "special") {
+            starSize = "w-2 h-2"; 
+            customStyle = `background: radial-gradient(circle, #A020F0 20%, #00FF7F 100%); box-shadow: 0 0 12px 4px rgba(160, 32, 240, 0.6), 0 0 25px 8px rgba(0, 255, 127, 0.4); filter: brightness(1.3);`;
+        } else if (log.starType.startsWith("regular")) {
+            const colors = ["#00FFFF", "#FF8C00", "#D32F2F", "#7C4DFF"]; 
+            const idx = parseInt(log.starType.split('_')[1]) - 1;
+            starColor = colors[idx] || "white";
+            shadowColor = starColor;
+            customStyle = `background-color: ${starColor}; box-shadow: 0 0 12px ${shadowColor}, 0 0 22px ${shadowColor};`;
+        }
+    } else if (log.isTop100) {
+        starColor = "#F7E7CE"; shadowColor = "#F7E7CE";
+        customStyle = `background-color: ${starColor}; box-shadow: 0 0 6px ${shadowColor};`;
+    }
 
-            const star = document.createElement('div');
-            star.className = `absolute ${starSize} rounded-full z-10`; 
+    const star = document.createElement('div');
+    star.className = `absolute ${starSize} rounded-full z-10`; 
 
-            star.style.cssText += customStyle || `background-color: ${starColor}; box-shadow: 0 0 6px ${shadowColor}, 0 0 12px ${shadowColor}`;
-            star.style.left = log.coords.x + "%";
-            star.style.top = log.coords.y + "%";
-            star.style.opacity = "0"; 
-            star.style.transition = "opacity 1s ease"; 
+    // [수정] 애니메이션 코드(starFloating)를 아예 삭제했습니다.
+    star.style.cssText += customStyle || `background-color: ${starColor}; box-shadow: 0 0 6px ${shadowColor}, 0 0 12px ${shadowColor}`;
+    star.style.left = log.coords.x + "%";
+    star.style.top = log.coords.y + "%";
+    star.style.opacity = "0"; 
+    star.style.transition = "opacity 1s ease"; 
 
-            // --- [핵심 수정 부분: 변수 선언 추가] ---
-            const duration = (2 + Math.random() * 2).toFixed(2); // 변수 정의 추가
-            const delay = (Math.random() * -5).toFixed(2); // 변수 정의 추가
-            star.style.animation = `starFloating ${duration}s infinite ease-in-out ${delay}s`;
-            // --------------------------------------
+    board.appendChild(star); 
 
-            board.appendChild(star); // 이제 에러 없이 이 줄이 실행됩니다!
+    let line = null;
+    if (index > 0) {
+        const prev = logs[index - 1];
+        const x1 = prev.coords.x, y1 = prev.coords.y, x2 = log.coords.x, y2 = log.coords.y;
+        const dist = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+        const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+        line = document.createElement('div');
+        line.className = 'absolute bg-blue-400/20 origin-left z-0';
+        line.style.height = '0.5px'; line.style.width = dist + "%";
+        line.style.left = x1 + "%"; line.style.top = y1 + "%";
+        line.style.transform = `rotate(${angle}deg)`; 
+        line.style.opacity = "0";
+        line.style.transition = "opacity 1s ease";
+        board.appendChild(line);
+    }
 
-            let line = null;
-            if (index > 0) {
-                const prev = logs[index - 1];
-                const x1 = prev.coords.x, y1 = prev.coords.y, x2 = log.coords.x, y2 = log.coords.y;
-                const dist = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
-                const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
-                line = document.createElement('div');
-                line.className = 'absolute bg-blue-400/20 origin-left z-0';
-                line.style.height = '0.5px'; line.style.width = dist + "%";
-                line.style.left = x1 + "%"; line.style.top = y1 + "%";
-                line.style.transform = `rotate(${angle}deg)`; line.style.opacity = "0";
-                line.style.transition = "opacity 1s ease";
-                board.appendChild(line);
-            }
-
-            setTimeout(() => {
-                star.style.opacity = "1";
-                if (line) line.style.opacity = "1";
-                if (shouldTwinkle) setTimeout(() => star.classList.add('animate-twinkle'), 1000);
-                if (index === logs.length - 1) setTimeout(() => createShootingStar(board, log.coords.x, log.coords.y), 1000);
-            }, index * 150);
-        });
+    // 순차적으로 뜨게 만드는 타이머
+    setTimeout(() => {
+        star.style.opacity = "1"; // 별이 나타남
+        if (line) line.style.opacity = "1"; // 선이 나타남
+        
+        // 반짝임 효과만 필요한 경우에만 살려둡니다 (제자리에서 반짝)
+        if (shouldTwinkle) {
+            setTimeout(() => star.classList.add('animate-twinkle'), 1000);
+        }
+        
+        if (index === logs.length - 1) {
+            setTimeout(() => createShootingStar(board, log.coords.x, log.coords.y), 1000);
+        }
+    }, index * 150); // index에 따라 순차적으로 실행
+});
     } catch (e) { console.error("은하수 로딩 에러:", e); }
 };
 
