@@ -1257,8 +1257,7 @@ color: #991b1b !important;
 50% { border-color: #ea580c; box-shadow: 0 0 8px rgba(234, 88, 12, 0.5); }
 100% { border-color: #f97316; }
 }
-
-    /* 실제 적용되는 클래스 */
+/* 실제 적용되는 클래스 */
 .level-blink-orange {
 animation: glow-orange 1.5s infinite ease-in-out;
 border-width: 1.8px !important;
@@ -2311,52 +2310,51 @@ logsQuarter.forEach(l => {
 
 // 2. 잔디 보드 HTML 생성 (수정본)
 let grassHtml = "";
-for (let i = 0; i < totalDaysInQ; i++) {
-    const cur = new Date(start);
-    cur.setDate(start.getDate() + i);
-    const k = `${cur.getFullYear()}-${cur.getMonth() + 1}-${cur.getDate()}`;
-    const act = dateActivities[k];
+        for (let i = 0; i < totalDaysInQ; i++) {
+            const cur = new Date(start);
+            cur.setDate(start.getDate() + i);
+            const k = `${cur.getFullYear()}-${cur.getMonth() + 1}-${cur.getDate()}`;
+            const act = dateActivities[k];
 
-    let cl = "grass-day";
-    let style = "";
-    let iconTag = ""; 
+            let cl = "grass-day"; // 기본 잔디 클래스
+            let style = "";
+            let iconTag = ""; 
 
-    if (act) {
-        if (act.isRegular) {
-            // [핵심] 클래스를 추가하고, 인라인 스타일은 비워버립니다.
-            cl += " grass-regular-premium";
-            style = ""; // 기존에 style에 색상을 넣었다면 여기서 초기화해야 CSS가 먹힙니다.
-            
-            const month = cur.getMonth() + 1;
-            let qIcon = (month >= 3 && month <= 5) ? "🌸" : 
-                        (month >= 6 && month <= 8) ? "🍀" : 
-                        (month >= 9 && month <= 11) ? "🍁" : "❄️";
+            if (act) {
+                if (act.isRegular) {
+                    // [정기산행] 4색 그라데이션 + 계절 아이콘
+                    cl += " grass-regular-premium";
+                    style = ""; 
+                    
+                    const month = cur.getMonth() + 1;
+                    let qIcon = (month >= 3 && month <= 5) ? "🌸" : 
+                                (month >= 6 && month <= 8) ? "🍀" : 
+                                (month >= 9 && month <= 11) ? "🍁" : "❄️";
 
-            iconTag = `<span style="font-size: 11px; display: flex; align-items: center; justify-content: center; height: 100%; pointer-events: none; position: relative; z-index: 5; text-shadow: 0 0 3px rgba(0,0,0,0.2);">${qIcon}</span>`;
-        } 
-        else {
-            // 일반 기록 로직 (기존과 동일)
-            const hasHike = act.hike > 0;
-            const hasExtra = act.run > 0 || act.trek > 0;
-            
-            if (hasHike && hasExtra) {
-                const subColor = act.run > 0 ? "#FFD1DC" : "#E0B0FF";
-                style = `background: linear-gradient(135deg, #2ecc71 50%, ${subColor} 50%);`;
-            } else if (act.run > 0) { 
-                style = "background: #FFD1DC;"; 
-            } else if (act.trek > 0) { 
-                style = "background: #E0B0FF;"; 
-            } else if (act.hike > 0) {
-                const level = (act.hike >= 4) ? 4 : (act.hike === 3 ? 3 : (act.hike === 2 ? 2 : 1));
-                cl += ` grass-active-${level}`;
+                    iconTag = `<span style="position:absolute; top:0; left:0; width:100%; height:100%; font-size:10px; display:flex; align-items:center; justify-content:center; pointer-events:none; z-index:5; text-shadow:0 0 3px rgba(0,0,0,0.2);">${qIcon}</span>`;
+                } 
+                else {
+                    // [일반산행/러닝/트레킹] 기존 로직
+                    const hasHike = act.hike > 0;
+                    const hasExtra = act.run > 0 || act.trek > 0;
+                    
+                    if (hasHike && hasExtra) {
+                        const subColor = act.run > 0 ? "#FFD1DC" : "#E0B0FF";
+                        style = `background: linear-gradient(135deg, #2ecc71 50%, ${subColor} 50%);`;
+                    } else if (act.run > 0) { 
+                        style = "background: #FFD1DC;"; 
+                    } else if (act.trek > 0) { 
+                        style = "background: #E0B0FF;"; 
+                    } else if (act.hike > 0) {
+                        const level = (act.hike >= 4) ? 4 : (act.hike === 3 ? 3 : (act.hike === 2 ? 2 : 1));
+                        cl += ` grass-active-${level}`;
+                    }
+                }
             }
-        }
-    }
 
-    const encodedAct = act ? btoa(JSON.stringify({...act})) : "";
-    // 생성된 cl과 style을 적용
-    grassHtml += `<div class="${cl}" style="${style}" onclick="window.showGrassPopup(event, '${k}', '${encodedAct}')">${iconTag}</div>`;
-}
+            const encodedAct = act ? btoa(JSON.stringify({...act})) : "";
+            grassHtml += `<div class="${cl}" style="${style} position:relative;" onclick="window.showGrassPopup(event, '${k}', '${encodedAct}')">${iconTag}</div>`;
+        }
 
 grassBoard.innerHTML = grassHtml;
 
