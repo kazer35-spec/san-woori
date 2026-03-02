@@ -11,7 +11,7 @@
 body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: #333; }
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
-
+​
 /* CSS 수정: 팝업이 어떤 창 위에서도 보일 수 있도록 설정 */
 #grassPopup {
     position: fixed; /* absolute 대신 fixed를 사용하여 모달 위치에 영향받지 않음 */
@@ -1215,7 +1215,8 @@ color: #991b1b !important;
 50% { border-color: #ea580c; box-shadow: 0 0 8px rgba(234, 88, 12, 0.5); }
 100% { border-color: #f97316; }
 }
-/* 실제 적용되는 클래스 */
+
+    /* 실제 적용되는 클래스 */
 .level-blink-orange {
 animation: glow-orange 1.5s infinite ease-in-out;
 border-width: 1.8px !important;
@@ -1670,6 +1671,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 <label class="!text-[9px]"><input type="radio" name="upAmount" value="3">3</label>
 
 <label style="margin-left: 9px; font-size: 13px; color: #ff4d4d; cursor: pointer; vertical-align: middle;">
+<input type="checkbox" id="isQuarterCheck">
 </label>
 </div>
 </div>
@@ -2246,48 +2248,26 @@ if(recentCount >= 4) {
 vibeArea.innerHTML = `<span class="hot-vibe flex items-center h-[18px] text-[9px] font-black text-orange-500 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-100">🔥 HOT</span>`;
 }
 
-// 1.빛나는 효과 스타일 강제 삽입 (중복 방지)
-if (!document.getElementById('grass-glow-style')) {
-    const styleSheet = document.createElement("style");
-    styleSheet.id = 'grass-glow-style';
-    styleSheet.innerText = `
-        @keyframes grass-glow {
-            0%, 100% { box-shadow: 0 0 5px rgba(255,255,255,0.2); transform: scale(1); }
-            50% { box-shadow: 0 0 15px rgba(255,255,255,0.6); transform: scale(1.05); }
-        }
-        @keyframes grass-shine { 0% { left: -100%; } 100% { left: 100%; } }
-        .grass-regular {
-            background: linear-gradient(135deg, #1a237e 0%, #343a40 50%, #f1f3f5 100%) !important;
-            border: 1px solid rgba(255,255,255,0.4) !important;
-            position: relative; overflow: hidden;
-            animation: grass-glow 2s infinite ease-in-out;
-            z-index: 1; cursor: pointer;
-        }
-        .grass-regular::after {
-            content: ''; position: absolute; top: 0; width: 40px; height: 100%;
-            background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0) 100%);
-            transform: skewX(-25deg); animation: grass-shine 3s infinite;
-        }
-    `;
-    document.head.appendChild(styleSheet);
-}
-
-// 2. 데이터 분석 (이전과 동일)
+// 1. 잔디 데이터 분석
 const dateActivities = {};
 logsQuarter.forEach(l => {
     const key = `${l.date.getFullYear()}-${l.date.getMonth() + 1}-${l.date.getDate()}`;
+    
     if(!dateActivities[key]) {
         dateActivities[key] = { hike: 0, run: 0, trek: 0, isRegular: false };
     }
-    if(l.isRunning) dateActivities[key].run++;
-    else if(l.isTracking) dateActivities[key].trek++;
-    else {
+    
+    if(l.isRunning) {
+        dateActivities[key].run++;
+    } else if(l.isTracking) {
+        dateActivities[key].trek++;
+    } else {
         dateActivities[key].hike++;
-        if(l.isRegular) dateActivities[key].isRegular = true;
+        if(l.isRegular) dateActivities[key].isRegular = true; // 정기산행 체크
     }
 });
 
-// 3. 잔디 생성 로직 (이벤트 호출부 확인)
+// 2. 잔디 보드 HTML 생성
 let grassHtml = "";
 for (let i = 0; i < totalDaysInQ; i++) {
     const cur = new Date(start);
@@ -2300,34 +2280,41 @@ for (let i = 0; i < totalDaysInQ; i++) {
     let iconTag = ""; 
 
     if (act) {
+        // [수정] 정기산행인 경우: 연한 회색 배경(#f3f4f6) + 마크 표시
         if (act.isRegular) {
-            cl += " grass-regular";
+            style = "background-color: #f3f4f6 !important; border: 1px solid #e5e7eb;"; 
+            
             const month = cur.getMonth() + 1;
-            const qIcon = (month >= 3 && month <= 5) ? "🌸" : (month >= 6 && month <= 8) ? "🍀" : (month >= 9 && month <= 11) ? "🍁" : "❄️";
-            iconTag = `<span style="position:relative; z-index:2; font-size:12px; display:flex; align-items:center; justify-content:center; height:100%; pointer-events:none;">${qIcon}</span>`;
-        } else {
-            // 일반 기록 로직 (기존 유지)
+            let qIcon = "";
+            // 분기별 마크 (🌸봄, 🍀여름, 🍁가을, ❄️겨울)
+            if (month >= 3 && month <= 5) qIcon = "🌸";
+            else if (month >= 6 && month <= 8) qIcon = "🍀";
+            else if (month >= 9 && month <= 11) qIcon = "🍁";
+            else qIcon = "❄️";
+
+            iconTag = `<span style="font-size: 11px; display: flex; align-items: center; justify-content: center; height: 100%; pointer-events: none;">${qIcon}</span>`;
+        } 
+        // 일반 기록인 경우: 기존 색상 로직 유지
+        else {
             const hasHike = act.hike > 0;
-            const hasExtra = (act.run > 0 || act.trek > 0);
+            const hasExtra = act.run > 0 || act.trek > 0;
+            
             if (hasHike && hasExtra) {
                 const subColor = act.run > 0 ? "#FFD1DC" : "#E0B0FF";
                 style = `background: linear-gradient(135deg, #2ecc71 50%, ${subColor} 50%);`;
-            } else if (act.run > 0) style = "background: #FFD1DC;";
-            else if (act.trek > 0) style = "background: #E0B0FF;";
-            else if (act.hike > 0) {
-                const level = Math.min(Math.max(act.hike, 1), 4);
+            } else if (act.run > 0) { 
+                style = "background: #FFD1DC;"; 
+            } else if (act.trek > 0) { 
+                style = "background: #E0B0FF;"; 
+            } else if (act.hike > 0) {
+                const level = (act.hike >= 4) ? 4 : (act.hike === 3 ? 3 : (act.hike === 2 ? 2 : 1));
                 cl += ` grass-active-${level}`;
             }
         }
     }
 
-    // [핵심] 숫자 데이터를 직접 전달하여 인코딩 오류 방지
-    const h = act ? act.hike : 0;
-    const r = act ? act.run : 0;
-    const t = act ? act.trek : 0;
-    const ir = act ? (act.isRegular ? 1 : 0) : 0;
-
-    grassHtml += `<div class="${cl}" style="${style}" onclick="window.handleGrassClick(event, '${k}', ${h}, ${r}, ${t}, ${ir})">${iconTag}</div>`;
+    const encodedAct = act ? btoa(JSON.stringify({...act})) : "";
+    grassHtml += `<div class="${cl}" style="${style}" onclick="window.showGrassPopup(event, '${k}', '${encodedAct}')">${iconTag}</div>`;
 }
 
 grassBoard.innerHTML = grassHtml;
@@ -2695,7 +2682,7 @@ if (isHike) {
     updateData.bonusDays = 0; // 중요: 산행을 했으므로 임의로 조정한 보너스 날짜를 0으로 리셋!
 }
 
-            await updateDoc(doc(db, "sanwoori", id), updateData);
+await updateDoc(doc(db, "sanwoori", id), updateData);
 
             // [B] 우정 포인트 계산 (2인 이상 산행 시)
             if (selectedMemberIds.size >= 2 && isHike) {
@@ -3648,130 +3635,76 @@ style="position:absolute; top:15px; right:15px; color:white; background:none; bo
 </div>
 
 <script>
- 
-/* ===========================================
-   1. 전역 변수 및 반짝임 스타일 (JS에서 직접 주입)
-   =========================================== */
-if (!document.getElementById('grass-sparkle-style')) {
-    const style = document.createElement('style');
-    style.id = 'grass-sparkle-style';
-    style.innerHTML = `
-        @keyframes grass-twinkle {
-            0% { opacity: 0.3; transform: scale(0.8); }
-            50% { opacity: 1; transform: scale(1.1); filter: brightness(1.5); }
-            100% { opacity: 0.3; transform: scale(0.8); }
-        }
-        .sparkle-layer {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; /* 🔥 핵심: 클릭이 이 레이어를 통과함 */
-            z-index: 1;
-        }
-        .sparkle-dot {
-            position: absolute;
-            background: white;
-            border-radius: 50%;
-            box-shadow: 0 0 5px white;
-            animation: grass-twinkle 1.5s infinite ease-in-out;
-        }
-    `;
-    document.head.appendChild(style);
-}
+   // --- 잔디 상세 팝업 및 이벤트 제어 (통합본) ---
 
-/* ===========================================
-   2. 잔디 클릭 핸들러 (통합 버전)
-   =========================================== */
-window.handleGrassClick = function(e, date, hike, run, trek, isRegular) {
-    // 이벤트 전파 차단 (팝업이 즉시 닫히는 현상 방지)
-    if (e) {
-        if (e.stopPropagation) e.stopPropagation();
-        if (e.preventDefault) e.preventDefault();
-    }
+window.showGrassPopup = (event, date, encodedAct) => {
+    // [중요] 클릭 이벤트가 body까지 퍼져서 바로 닫히는 것을 방지
+    if (event.stopPropagation) event.stopPropagation();
 
     const popup = document.getElementById('grassPopup');
     const content = document.getElementById('popupContent');
     const dateEl = document.getElementById('popupDate');
 
-    if (!popup) return;
-
-    // 내용 업데이트
-    if (dateEl) dateEl.innerText = date;
-    
-    const m = new Date(date).getMonth() + 1;
-    const qMark = (m >= 3 && m <= 5) ? "🌸" : (m >= 6 && m <= 8) ? "🍀" : (m >= 9 && m <= 11) ? "🍁" : "❄️";
-
-    let items = "";
-    if (hike > 0) {
-        const icon = (isRegular === 1) ? qMark : "⛰️";
-        const title = (isRegular === 1) ? "정기산행" : "일반산행";
-        items += `<div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:5px; gap:10px;"><span>${icon} ${title}</span><b>${hike}회</b></div>`;
+    if (!encodedAct) {
+        popup.classList.add('hidden');
+        popup.style.display = 'none';
+        return;
     }
-    if (run > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#ec4899; margin-bottom:5px; gap:10px;"><span>🏃 러닝</span><b>${run}회</b></div>`;
-    if (trek > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#a855f7; gap:10px;"><span>🥾 트레킹</span><b>${trek}회</b></div>`;
 
-    if (content) content.innerHTML = items || "<div style='color:#94a3b8; font-size:11px;'>기록 없음</div>";
+    // 팝업 부모를 body로 강제 이동 (좌표 꼬임 방지)
+    if (popup.parentElement !== document.body) {
+        document.body.appendChild(popup);
+    }
 
-    // 팝업 노출 및 스타일 강제 설정
-    popup.style.display = 'block';
+    const act = JSON.parse(atob(encodedAct));
+    dateEl.innerText = date;
+    
+    let items = "";
+    if (act.hike > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; gap:12px;"><span>⛰️ 산행</span><b>${act.hike}회</b></div>`;
+    if (act.run > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#ec4899; gap:12px;"><span>🏃 러닝</span><b>${act.run}회</b></div>`;
+    if (act.trek > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#a855f7; gap:12px;"><span>🥾 트레킹</span><b>${act.trek}회</b></div>`;
+    
+    content.innerHTML = items;
+
+    // 표시 및 레이어 설정
     popup.classList.remove('hidden');
-    popup.style.position = 'fixed'; 
-    popup.style.zIndex = '1000001'; // 최상단 유지
+    popup.style.display = 'block';
+    popup.style.position = 'fixed';
+    popup.style.zIndex = '999999';
 
     // 좌표 계산
-    const clientX = (e.touches && e.touches[0]) ? e.touches[0].clientX : e.clientX;
-    const clientY = (e.touches && e.touches[0]) ? e.touches[0].clientY : e.clientY;
-    
-    let posX = clientX + 15;
-    let posY = clientY - 80;
+    const clientX = event.touches ? event.touches[0].clientX : event.clientX;
+    const clientY = event.touches ? event.touches[0].clientY : event.clientY;
 
-    if (posX + 160 > window.innerWidth) posX = clientX - 160;
-    if (posY < 0) posY = clientY + 20;
+    let left = clientX + 15;
+    let top = clientY - 85;
 
-    popup.style.left = posX + "px";
-    popup.style.top = posY + "px";
+    // 화면 밖으로 나감 방지
+    if (left + 160 > window.innerWidth) left = clientX - 170;
+    if (top < 10) top = clientY + 20;
+
+    popup.style.left = `${left}px`;
+    popup.style.top = `${top}px`;
 };
 
-/* ===========================================
-   3. 정기산행 반짝임 레이어 생성 함수
-   =========================================== */
-window.addGrassSparkle = function(element) {
-    if (!element) return;
-    element.style.position = 'relative'; // 부모 기준점 설정
-    
-    const layer = document.createElement('div');
-    layer.className = 'sparkle-layer';
-    
-    // 무작위 위치에 2개의 반짝임 점 생성
-    for (let i = 0; i < 2; i++) {
-        const dot = document.createElement('div');
-        dot.className = 'sparkle-dot';
-        dot.style.width = '3px';
-        dot.style.height = '3px';
-        dot.style.top = Math.random() * 80 + 10 + '%';
-        dot.style.left = Math.random() * 80 + 10 + '%';
-        dot.style.animationDelay = (Math.random() * 1) + 's';
-        layer.appendChild(dot);
-    }
-    element.appendChild(layer);
-};
-
-/* ===========================================
-   4. 바깥 클릭 시 닫기 (통합 및 최적화)
-   =========================================== */
-const closePopupHandler = function(event) {
+// 화면 아무 곳이나 클릭하거나 터치하면 잔디 팝업 닫기
+document.addEventListener('mousedown', (e) => {
     const popup = document.getElementById('grassPopup');
-    if (popup && popup.style.display === 'block') {
-        // 클릭된 요소가 팝업 내부가 아니거나, 잔디 셀이 아닐 때만 닫기
-        if (!popup.contains(event.target) && !event.target.closest('[onclick*="handleGrassClick"]')) {
-            popup.style.display = 'none';
-            popup.classList.add('hidden');
-        }
+    // 팝업이 열려 있고, 클릭한 대상이 팝업 자체가 아닐 때만 닫음
+    if (popup && !popup.classList.contains('hidden') && !popup.contains(e.target)) {
+        popup.classList.add('hidden');
+        popup.style.display = 'none';
     }
-};
+});
 
-// 캡처링 단계에서 감지하여 신뢰성 확보
-document.addEventListener('mousedown', closePopupHandler, true);
-document.addEventListener('touchstart', closePopupHandler, { passive: true, capture: true });
+// 모바일 터치 대응
+document.addEventListener('touchstart', (e) => {
+    const popup = document.getElementById('grassPopup');
+    if (popup && !popup.classList.contains('hidden') && !popup.contains(e.target)) {
+        popup.classList.add('hidden');
+        popup.style.display = 'none';
+    }
+}, { passive: true });
 
 </script>
 </body>
