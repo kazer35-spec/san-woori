@@ -13,53 +13,71 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-/* 알림창 배경 */
+/* [통합] 레벨업 카드 스타일 전체 교체 */
+
+/* 모달 및 배경 레이아웃 */
 .levelup-overlay {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.95); z-index: 9999;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    backdrop-filter: blur(10px); padding: 20px;
+    -webkit-font-smoothing: antialiased;
 }
+.levelup-card-scroll { display:flex; gap:20px; overflow-x:auto; padding:20px; scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch; }
+.levelup-card-scroll::-webkit-scrollbar { display: none; } /* 스크롤바 숨김 */
 
-.levelup-card-container { width: 100%; max-width: 350px; text-align: center; }
-.levelup-main-title { color: white; font-weight: 900; margin-bottom: 15px; font-size: 1.8rem; letter-spacing: 2px; }
-.levelup-card-scroll { max-height: 70vh; overflow-y: auto; width: 100%; display: flex; flex-direction: column; align-items: center; }
-
-/* 레벨업 카드 본체 */
+/* 개별 카드 (검은색 배경형) */
 .member-up-card {
-    position: relative; width: 280px; height: 320px;
-    background: #000; border-radius: 24px; overflow: hidden;
-    display: flex; align-items: center; justify-content: center; margin: 15px 0;
+    position: relative;
+    width: 300px;
+    height: 320px;
+    background: #000;
+    border-radius: 24px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: none !important; /* 캡처 시 깨짐 방지 */
+    scroll-snap-align: center;
+    flex-shrink: 0;
 }
 
-/* 회전 테두리 (저장 시 .stop-ani 클래스가 붙으면 멈춤) */
+/* 회전 테두리 그라데이션 */
 .card-border-rotate {
-    position: absolute; width: 200%; height: 200%;
+    position: absolute;
+    width: 250%;
+    height: 250%;
+    /* 배경 색상은 JS에서 레벨별로 부여 */
     animation: rotate-border 4s linear infinite;
 }
-.member-up-card.stop-ani .card-border-rotate { animation: none !important; transform: rotate(45deg); }
 
 @keyframes rotate-border {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
 }
 
-/* 카드 내부 */
-.card-inner-new {
-    position: absolute; inset: 5px;
-    background: #0f172a; border-radius: 20px; z-index: 10;
-    display: flex; flex-direction: column; align-items: center; justify-content: space-around;
-    padding: 25px 15px; -webkit-font-smoothing: antialiased;
+/* 🌟 [저장실패 해결] 저장 버튼 클릭 시 애니메이션 멈춤 클래스 */
+.member-up-card.stop-ani .card-border-rotate {
+    animation: none !important;
+    transform: rotate(45deg); /* 정적인 상태로 고정 */
 }
 
-/* 버튼 */
+/* 카드 실제 내용물 영역 */
+.card-inner-new {
+    position: absolute;
+    inset: 5px; /* 테두리 두께 */
+    background: #0f172a; /* 아주 어두운 남색 배경 */
+    border-radius: 20px;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 25px 15px;
+}
+
+/* 버튼 스타일 */
 .save-btn {
-    background: #10b981; color: white; border: none; padding: 16px;
-    border-radius: 12px; font-weight: 900; width: 100%; margin-top: 20px;
+    background:#3b82f6; color:white; border:none; padding:16px; border-radius:12px; font-weight:bold; cursor:pointer; width: 100%; font-size: 16px;
 }
 .levelup-close-btn {
-    background: transparent; color: #64748b; border: none; padding: 10px;
-    font-size: 0.8rem; font-weight: bold; width: 100%; margin-top: 10px;
+    background:transparent; color:#64748b; border:none; padding:10px; cursor:pointer; font-size:14px;
 }
 
 /* 은하수 별들이 미세하게 떠다니며 반짝이는 효과 */
@@ -1584,16 +1602,21 @@ overflow: hidden;
 </head>
 <body>
 
-<div id="levelupAlert" class="levelup-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:10000; justify-content:center; align-items:center; flex-direction:column;">
-    <div class="levelup-container" style="width:100%; max-width:500px; padding:20px; text-align:center;">
-        <h2 style="color:white; font-weight:900; letter-spacing:5px; margin-bottom:20px;">LEVEL UP!</h2>
+<div id="levelupAlert" class="levelup-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:10000; justify-content:center; align-items:center; flex-direction:column; backdrop-filter: blur(10px); padding: 20px;">
+    
+    <div class="levelup-card-container">
+        <h2 id="levelUpTitle" class="levelup-main-title">LEVEL UP!</h2>
         
-        <div id="levelUpCardList" style="display:flex; gap:20px; overflow-x:auto; padding:20px; scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch;">
+        <div id="levelUpCardList" class="levelup-card-scroll">
             </div>
 
-        <div style="margin-top:30px; display:flex; flex-direction:column; gap:10px;">
-            <button onclick="downloadLevelUpCards(event)" style="background:#3b82f6; color:white; border:none; padding:15px; border-radius:12px; font-weight:bold; cursor:pointer;">📸 인증 이미지 저장하기</button>
-            <button onclick="closeLevelupAlert()" style="background:transparent; color:#64748b; border:none; cursor:pointer; font-size:14px;">창 닫기</button>
+        <div class="levelup-footer" style="margin-top:20px; display:flex; flex-direction:column; gap:10px; width: 85%; max-width: 300px;">
+            <button onclick="downloadLevelUpCards(event)" class="save-btn">
+                📸 인증 이미지 저장하기
+            </button>
+            <button onclick="closeLevelupAlert()" class="levelup-close-btn">
+                창 닫기
+            </button>
         </div>
     </div>
 </div>
@@ -2702,106 +2725,109 @@ updateVibeTemp();
 window.pendingLevelUpData = []; 
 
 // 2. 레벨업 데이터 수집 함수
-window.checkLevelUpgrade = (name, oldLevel, newLevel) => {
-    // levelThresholds 배열이 정의되어 있어야 합니다. (예: [{lv:10, name:'초보'}, ...])
-    if (typeof levelThresholds === 'undefined') return;
+// [통합] 데이터 수집 -> UI 렌더링 -> 이미지 저장 기능
 
+// 데이터 수집 (예시: addMultiActivity 함수 내부에서 호출)
+window.checkLevelUpgrade = (name, oldLevel, newLevel) => {
+    // pendingLevelUpData 전역 배열이 정의되어 있어야 합니다.
     const thresholdLevels = levelThresholds.map(t => t.lv);
-    
     for (let lv = oldLevel + 1; lv <= newLevel; lv++) {
         if (thresholdLevels.includes(lv)) {
-            const badge = typeof getLevelBadge === 'function' ? getLevelBadge(lv) : "⭐";
+            const badge = typeof getLevelBadge === 'function' ? getLevelBadge(lv) : "⭐"; // 이모지 가져오기
             const style = typeof getLevelStyle === 'function' ? getLevelStyle(lv) : { border: '#10b981' };
             
-            window.pendingLevelUpData.push({
+            pendingLevelUpData.push({
                 name: name,
                 level: lv,
-                badge: badge,
+                badge: badge, // 산 이미지 대신 이모지 마크
                 color: style.border || '#10b981'
             });
         }
     }
 };
 
-// 3. 레벨업 통합 알림창 띄우기
+// 🌟 [수정] 디자인 변경: 산 이미지 -> 이모지만 크게 표시
 window.showCombinedLevelUpAlert = () => {
-    const overlay = document.getElementById('levelupAlert');
+    if (!window.pendingLevelUpData || pendingLevelUpData.length === 0) return;
+
     const listContainer = document.getElementById('levelUpCardList');
-
-    if (!window.pendingLevelUpData || window.pendingLevelUpData.length === 0) return;
-    if (!overlay || !listContainer) {
-        console.error("레벨업 모달 HTML 요소가 없습니다.");
-        return;
-    }
-
-    // 카드 리스트 생성
-    listContainer.innerHTML = window.pendingLevelUpData.map(data => `
+    listContainer.innerHTML = pendingLevelUpData.map(data => `
         <div class="member-up-card">
             <div class="card-border-rotate" style="background: conic-gradient(from 0deg, ${data.color}, #3b82f6, #f59e0b, ${data.color});"></div>
             <div class="card-inner-new">
                 <span style="font-size: 10px; color: ${data.color}; font-weight: bold; border: 1px solid ${data.color}88; padding: 2px 10px; border-radius: 50px;">SAN WOORI RANKER</span>
+                
                 <div style="text-align: center;">
-                    <div style="font-size: 5rem; line-height: 1; filter: drop-shadow(0 0 10px ${data.color}55);">${data.badge}</div>
-                    <div style="font-size: 1.8rem; font-weight: 900; color: ${data.color}; margin-top:10px;">LV.${data.level}</div>
+                    <div style="font-size: 5.5rem; line-height: 1; filter: drop-shadow(0 0 10px ${data.color}55);">${data.badge}</div>
+                    <div style="font-size: 2rem; font-weight: 900; color: ${data.color}; margin-top:10px;">LV.${data.level}</div>
                 </div>
+                
                 <div style="text-align: center;">
                     <h3 style="font-size: 1.4rem; font-weight: 900; color: white; margin: 0;">${data.name} <small style="color:#64748b;">님</small></h3>
                     <p style="font-size: 11px; color: #94a3b8; margin-top: 5px; font-style: italic;">"산우리의 든든한 등불입니다"</p>
                 </div>
-                <p style="font-size: 9px; color: #334155;">${new Date().toLocaleDateString()} OFFICIAL RECORD</p>
+                <p style="font-size: 9px; color: #334155; margin: 0;">2026 OFFICIAL RECORD</p>
             </div>
         </div>
     `).join('');
 
-    // 모달 표시
-    overlay.style.display = 'flex';
+    document.getElementById('levelupAlert').style.display = 'flex';
 };
 
-// 4. 카드 이미지 다운로드 (html2canvas 필요)
+// 🌟 [저장실패 해결] 애니메이션 일시정지 후 캡처 로직 추가
 window.downloadLevelUpCards = async (event) => {
     const cards = document.querySelectorAll('.member-up-card');
     const btn = event.currentTarget;
     
     if (cards.length === 0) return;
 
+    // 1. 진행 중 표시 (버튼 비활성화)
+    const originalText = btn.innerText;
     btn.innerText = "⏳ 이미지 생성 중...";
     btn.disabled = true;
 
     try {
-        for (const card of cards) {
-            // 애니메이션 일시 정지 (캡처 왜곡 방지)
+        // 2. 여러 명일 경우 모든 카드를 각각 저장
+        for (let i = 0; i < cards.length; i++) {
+            const card = cards[i];
+            const nameEl = card.querySelector('h3');
+            const name = nameEl ? nameEl.innerText.split(' ')[0] : '회원';
+            
+            // [중요] 캡처를 위해 잠시 애니메이션 멈춤
             card.classList.add('stop-ani');
 
             const canvas = await html2canvas(card, {
-                scale: 2,
-                backgroundColor: "#000000",
+                backgroundColor: null,
+                scale: 3, // 고화질 설정
                 useCORS: true,
                 logging: false,
+                // 그라데이션 인식을 돕는 설정
                 allowTaint: true
             });
 
+            const imgData = canvas.toDataURL("image/png");
             const link = document.createElement('a');
-            link.href = canvas.toDataURL("image/png");
-            link.download = `산우리_레벨업_${new Date().getTime()}.png`;
+            link.href = imgData;
+            link.download = `산우리_레벨업_${name}_${new Date().getTime()}.png`;
             link.click();
 
+            // 3. 애니메이션 다시 시작
             card.classList.remove('stop-ani');
         }
-        alert("갤러리에 저장되었습니다!");
+        alert("갤러리에 저장이 완료되었습니다!");
     } catch (e) {
         console.error("Capture Error:", e);
-        alert("이미지 생성 중 오류가 발생했습니다. 스크린샷을 이용해 주세요!");
+        alert("이미지 생성 중 오류가 발생했습니다. (아이폰은 길게 눌러서 저장이 필요할 수 있습니다)");
     } finally {
-        btn.innerText = "📸 인증 이미지 저장하기";
+        // 4. 상태 복구
+        btn.innerText = originalText;
         btn.disabled = false;
     }
 };
 
-// 5. 모달 닫기
 window.closeLevelupAlert = () => {
-    const overlay = document.getElementById('levelupAlert');
-    if (overlay) overlay.style.display = 'none';
-    window.pendingLevelUpData = []; // 데이터 초기화
+    document.getElementById('levelupAlert').style.display = 'none';
+    pendingLevelUpData = [];
 };
 
 window.addMultiActivity = async () => {
