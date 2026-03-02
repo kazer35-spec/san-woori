@@ -2647,25 +2647,22 @@ m.totalHeight = allLogsSnap.docs.reduce((acc, l) => acc + (l.data().height || 0)
 updateVibeTemp();
 }
 
-// 1. 전역 변수 선언 (카드 대기열)
+// 1. 전역 변수 선언
 let levelUpQueue = []; 
 
-// 2. 레벨업 체크 및 카드 데이터 수집 통합 함수
+// 2. 레벨업 체크 함수 (기록 저장 시 호출됨)
 window.checkLevelUpgrade = (name, oldLevel, newLevel) => {
-    // 마크가 변경되는 기준 레벨 확인 (예: 10, 20...)
     const thresholdLevels = levelThresholds.map(t => t.lv);
-    
     for (let lv = oldLevel + 1; lv <= newLevel; lv++) {
         if (thresholdLevels.includes(lv)) {
-            const style = getLevelStyle(lv); // 레벨별 테두리 색상 가져오기
-            const badge = getLevelBadge(lv); // 레벨 배지 아이콘 가져오기
+            const style = getLevelStyle(lv);
+            const badge = getLevelBadge(lv);
             
-            // 단순 텍스트가 아닌 '카드 정보 객체'를 큐에 저장
             levelUpQueue.push({
                 name: name,
                 level: lv,
                 badge: badge,
-                color: style.border, // 이 색상이 테두리에 적용됩니다
+                color: style.border,
                 date: new Date().toLocaleDateString().replace(/\. /g, '.').slice(0, -1)
             });
             break; 
@@ -2673,36 +2670,53 @@ window.checkLevelUpgrade = (name, oldLevel, newLevel) => {
     }
 };
 
-// 3. 통합 알림창 띄우기 함수 (카드 시스템 시작)
+// 3. 기록 저장 후 팝업을 띄우는 함수
 window.showCombinedLevelUpAlert = () => {
-    if (levelUpQueue.length === 0) return;
-    showNextLevelUpCard(); // 첫 번째 카드부터 표시
+    if (levelUpQueue.length > 0) {
+        showNextLevelUpCard();
+    }
 };
 
-// 4. 카드 데이터를 화면에 그려주는 핵심 함수
+// 4. 잔디(분기 마크) 클릭 시 팝업을 띄우는 함수 (추가됨)
+window.showLevelCardDirect = (name, level) => {
+    const style = getLevelStyle(level);
+    const badge = getLevelBadge(level);
+    
+    // 큐에 단일 데이터 삽입 후 바로 표시
+    levelUpQueue = [{
+        name: name,
+        level: level,
+        badge: badge,
+        color: style.border,
+        date: "OFFICIAL RECORD" // 특정 날짜 대신 문구 삽입
+    }];
+    showNextLevelUpCard();
+};
+
+// 5. 카드 데이터를 화면에 그리는 핵심 로직
 window.showNextLevelUpCard = () => {
     if (levelUpQueue.length === 0) {
         closeLevelUpModal();
         return;
     }
 
-    const member = levelUpQueue[0]; // 현재 처리 중인 멤버
+    const member = levelUpQueue[0];
     const modal = document.getElementById('levelUpModal');
     
-    // 카드 내용 실시간 매핑
+    // 요소 업데이트
     document.getElementById('cardName').innerText = member.name;
     document.getElementById('cardLevel').innerText = `LV.${member.level}`;
     document.getElementById('cardMark').innerText = member.badge;
-    document.getElementById('cardDate').innerText = `${member.date} OFFICIAL RECORD`;
+    document.getElementById('cardDate').innerText = member.date;
     
-    // [중요] 테두리 및 텍스트 색상을 해당 레벨 색상으로 변경
+    // 레벨 색상 동적 적용
     const border = document.getElementById('dynamicBorder');
     border.style.setProperty('--border-color', member.color);
     document.getElementById('cardLevel').style.color = member.color;
     document.getElementById('rankerTag').style.color = member.color;
     document.getElementById('rankerTag').style.borderColor = member.color + '66';
 
-    // 다음 대기 인원 표시 관리
+    // 대기열 버튼 관리
     const qCount = levelUpQueue.length - 1;
     const nextBtn = document.getElementById('nextMemberBtn');
     if (qCount > 0) {
@@ -2715,16 +2729,15 @@ window.showNextLevelUpCard = () => {
     modal.style.display = 'flex';
 };
 
-// 5. '다음 랭커' 버튼 클릭 시 실행될 함수
+// 6. 다음 버튼 및 닫기 함수
 window.nextMember = () => {
-    levelUpQueue.shift(); // 현재 사람 목록에서 제거
-    showNextLevelUpCard(); // 다음 사람 카드로 갱신 (없으면 종료)
+    levelUpQueue.shift();
+    showNextLevelUpCard();
 };
 
-// 6. 모달 닫기
 window.closeLevelUpModal = () => {
     document.getElementById('levelUpModal').style.display = 'none';
-    levelUpQueue = []; // 대기열 초기화
+    levelUpQueue = [];
 };
 
 window.addMultiActivity = async () => {
