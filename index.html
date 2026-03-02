@@ -2309,7 +2309,7 @@ logsQuarter.forEach(l => {
     }
 });
 
-// 2. 잔디 보드 HTML 생성
+// 2. 잔디 보드 HTML 생성 (수정본)
 let grassHtml = "";
 for (let i = 0; i < totalDaysInQ; i++) {
     const cur = new Date(start);
@@ -2322,23 +2322,20 @@ for (let i = 0; i < totalDaysInQ; i++) {
     let iconTag = ""; 
 
     if (act) {
-        // [수정된 부분] 정기산행인 경우: 고급 그라데이션 클래스 추가
         if (act.isRegular) {
-            cl += " grass-regular-premium"; // 새 클래스 적용
+            // [핵심] 클래스를 추가하고, 인라인 스타일은 비워버립니다.
+            cl += " grass-regular-premium";
+            style = ""; // 기존에 style에 색상을 넣었다면 여기서 초기화해야 CSS가 먹힙니다.
             
             const month = cur.getMonth() + 1;
-            let qIcon = "";
-            // 분기별 마크 (🌸봄, 🍀여름, 🍁가을, ❄️겨울)
-            if (month >= 3 && month <= 5) qIcon = "🌸";
-            else if (month >= 6 && month <= 8) qIcon = "🍀";
-            else if (month >= 9 && month <= 11) qIcon = "🍁";
-            else qIcon = "❄️";
+            let qIcon = (month >= 3 && month <= 5) ? "🌸" : 
+                        (month >= 6 && month <= 8) ? "🍀" : 
+                        (month >= 9 && month <= 11) ? "🍁" : "❄️";
 
-            // 아이콘이 배경색에 묻히지 않도록 그림자 살짝 추가
-            iconTag = `<span style="font-size: 11px; display: flex; align-items: center; justify-content: center; height: 100%; pointer-events: none; z-index: 2; position: relative; text-shadow: 0 0 3px rgba(0,0,0,0.3);">${qIcon}</span>`;
+            iconTag = `<span style="font-size: 11px; display: flex; align-items: center; justify-content: center; height: 100%; pointer-events: none; position: relative; z-index: 5; text-shadow: 0 0 3px rgba(0,0,0,0.2);">${qIcon}</span>`;
         } 
-        // 일반 기록인 경우
         else {
+            // 일반 기록 로직 (기존과 동일)
             const hasHike = act.hike > 0;
             const hasExtra = act.run > 0 || act.trek > 0;
             
@@ -2357,7 +2354,7 @@ for (let i = 0; i < totalDaysInQ; i++) {
     }
 
     const encodedAct = act ? btoa(JSON.stringify({...act})) : "";
-    // cl에 grass-regular-premium이 포함되어 있으므로 스타일이 우선순위를 가지며 애니메이션이 작동합니다.
+    // 생성된 cl과 style을 적용
     grassHtml += `<div class="${cl}" style="${style}" onclick="window.showGrassPopup(event, '${k}', '${encodedAct}')">${iconTag}</div>`;
 }
 
