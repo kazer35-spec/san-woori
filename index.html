@@ -1545,30 +1545,27 @@ overflow: hidden;
 
 <div id="levelUpCardModal" class="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-md hidden items-center justify-center p-5">
     <div class="w-full max-w-[400px] text-center">
-        <h2 class="text-2xl font-black mb-1 text-white text-emerald-400">GROUP LEVEL UP!</h2>
-        <p class="text-slate-400 text-[10px] italic mb-5">오늘의 영광스러운 주인공들입니다.</p>
+        <h2 id="modalTitle" class="text-2xl font-black mb-1 text-white">LEVEL UP!</h2>
+        <p class="text-slate-400 text-[10px] italic mb-5">영광스러운 순간을 기록하세요.</p>
         
-        <div id="cardToCapture" class="inline-block">
-            <div class="relative w-[340px] min-h-[340px] bg-black rounded-[20px] overflow-hidden flex items-center justify-center p-2">
-                <div id="cardBorder" class="absolute w-[300%] h-[300%] animate-rotate"></div>
+        <div id="cardToCapture" class="inline-block bg-black p-[3px] rounded-[22px]">
+            <div id="cardFrame" class="relative w-[340px] min-h-[340px] bg-[#0f172a] rounded-[20px] overflow-hidden flex flex-col p-6 border-4">
                 
-                <div class="relative z-10 w-full h-full bg-[#0f172a] rounded-[16px] p-4 flex flex-col justify-between">
-                    <div class="text-center mb-4">
-                        <span class="text-[9px] font-bold border border-emerald-500/30 px-3 py-1 rounded-full text-emerald-500 uppercase">San Woori Official Record</span>
+                <div class="text-center mb-4">
+                    <span id="cardRankTag" class="text-[9px] font-bold border px-3 py-1 rounded-full uppercase">San Woori Official</span>
+                </div>
+
+                <div id="cardContent" class="flex-grow flex flex-col items-center justify-center">
                     </div>
 
-                    <div id="groupGrid" class="grid gap-2 w-full flex-grow content-center">
-                        </div>
-
-                    <div class="mt-4 pt-3 border-t border-slate-800 text-center">
-                        <p id="cardDate" class="text-[8px] text-slate-600 tracking-widest uppercase"></p>
-                    </div>
+                <div class="mt-4 pt-3 border-t border-slate-800 text-center">
+                    <p id="cardDate" class="text-[8px] text-slate-600 tracking-widest uppercase"></p>
                 </div>
             </div>
         </div>
 
         <div class="space-y-3 mt-8">
-            <button onclick="saveCardImage()" class="w-full bg-emerald-600 text-white py-4 rounded-xl font-black shadow-lg">📸 단체 인증샷 저장</button>
+            <button onclick="saveCardImage()" class="w-full bg-emerald-600 text-white py-4 rounded-xl font-black shadow-lg">📸 이미지 저장하기</button>
             <button onclick="document.getElementById('levelUpCardModal').style.display='none'; pendingLevelUpCards=[];" class="w-full text-slate-500 text-sm font-bold">닫기</button>
         </div>
     </div>
@@ -2666,86 +2663,76 @@ m.totalHeight = allLogsSnap.docs.reduce((acc, l) => acc + (l.data().height || 0)
 updateVibeTemp();
 }
 
-// 1. 레벨업 데이터 보관함
 let pendingLevelUpCards = [];
 
-// 2. 레벨업 체크 및 데이터 수집 (기존 checkLevelUpgrade 대체)
 window.checkLevelUpgrade = (name, oldLevel, newLevel) => {
     const thresholdLevels = levelThresholds.map(t => t.lv);
     for (let lv = oldLevel + 1; lv <= newLevel; lv++) {
         if (thresholdLevels.includes(lv)) {
             const badge = getLevelBadge(lv);
             const style = getLevelStyle(lv);
-            
-            pendingLevelUpCards.push({
-                name: name,
-                level: lv,
-                badge: badge,
-                color: style.border,
-                rankName: style.name || "San Woori Ranker"
-            });
-            break; // 한 명당 한 단계만 기록 (중복 방지)
+            pendingLevelUpCards.push({ name, level: lv, badge, color: style.border });
+            break; 
         }
     }
 };
 
-// 3. [통합 코드] 단체 카드 생성 및 팝업 실행
 window.showCombinedLevelUpAlert = () => {
     if (pendingLevelUpCards.length === 0) return;
 
-    const grid = document.getElementById('groupGrid');
-    const modal = document.getElementById('levelUpCardModal');
-    const border = document.getElementById('cardBorder');
-    const dateEl = document.getElementById('cardDate');
+    const content = document.getElementById('cardContent');
+    const frame = document.getElementById('cardFrame');
+    const rankTag = document.getElementById('cardRankTag');
+    const title = document.getElementById('modalTitle');
     const count = pendingLevelUpCards.length;
+    
+    // 첫 번째 사람의 색상으로 테두리 고정 (애니메이션 제거)
+    const primaryColor = pendingLevelUpCards[0].color;
+    frame.style.borderColor = primaryColor;
+    rankTag.style.color = primaryColor;
+    rankTag.style.borderColor = primaryColor + "44";
+    title.style.color = primaryColor;
 
-    // 초기화
-    grid.innerHTML = '';
+    content.innerHTML = ''; // 초기화
 
-    // 인원수에 따른 그리드 레이아웃 결정
     if (count === 1) {
-        grid.className = "grid grid-cols-1 gap-4";
-    } else if (count <= 4) {
-        grid.className = "grid grid-cols-2 gap-2";
+        // [1명일 때: 전체 카드 모드]
+        const user = pendingLevelUpCards[0];
+        content.innerHTML = `
+            <div class="flex flex-col items-center">
+                <div class="text-8xl mb-4">${user.badge}</div>
+                <div class="text-4xl font-black mb-2" style="color:${user.color}">LV.${user.level}</div>
+                <div class="text-2xl font-bold text-white">${user.name} <small class="text-slate-500 text-sm">님</small></div>
+                <p class="text-slate-400 text-xs mt-4 italic">"산우리의 든든한 등불입니다"</p>
+            </div>
+        `;
     } else {
-        grid.className = "grid grid-cols-3 gap-2";
+        // [여러 명일 때: 단체 격자 모드]
+        const grid = document.createElement('div');
+        grid.className = `grid gap-2 w-full ${count <= 4 ? 'grid-cols-2' : 'grid-cols-3'}`;
+        
+        pendingLevelUpCards.forEach(user => {
+            const userBox = document.createElement('div');
+            userBox.className = "bg-black/40 rounded-xl p-3 border border-white/5 flex flex-col items-center";
+            userBox.innerHTML = `
+                <div class="text-3xl mb-1">${user.badge}</div>
+                <div class="text-[14px] font-black" style="color:${user.color}">LV.${user.level}</div>
+                <div class="text-[11px] text-white font-bold truncate w-full text-center">${user.name}</div>
+            `;
+            grid.appendChild(userBox);
+        });
+        content.appendChild(grid);
     }
 
-    // 인원별 개별 칸 생성
-    pendingLevelUpCards.forEach(user => {
-        const userBox = document.createElement('div');
-        // 인원수가 많아지면 패딩과 폰트 사이즈 조절
-        const paddingSize = count > 4 ? "p-2" : "p-4";
-        const fontSize = count > 4 ? "text-[10px]" : "text-[12px]";
-        const badgeSize = count > 4 ? "text-2xl" : "text-4xl";
-
-        userBox.className = `${paddingSize} bg-black/40 rounded-xl border border-white/10 flex flex-col items-center justify-center min-w-[80px]`;
-        userBox.innerHTML = `
-            <div class="${badgeSize} mb-1">${user.badge}</div>
-            <div class="font-black text-[14px]" style="color:${user.color}">LV.${user.level}</div>
-            <div class="${fontSize} text-white font-bold truncate w-full text-center">${user.name}</div>
-        `;
-        grid.appendChild(userBox);
-    });
-
-    // 대표 테두리 색상 (첫 번째 사람의 색상 기준)
-    const primaryColor = pendingLevelUpCards[0].color || "#10b981";
-    border.style.setProperty('--clr', primaryColor);
-
-    // 날짜 업데이트
-    const now = new Date();
-    dateEl.innerText = `${now.getFullYear()}.${(now.getMonth()+1).toString().padStart(2, '0')}.${now.getDate().toString().padStart(2, '0')} OFFICIAL RECORD`;
-
-    // 모달 표시
-    modal.style.display = 'flex';
+    document.getElementById('cardDate').innerText = `${new Date().toLocaleDateString()} OFFICIAL RECORD`;
+    document.getElementById('levelUpCardModal').style.display = 'flex';
 };
 
-// 4. 이미지 저장 함수 (html2canvas 필요)
 window.saveCardImage = async () => {
     const area = document.getElementById('cardToCapture');
     try {
         const canvas = await html2canvas(area, {
-            scale: 3, // 고화질
+            scale: 2, // 저장 오류 방지를 위해 적절한 해상도 유지
             backgroundColor: "#000",
             useCORS: true,
             logging: false
@@ -2753,11 +2740,10 @@ window.saveCardImage = async () => {
         const imgData = canvas.toDataURL("image/png");
         const link = document.createElement('a');
         link.href = imgData;
-        link.download = `산우리_단체레벨업_${new Date().getTime()}.png`;
+        link.download = `SanWoori_LevelUp.png`;
         link.click();
     } catch (e) {
-        console.error("Capture Error:", e);
-        alert("이미지 생성 중 오류가 발생했습니다. 화면을 직접 캡처해주세요!");
+        alert("이미지 생성 중 오류가 발생했습니다. 직접 캡처를 권장합니다.");
     }
 };
 
