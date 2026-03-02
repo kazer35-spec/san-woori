@@ -1257,7 +1257,8 @@ color: #991b1b !important;
 50% { border-color: #ea580c; box-shadow: 0 0 8px rgba(234, 88, 12, 0.5); }
 100% { border-color: #f97316; }
 }
-/* 실제 적용되는 클래스 */
+
+    /* 실제 적용되는 클래스 */
 .level-blink-orange {
 animation: glow-orange 1.5s infinite ease-in-out;
 border-width: 1.8px !important;
@@ -2507,7 +2508,7 @@ document.getElementById('adminManualRegionSelect').value = detectedRegion;
 document.getElementById('coordDisplay').innerText = `좌표: X ${tempCoord.x} / Y ${tempCoord.y} (${detectedRegion})`;
 };
 
-   window.toggleMarkerStyle = () => {
+    window.toggleMarkerStyle = () => {
 const marker = document.getElementById('adminMapMarker');
 if(document.getElementById('isTop100Check').checked) marker.classList.add('top-100');
 else marker.classList.remove('top-100');
@@ -3290,11 +3291,18 @@ window.renderTreeRings = async (memberName, regDate, memberLevel, logs = []) => 
     svg.setAttribute("viewBox", "0 0 240 240");
     svg.style.cssText = "width:100%; height:100%; overflow:visible;";
 
+    // --- [복구 구간 1: 행성 움직임을 위한 그룹화] ---
+    const coreGroup = document.createElementNS(svgNS, "g");
+    coreGroup.setAttribute("class", "planet-core-group"); // CSS 애니메이션용 클래스
+    
     const core = document.createElementNS(svgNS, "circle");
     core.setAttribute("cx", "120"); core.setAttribute("cy", "120"); core.setAttribute("r", "4");
     core.setAttribute("fill", ringBaseColor);
     core.style.filter = `drop-shadow(0 0 8px ${ringBaseColor})`;
-    svg.appendChild(core);
+    
+    coreGroup.appendChild(core);
+    svg.appendChild(coreGroup);
+    // ------------------------------------------
 
     const seed = memberName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
     const delayStep = Math.min(50, 1500 / diffMonths);
@@ -3331,6 +3339,8 @@ window.renderTreeRings = async (memberName, regDate, memberLevel, logs = []) => 
             const sColor = starColors[starLog.starType];
             const starCircle = document.createElementNS(svgNS, "circle");
             const starAngle = ((seed + i + sIdx * 45) % 360) * (Math.PI / 180);
+            
+            // 사용자님의 원본 계산식 그대로 유지: radius + Math.sin(...)
             const starR = radius + Math.sin(((seed + i + sIdx * 45) % 360) * (seed % 4 + 3) + i) * 2;
 
             starCircle.setAttribute("cx", 120 + starR * Math.cos(starAngle));
@@ -3339,7 +3349,7 @@ window.renderTreeRings = async (memberName, regDate, memberLevel, logs = []) => 
             starCircle.setAttribute("fill", sColor);
             starCircle.style.filter = `drop-shadow(0 0 5px ${sColor})`;
             starCircle.style.opacity = "0";
-            starCircle.classList.add('animate-twinkle');
+            starCircle.classList.add('animate-twinkle'); // 반짝임 효과
             svg.appendChild(starCircle);
             setTimeout(() => { starCircle.style.opacity = "1"; }, i * delayStep + 200);
         });
@@ -3355,6 +3365,29 @@ window.renderTreeRings = async (memberName, regDate, memberLevel, logs = []) => 
         }, i * delayStep);
     }
     container.appendChild(svg);
+
+    // --- [복구 구간 2: 중앙 행성 주변 반짝이는 미세 별빛 효과] ---
+    setTimeout(() => {
+        for (let i = 0; i < 15; i++) {
+            const starInner = document.createElement('div');
+            starInner.style.cssText = `
+                position: absolute; width: 1.5px; height: 1.5px;
+                left: ${50 + (Math.random() - 0.5) * 8}%;
+                top: ${50 + (Math.random() - 0.5) * 8}%;
+                background: white; border-radius: 50%; opacity: 0;
+                pointer-events: none; box-shadow: 0 0 3px white;
+            `;
+            container.appendChild(starInner);
+            starInner.animate([
+                { opacity: 0 }, { opacity: 0.8 }, { opacity: 0 }
+            ], {
+                duration: 1000 + Math.random() * 2000,
+                iterations: Infinity,
+                delay: Math.random() * 2000
+            });
+        }
+    }, 500);
+    // --------------------------------------------------------
 };
 
 // [6] 애니메이션 실행: 안쪽부터 순차적으로 등장
@@ -3780,4 +3813,4 @@ document.addEventListener('touchstart', (e) => {
 
 </script>
 </body>
-    </html> 
+    </html>
