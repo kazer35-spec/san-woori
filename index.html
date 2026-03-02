@@ -2660,21 +2660,23 @@ m.totalHeight = allLogsSnap.docs.reduce((acc, l) => acc + (l.data().height || 0)
 updateVibeTemp();
 }
 
-// 1. 데이터 수집 함수 (이름/레벨/이모지만 저장)
+let pendingLevelUpCards = [];
+
+// 1. 데이터 수집 함수 (마크명 제외, 이모지만 추출)
 window.checkLevelUpgrade = (name, oldLevel, newLevel) => {
     const thresholdLevels = levelThresholds.map(t => t.lv);
     for (let lv = oldLevel + 1; lv <= newLevel; lv++) {
         if (thresholdLevels.includes(lv)) {
-            const badge = getLevelBadge(lv); // 여기서 가져온 데이터 중 이모지만 쓸 겁니다.
+            const badge = getLevelBadge(lv); 
             const style = getLevelStyle(lv);
             
-            // 만약 badge에 글자가 포함되어 있다면 이모지(특수문자)만 남기는 처리를 추가합니다.
-            const emojiOnly = badge.replace(/[가-힣a-zA-Z0-9]/g, '').trim(); 
+            // 핵심: 정규식을 통해 한글, 영어, 숫자를 모두 제거하고 오직 '이모지'만 남깁니다.
+            const emojiOnly = badge.replace(/[가-힣a-zA-Z0-9\s]/g, '').trim(); 
 
             pendingLevelUpCards.push({ 
                 name, 
                 level: lv, 
-                badge: emojiOnly, // 이모지만 저장
+                badge: emojiOnly, // 이모지만 저장됨
                 color: style.border 
             });
             break; 
@@ -2682,7 +2684,7 @@ window.checkLevelUpgrade = (name, oldLevel, newLevel) => {
     }
 };
 
-// 2. 화면 출력 함수 (이미지 속 '태풍', '새싹' 글자 삭제 버전)
+// 2. 화면 출력 함수 (마크명 텍스트 레이아웃 삭제 버전)
 window.showCombinedLevelUpAlert = () => {
     if (pendingLevelUpCards.length === 0) return;
 
@@ -2703,7 +2705,7 @@ window.showCombinedLevelUpAlert = () => {
                 <div class="text-[10px] font-bold border px-3 py-1 rounded-full uppercase mb-6" 
                      style="color:${user.color}; border-color:${user.color}44;">SAN WOORI RANKER</div>
                 
-                <div class="text-8xl mb-6 drop-shadow-lg">${user.badge}</div>
+                <div class="text-8xl mb-6 drop-shadow-lg animate-bounce">${user.badge}</div>
                 
                 <div class="text-5xl font-black mb-3" style="color:${user.color}">LV.${user.level}</div>
                 <div class="text-3xl font-bold text-white mb-6">${user.name} <span class="text-slate-500 text-lg">님</span></div>
@@ -2712,7 +2714,7 @@ window.showCombinedLevelUpAlert = () => {
             </div>
         `;
     } else {
-        // 단체 모드 생략 (동일한 로직 적용)
+        // 단체 모드에서도 이모지와 레벨, 이름만 간결하게 표시
         const grid = document.createElement('div');
         grid.className = `grid gap-3 w-full ${pendingLevelUpCards.length <= 4 ? 'grid-cols-2' : 'grid-cols-3'}`;
         pendingLevelUpCards.forEach(user => {
