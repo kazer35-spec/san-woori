@@ -11,27 +11,6 @@
 body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: #333; }
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
-​
-    /* 기존 스타일에 추가 또는 수정 */
-.grass-regular {
-    position: relative;
-    cursor: pointer;
-    /* pointer-events: auto; 를 명시하여 부모는 클릭을 받게 함 */
-    pointer-events: auto !important; 
-}
-
-.grass-regular::after {
-    content: '';
-    position: absolute;
-    /* ... 기존 애니메이션 속성들 ... */
-    pointer-events: none !important; /* 반짝임 효과가 클릭을 가로채지 못하게 방어 */
-    z-index: 1;
-}
-
-.grass-regular span {
-    pointer-events: none !important; /* 아이콘(꽃, 단풍 등)이 클릭을 가로채지 못하게 방어 */
-    z-index: 2;
-}
 
 /* CSS 수정: 팝업이 어떤 창 위에서도 보일 수 있도록 설정 */
 #grassPopup {
@@ -1236,8 +1215,7 @@ color: #991b1b !important;
 50% { border-color: #ea580c; box-shadow: 0 0 8px rgba(234, 88, 12, 0.5); }
 100% { border-color: #f97316; }
 }
-
-    /* 실제 적용되는 클래스 */
+/* 실제 적용되는 클래스 */
 .level-blink-orange {
 animation: glow-orange 1.5s infinite ease-in-out;
 border-width: 1.8px !important;
@@ -3671,26 +3649,52 @@ style="position:absolute; top:15px; right:15px; color:white; background:none; bo
 
 <script>
  
-// 1. 전역 함수 강제 등록 (스크립트 최상단에 배치 권장)
+/* ===========================================
+   1. 전역 변수 및 반짝임 스타일 (JS에서 직접 주입)
+   =========================================== */
+if (!document.getElementById('grass-sparkle-style')) {
+    const style = document.createElement('style');
+    style.id = 'grass-sparkle-style';
+    style.innerHTML = `
+        @keyframes grass-twinkle {
+            0% { opacity: 0.3; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.1); filter: brightness(1.5); }
+            100% { opacity: 0.3; transform: scale(0.8); }
+        }
+        .sparkle-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; /* 🔥 핵심: 클릭이 이 레이어를 통과함 */
+            z-index: 1;
+        }
+        .sparkle-dot {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            box-shadow: 0 0 5px white;
+            animation: grass-twinkle 1.5s infinite ease-in-out;
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+/* ===========================================
+   2. 잔디 클릭 핸들러 (통합 버전)
+   =========================================== */
 window.handleGrassClick = function(e, date, hike, run, trek, isRegular) {
-    // 이벤트 전파 차단 (가장 중요: 팝업이 바로 닫히는 것 방지)
+    // 이벤트 전파 차단 (팝업이 즉시 닫히는 현상 방지)
     if (e) {
         if (e.stopPropagation) e.stopPropagation();
         if (e.preventDefault) e.preventDefault();
-    } else {
-        e = window.event; // 구형 브라우저 대응
     }
 
     const popup = document.getElementById('grassPopup');
     const content = document.getElementById('popupContent');
     const dateEl = document.getElementById('popupDate');
 
-    if (!popup) {
-        console.error("오류: HTML에 id='grassPopup' 요소가 없습니다.");
-        return;
-    }
+    if (!popup) return;
 
-    // 2. 내용 업데이트
+    // 내용 업데이트
     if (dateEl) dateEl.innerText = date;
     
     const m = new Date(date).getMonth() + 1;
@@ -3707,41 +3711,67 @@ window.handleGrassClick = function(e, date, hike, run, trek, isRegular) {
 
     if (content) content.innerHTML = items || "<div style='color:#94a3b8; font-size:11px;'>기록 없음</div>";
 
-    // 3. 팝업 노출 및 강제 스타일 설정
+    // 팝업 노출 및 스타일 강제 설정
     popup.style.display = 'block';
     popup.classList.remove('hidden');
     popup.style.position = 'fixed'; 
-    popup.style.zIndex = '999999';
+    popup.style.zIndex = '1000001'; // 최상단 유지
 
-    // 4. 좌표 계산 (클릭/터치 위치 기준)
+    // 좌표 계산
     const clientX = (e.touches && e.touches[0]) ? e.touches[0].clientX : e.clientX;
     const clientY = (e.touches && e.touches[0]) ? e.touches[0].clientY : e.clientY;
     
-    let posX = clientX + 10;
+    let posX = clientX + 15;
     let posY = clientY - 80;
 
-    // 화면 우측/상단 이탈 방지 로직
-    if (posX + 160 > window.innerWidth) posX = clientX - 150;
+    if (posX + 160 > window.innerWidth) posX = clientX - 160;
     if (posY < 0) posY = clientY + 20;
 
     popup.style.left = posX + "px";
     popup.style.top = posY + "px";
 };
 
-// 5. 팝업 바깥 클릭 시 닫기 (핸들러 하나로 통합)
-document.addEventListener('mousedown', function(event) {
+/* ===========================================
+   3. 정기산행 반짝임 레이어 생성 함수
+   =========================================== */
+window.addGrassSparkle = function(element) {
+    if (!element) return;
+    element.style.position = 'relative'; // 부모 기준점 설정
+    
+    const layer = document.createElement('div');
+    layer.className = 'sparkle-layer';
+    
+    // 무작위 위치에 2개의 반짝임 점 생성
+    for (let i = 0; i < 2; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'sparkle-dot';
+        dot.style.width = '3px';
+        dot.style.height = '3px';
+        dot.style.top = Math.random() * 80 + 10 + '%';
+        dot.style.left = Math.random() * 80 + 10 + '%';
+        dot.style.animationDelay = (Math.random() * 1) + 's';
+        layer.appendChild(dot);
+    }
+    element.appendChild(layer);
+};
+
+/* ===========================================
+   4. 바깥 클릭 시 닫기 (통합 및 최적화)
+   =========================================== */
+const closePopupHandler = function(event) {
     const popup = document.getElementById('grassPopup');
     if (popup && popup.style.display === 'block') {
-        // 팝업 내부를 클릭한 게 아니라면 닫기
-        if (!popup.contains(event.target)) {
+        // 클릭된 요소가 팝업 내부가 아니거나, 잔디 셀이 아닐 때만 닫기
+        if (!popup.contains(event.target) && !event.target.closest('[onclick*="handleGrassClick"]')) {
             popup.style.display = 'none';
             popup.classList.add('hidden');
         }
     }
-}, true); // true: 캡처링 단계에서 감지하여 신뢰성 높임
+};
 
-document.addEventListener('mousedown', closeGrassPopup);
-document.addEventListener('touchstart', closeGrassPopup, { passive: true });
+// 캡처링 단계에서 감지하여 신뢰성 확보
+document.addEventListener('mousedown', closePopupHandler, true);
+document.addEventListener('touchstart', closePopupHandler, { passive: true, capture: true });
 
 </script>
 </body>
