@@ -2660,118 +2660,79 @@ m.totalHeight = allLogsSnap.docs.reduce((acc, l) => acc + (l.data().height || 0)
 updateVibeTemp();
 }
 
-// 1. 레벨업 데이터 보관함 변수명 통일
+레벨업 데이터 보관함 변수명 통일
 let pendingLevelUpCards = [];
 
-// 2. 레벨업 체크 및 데이터 수집 (기존 checkLevelUpgrade 대체)
+// 1. 데이터 수집 함수 (이름/레벨/이모지만 저장)
 window.checkLevelUpgrade = (name, oldLevel, newLevel) => {
-    if (typeof levelThresholds === 'undefined') return; // 기본 변수 미선언 시 방어
-    
     const thresholdLevels = levelThresholds.map(t => t.lv);
     for (let lv = oldLevel + 1; lv <= newLevel; lv++) {
         if (thresholdLevels.includes(lv)) {
-            const badge = typeof getLevelBadge === 'function' ? getLevelBadge(lv) : "🔺"; // 함수 미정의 시 기본 이모지
-            const style = typeof getLevelStyle === 'function' ? getLevelStyle(lv) : { border: "#10b981" }; // 함수 미정의 시 기본 색상
+            const badge = getLevelBadge(lv); // 여기서 가져온 데이터 중 이모지만 쓸 겁니다.
+            const style = getLevelStyle(lv);
             
-            // 보관함에 객체 형태로 저장 (마크명 제외)
-            pendingLevelUpCards.push({ name, level: lv, badge, color: style.border });
-            break; // 인원당 가장 높은 레벨 카드 하나만 생성
+            // 만약 badge에 글자가 포함되어 있다면 이모지(특수문자)만 남기는 처리를 추가합니다.
+            const emojiOnly = badge.replace(/[가-힣a-zA-Z0-9]/g, '').trim(); 
+
+            pendingLevelUpCards.push({ 
+                name, 
+                level: lv, 
+                badge: emojiOnly, // 이모지만 저장
+                color: style.border 
+            });
+            break; 
         }
     }
 };
 
-// 3. [통합] 카드 생성 및 모달 표시 함수 (기존 showCombinedLevelUpAlert 대체)
+// 2. 화면 출력 함수 (이미지 속 '태풍', '새싹' 글자 삭제 버전)
 window.showCombinedLevelUpAlert = () => {
     if (pendingLevelUpCards.length === 0) return;
 
-    const modal = document.getElementById('levelUpCardModal');
     const content = document.getElementById('cardContent');
     const frame = document.getElementById('cardFrame');
     const title = document.getElementById('modalTitle');
-    const dateEl = document.getElementById('cardDate');
     
-    // 필수 요소 미존재 시 방어
-    if (!modal || !content || !frame || !title || !dateEl) return;
+    const primaryColor = pendingLevelUpCards[0].color;
+    frame.style.borderColor = primaryColor;
+    title.style.color = primaryColor;
 
-    const count = pendingLevelUpCards.length;
-    
-    // 대표 색상 설정: 첫 번째 사람의 색상으로 테두리 및 제목 색상 고정 (애니메이션 제거)
-    const primaryColor = pendingLevelUpCards[0].color || "#10b981";
-    frame.style.borderColor = primaryColor; // 테두리 색상 고정
-    title.style.color = primaryColor; // 제목 색상 고정
+    content.innerHTML = '';
 
-    content.innerHTML = ''; // 기존 콘텐츠 초기화
-
-    if (count === 1) {
-        // [1명일 때: 전체 카드 모드] - 마크명(badgeName) 제외
+    if (pendingLevelUpCards.length === 1) {
         const user = pendingLevelUpCards[0];
         content.innerHTML = `
             <div class="flex flex-col items-center">
-                <div class="text-8xl mb-4">${user.badge}</div>
-                <div class="text-4xl font-black mb-2" style="color:${user.color}">LV.${user.level}</div>
-                <div class="text-2xl font-bold text-white">${user.name} <small class="text-slate-500 text-sm">님</small></div>
-                <p class="text-slate-400 text-xs mt-4 italic">"산우리의 든든한 등불입니다"</p>
+                <div class="text-[10px] font-bold border px-3 py-1 rounded-full uppercase mb-6" 
+                     style="color:${user.color}; border-color:${user.color}44;">SAN WOORI RANKER</div>
+                
+                <div class="text-8xl mb-6 drop-shadow-lg">${user.badge}</div>
+                
+                <div class="text-5xl font-black mb-3" style="color:${user.color}">LV.${user.level}</div>
+                <div class="text-3xl font-bold text-white mb-6">${user.name} <span class="text-slate-500 text-lg">님</span></div>
+                
+                <p class="text-slate-400 text-sm italic">"산우리의 든든한 등불입니다"</p>
             </div>
         `;
     } else {
-        // [여러 명일 때: 단체 격자 모드] - 마크명 제외
+        // 단체 모드 생략 (동일한 로직 적용)
         const grid = document.createElement('div');
-        // 인원수에 따라 2열 또는 3열 격자 설정
-        grid.className = `grid gap-2 w-full ${count <= 4 ? 'grid-cols-2' : 'grid-cols-3'}`;
-        
+        grid.className = `grid gap-3 w-full ${pendingLevelUpCards.length <= 4 ? 'grid-cols-2' : 'grid-cols-3'}`;
         pendingLevelUpCards.forEach(user => {
             const userBox = document.createElement('div');
-            userBox.className = "bg-black/40 rounded-xl p-3 border border-white/5 flex flex-col items-center justify-center";
+            userBox.className = "bg-black/40 rounded-xl p-4 border border-white/5 flex flex-col items-center";
             userBox.innerHTML = `
-                <div class="text-3xl mb-1">${user.badge}</div>
-                <div class="text-[14px] font-black" style="color:${user.color}">LV.${user.level}</div>
-                <div class="text-[11px] text-white font-bold truncate w-full text-center">${user.name}</div>
+                <div class="text-4xl mb-2">${user.badge}</div>
+                <div class="text-lg font-black" style="color:${user.color}">LV.${user.level}</div>
+                <div class="text-xs text-white font-bold truncate w-full text-center">${user.name}</div>
             `;
             grid.appendChild(userBox);
         });
         content.appendChild(grid);
     }
 
-    // 날짜 업데이트
-    const now = new Date();
-    dateEl.innerText = `${now.getFullYear()}.${(now.getMonth()+1).toString().padStart(2, '0')}.${now.getDate().toString().padStart(2, '0')} OFFICIAL RECORD`;
-    
-    // 모달 표시
-    modal.style.display = 'flex';
-};
-
-// 4. 이미지 저장 함수 (html2canvas 오류 최적화)
-window.saveCardImage = async () => {
-    const area = document.getElementById('cardToCapture');
-    if (!area) return;
-
-    // 저장 중 버튼 중복 클릭 방지 (선택 사항)
-    const saveBtn = document.querySelector('button[onclick="saveCardImage()"]');
-    if (saveBtn) saveBtn.disabled = true;
-
-    try {
-        // html2canvas 옵션 최적화: scale 조정, 자원 사용 최적화
-        const canvas = await html2canvas(area, {
-            scale: 2, // 모바일 해상도를 고려하여 2배로 설정 (오류 시 1로 낮춤)
-            backgroundColor: "#000000", // 배경색 명시
-            useCORS: true, // 크로스 도메인 이미지 허용
-            logging: false, // 로깅 끔
-            removeContainer: true // 렌더링 후 임시 컨테이너 제거
-        });
-        
-        const imgData = canvas.toDataURL("image/png");
-        const link = document.createElement('a');
-        link.href = imgData;
-        link.download = `SanWoori_LevelUp_${new Date().getTime()}.png`; // 파일명에 타임스탬프 추가
-        document.body.appendChild(link); // Firefox 등 일부 브라우저 대응
-        link.click();
-        document.body.removeChild(link); // 링크 제거
-    } catch (e) {
-        console.error("이미지 생성 오류:", e);
-        alert("이미지 생성 중 오류가 발생했습니다. 브라우저 호환성 문제일 수 있으니 직접 화면을 캡처해 주세요.");
-    } finally {
-        if (saveBtn) saveBtn.disabled = false; // 버튼 다시 활성화
-    }
+    document.getElementById('cardDate').innerText = `${new Date().toLocaleDateString()} OFFICIAL RECORD`;
+    document.getElementById('levelUpCardModal').style.display = 'flex';
 };
 
 window.addMultiActivity = async () => {
