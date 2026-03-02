@@ -12,14 +12,33 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-/* 기존 style 태그 안에 수정/추가 */
-.card-border {
-    position: absolute; width: 250%; height: 250%;
-    /* 기본값, JS에서 세부 조정 */
-    background: conic-gradient(from 0deg, var(--border-color, #10b981), #fff, var(--border-color, #10b981));
-    animation: rotate 4s linear infinite;
+/* 카드 알림창 전체 배경 */
+.levelup-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.85); z-index: 9999;
+    display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(5px);
 }
-.level-num { color: var(--border-color, #10b981); }
+/* 카드 컨테이너 */
+.levelup-card-container { width: 85%; max-width: 350px; text-align: center; }
+.levelup-main-title { color: white; font-weight: 900; margin-bottom: 20px; font-size: 1.5rem; }
+.levelup-card-scroll { max-height: 60vh; overflow-y: auto; padding: 5px; }
+
+/* 개별 카드 디자인 */
+.member-up-card {
+    background: #222; border-radius: 15px; padding: 20px;
+    margin-bottom: 15px; border: 3px solid; /* 색상은 JS에서 자동 부여 */
+    color: white;
+}
+.card-inner-name { font-size: 1.1rem; font-weight: bold; }
+.card-inner-badge { font-size: 1.4rem; margin: 8px 0; }
+.card-inner-desc { color: #888; font-size: 0.75rem; }
+
+/* 닫기 버튼 */
+.levelup-close-btn {
+    background: #fff; color: #000; border: none; padding: 12px 30px;
+    border-radius: 25px; font-weight: bold; margin-top: 15px; width: 100%;
+}
 
 /* 은하수 별들이 미세하게 떠다니며 반짝이는 효과 */
 @keyframes starFloating {
@@ -1543,16 +1562,15 @@ overflow: hidden;
 </head>
 <body>
 
-<div id="levelupAlert" class="fixed inset-0 z-[200] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
-<div class="bg-white rounded-3xl p-8 max-w-sm w-[90%] text-center shadow-2xl transform scale-90 transition-transform duration-300 ease-out border-4 border-yellow-400">
-<div class="text-5xl mb-4">🎊</div>
-<h2 id="levelUpTitle" class="text-2xl font-black text-slate-800 mb-2">LEVEL UP!</h2>
-<div id="levelUpMsgContainer" class="text-sm font-bold text-slate-600 mb-6 space-y-2 bg-slate-50 p-4 rounded-xl max-h-[200px] overflow-y-auto">
-</div>
-<button onclick="closeLevelupAlert()" class="w-full py-4 bg-yellow-400 hover:bg-yellow-500 text-yellow-900 rounded-2xl font-black transition-colors shadow-lg">
-축하 메시지 복사 및 닫기
-</button>
-</div>
+<div id="levelupAlert" class="levelup-overlay" style="display:none;">
+    <div class="levelup-card-container">
+        <h2 id="levelUpTitle" class="levelup-main-title">LEVEL UP!</h2>
+        <div id="levelUpCardList" class="levelup-card-scroll"></div>
+        
+        <div class="levelup-footer">
+            <button onclick="closeLevelupAlert()" class="levelup-close-btn">축하 확인 및 닫기</button>
+        </div>
+    </div>
 </div>
 
 <div class="main-container flex flex-col">
@@ -2647,97 +2665,58 @@ m.totalHeight = allLogsSnap.docs.reduce((acc, l) => acc + (l.data().height || 0)
 updateVibeTemp();
 }
 
-// 1. 전역 변수 선언
-let levelUpQueue = []; 
+// 1. 데이터 저장 변수 (이름 변경: Messages -> Data)
+let pendingLevelUpData = [];
 
-// 2. 레벨업 체크 함수 (기록 저장 시 호출됨)
+// 2. 레벨업 데이터 수집 (텍스트 대신 '정보'를 담습니다)
 window.checkLevelUpgrade = (name, oldLevel, newLevel) => {
     const thresholdLevels = levelThresholds.map(t => t.lv);
     for (let lv = oldLevel + 1; lv <= newLevel; lv++) {
         if (thresholdLevels.includes(lv)) {
-            const style = getLevelStyle(lv);
             const badge = getLevelBadge(lv);
+            const style = getLevelStyle(lv); // 현재 적용된 레벨 색상 가져오기
             
-            levelUpQueue.push({
+            pendingLevelUpData.push({
                 name: name,
                 level: lv,
                 badge: badge,
-                color: style.border,
-                date: new Date().toLocaleDateString().replace(/\. /g, '.').slice(0, -1)
+                color: style.border || '#ffd700' // 색상이 없으면 기본 금색
             });
             break; 
         }
     }
 };
 
-// 3. 기록 저장 후 팝업을 띄우는 함수
+// 3. 모바일 카드형 알림창 띄우기
 window.showCombinedLevelUpAlert = () => {
-    if (levelUpQueue.length > 0) {
-        showNextLevelUpCard();
-    }
-};
+    if (pendingLevelUpData.length === 0) return;
 
-// 4. 잔디(분기 마크) 클릭 시 팝업을 띄우는 함수 (추가됨)
-window.showLevelCardDirect = (name, level) => {
-    const style = getLevelStyle(level);
-    const badge = getLevelBadge(level);
-    
-    // 큐에 단일 데이터 삽입 후 바로 표시
-    levelUpQueue = [{
-        name: name,
-        level: level,
-        badge: badge,
-        color: style.border,
-        date: "OFFICIAL RECORD" // 특정 날짜 대신 문구 삽입
-    }];
-    showNextLevelUpCard();
-};
+    const listContainer = document.getElementById('levelUpCardList');
+    const overlay = document.getElementById('levelupAlert');
 
-// 5. 카드 데이터를 화면에 그리는 핵심 로직
-window.showNextLevelUpCard = () => {
-    if (levelUpQueue.length === 0) {
-        closeLevelUpModal();
-        return;
+    // 카드 목록 생성 (테두리 색상을 실시간 반영)
+    listContainer.innerHTML = pendingLevelUpData.map(data => `
+        <div class="member-up-card" style="border-color: ${data.color}; box-shadow: 0 0 15px ${data.color}66;">
+            <div class="card-inner-name">${data.name}</div>
+            <div style="color: ${data.color}; font-size: 0.8rem; font-weight: bold; margin-bottom:5px;">LEVEL UP!</div>
+            <div class="card-inner-badge">${data.badge}</div>
+            <div class="card-inner-desc">${data.level}레벨 달성을 축하합니다!</div>
+        </div>
+    `).join('');
+
+    const titleEl = document.getElementById('levelUpTitle');
+    if (titleEl) {
+        titleEl.innerText = pendingLevelUpData.length > 1 ? "GROUP UP!" : "LEVEL UP!";
     }
 
-    const member = levelUpQueue[0];
-    const modal = document.getElementById('levelUpModal');
-    
-    // 요소 업데이트
-    document.getElementById('cardName').innerText = member.name;
-    document.getElementById('cardLevel').innerText = `LV.${member.level}`;
-    document.getElementById('cardMark').innerText = member.badge;
-    document.getElementById('cardDate').innerText = member.date;
-    
-    // 레벨 색상 동적 적용
-    const border = document.getElementById('dynamicBorder');
-    border.style.setProperty('--border-color', member.color);
-    document.getElementById('cardLevel').style.color = member.color;
-    document.getElementById('rankerTag').style.color = member.color;
-    document.getElementById('rankerTag').style.borderColor = member.color + '66';
-
-    // 대기열 버튼 관리
-    const qCount = levelUpQueue.length - 1;
-    const nextBtn = document.getElementById('nextMemberBtn');
-    if (qCount > 0) {
-        nextBtn.style.display = 'block';
-        document.getElementById('queueCount').innerText = qCount;
-    } else {
-        nextBtn.style.display = 'none';
-    }
-
-    modal.style.display = 'flex';
+    overlay.style.display = 'flex';
 };
 
-// 6. 다음 버튼 및 닫기 함수
-window.nextMember = () => {
-    levelUpQueue.shift();
-    showNextLevelUpCard();
-};
-
-window.closeLevelUpModal = () => {
-    document.getElementById('levelUpModal').style.display = 'none';
-    levelUpQueue = [];
+// 4. 알림창 닫기 (데이터 초기화)
+window.closeLevelupAlert = () => {
+    const overlay = document.getElementById('levelupAlert');
+    overlay.style.display = 'none';
+    pendingLevelUpData = []; // 다음 레벨업을 위해 비우기
 };
 
 window.addMultiActivity = async () => {
@@ -3936,60 +3915,6 @@ document.addEventListener('touchstart', (e) => {
         popup.style.display = 'none';
     }
 }, { passive: true });
-
-    <div id="levelUpModal" style="display: none; position: fixed; inset: 0; z-index: 9999; background: rgba(0, 0, 0, 0.95); backdrop-filter: blur(10px); align-items: center; justify-content: center; padding: 20px;">
-        <div class="popup-content w-full max-w-[400px] text-center">
-            <h2 id="modalTitle" class="text-2xl font-black mb-1 text-white">⛰️ 등급 달성!</h2>
-            <p class="text-slate-400 text-xs italic mb-4">축하합니다! 새로운 마크를 획득했습니다.</p>
-            
-            <div class="card-container flex justify-center my-5">
-                <div id="cardToCapture">
-                    <div class="capture-card relative w-[90vw] max-w-[350px] aspect-square bg-black rounded-[20px] overflow-hidden flex items-center justify-center">
-                        <div id="dynamicBorder" class="card-border absolute w-[250%] h-[250%] animate-[rotate_4s_linear_infinite]"></div>
-                        <div class="card-inner absolute inset-[6px] bg-[#0f172a] rounded-[16px] z-10 flex flex-col items-center justify-between p-[10%_5%]">
-                            <span id="rankerTag" class="text-[10px] font-bold border px-3 py-1 rounded-full uppercase">San Woori Ranker</span>
-                            
-                            <div class="flex flex-col items-center">
-                                <div id="cardMark" class="text-5xl mb-1">⛰️</div>
-                                <div id="cardLevel" class="text-3xl font-black">LV.10</div>
-                            </div>
-
-                            <div class="text-center">
-                                <h3 class="text-xl font-black text-white"><span id="cardName">홍길동</span> <small class="text-slate-500 text-sm">님</small></h3>
-                                <p id="cardQuote" class="text-[11px] text-slate-400 mt-1 italic">"산우리의 든든한 등불입니다"</p>
-                            </div>
-                            
-                            <p id="cardDate" class="text-[8px] text-slate-700 tracking-widest uppercase">2026.03.02 OFFICIAL RECORD</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="space-y-3 mt-4">
-                <button onclick="shareProcess()" class="w-full bg-emerald-600 text-white py-4 rounded-xl font-black shadow-lg shadow-emerald-900/20">
-                    📸 공유용 이미지 만들기
-                </button>
-                <button id="nextMemberBtn" onclick="showNextLevelUpCard()" class="w-full bg-white/10 text-white py-3 rounded-xl font-bold" style="display:none;">
-                    다음 랭커 축하하기 (<span id="queueCount">0</span>명 남음)
-                </button>
-                <button onclick="closeLevelUpModal()" class="w-full text-slate-500 text-xs font-bold py-2">
-                    닫기
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div id="shareOverlay" style="display: none; position: fixed; inset: 0; z-index: 10000; background: rgba(0,0,0,1); flex-direction: column; align-items: center; justify-content: center; padding: 20px;">
-        <div class="text-center mb-6">
-            <h3 class="text-xl font-black text-emerald-400">이미지가 생성되었습니다!</h3>
-            <p class="text-slate-500 text-xs mt-1">이미지를 길게 눌러 저장하거나 버튼을 누르세요.</p>
-        </div>
-        <div id="finalImage" class="bg-white p-2 rounded-2xl mb-8"></div>
-        <div class="w-full max-w-[300px] flex flex-col gap-3">
-            <button onclick="downloadImg()" class="bg-blue-600 text-white py-4 rounded-xl font-bold">📥 갤러리에 저장</button>
-            <button onclick="closeShare()" class="bg-slate-800 text-slate-400 py-4 rounded-xl font-bold">닫기</button>
-        </div>
-    </div>
 
 </script>
 </body>
