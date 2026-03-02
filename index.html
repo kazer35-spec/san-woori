@@ -2679,10 +2679,10 @@ m.totalHeight = allLogsSnap.docs.reduce((acc, l) => acc + (l.data().height || 0)
 updateVibeTemp();
 }
 
-// 1. 데이터 저장 변수 (이름 변경: Messages -> Data)
-let pendingLevelUpData = [];
+// 1. 변수 선언 (이름 하나로 통일)
+let pendingLevelUpData = []; 
 
-// 2. 레벨업 데이터 수집 (텍스트 대신 '정보'를 담습니다)
+// 2. 데이터 수집 함수
 window.checkLevelUpgrade = (name, oldLevel, newLevel) => {
     const thresholdLevels = levelThresholds.map(t => t.lv);
     for (let lv = oldLevel + 1; lv <= newLevel; lv++) {
@@ -2690,42 +2690,44 @@ window.checkLevelUpgrade = (name, oldLevel, newLevel) => {
             const badge = getLevelBadge(lv);
             const style = getLevelStyle(lv);
             
-            // 전역 변수인 pendingLevelUpData에 푸시
             pendingLevelUpData.push({
                 name: name,
                 level: lv,
                 badge: badge,
                 color: style.border || '#ffd700'
             });
-            // break 제거 (한 번에 여러 레벨 업 할 경우 대비)
         }
     }
 };
 
-// 3. 모바일 카드형 알림창 띄우기
+// 3. 알림창 띄우기 (이름 오타 모두 수정됨)
 window.showCombinedLevelUpAlert = () => {
-    // 변수명 pendingLevelUpData 사용
-    if (!window.pendingLevelUpData || pendingLevelUpData.length === 0) return;
+    // [수정완료] 변수명을 Data로 일치시켰습니다.
+    if (!pendingLevelUpData || pendingLevelUpData.length === 0) return;
 
     const listContainer = document.getElementById('levelUpCardList');
     const overlay = document.getElementById('levelupAlert');
 
+    if (!listContainer || !overlay) {
+        console.error("알림창 HTML 요소(ID)를 찾을 수 없습니다.");
+        return;
+    }
+
     listContainer.innerHTML = pendingLevelUpData.map(data => `
         <div class="member-up-card">
-            <div class="card-border-rotate" style="background: conic-gradient(from 0deg, ${data.color || '#10b981'}, #3b82f6, #f59e0b, ${data.color || '#10b981'});"></div>
+            <div class="card-border-rotate" style="background: conic-gradient(from 0deg, ${data.color}, #3b82f6, #f59e0b, ${data.color});"></div>
             <div class="card-inner-new">
-                <span style="font-size: 10px; color: ${data.color || '#10b981'}; font-weight: bold; border: 1px solid ${data.color}55; border-radius: 50px; text-transform: uppercase; padding: 2px 8px;">
+                <span style="font-size: 10px; color: ${data.color}; font-weight: bold; border: 1px solid ${data.color}55; border-radius: 50px; text-transform: uppercase; padding: 2px 8px;">
                     San Woori Ranker
                 </span>
                 <div style="text-align: center;">
                     <div style="font-size: 4rem;">${data.badge || '⛰️'}</div>
-                    <div style="font-size: 1.5rem; font-weight: 900; color: ${data.color || '#10b981'};">LV.${data.level}</div>
+                    <div style="font-size: 1.5rem; font-weight: 900; color: ${data.color};">LV.${data.level}</div>
                 </div>
                 <div style="text-align: center;">
                     <h3 style="font-size: 1.2rem; font-weight: 900; color: white; margin: 0;">${data.name} <small style="color: #64748b; font-size: 0.8rem;">님</small></h3>
                     <p style="font-size: 10px; color: #94a3b8; margin-top: 4px; font-style: italic;">"산우리의 든든한 등불입니다"</p>
                 </div>
-                <p style="font-size: 8px; color: #334155; margin: 0;">OFFICIAL RECORD</p>
             </div>
         </div>
     `).join('');
@@ -2733,11 +2735,11 @@ window.showCombinedLevelUpAlert = () => {
     overlay.style.display = 'flex';
 };
 
-// 4. 알림창 닫기 (데이터 초기화)
+// 4. 알림창 닫기
 window.closeLevelupAlert = () => {
     const overlay = document.getElementById('levelupAlert');
-    overlay.style.display = 'none';
-    pendingLevelUpData = []; // 다음 레벨업을 위해 비우기
+    if (overlay) overlay.style.display = 'none';
+    pendingLevelUpData = []; // 초기화
 };
 
 window.addMultiActivity = async () => {
