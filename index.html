@@ -2680,7 +2680,7 @@ updateVibeTemp();
 }
 
 // 1. 데이터 저장 변수 (이름 변경: Messages -> Data)
-let pendingLevelUpData = [];
+let pendingLevelUpMessages = [];
 
 // 2. 레벨업 데이터 수집 (텍스트 대신 '정보'를 담습니다)
 window.checkLevelUpgrade = (name, oldLevel, newLevel) => {
@@ -2688,15 +2688,16 @@ window.checkLevelUpgrade = (name, oldLevel, newLevel) => {
     for (let lv = oldLevel + 1; lv <= newLevel; lv++) {
         if (thresholdLevels.includes(lv)) {
             const badge = getLevelBadge(lv);
-            const style = getLevelStyle(lv); // 현재 적용된 레벨 색상 가져오기
+            const style = getLevelStyle(lv);
             
-            pendingLevelUpData.push({
+            // 전역 변수인 pendingLevelUpMessages에 푸시
+            pendingLevelUpMessages.push({
                 name: name,
                 level: lv,
                 badge: badge,
-                color: style.border || '#ffd700' // 색상이 없으면 기본 금색
+                color: style.border || '#ffd700'
             });
-            break; 
+            // break 제거 (한 번에 여러 레벨 업 할 경우 대비)
         }
     }
 };
@@ -2736,7 +2737,7 @@ window.showCombinedLevelUpAlert = () => {
 window.closeLevelupAlert = () => {
     const overlay = document.getElementById('levelupAlert');
     overlay.style.display = 'none';
-    pendingLevelUpData = []; // 다음 레벨업을 위해 비우기
+    pendingLevelUpMessages = []; // 다음 레벨업을 위해 비우기
 };
 
 window.addMultiActivity = async () => {
