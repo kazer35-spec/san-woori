@@ -11,6 +11,48 @@
 body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: #333; }
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
+
+/* 정기산행 전용 그라데이션 및 반짝임 클래스 */
+.grass-regular {
+    background: linear-gradient(135deg, #1e293b 0%, #d4d4d8 33%, #f5f5f5 66%, #d6d3d1 100%) !important;
+    background-size: 200% 200% !important;
+    position: relative;
+    overflow: hidden;
+    border: 0.5px solid rgba(255,255,255,0.3);
+    animation: regularGradient 3s ease infinite, regularSparkle 2s linear infinite;
+}
+
+/* 배경 그라데이션 흐름 애니메이션 */
+@keyframes regularGradient {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* 가상 요소를 이용한 반짝이는 섬광 효과 */
+.grass-regular::after {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+        to bottom right,
+        rgba(255,255,255,0) 0%,
+        rgba(255,255,255,0) 40%,
+        rgba(255,255,255,0.4) 50%,
+        rgba(255,255,255,0) 60%,
+        rgba(255,255,255,0) 100%
+    );
+    transform: rotate(45deg);
+    animation: flashSweep 3s infinite;
+}
+
+@keyframes flashSweep {
+    0% { transform: translate(-100%, -100%) rotate(45deg); }
+    100% { transform: translate(100%, 100%) rotate(45deg); }
+}
 ​
 /* CSS 수정: 팝업이 어떤 창 위에서도 보일 수 있도록 설정 */
 #grassPopup {
@@ -2280,9 +2322,9 @@ for (let i = 0; i < totalDaysInQ; i++) {
     let iconTag = ""; 
 
     if (act) {
-        // [수정] 정기산행인 경우: 연한 회색 배경(#f3f4f6) + 마크 표시
+        // [수정된 부분] 정기산행인 경우: 고급 그라데이션 클래스 추가
         if (act.isRegular) {
-            style = "background-color: #f3f4f6 !important; border: 1px solid #e5e7eb;"; 
+            cl += " grass-regular-premium"; // 새 클래스 적용
             
             const month = cur.getMonth() + 1;
             let qIcon = "";
@@ -2292,9 +2334,10 @@ for (let i = 0; i < totalDaysInQ; i++) {
             else if (month >= 9 && month <= 11) qIcon = "🍁";
             else qIcon = "❄️";
 
-            iconTag = `<span style="font-size: 11px; display: flex; align-items: center; justify-content: center; height: 100%; pointer-events: none;">${qIcon}</span>`;
+            // 아이콘이 배경색에 묻히지 않도록 그림자 살짝 추가
+            iconTag = `<span style="font-size: 11px; display: flex; align-items: center; justify-content: center; height: 100%; pointer-events: none; z-index: 2; position: relative; text-shadow: 0 0 3px rgba(0,0,0,0.3);">${qIcon}</span>`;
         } 
-        // 일반 기록인 경우: 기존 색상 로직 유지
+        // 일반 기록인 경우
         else {
             const hasHike = act.hike > 0;
             const hasExtra = act.run > 0 || act.trek > 0;
@@ -2314,6 +2357,7 @@ for (let i = 0; i < totalDaysInQ; i++) {
     }
 
     const encodedAct = act ? btoa(JSON.stringify({...act})) : "";
+    // cl에 grass-regular-premium이 포함되어 있으므로 스타일이 우선순위를 가지며 애니메이션이 작동합니다.
     grassHtml += `<div class="${cl}" style="${style}" onclick="window.showGrassPopup(event, '${k}', '${encodedAct}')">${iconTag}</div>`;
 }
 
