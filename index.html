@@ -3437,22 +3437,25 @@ window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
                 satellite.setAttribute("opacity", "0"); // 초기엔 투명
                 
                 // 광채 효과
-                                satellite.style.filter = `drop-shadow(0 0 3px ${starColor}) brightness(1.2)`;
+                                                satellite.style.filter = `drop-shadow(0 0 3px ${starColor}) brightness(1.2)`;
                 
-                // --- [애니메이션 통합 구간 시작] ---
-                // 1. 랜덤 속도 및 지연 시간 설정
+                // --- [애니메이션 및 가시성 통합] ---
                 const duration = (2 + Math.random() * 2).toFixed(2);
-                const delay = (Math.random() * -5).toFixed(2); // 이미 움직이고 있는 것처럼 보이게 음수값 사용
+                const delay = (Math.random() * -5).toFixed(2);
 
-                // 2. SVG 전용 기준점 설정 (이게 없으면 안 움직입니다)
+                // SVG 전용 설정 (중앙 기준 움직임)
                 satellite.style.transformBox = "fill-box";
                 satellite.style.transformOrigin = "center";
 
-                // 3. 애니메이션 및 기존 transition 설정
+                // 1. 애니메이션 부여 (CSS에 starFloating 정의 필수)
                 satellite.style.animation = `starFloating ${duration}s infinite ease-in-out ${delay}s`;
-                satellite.style.transition = "opacity 0.5s ease-in";
-               
+                
+                // 2. 중요: 별이 보이도록 opacity를 1로 설정 (기존에 0이었다면 이 줄이 필수입니다)
+                satellite.style.opacity = "1"; 
+                satellite.style.transition = "opacity 0.8s ease-in";
+
                 svg.appendChild(satellite);
+                // 나중에 제어할 수 있도록 배열에 담기
                 satellites.push({el: satellite, ringIdx: i});
             });
         }
