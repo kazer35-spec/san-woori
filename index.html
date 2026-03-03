@@ -1333,7 +1333,7 @@ border-width: 1.8px !important;
 .hall-of-fame-btn { width: 32px; height: 32px; border-radius: 50%; background: #fff; border: 1.5px solid #facc15; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; cursor: pointer; transition: 0.2s; box-shadow: 0 2px 5px rgba(250, 204, 21, 0.2); }
 .hall-of-fame-btn:hover { transform: scale(1.1); background: #fefce8; }
 
-/* [추가/수정] 열정 온도 버튼 스타일 */
+    /* [추가/수정] 열정 온도 버튼 스타일 */
 .vibe-temp-btn {
 width: 32px; height: 32px; border-radius: 50%; background: #fff; border: 1.5px solid #fee2e2;
 display: flex; align-items: center; justify-content: center; font-size: 1rem; cursor: pointer; transition: 0.2s;
@@ -2694,46 +2694,52 @@ window.showCombinedLevelUpAlert = () => {
     frame.style.borderColor = primaryColor;
     title.style.color = primaryColor;
 
-    content.innerHTML = '';
+    content.innerHTML = ''; 
 
-    // 공통 레이아웃 생성 함수
-    const renderUserDetail = (user, isSingle) => {
+    // 개별 유저 항목 생성 함수
+    const renderCardItem = (user, isSingle) => {
         const emoji = user.badgeText.split(' ')[0];
         const label = user.badgeText.split(' ')[1] || "";
-        const textSize = isSingle ? 'text-8xl' : 'text-6xl';
-        const gapSize = isSingle ? 'mb-8' : 'mb-4';
+        
+        // 크기 조절 (단체일 때는 약간씩 축소)
+        const emojiSize = isSingle ? 'text-8xl' : 'text-7xl';
+        const nameSize = isSingle ? 'text-3xl' : 'text-2xl';
 
         return `
-            <div class="flex flex-col items-center w-full ${isSingle ? '' : 'py-6 border-b border-white/5 last:border-0'}">
-                <div class="text-[9px] font-bold border px-3 py-1 rounded-full uppercase mb-4 tracking-widest" 
+            <div class="flex flex-col items-center w-full ${isSingle ? '' : 'py-12 border-b border-white/10 last:border-0'}">
+                <div class="text-[9px] font-bold border px-3 py-1 rounded-full uppercase mb-6 tracking-widest" 
                      style="color:${user.color}; border-color:${user.color}44; background: ${user.color}11;">
                      SAN WOORI RANKER
                 </div>
                 
-                <div class="${textSize} ${gapSize} leading-none select-none">${emoji}</div>
+                <div class="${emojiSize} mb-4 leading-none select-none">${emoji}</div>
                 
-                <div class="text-[10px] font-medium text-white/60 mb-4 tracking-tight">
+                <div class="text-[10px] font-medium text-white/50 mb-6 tracking-tight">
                     <span class="font-bold text-white text-xs">"${label}"</span> 등급을 획득하셨습니다!
                 </div>
                 
-                <div class="text-4xl font-black mb-1" style="color:${user.color}">LV.${user.level}</div>
-                <div class="text-xl font-bold text-white">${user.name} 님</div>
+                <div class="text-5xl font-black mb-1" style="color:${user.color}">LV.${user.level}</div>
+                <div class="${nameSize} font-bold text-white mb-4">${user.name} 님</div>
+                
+                <p class="text-slate-400 text-[11px] italic tracking-tight">
+                    "산우리의 든든한 등불입니다"
+                </p>
+                
+                ${isSingle ? '<p class="text-white/20 text-[9px] mt-8 uppercase tracking-[0.3em]">Official Record</p>' : ''}
             </div>
         `;
     };
 
     if (pendingLevelUpCards.length === 1) {
-        content.innerHTML = renderUserDetail(pendingLevelUpCards[0], true);
+        content.innerHTML = renderCardItem(pendingLevelUpCards[0], true);
     } else {
-        // 단체 모드: 세로 리스트 형태
-        const listContainer = document.createElement('div');
-        listContainer.className = "flex flex-col w-full gap-4";
+        const listWrapper = document.createElement('div');
+        listWrapper.className = "flex flex-col w-full";
         pendingLevelUpCards.forEach(user => {
-            listContainer.innerHTML += renderUserDetail(user, false);
+            listWrapper.innerHTML += renderCardItem(user, false);
         });
-        content.appendChild(listContainer);
+        content.appendChild(listWrapper);
     }
-
     document.getElementById('cardDate').innerText = `${new Date().toLocaleDateString()} OFFICIAL RECORD`;
     modal.style.display = 'flex';
 };
@@ -3967,4 +3973,3 @@ document.addEventListener('touchstart', (e) => {
 </script>
 </body>
     </html>
-    
