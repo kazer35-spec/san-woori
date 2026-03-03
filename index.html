@@ -13,28 +13,6 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-/* 꽃 애니메이션 */
-@keyframes flowerPop {
-  0% { transform: scale(0); opacity: 0; }
-  70% { transform: scale(1.2); }
-  100% { transform: scale(1); opacity: 1; }
-}
-
-.grass-flower {
-  display: inline-block;
-  font-size: 8px; /* 잔디 칸에 맞게 작게 설정 */
-  position: absolute;
-  bottom: -2px;
-  right: -2px;
-  animation: flowerPop 0.5s ease-out forwards;
-}
-
-/* 분기별 꽃 색감 (이모지 대신 색으로 강조하고 싶을 때 사용) */
-.flower-q1 { color: #ff9a9e; } /* 봄: 진분홍 */
-.flower-q2 { color: #ff0000; } /* 여름: 빨강 */
-.flower-q3 { color: #ffb347; } /* 가을: 주황 */
-.flower-q4 { color: #ffffff; } /* 겨울: 하얀 눈꽃 */
-
 @keyframes rotateCard {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
@@ -1355,7 +1333,7 @@ border-width: 1.8px !important;
 .hall-of-fame-btn { width: 32px; height: 32px; border-radius: 50%; background: #fff; border: 1.5px solid #facc15; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; cursor: pointer; transition: 0.2s; box-shadow: 0 2px 5px rgba(250, 204, 21, 0.2); }
 .hall-of-fame-btn:hover { transform: scale(1.1); background: #fefce8; }
 
-    /* [추가/수정] 열정 온도 버튼 스타일 */
+  /* [추가/수정] 열정 온도 버튼 스타일 */
 .vibe-temp-btn {
 width: 32px; height: 32px; border-radius: 50%; background: #fff; border: 1.5px solid #fee2e2;
 display: flex; align-items: center; justify-content: center; font-size: 1rem; cursor: pointer; transition: 0.2s;
@@ -2435,26 +2413,9 @@ for (let i = 0; i < totalDaysInQ; i++) {
         }
     }
 
-    // --- 여기서부터 붙여넣으세요 ---
-let flowerTag = "";
-// Hot 뱃지 조건이 맞고, 활동(act) 기록이 있을 때만 꽃을 피웁니다.
-if (member && member.isHot && act && (act.hike > 0 || act.count > 0)) {
-    const month = new Date().getMonth() + 1; // 현재 몇 월인지 확인
-    const quarter = Math.ceil(month / 3); // 분기 계산 (1~4분기)
-    
-    let flowerIcon = "🌱";
-    if (quarter === 1) flowerIcon = "🌸"; // 1~3월
-    else if (quarter === 2) flowerIcon = "🌻"; // 4~6월
-    else if (quarter === 3) flowerIcon = "🌼"; // 7~9월
-    else if (quarter === 4) flowerIcon = "❄️"; // 10~12월
-    
-    flowerTag = `<span class="grass-flower">${flowerIcon}</span>`;
-}
-
-const encodedAct = act ? btoa(JSON.stringify({...act})) : "";
-
-// 기존 grassHtml 생성 코드에 'relative' 클래스와 ${flowerTag}를 추가했습니다.
-grassHtml += `<div class="${cl} relative" style="${style}" onclick="window.showGrassPopup(event, '${k}', '${encodedAct}')">${iconTag}${flowerTag}</div>`;
+    const encodedAct = act ? btoa(JSON.stringify({...act})) : "";
+    // 생성된 cl과 style을 적용
+    grassHtml += `<div class="${cl}" style="${style}" onclick="window.showGrassPopup(event, '${k}', '${encodedAct}')">${iconTag}</div>`;
 }
 
 grassBoard.innerHTML = grassHtml;
@@ -2613,7 +2574,7 @@ if(document.getElementById('isTop100Check').checked) marker.classList.add('top-1
 else marker.classList.remove('top-100');
 };
 
-    window.autoFindCoords = async () => {
+  window.autoFindCoords = async () => {
 const mName = document.getElementById('mountainName').value.trim();
 if(!mName) return;
 const snap = await getDoc(doc(db, "mountains", mName));
@@ -2671,20 +2632,6 @@ async function startRealtimeSync() {
     const results = await Promise.all(snapshot.docs.map(async (docSnap) => {
         const m = { id: docSnap.id, ...docSnap.data() };
         
-// 30일 전 날짜 계산
-const thirtyDaysAgo = new Date();
-thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-// 각 멤버의 logs를 확인할 때 추가할 로직
-const recentHikes = qSnap.docs.filter(l => {
-    const d = l.data();
-    // 30일 이내이면서 '산행'(러닝/트레킹 제외)인 기록만 필터링
-    return d.date.toDate() > thirtyDaysAgo && !d.isRunning && !d.isTracking;
-}).length;
-
-// 4회 이상이면 isHot 상태를 true로 설정
-m.isHot = recentHikes >= 4;
-
         // 중요: 모든 로그가 아니라 날짜 조건(where)을 걸어 필요한 만큼만 읽습니다.
         const qLogsQuery = query(
             collection(db, `sanwoori/${m.id}/logs`),
