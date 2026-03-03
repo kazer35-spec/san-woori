@@ -13,6 +13,30 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+/* 야생화(붉은 꽃) 스타일 */
+.flower-dot {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background-color: #ef4444; /* 붉은색 */
+    border-radius: 50%;
+    top: 2px;
+    right: 2px;
+    box-shadow: 0 0 4px #ef4444;
+    animation: flower-bloom 1s ease-out;
+}
+
+/* 꽃이 피어날 때 살짝 커지는 효과 */
+@keyframes flower-bloom {
+    0% { transform: scale(0); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* 잔디 셀에 꽃을 올리기 위한 설정 */
+.grass-cell {
+    position: relative; /* 꽃이 셀 안에 고정되도록 함 */
+}
+
 @keyframes rotateCard {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
@@ -2350,26 +2374,38 @@ if(recentCount >= 4) {
 vibeArea.innerHTML = `<span class="hot-vibe flex items-center h-[18px] text-[9px] font-black text-orange-500 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-100">🔥 HOT</span>`;
 }
 
-// 1. 잔디 데이터 분석
+// --- 1. 잔디 데이터 분석 (기존 코드 유지) ---
 const dateActivities = {};
 logsQuarter.forEach(l => {
     const key = `${l.date.getFullYear()}-${l.date.getMonth() + 1}-${l.date.getDate()}`;
-    
     if(!dateActivities[key]) {
         dateActivities[key] = { hike: 0, run: 0, trek: 0, isRegular: false };
     }
-    
     if(l.isRunning) {
         dateActivities[key].run++;
     } else if(l.isTracking) {
         dateActivities[key].trek++;
     } else {
         dateActivities[key].hike++;
-        if(l.isRegular) dateActivities[key].isRegular = true; // 정기산행 체크
+        if(l.isRegular) dateActivities[key].isRegular = true;
     }
 });
 
-// 2. 잔디 보드 HTML 생성 (수정본)
+// --- [추가] 30일 이내 4회 이상 산행(HOT 배지) 체크 ---
+const today = new Date();
+const thirtyDaysAgo = new Date();
+thirtyDaysAgo.setDate(today.getDate() - 30);
+
+let recentHikeCount = 0;
+for (const dateKey in dateActivities) {
+    const logDate = new Date(dateKey);
+    if (logDate >= thirtyDaysAgo && logDate <= today) {
+        recentHikeCount += dateActivities[dateKey].hike;
+    }
+}
+const isHotMember = recentHikeCount >= 4; 
+
+// --- 2. 잔디 보드 HTML 생성 ---
 let grassHtml = "";
 for (let i = 0; i < totalDaysInQ; i++) {
     const cur = new Date(start);
@@ -2380,13 +2416,16 @@ for (let i = 0; i < totalDaysInQ; i++) {
     let cl = "grass-day";
     let style = "";
     let iconTag = ""; 
+    let flowerTag = ""; // 꽃 초기화
 
     if (act) {
+        // [중요] 데이터가 있는 날이고, HOT 멤버이면서, 산행(hike) 기록이 있을 때만 꽃 생성
+        if (isHotMember && act.hike > 0) {
+            flowerTag = `<div class="wildflower-hot" title="HOT 배지: 30일 내 4회 산행 완료!"></div>`;
+        }
+
         if (act.isRegular) {
-            // [핵심] 클래스를 추가하고, 인라인 스타일은 비워버립니다.
             cl += " grass-regular-premium";
-            style = ""; // 기존에 style에 색상을 넣었다면 여기서 초기화해야 CSS가 먹힙니다.
-            
             const month = cur.getMonth() + 1;
             let qIcon = (month >= 3 && month <= 5) ? "🌸" : 
                         (month >= 6 && month <= 8) ? "🍀" : 
@@ -2395,7 +2434,6 @@ for (let i = 0; i < totalDaysInQ; i++) {
             iconTag = `<span style="font-size: 11px; display: flex; align-items: center; justify-content: center; height: 100%; pointer-events: none; position: relative; z-index: 5; text-shadow: 0 0 3px rgba(0,0,0,0.2);">${qIcon}</span>`;
         } 
         else {
-            // 일반 기록 로직 (기존과 동일)
             const hasHike = act.hike > 0;
             const hasExtra = act.run > 0 || act.trek > 0;
             
@@ -2414,8 +2452,8 @@ for (let i = 0; i < totalDaysInQ; i++) {
     }
 
     const encodedAct = act ? btoa(JSON.stringify({...act})) : "";
-    // 생성된 cl과 style을 적용
-    grassHtml += `<div class="${cl}" style="${style}" onclick="window.showGrassPopup(event, '${k}', '${encodedAct}')">${iconTag}</div>`;
+    // 마지막에 iconTag와 flowerTag를 합쳐서 출력
+    grassHtml += `<div class="${cl}" style="${style}" onclick="window.showGrassPopup(event, '${k}', '${encodedAct}')">${iconTag}${flowerTag}</div>`;
 }
 
 grassBoard.innerHTML = grassHtml;
