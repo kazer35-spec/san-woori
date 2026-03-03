@@ -1333,7 +1333,7 @@ border-width: 1.8px !important;
 .hall-of-fame-btn { width: 32px; height: 32px; border-radius: 50%; background: #fff; border: 1.5px solid #facc15; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; cursor: pointer; transition: 0.2s; box-shadow: 0 2px 5px rgba(250, 204, 21, 0.2); }
 .hall-of-fame-btn:hover { transform: scale(1.1); background: #fefce8; }
 
-    /* [추가/수정] 열정 온도 버튼 스타일 */
+/* [추가/수정] 열정 온도 버튼 스타일 */
 .vibe-temp-btn {
 width: 32px; height: 32px; border-radius: 50%; background: #fff; border: 1.5px solid #fee2e2;
 display: flex; align-items: center; justify-content: center; font-size: 1rem; cursor: pointer; transition: 0.2s;
@@ -2696,82 +2696,74 @@ window.showCombinedLevelUpAlert = () => {
 
     content.innerHTML = '';
 
-    // 공통 상단 라벨 생성 함수
-    const createTopLabel = (color) => `
-        <div class="text-[9px] font-bold border px-3 py-1 rounded-full uppercase mb-6 tracking-widest" 
-             style="color:${color}; border-color:${color}44; background: ${color}11;">
-             SAN WOORI RANKER
-        </div>`;
-
-    if (pendingLevelUpCards.length === 1) {
-        const user = pendingLevelUpCards[0];
+    // 공통 레이아웃 생성 함수
+    const renderUserDetail = (user, isSingle) => {
         const emoji = user.badgeText.split(' ')[0];
         const label = user.badgeText.split(' ')[1] || "";
+        const textSize = isSingle ? 'text-8xl' : 'text-6xl';
+        const gapSize = isSingle ? 'mb-8' : 'mb-4';
 
-        content.innerHTML = `
-            <div class="flex flex-col items-center w-full">
-                ${createTopLabel(user.color)}
-                
-                <div class="text-8xl mb-4 leading-none select-none">${emoji}</div>
-                
-                <div class="text-[11px] font-medium text-white/60 mb-8 tracking-tight">
-                    <span class="font-bold text-white text-sm">"${label}"</span> 등급을 획득하셨습니다!
+        return `
+            <div class="flex flex-col items-center w-full ${isSingle ? '' : 'py-6 border-b border-white/5 last:border-0'}">
+                <div class="text-[9px] font-bold border px-3 py-1 rounded-full uppercase mb-4 tracking-widest" 
+                     style="color:${user.color}; border-color:${user.color}44; background: ${user.color}11;">
+                     SAN WOORI RANKER
                 </div>
                 
-                <div class="text-5xl font-black mb-1" style="color:${user.color}">LV.${user.level}</div>
-                <div class="text-2xl font-bold text-white mb-2">${user.name} 님</div>
+                <div class="${textSize} ${gapSize} leading-none select-none">${emoji}</div>
                 
-                <p class="text-slate-500 text-[10px] italic mt-4 uppercase tracking-tighter">Official Achievement Card</p>
+                <div class="text-[10px] font-medium text-white/60 mb-4 tracking-tight">
+                    <span class="font-bold text-white text-xs">"${label}"</span> 등급을 획득하셨습니다!
+                </div>
+                
+                <div class="text-4xl font-black mb-1" style="color:${user.color}">LV.${user.level}</div>
+                <div class="text-xl font-bold text-white">${user.name} 님</div>
             </div>
         `;
-    } else {
-        // 단체 모드에도 타이틀 추가
-        const container = document.createElement('div');
-        container.className = "flex flex-col items-center w-full";
-        container.innerHTML = createTopLabel(primaryColor);
+    };
 
-        const grid = document.createElement('div');
-        grid.className = `grid gap-2 w-full ${pendingLevelUpCards.length <= 4 ? 'grid-cols-2' : 'grid-cols-3'}`;
-        
+    if (pendingLevelUpCards.length === 1) {
+        content.innerHTML = renderUserDetail(pendingLevelUpCards[0], true);
+    } else {
+        // 단체 모드: 세로 리스트 형태
+        const listContainer = document.createElement('div');
+        listContainer.className = "flex flex-col w-full gap-4";
         pendingLevelUpCards.forEach(user => {
-            const userBox = document.createElement('div');
-            userBox.className = "bg-black/40 rounded-xl p-3 border border-white/5 flex flex-col items-center";
-            userBox.innerHTML = `
-                <div class="text-3xl mb-1">${user.badgeText.split(' ')[0]}</div>
-                <div class="text-[8px] text-white/40 mb-1 leading-tight text-center">"${user.badgeText.split(' ')[1]}" 획득</div>
-                <div class="text-lg font-black leading-tight" style="color:${user.color}">LV.${user.level}</div>
-                <div class="text-[10px] text-white font-bold truncate w-full text-center">${user.name}</div>
-            `;
-            grid.appendChild(userBox);
+            listContainer.innerHTML += renderUserDetail(user, false);
         });
-        container.appendChild(grid);
-        content.appendChild(container);
+        content.appendChild(listContainer);
     }
 
     document.getElementById('cardDate').innerText = `${new Date().toLocaleDateString()} OFFICIAL RECORD`;
     modal.style.display = 'flex';
 };
 
-// 이미지 저장 함수 (수정 버전)
+// 모바일 최적화 이미지 저장 함수
 window.saveCardImage = async () => {
-    const area = document.getElementById('cardToCapture'); // 이 ID가 HTML에 반드시 있어야 함
-    if (!area) return alert("캡처 영역을 찾을 수 없습니다.");
+    const area = document.getElementById('cardToCapture');
+    if (!area) return;
     
     try {
+        // 모바일 긴 이미지 저장을 위해 스케일 조정 및 렌더링 옵션 최적화
         const canvas = await html2canvas(area, {
-            scale: 3, // 화질을 위해 3배 선명하게
+            scale: 2, // 모바일 전송용으로 적당한 2배수 (용량 최적화)
             backgroundColor: "#000000",
             useCORS: true,
-            logging: false
+            allowTaint: true,
+            scrollX: 0,
+            scrollY: -window.scrollY, // 현재 스크롤 위치 무시
+            windowWidth: area.scrollWidth,
+            windowHeight: area.scrollHeight
         });
         
+        const image = canvas.toDataURL("image/png");
         const link = document.createElement('a');
-        link.href = canvas.toDataURL("image/png");
-        link.download = `SanWoori_Ranker_${new Date().getTime()}.png`;
+        link.href = image;
+        link.download = `SanWoori_LevelUp_Mobile.png`;
         link.click();
     } catch (e) {
-        console.error(e);
-        alert("이미지 생성 중 오류가 발생했습니다. 직접 스크린샷을 찍어주세요!");
+        console.error("저장 에러:", e);
+        alert("이미지 저장에 실패했습니다. 직접 캡처해 주세요.");
     }
 };
 
@@ -3975,3 +3967,4 @@ document.addEventListener('touchstart', (e) => {
 </script>
 </body>
     </html>
+    
