@@ -13,20 +13,27 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-/* HOT 배지를 받은 멤버의 잔디 구역에 특별한 효과 */
-.hot-vibe-grass {
-    box-shadow: 0 0 5px rgba(255, 0, 0, 0.2); /* 은은한 붉은 광택 */
-    border: 1px solid rgba(255, 0, 0, 0.1);
+/* 꽃 애니메이션 */
+@keyframes flowerPop {
+  0% { transform: scale(0); opacity: 0; }
+  70% { transform: scale(1.2); }
+  100% { transform: scale(1); opacity: 1; }
 }
 
-/* 꽃 애니메이션 (살짝 흔들리는 효과) */
-@keyframes flowerSway {
-    0%, 100% { transform: rotate(-5deg); }
-    50% { transform: rotate(5deg); }
+.grass-flower {
+  display: inline-block;
+  font-size: 8px; /* 잔디 칸에 맞게 작게 설정 */
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  animation: flowerPop 0.5s ease-out forwards;
 }
-.animate-flower {
-    animation: flowerSway 2s infinite ease-in-out;
-}
+
+/* 분기별 꽃 색감 (이모지 대신 색으로 강조하고 싶을 때 사용) */
+.flower-q1 { color: #ff9a9e; } /* 봄: 진분홍 */
+.flower-q2 { color: #ff0000; } /* 여름: 빨강 */
+.flower-q3 { color: #ffb347; } /* 가을: 주황 */
+.flower-q4 { color: #ffffff; } /* 겨울: 하얀 눈꽃 */
 
 @keyframes rotateCard {
     from { transform: rotate(0deg); }
@@ -2365,7 +2372,7 @@ if(recentCount >= 4) {
 vibeArea.innerHTML = `<span class="hot-vibe flex items-center h-[18px] text-[9px] font-black text-orange-500 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-100">🔥 HOT</span>`;
 }
 
-// 1. 잔디 데이터 분석 (기존 로직 유지)
+// 1. 잔디 데이터 분석
 const dateActivities = {};
 logsQuarter.forEach(l => {
     const key = `${l.date.getFullYear()}-${l.date.getMonth() + 1}-${l.date.getDate()}`;
@@ -2380,17 +2387,12 @@ logsQuarter.forEach(l => {
         dateActivities[key].trek++;
     } else {
         dateActivities[key].hike++;
-        if(l.isRegular) dateActivities[key].isRegular = true; 
+        if(l.isRegular) dateActivities[key].isRegular = true; // 정기산행 체크
     }
 });
 
 // 2. 잔디 보드 HTML 생성 (수정본)
 let grassHtml = "";
-
-// [수정] 30일 이내 4회 이상 여부를 여기서 다시 판별하거나, 
-// 상단에서 m.isHot으로 정의된 값을 안전하게 가져와야 합니다.
-// 만약 이 함수 내에 'm'이나 'member' 변수가 선언되어 있지 않다면 아래 로직을 사용하세요.
-
 for (let i = 0; i < totalDaysInQ; i++) {
     const cur = new Date(start);
     cur.setDate(start.getDate() + i);
@@ -2400,24 +2402,12 @@ for (let i = 0; i < totalDaysInQ; i++) {
     let cl = "grass-day";
     let style = "";
     let iconTag = ""; 
-    let flowerTag = ""; 
-
-    // --- [에러 방지 적용] HOT 상태일 때 야생화 피우기 ---
-    // mId가 현재 함수의 인자로 넘어오므로, currentData에서 해당 멤버를 찾습니다.
-    const currentMember = currentData.find(mem => mem.id === mId);
-    
-    if (currentMember && currentMember.isHot) {
-        // 모든 칸에 피면 지저분하므로 약 20% 확률로 꽃 생성
-        // i(날짜 인덱스)를 활용해 랜덤값이 매번 변하지 않게 고정할 수도 있습니다.
-        if (Math.random() < 0.20) {
-            flowerTag = `<span style="position: absolute; font-size: 8px; bottom: -1px; right: -1px; pointer-events: none; z-index: 2;">🌹</span>`;
-        }
-    }
 
     if (act) {
         if (act.isRegular) {
+            // [핵심] 클래스를 추가하고, 인라인 스타일은 비워버립니다.
             cl += " grass-regular-premium";
-            style = ""; 
+            style = ""; // 기존에 style에 색상을 넣었다면 여기서 초기화해야 CSS가 먹힙니다.
             
             const month = cur.getMonth() + 1;
             let qIcon = (month >= 3 && month <= 5) ? "🌸" : 
@@ -2427,6 +2417,7 @@ for (let i = 0; i < totalDaysInQ; i++) {
             iconTag = `<span style="font-size: 11px; display: flex; align-items: center; justify-content: center; height: 100%; pointer-events: none; position: relative; z-index: 5; text-shadow: 0 0 3px rgba(0,0,0,0.2);">${qIcon}</span>`;
         } 
         else {
+            // 일반 기록 로직 (기존과 동일)
             const hasHike = act.hike > 0;
             const hasExtra = act.run > 0 || act.trek > 0;
             
@@ -2444,10 +2435,26 @@ for (let i = 0; i < totalDaysInQ; i++) {
         }
     }
 
-    const encodedAct = act ? btoa(JSON.stringify({...act})) : "";
+    // --- 여기서부터 붙여넣으세요 ---
+let flowerTag = "";
+// Hot 뱃지 조건이 맞고, 활동(act) 기록이 있을 때만 꽃을 피웁니다.
+if (member && member.isHot && act && (act.hike > 0 || act.count > 0)) {
+    const month = new Date().getMonth() + 1; // 현재 몇 월인지 확인
+    const quarter = Math.ceil(month / 3); // 분기 계산 (1~4분기)
     
-    // [중요] 부모 div에 position: relative를 추가하여 꽃 위치를 잡습니다.
-    grassHtml += `<div class="${cl}" style="${style} position: relative;" onclick="window.showGrassPopup(event, '${k}', '${encodedAct}')">${iconTag}${flowerTag}</div>`;
+    let flowerIcon = "🌱";
+    if (quarter === 1) flowerIcon = "🌸"; // 1~3월
+    else if (quarter === 2) flowerIcon = "🌻"; // 4~6월
+    else if (quarter === 3) flowerIcon = "🌼"; // 7~9월
+    else if (quarter === 4) flowerIcon = "❄️"; // 10~12월
+    
+    flowerTag = `<span class="grass-flower">${flowerIcon}</span>`;
+}
+
+const encodedAct = act ? btoa(JSON.stringify({...act})) : "";
+
+// 기존 grassHtml 생성 코드에 'relative' 클래스와 ${flowerTag}를 추가했습니다.
+grassHtml += `<div class="${cl} relative" style="${style}" onclick="window.showGrassPopup(event, '${k}', '${encodedAct}')">${iconTag}${flowerTag}</div>`;
 }
 
 grassBoard.innerHTML = grassHtml;
