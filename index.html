@@ -2697,7 +2697,7 @@ window.showCombinedLevelUpAlert = () => {
     content.innerHTML = ''; 
 
     if (pendingLevelUpCards.length === 1) {
-        // 1인 모드
+        // [1인 모드] 기존 디자인 유지
         const user = pendingLevelUpCards[0];
         const emoji = user.badgeText.split(' ')[0];
         const label = user.badgeText.split(' ')[1] || "";
@@ -2717,39 +2717,54 @@ window.showCombinedLevelUpAlert = () => {
             </div>
         `;
     } else {
-        // 단체 모드: 격자형 내부에 모든 문구 삽입
+        // [단체 모드] 빨간 줄 그으신 외부 영역에 멘트 배치
+        const container = document.createElement('div');
+        container.className = "flex flex-col items-center w-full h-full";
+
+        // 1. [상단 빨간줄 위치] 외부 타이틀
+        const topSection = `
+            <div class="text-[10px] font-bold border px-4 py-1.5 rounded-full uppercase mb-8 tracking-[0.2em]" 
+                 style="color:${primaryColor}; border-color:${primaryColor}44; background: ${primaryColor}11;">
+                 SAN WOORI RANKER
+            </div>
+        `;
+
+        // 2. 중간 격자 (작은 카드들)
         const grid = document.createElement('div');
-        grid.className = `grid gap-2 w-full ${pendingLevelUpCards.length <= 4 ? 'grid-cols-2' : 'grid-cols-3'}`;
+        grid.className = `grid gap-3 w-full mb-8 ${pendingLevelUpCards.length <= 4 ? 'grid-cols-2' : 'grid-cols-3'}`;
         
         pendingLevelUpCards.forEach(user => {
             const emoji = user.badgeText.split(' ')[0];
             const label = user.badgeText.split(' ')[1] || "";
             const userBox = document.createElement('div');
-            userBox.className = "bg-black/40 rounded-2xl p-3 border border-white/5 flex flex-col items-center text-center relative overflow-hidden";
+            userBox.className = "bg-black/40 rounded-2xl p-4 border border-white/5 flex flex-col items-center text-center";
             
             userBox.innerHTML = `
-                <div class="text-[6px] font-bold border px-1.5 py-0.5 rounded-full uppercase mb-2 tracking-tighter scale-90" 
-                     style="color:${user.color}; border-color:${user.color}33;">
-                     SAN WOORI RANKER
-                </div>
-
-                <div class="text-3xl mb-1">${emoji}</div>
-                
-                <div class="text-[7px] text-white/40 mb-1 leading-tight">"${label}" 획득</div>
-                
-                <div class="text-lg font-black" style="color:${user.color}">LV.${user.level}</div>
-                <div class="text-[10px] text-white font-bold truncate w-full mb-1">${user.name} 님</div>
-                
-                <div class="text-[6px] text-slate-500 italic leading-none mt-1 opacity-80 scale-90 whitespace-nowrap">
-                    "산우리의 든든한 등불입니다"
-                </div>
+                <div class="text-4xl mb-2">${emoji}</div>
+                <div class="text-[8px] text-white/40 mb-1 italic">"${label}" 획득</div>
+                <div class="text-xl font-black mb-1" style="color:${user.color}">LV.${user.level}</div>
+                <div class="text-[11px] text-white font-bold truncate w-full">${user.name} 님</div>
             `;
             grid.appendChild(userBox);
         });
-        content.appendChild(grid);
+
+        // 3. [하단 빨간줄 위치] 외부 하단 멘트
+        const bottomSection = `
+            <div class="mt-auto pt-6 w-full text-center border-t border-white/5">
+                <p class="text-slate-400 text-sm italic tracking-tight font-medium">
+                    "산우리의 든든한 등불입니다"
+                </p>
+            </div>
+        `;
+
+        container.innerHTML = topSection;
+        container.appendChild(grid);
+        container.innerHTML += bottomSection;
+        
+        content.appendChild(container);
     }
 
- document.getElementById('cardDate').innerText = `${new Date().toLocaleDateString()} OFFICIAL RECORD`;
+    document.getElementById('cardDate').innerText = `${new Date().toLocaleDateString()} OFFICIAL RECORD`;
     modal.style.display = 'flex';
 };
 
