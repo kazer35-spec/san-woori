@@ -2384,8 +2384,13 @@ logsQuarter.forEach(l => {
     }
 });
 
-// 2. 잔디 보드 HTML 생성
+// 2. 잔디 보드 HTML 생성 (수정본)
 let grassHtml = "";
+
+// [수정] 30일 이내 4회 이상 여부를 여기서 다시 판별하거나, 
+// 상단에서 m.isHot으로 정의된 값을 안전하게 가져와야 합니다.
+// 만약 이 함수 내에 'm'이나 'member' 변수가 선언되어 있지 않다면 아래 로직을 사용하세요.
+
 for (let i = 0; i < totalDaysInQ; i++) {
     const cur = new Date(start);
     cur.setDate(start.getDate() + i);
@@ -2395,14 +2400,17 @@ for (let i = 0; i < totalDaysInQ; i++) {
     let cl = "grass-day";
     let style = "";
     let iconTag = ""; 
-    let flowerTag = ""; // [추가] 야생화용 태그
+    let flowerTag = ""; 
 
-    // --- [핵심 추가] HOT 상태(30일 4회 이상)일 때 야생화 피우기 ---
-    // member.isHot 데이터는 상단 startRealtimeSync에서 계산되어 넘어온 상태여야 합니다.
-    if (member && member.isHot) {
-        // 모든 칸에 피면 지저분하므로 25% 확률로 붉은 꽃 생성
-        if (Math.random() < 0.25) {
-            flowerTag = `<span style="position: absolute; font-size: 7px; bottom: -1px; right: -1px; pointer-events: none; z-index: 2;">🌹</span>`;
+    // --- [에러 방지 적용] HOT 상태일 때 야생화 피우기 ---
+    // mId가 현재 함수의 인자로 넘어오므로, currentData에서 해당 멤버를 찾습니다.
+    const currentMember = currentData.find(mem => mem.id === mId);
+    
+    if (currentMember && currentMember.isHot) {
+        // 모든 칸에 피면 지저분하므로 약 20% 확률로 꽃 생성
+        // i(날짜 인덱스)를 활용해 랜덤값이 매번 변하지 않게 고정할 수도 있습니다.
+        if (Math.random() < 0.20) {
+            flowerTag = `<span style="position: absolute; font-size: 8px; bottom: -1px; right: -1px; pointer-events: none; z-index: 2;">🌹</span>`;
         }
     }
 
@@ -2438,14 +2446,8 @@ for (let i = 0; i < totalDaysInQ; i++) {
 
     const encodedAct = act ? btoa(JSON.stringify({...act})) : "";
     
-    // [수정] 생성된 flowerTag를 내부 요소로 추가하고, position: relative를 강제 적용
-    grassHtml += `
-        <div class="${cl}" 
-             style="${style} position: relative;" 
-             onclick="window.showGrassPopup(event, '${k}', '${encodedAct}')">
-            ${iconTag}
-            ${flowerTag}
-        </div>`;
+    // [중요] 부모 div에 position: relative를 추가하여 꽃 위치를 잡습니다.
+    grassHtml += `<div class="${cl}" style="${style} position: relative;" onclick="window.showGrassPopup(event, '${k}', '${encodedAct}')">${iconTag}${flowerTag}</div>`;
 }
 
 grassBoard.innerHTML = grassHtml;
