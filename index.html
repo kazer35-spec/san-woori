@@ -2338,13 +2338,12 @@ window.showMemberTimeline = async (mId, mName) => {
     const vibeArea = document.getElementById('passionVibeArea');
     const chartBox = document.getElementById('chartBox');
 
-    // 1. 기본 정보 세팅
     document.getElementById('timelineMemberName').innerText = mName;
     const memberInfo = currentData.find(m => m.id === mId);
     const friendshipPoint = memberInfo?.friendshipPoint || 0;
     document.getElementById('memberFriendshipPoint').innerText = friendshipPoint.toLocaleString();
 
-    container.innerHTML = "<p class='text-center text-xs py-5 text-gray-400'>조회 중...</p>";
+    container.innerHTML = "<p class='text-center text-xs py-5 text-gray-400'>조 de... </p>";
     grassBoard.innerHTML = "";
     vibeArea.innerHTML = "";
     if (chartBox) chartBox.className = `chart-container-box chart-bg-q${selectedQuarter}`;
@@ -2354,7 +2353,6 @@ window.showMemberTimeline = async (mId, mName) => {
         const end = new Date(selectedYear, selectedQuarter * 3, 1);
         const totalDaysInQ = Math.floor((end - start) / (1000 * 60 * 60 * 24));
 
-        // 2. 데이터 로드
         const snapAll = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc")));
         const logsAll = snapAll.docs.map(doc => ({ ...doc.data(), date: doc.data().date.toDate() }));
         const logsQuarter = logsAll.filter(l => l.date >= start && l.date < end);
@@ -2362,10 +2360,10 @@ window.showMemberTimeline = async (mId, mName) => {
         const badge = document.getElementById('timelineCountBadge');
         if(badge) badge.innerText = `분기 ${logsQuarter.length}회 / 최근 ${logsAll.length}회`;
 
-        // 3. 차트 및 HOT 판별
         const chartData = await calculateGrowthData(mId);
         renderGrowthChart(chartData);
 
+        // HOT 멤버 판별 (최근 30일 산행 4회 이상)
         let isHotMember = false; 
         const thirtyDaysAgo = new Date(); 
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -2376,7 +2374,6 @@ window.showMemberTimeline = async (mId, mName) => {
             isHotMember = true;
         }
 
-        // 4. 잔디 데이터 분석
         const dateActivities = {};
         logsQuarter.forEach(l => {
             const key = `${l.date.getFullYear()}-${l.date.getMonth() + 1}-${l.date.getDate()}`;
@@ -2389,14 +2386,9 @@ window.showMemberTimeline = async (mId, mName) => {
             }
         });
 
-        // 5. 잔디 보드 생성 (꽃 로직 포함)
+        // 잔디 보드 생성 (꽃 피우기 포함)
         let grassHtml = "";
-        const sFlowers = {
-            spring: ['🌸', '🌷', '🌼'],
-            summer: ['🌻', '🌿', '🌹'],
-            fall: ['🍁', '🍂', '🌾'],
-            winter: ['❄️', '🌲', '🤍']
-        };
+        const sFlowers = { spring: ['🌸', '🌷', '🌼'], summer: ['🌻', '🌿', '🌹'], fall: ['🍁', '🍂', '🌾'], winter: ['❄️', '🌲', '🤍'] };
 
         for (let i = 0; i < totalDaysInQ; i++) {
             const cur = new Date(start);
@@ -2436,7 +2428,6 @@ window.showMemberTimeline = async (mId, mName) => {
         }
         grassBoard.innerHTML = grassHtml;
 
-        // 6. 타임라인 리스트
         container.innerHTML = logsAll.length === 0 ? "<p class='text-center text-[10px] py-10 text-gray-400'>기록 없음</p>" : 
             logsAll.map(log => {
                 const day = ['일','월','화','수','목','금','토'][log.date.getDay()];
@@ -2448,7 +2439,7 @@ window.showMemberTimeline = async (mId, mName) => {
         console.error("Error:", e);
         container.innerHTML = "<p class='text-center text-xs text-red-400'>오류 발생</p>";
     }
-}; // <- 이 닫는 괄호가 매우 중요합니다!
+};
 
 async function calculateGrowthData(mId) {
 const labels = []; const counts = []; const heights = []; const peaks = [];
