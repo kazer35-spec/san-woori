@@ -13,6 +13,17 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+/* 꽃이 살짝 흔들리는 효과 (생동감) */
+@keyframes flowerSway {
+    0%, 100% { transform: rotate(-5deg); }
+    50% { transform: rotate(5deg); }
+}
+
+.flower-icon {
+    display: inline-block;
+    animation: flowerSway 3s infinite ease-in-out;
+}
+
 @keyframes rotateCard {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
@@ -1333,7 +1344,7 @@ border-width: 1.8px !important;
 .hall-of-fame-btn { width: 32px; height: 32px; border-radius: 50%; background: #fff; border: 1.5px solid #facc15; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; cursor: pointer; transition: 0.2s; box-shadow: 0 2px 5px rgba(250, 204, 21, 0.2); }
 .hall-of-fame-btn:hover { transform: scale(1.1); background: #fefce8; }
 
-  /* [추가/수정] 열정 온도 버튼 스타일 */
+    /* [추가/수정] 열정 온도 버튼 스타일 */
 .vibe-temp-btn {
 width: 32px; height: 32px; border-radius: 50%; background: #fff; border: 1.5px solid #fee2e2;
 display: flex; align-items: center; justify-content: center; font-size: 1rem; cursor: pointer; transition: 0.2s;
@@ -2179,6 +2190,18 @@ await setDoc(doc(db, "sub_rooms", roomId), { isActive: nextActive, statusMsg: ms
 
 window.copySubRoomUrl = (url, name) => { navigator.clipboard.writeText(url); alert(`[${name}] 링크 복사 완료`); };
 
+const seasonalFlowers = {
+    spring: ['🌸', '🌷', '🌼'],
+    summer: ['🌻', '🌿', '🌹'],
+    fall: ['🍁', '🍂', '🌾'],
+    winter: ['❄️', '🌲', '🤍']
+};
+const month = new Date().getMonth() + 1;
+const season = (month >= 3 && month <= 5) ? 'spring' : 
+               (month >= 6 && month <= 8) ? 'summer' : 
+               (month >= 9 && month <= 11) ? 'fall' : 'winter';
+const myFlowers = seasonalFlowers[season];
+
 window.renderStatusTable = () => {
 const list = document.getElementById('statusList');
 const search = document.getElementById('searchInput').value.trim();
@@ -2348,6 +2371,7 @@ const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() 
 const recentCount = logsAll.filter(l => l.date >= thirtyDaysAgo).length;
 if(recentCount >= 4) {
 vibeArea.innerHTML = `<span class="hot-vibe flex items-center h-[18px] text-[9px] font-black text-orange-500 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-100">🔥 HOT</span>`;
+isHotMember = true;
 }
 
 // 1. 잔디 데이터 분석
@@ -2369,6 +2393,13 @@ logsQuarter.forEach(l => {
     }
 });
 
+const seasonalFlowers = {
+    spring: ['🌸', '🌷', '🌼'],
+    summer: ['🌻', '🌿', '🌹'],
+    fall: ['🍁', '🍂', '🌾'],
+    winter: ['❄️', '🌲', '🤍']
+};
+
 // 2. 잔디 보드 HTML 생성 (수정본)
 let grassHtml = "";
 for (let i = 0; i < totalDaysInQ; i++) {
@@ -2380,6 +2411,25 @@ for (let i = 0; i < totalDaysInQ; i++) {
     let cl = "grass-day";
     let style = "";
     let iconTag = ""; 
+
+// [두 번째 이미지] let iconTag = ""; 바로 아래에 추가
+if (isHotMember && act) { // HOT 멤버이고 해당 날짜에 활동(act)이 있다면
+    const month = cur.getMonth() + 1;
+    let flowerList = [];
+
+    // 계절별 꽃 설정
+    if (month >= 3 && month <= 5) flowerList = ['🌸', '🌷', '🌼'];
+    else if (month >= 6 && month <= 8) flowerList = ['🌻', '🌿', '🌹'];
+    else if (month >= 9 && month <= 11) flowerList = ['🍁', '🍂', '🌾'];
+    else flowerList = ['❄️', '🌲', '🤍'];
+
+    // 30% 확률로 꽃 아이콘 생성
+    if (Math.random() < 0.3) {
+        const randomFlower = flowerList[Math.floor(Math.random() * flowerList.length)];
+        // 아이콘 태그에 꽃 추가
+        iconTag = `<span style="position:absolute; font-size:8px; right:0; bottom:0; pointer-events:none;">${randomFlower}</span>`;
+    }
+}
 
     if (act) {
         if (act.isRegular) {
@@ -2415,7 +2465,8 @@ for (let i = 0; i < totalDaysInQ; i++) {
 
     const encodedAct = act ? btoa(JSON.stringify({...act})) : "";
     // 생성된 cl과 style을 적용
-    grassHtml += `<div class="${cl}" style="${style}" onclick="window.showGrassPopup(event, '${k}', '${encodedAct}')">${iconTag}</div>`;
+    // [이미지 3번 영역]
+grassHtml += `<div class="${cl}" style="${style}; position:relative;" onclick="..."> ${iconTag} </div>`;
 }
 
 grassBoard.innerHTML = grassHtml;
@@ -2574,7 +2625,7 @@ if(document.getElementById('isTop100Check').checked) marker.classList.add('top-1
 else marker.classList.remove('top-100');
 };
 
-  window.autoFindCoords = async () => {
+    window.autoFindCoords = async () => {
 const mName = document.getElementById('mountainName').value.trim();
 if(!mName) return;
 const snap = await getDoc(doc(db, "mountains", mName));
@@ -2632,6 +2683,20 @@ async function startRealtimeSync() {
     const results = await Promise.all(snapshot.docs.map(async (docSnap) => {
         const m = { id: docSnap.id, ...docSnap.data() };
         
+// 30일 전 날짜 계산
+const thirtyDaysAgo = new Date();
+thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+// 각 멤버의 logs를 확인할 때 추가할 로직
+const recentHikes = qSnap.docs.filter(l => {
+    const d = l.data();
+    // 30일 이내이면서 '산행'(러닝/트레킹 제외)인 기록만 필터링
+    return d.date.toDate() > thirtyDaysAgo && !d.isRunning && !d.isTracking;
+}).length;
+
+// 4회 이상이면 isHot 상태를 true로 설정
+m.isHot = recentHikes >= 4;
+
         // 중요: 모든 로그가 아니라 날짜 조건(where)을 걸어 필요한 만큼만 읽습니다.
         const qLogsQuery = query(
             collection(db, `sanwoori/${m.id}/logs`),
