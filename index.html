@@ -2632,20 +2632,6 @@ async function startRealtimeSync() {
     const results = await Promise.all(snapshot.docs.map(async (docSnap) => {
         const m = { id: docSnap.id, ...docSnap.data() };
         
-// 30일 전 날짜 계산
-const thirtyDaysAgo = new Date();
-thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-// 각 멤버의 logs를 확인할 때 추가할 로직
-const recentHikes = qSnap.docs.filter(l => {
-    const d = l.data();
-    // 30일 이내이면서 '산행'(러닝/트레킹 제외)인 기록만 필터링
-    return d.date.toDate() > thirtyDaysAgo && !d.isRunning && !d.isTracking;
-}).length;
-
-// 4회 이상이면 isHot 상태를 true로 설정
-m.isHot = recentHikes >= 4;
-
         // 중요: 모든 로그가 아니라 날짜 조건(where)을 걸어 필요한 만큼만 읽습니다.
         const qLogsQuery = query(
             collection(db, `sanwoori/${m.id}/logs`),
