@@ -2337,172 +2337,123 @@ listArea.innerHTML = combinedHtml;
 window.toggleVibeModal = (show) => { document.getElementById('vibeModal').style.display = show ? 'flex' : 'none'; };
 
 window.showMemberTimeline = async (mId, mName) => {
-toggleTimelineModal(true);
-const modalContent = document.getElementById('timelineModalContent');
-modalContent.scrollTop = 0;
-const container = document.getElementById('timelineContent');
-const grassBoard = document.getElementById('grassBoard');
-const vibeArea = document.getElementById('passionVibeArea');
-const chartBox = document.getElementById('chartBox');
+    toggleTimelineModal(true);
+    const modalContent = document.getElementById('timelineModalContent');
+    modalContent.scrollTop = 0;
+    const container = document.getElementById('timelineContent');
+    const grassBoard = document.getElementById('grassBoard');
+    const vibeArea = document.getElementById('passionVibeArea');
+    const chartBox = document.getElementById('chartBox');
 
-// 1. 기본 텍스트 및 정보 세팅
-document.getElementById('timelineMemberName').innerText = mName;
-const memberInfo = currentData.find(m => m.id === mId);
-const friendshipPoint = memberInfo?.friendshipPoint || 0;
-document.getElementById('memberFriendshipPoint').innerText = friendshipPoint.toLocaleString();
+    document.getElementById('timelineMemberName').innerText = mName;
+    const memberInfo = currentData.find(m => m.id === mId);
+    const friendshipPoint = memberInfo?.friendshipPoint || 0;
+    document.getElementById('memberFriendshipPoint').innerText = friendshipPoint.toLocaleString();
 
-container.innerHTML = "<p class='text-center text-xs py-5 text-gray-400'>조회 중...</p>";
-grassBoard.innerHTML = vibeArea.innerHTML = "";
-chartBox.className = `chart-container-box chart-bg-q${selectedQuarter}`;
+    container.innerHTML = "<p class='text-center text-xs py-5 text-gray-400'>조회 중...</p>";
+    grassBoard.innerHTML = vibeArea.innerHTML = "";
+    chartBox.className = `chart-container-box chart-bg-q${selectedQuarter}`;
 
-try {
-const start = new Date(selectedYear, (selectedQuarter - 1) * 3, 1);
-const end = new Date(selectedYear, selectedQuarter * 3, 1);
-const totalDaysInQ = Math.floor((end - start) / (1000 * 60 * 60 * 24));
+    try {
+        const start = new Date(selectedYear, (selectedQuarter - 1) * 3, 1);
+        const end = new Date(selectedYear, selectedQuarter * 3, 1);
+        const totalDaysInQ = Math.floor((end - start) / (1000 * 60 * 60 * 24));
 
-// 2. 데이터 로드 (원래 코드 스타일 유지)
-const snapAll = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc")));
-const logsAll = snapAll.docs.map(doc => ({ ...doc.data(), date: doc.data().date.toDate() }));
-const logsQuarter = logsAll.filter(l => l.date >= start && l.date < end);
+        const snapAll = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc")));
+        const logsAll = snapAll.docs.map(doc => ({ ...doc.data(), date: doc.data().date.toDate() }));
+        const logsQuarter = logsAll.filter(l => l.date >= start && l.date < end);
 
-// --- [복구] 우측 상단 배지에 분기/최근 횟수 표시 ---
-const badge = document.getElementById('timelineCountBadge');
-if(badge) {
-badge.innerText = `분기 ${logsQuarter.length}회 / 최근 ${logsAll.length}회`;
-}
+        const badge = document.getElementById('timelineCountBadge');
+        if(badge) badge.innerText = `분기 ${logsQuarter.length}회 / 최근 ${logsAll.length}회`;
 
-// 3. 차트 및 HOT 뱃지
-const chartData = await calculateGrowthData(mId);
-renderGrowthChart(chartData);
+        const chartData = await calculateGrowthData(mId);
+        renderGrowthChart(chartData);
 
-const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-const recentCount = logsAll.filter(l => l.date >= thirtyDaysAgo).length;
-if(recentCount >= 4) {
-vibeArea.innerHTML = `<span class="hot-vibe flex items-center h-[18px] text-[9px] font-black text-orange-500 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-100">🔥 HOT</span>`;
-}
+        // --- [야생화 및 HOT 로직 시작] ---
+        const todayRef = new Date();
+        const thirtyDaysAgoDate = new Date();
+        thirtyDaysAgoDate.setDate(todayRef.getDate() - 30);
 
-// 1. [데이터 분석] 최근 30일 산행 횟수 계산 (HOT 배지용)
-const thirtyDaysAgo = new Date();
-thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        // 실제 HOT 조건: 최근 30일 이내 '산행' 4회 이상
+        const totalHikesLast30Days = logsAll.filter(l => 
+            l.date >= thirtyDaysAgoDate && !l.isRunning && !l.isTracking
+        ).length;
 
-// 전체 로그에서 최근 30일간 '산행'만 필터링해서 카운트
-const totalHikesLast30Days = logsQuarter.filter(l => 
-    l.date >= thirtyDaysAgo && !l.isRunning && !l.isTracking
-).length;
+        const isHotBadgeActive = totalHikesLast30Days >= 4;
+        if(isHotBadgeActive) {
+            vibeArea.innerHTML = `<span class="hot-vibe flex items-center h-[18px] text-[9px] font-black text-orange-500 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-100">🔥 HOT</span>`;
+        }
 
-const isHotBadgeActive = totalHikesLast30Days >= 4; // 4회 이상이면 HOT!
+        const dateActivities = {};
+        logsQuarter.forEach(l => {
+            const key = `${l.date.getFullYear()}-${l.date.getMonth() + 1}-${l.date.getDate()}`;
+            if(!dateActivities[key]) dateActivities[key] = { hike: 0, run: 0, trek: 0, isRegular: false };
+            if(l.isRunning) dateActivities[key].run++;
+            else if(l.isTracking) dateActivities[key].trek++;
+            else {
+                dateActivities[key].hike++;
+                if(l.isRegular) dateActivities[key].isRegular = true;
+            }
+        });
 
-// 2. [데이터 분석] 일자별 활동 정리
-const dateActivities = {};
-logsQuarter.forEach(l => {
-    const key = `${l.date.getFullYear()}-${l.date.getMonth() + 1}-${l.date.getDate()}`;
-    if(!dateActivities[key]) {
-        dateActivities[key] = { hike: 0, run: 0, trek: 0, isRegular: false };
-    }
-    if(l.isRunning) dateActivities[key].run++;
-    else if(l.isTracking) dateActivities[key].trek++;
-    else {
-        dateActivities[key].hike++;
-        if(l.isRegular) dateActivities[key].isRegular = true;
-    }
-});
+        const seasonalFlowers = {
+            spring: ['🌸', '🌷', '🌼', '🪷'],
+            summer: ['🌻', '🌺', '🌹', '🏵'],
+            fall: ['🍁', '🍂', '🌾', '🪻'],
+            winter: ['❄️', '🌲', '🪾', '☃️']
+        };
 
-// 3. [계절 데이터]
-const seasonalFlowers = {
-    spring: ['🌸', '🌷', '🌼', '🪷'],
-    summer: ['🌻', '🌺', '🌹', '🏵'],
-    fall: ['🍁', '🍂', '🌾', '🪻'],
-    winter: ['❄️', '🌲', '🪾', '☃️']
-};
+        let grassHtml = "";
+        for (let i = 0; i < totalDaysInQ; i++) {
+            const cur = new Date(start);
+            cur.setDate(start.getDate() + i);
+            const k = `${cur.getFullYear()}-${cur.getMonth() + 1}-${cur.getDate()}`;
+            const act = dateActivities[k];
 
-// 4. [잔디 HTML 생성]
-let grassHtml = "";
-for (let i = 0; i < totalDaysInQ; i++) {
-    const cur = new Date(start);
-    cur.setDate(start.getDate() + i);
-    const k = `${cur.getFullYear()}-${cur.getMonth() + 1}-${cur.getDate()}`;
-    const act = dateActivities[k];
+            let cl = "grass-day";
+            let style = "";
+            let iconTag = ""; 
 
-    let cl = "grass-day";
-    let style = "";
-    let iconTag = ""; 
+            const month = cur.getMonth() + 1;
+            let season = (month >= 3 && month <= 5) ? 'spring' : (month >= 6 && month <= 8) ? 'summer' : (month >= 9 && month <= 11) ? 'fall' : 'winter';
 
-    // 계절 판별
-    const month = cur.getMonth() + 1;
-    let season = (month >= 3 && month <= 5) ? 'spring' : 
-                 (month >= 6 && month <= 8) ? 'summer' : 
-                 (month >= 9 && month <= 11) ? 'fall' : 'winter';
-
-    if (act) {
-        if (act.isRegular) {
-            // 정기 산행 (프리미엄)
-            cl += " grass-regular-premium";
-            const qIcon = (season === 'spring') ? "🌸" : (season === 'summer') ? "🍀" : (season === 'fall') ? "🍁" : "❄️";
-            iconTag = `<span class="grass-icon">${qIcon}</span>`;
-        } 
-        else {
-            // 일반 활동 로직
-            const hasHike = act.hike > 0;
-            const hasExtra = act.run > 0 || act.trek > 0;
-            
-            if (hasHike && hasExtra) {
-                const subColor = act.run > 0 ? "#FFD1DC" : "#E0B0FF";
-                style = `background: linear-gradient(135deg, #2ecc71 50%, ${subColor} 50%);`;
-            } else if (act.run > 0) { 
-                style = "background: #FFD1DC;"; 
-            } else if (act.trek > 0) { 
-                style = "background: #E0B0FF;"; 
-            } else if (act.hike > 0) {
-                const level = (act.hike >= 4) ? 4 : (act.hike === 3 ? 3 : (act.hike === 2 ? 2 : 1));
-                cl += ` grass-active-${level}`;
-                
-                // 야생화 로직: HOT 배지 상태 + 산행 기록 있음 + 랜덤 확률
-                if (isHotBadgeActive && Math.random() < 0.4) {
-                    const flowerList = seasonalFlowers[season];
-                    const randomFlower = flowerList[Math.floor(Math.random() * flowerList.length)];
-                    iconTag = `<span class="wild-flower">${randomFlower}</span>`;
+            if (act) {
+                if (act.isRegular) {
+                    cl += " grass-regular-premium";
+                    const qIcon = (season === 'spring') ? "🌸" : (season === 'summer') ? "🍀" : (season === 'fall') ? "🍁" : "❄️";
+                    iconTag = `<span class="grass-icon">${qIcon}</span>`;
+                } else {
+                    if (act.hike > 0 && (act.run > 0 || act.trek > 0)) {
+                        style = `background: linear-gradient(135deg, #2ecc71 50%, ${act.run > 0 ? "#FFD1DC" : "#E0B0FF"} 50%);`;
+                    } else if (act.run > 0) style = "background: #FFD1DC;"; 
+                    else if (act.trek > 0) style = "background: #E0B0FF;"; 
+                    else if (act.hike > 0) {
+                        const level = Math.min(act.hike, 4);
+                        cl += ` grass-active-${level}`;
+                        if (isHotBadgeActive && Math.random() < 0.4) {
+                            const flowers = seasonalFlowers[season];
+                            iconTag = `<span class="wild-flower">${flowers[Math.floor(Math.random() * flowers.length)]}</span>`;
+                        }
+                    }
                 }
             }
+            const encodedAct = act ? btoa(unescape(encodeURIComponent(JSON.stringify(act)))) : "";
+            grassHtml += `<div class="${cl}" style="${style}" onclick="window.showGrassPopup(event, '${k}', '${encodedAct}')">${iconTag}</div>`;
         }
+        grassBoard.innerHTML = grassHtml;
+
+        // 하단 타임라인 리스트
+        container.innerHTML = logsAll.length === 0 ? "<p class='text-center text-[10px] py-10 text-gray-400'>기록 없음</p>" : 
+            logsAll.map(log => {
+                const dayName = ['일','월','화','수','목','금','토'][log.date.getDay()];
+                const unit = (log.isRunning || log.isTracking) ? 'km' : 'm';
+                return `<div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-date">${log.date.getFullYear()}.${log.date.getMonth()+1}.${log.date.getDate()} (${dayName})</div><div class="timeline-desc ${log.isTop100 ? 'text-blue-600 font-black' : ''}">${log.isBAC ? '<span class="bac-txt">BAC</span>' : ''}${log.mountain || '기록'} (${log.height || 0}${unit}) ${log.isTop100 ? '⭐' : '✔️'}</div></div>`;
+            }).join('');
+
+    } catch (e) {
+        console.error(e);
+        container.innerHTML = "<p class='text-center text-xs text-red-400'>데이터 조회 실패</p>";
     }
-
-    // 팝업 데이터 인코딩 (JSON 에러 방지용)
-    const encodedAct = act ? btoa(unescape(encodeURIComponent(JSON.stringify(act)))) : "";
-    
-    // 최종 HTML 생성 (onClick 정상 작동 확인)
-    grassHtml += `
-        <div class="${cl}" 
-             style="${style}" 
-             onclick="window.showGrassPopup(event, '${k}', '${encodedAct}')">
-             ${iconTag}
-        </div>`;
-}
-
-grassBoard.innerHTML = grassHtml;
-
-// 5. 하단 타임라인 리스트 생성 (원래 코드 로직 복구)
-if(logsAll.length === 0) {
-container.innerHTML = "<p class='text-center text-[10px] py-10 text-gray-400'>기록 없음</p>";
-} else {
-container.innerHTML = logsAll.map(log => {
-const dayName = ['일','월','화','수','목','금','토'][log.date.getDay()];
-const top100Class = log.isTop100 ? 'text-blue-600 font-black' : '';
-const bacTag = log.isBAC ? '<span class="bac-txt">BAC</span>' : '';
-const unit = (log.isRunning || log.isTracking) ? 'km' : 'm';
-
-return `
-<div class="timeline-item">
-<div class="timeline-dot"></div>
-<div class="timeline-date">${log.date.getFullYear()}.${log.date.getMonth()+1}.${log.date.getDate()} (${dayName})</div>
-<div class="timeline-desc ${top100Class}">${bacTag}${log.mountain || '기록'} (${log.height || 0}${unit}) ${log.isTop100 ? '⭐' : '✔️'}</div>
-</div>`;
-}).join('');
-}
-
-} catch (e) {
-console.error(e);
-container.innerHTML = "<p class='text-center text-xs text-red-400'>데이터 조회 실패</p>";
-}
 };
 
 async function calculateGrowthData(mId) {
