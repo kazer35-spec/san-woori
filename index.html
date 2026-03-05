@@ -1353,8 +1353,7 @@ border-width: 1.8px !important;
 /* 명예의 전당 추가 스타일 */
 .hall-of-fame-btn { width: 32px; height: 32px; border-radius: 50%; background: #fff; border: 1.5px solid #facc15; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; cursor: pointer; transition: 0.2s; box-shadow: 0 2px 5px rgba(250, 204, 21, 0.2); }
 .hall-of-fame-btn:hover { transform: scale(1.1); background: #fefce8; }
-
-    /* [추가/수정] 열정 온도 버튼 스타일 */
+/* [추가/수정] 열정 온도 버튼 스타일 */
 .vibe-temp-btn {
 width: 32px; height: 32px; border-radius: 50%; background: #fff; border: 1.5px solid #fee2e2;
 display: flex; align-items: center; justify-content: center; font-size: 1rem; cursor: pointer; transition: 0.2s;
@@ -2530,41 +2529,62 @@ async function calculateGrowthData(mId) {
 }
 
 function renderGrowthChart(data) {
-const ctx = document.getElementById('growthChart').getContext('2d');
-if (growthChartInstance) growthChartInstance.destroy();
-growthChartInstance = new Chart(ctx, {
-type: 'bar',
-data: {
-labels: data.labels,
-datasets: [
-{ label: '산행 횟수', data: data.counts, backgroundColor: 'rgba(59, 130, 246, 0.6)', borderRadius: 5, yAxisID: 'y', order: 2 },
-{ label: '누적 고도', data: data.heights, type: 'line', borderColor: '#ef4444', borderWidth: 2, pointBackgroundColor: '#ef4444', pointRadius: 4, tension: 0.4, yAxisID: 'y1', order: 1 }
-]
-},
-options: {
-responsive: true, maintainAspectRatio: false,
-plugins: {
-legend: { display: false },
-tooltip: {
-backgroundColor: 'rgba(30, 41, 59, 0.95)',
-padding: 10,
-titleFont: { size: 12, weight: '900' },
-bodyFont: { size: 11, weight: '700' },
-callbacks: {
-label: function(context) {
-const i = context.dataIndex;
-return [ ` ⛰️ 누적: ${data.heights[i].toLocaleString()}m`, ` 🏔️ 최고봉: ${data.peaks[i]}`, ` 📈 횟수: ${data.counts[i]}회` ];
-}
-}
-}
-},
-scales: {
-x: { grid: { display: false }, ticks: { font: { size: 10, weight: '800' } } },
-y: { beginAtZero: true, position: 'left', grid: { color: '#f1f5f9' }, ticks: { font: { size: 8 } } },
-y1: { beginAtZero: true, position: 'right', display: false }
-}
-}
-});
+    const ctx = document.getElementById('growthChart').getContext('2d');
+    if (growthChartInstance) growthChartInstance.destroy();
+    
+    growthChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: data.labels,
+            datasets: [
+                { 
+                    label: '산행 횟수', 
+                    data: data.counts, 
+                    // ⭐️ 여기가 핵심! 고정 색상 대신 계산된 colors 배열을 넣습니다.
+                    backgroundColor: data.colors, 
+                    borderRadius: 5, 
+                    yAxisID: 'y', 
+                    order: 2 
+                },
+                { 
+                    label: '누적 고도', 
+                    data: data.heights, 
+                    type: 'line', 
+                    borderColor: '#ef4444', 
+                    borderWidth: 2, 
+                    pointBackgroundColor: '#ef4444', 
+                    pointRadius: 4, 
+                    tension: 0.4, 
+                    yAxisID: 'y1', 
+                    order: 1 
+                }
+            ]
+        },
+        options: {
+            // ... (나머지 옵션은 그대로 유지) ...
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(30, 41, 59, 0.95)',
+                    padding: 10,
+                    titleFont: { size: 12, weight: '900' },
+                    bodyFont: { size: 11, weight: '700' },
+                    callbacks: {
+                        label: function(context) {
+                            const i = context.dataIndex;
+                            return [ ` ⛰️ 누적: ${data.heights[i].toLocaleString()}m`, ` 🏔️ 최고봉: ${data.peaks[i]}`, ` 📈 횟수: ${data.counts[i]}회` ];
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { grid: { display: false }, ticks: { font: { size: 10, weight: '800' } } },
+                y: { beginAtZero: true, position: 'left', grid: { color: '#f1f5f9' }, ticks: { font: { size: 8 } } },
+                y1: { beginAtZero: true, position: 'right', display: false }
+            }
+        }
+    });
 }
 
 window.toggleMapView = () => {
@@ -4053,3 +4073,4 @@ document.addEventListener('touchstart', (e) => {
 </script>
 </body>
     </html>
+    
