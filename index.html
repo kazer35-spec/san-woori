@@ -13,6 +13,12 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+/* 그래프에서 '활동이 있는 칸'의 색상을 변수로 지정합니다 */
+.activity-grass.active {
+    background-color: var(--season-theme-color, #10b981) !important; 
+    transition: background-color 0.5s ease; /* 색상이 부드럽게 변하도록 */
+}
+
 /* 꽃이 살짝 흔들리는 효과 (생동감) */
 @keyframes flowerSway {
     0%, 100% { transform: rotate(-5deg); }
@@ -2483,24 +2489,57 @@ for (let i = 0; i < totalDaysInQ; i++) {
     }
 };
 
+// 1. 계절 색상 판별 함수 (파일 상단에 위치)
+window.getSeasonColor = (month) => {
+    if (month >= 3 && month <= 5) return "#ffafcc"; // 🌸 봄: 분홍
+    if (month >= 6 && month <= 8) return "#34d399"; // 🌿 여름: 초록
+    if (month >= 9 && month <= 11) return "#fb923c"; // 🍁 가을: 주황
+    return "#7dd3fc"; // ❄️ 겨울: 하늘
+};
+
+// 2. 메인 데이터 계산 함수
 async function calculateGrowthData(mId) {
-const labels = []; const counts = []; const heights = []; const peaks = [];
-for (let i = 3; i >= 0; i--) {
-let q = selectedQuarter - i; let y = selectedYear;
-while (q <= 0) { q += 4; y -= 1; }
-labels.push(`${q}Q`);
-const qStart = new Date(y, (q - 1) * 3, 1);
-const qEnd = new Date(y, q * 3, 1);
-const qSnap = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), where("date", ">=", Timestamp.fromDate(qStart)), where("date", "<", Timestamp.fromDate(qEnd))));
-counts.push(qSnap.size);
-let qH = 0; let maxH = 0; let peakName = "-";
-qSnap.forEach(d => {
-const data = d.data(); qH += (data.height || 0);
-if((data.height || 0) > maxH) { maxH = data.height; peakName = data.mountain || "기록"; }
-});
-heights.push(qH); peaks.push(peakName);
-}
-return { labels, counts, heights, peaks };
+    const labels = []; const counts = []; const heights = []; const peaks = [];
+    const colors = []; // 각 막대(분기)의 색상을 저장할 배열
+
+    for (let i = 3; i >= 0; i--) {
+        let q = selectedQuarter - i; let y = selectedYear;
+        while (q <= 0) { q += 4; y -= 1; }
+        
+        labels.push(`${q}Q`);
+
+        // --- [색상 로직 추가] 각 분기의 시작월을 기준으로 색상 결정 ---
+        const startMonth = (q - 1) * 3 + 1; 
+        colors.push(window.getSeasonColor(startMonth)); 
+
+        const qStart = new Date(y, (q - 1) * 3, 1);
+        const qEnd = new Date(y, q * 3, 1);
+        
+        const qSnap = await getDocs(query(
+            collection(db, `sanwoori/${mId}/logs`), 
+            where("date", ">=", Timestamp.fromDate(qStart)), 
+            where("date", "<", Timestamp.fromDate(qEnd))
+        ));
+        
+        counts.push(qSnap.size);
+        
+        let qH = 0; let maxH = 0; let peakName = "-";
+        qSnap.forEach(d => {
+            const data = d.data(); 
+            const h = Number(data.height) || 0;
+            qH += h;
+            if(h > maxH) { 
+                maxH = h; 
+                peakName = data.mountain || "기록"; 
+            }
+        });
+
+        heights.push(qH);
+        peaks.push(peakName);
+    }
+
+    // 차트 생성 시 필요한 모든 데이터를 객체로 묶어서 반환
+    return { labels, counts, heights, peaks, colors };
 }
 
 function renderGrowthChart(data) {
@@ -2696,7 +2735,16 @@ m.totalHeight = allLogsSnap.docs.reduce((acc, l) => acc + (l.data().height || 0)
     updateAdminMemberLists();
     renderStatusTable();
 updateVibeTemp();
-}
+
+const root = document.documentElement;
+    // window.getSeasonColor 함수를 호출해 현재 계절 색상을 가져옵니다.
+    const sColor = window.getSeasonColor(new Date().getMonth() + 1);
+    
+    // CSS 변수(--season-theme-color)에 해당 색상을 할당합니다.
+    root.style.setProperty('--season-theme-color', sColor);
+    
+    console.log("🌸🌿 계절 테마 적용 완료:", sColor);
+} 
 
 let pendingLevelUpCards = [];
 
