@@ -227,7 +227,7 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 
 /* 특별 별 전용 애니메이션 (기존 twinkle보다 부드러움) */
 .animate-twinkle {
-    animation: special-twinkle 3.5s infinite ease-in-out;
+    animation: special-twinkle 2.5s infinite ease-in-out;
 }
 
 /* [효과 2] 계절 성운 레이어 */
@@ -2796,6 +2796,7 @@ window.showCombinedLevelUpAlert = () => {
     const frame = document.getElementById('cardFrame');
     const title = document.getElementById('modalTitle');
     
+    // 첫 번째 인원의 컬러를 메인 테마로 사용
     const primaryColor = pendingLevelUpCards[0].color || "#10b981";
     frame.style.borderColor = primaryColor;
     title.style.color = primaryColor;
@@ -2803,19 +2804,19 @@ window.showCombinedLevelUpAlert = () => {
     content.innerHTML = ''; 
 
     if (pendingLevelUpCards.length === 1) {
-        // [1인 모드] 기존 디자인 유지
+        // [1인 모드] 기존 세로형 디자인 유지
         const user = pendingLevelUpCards[0];
         const emoji = user.badgeText.split(' ')[0];
         const label = user.badgeText.split(' ')[1] || "";
         content.innerHTML = `
-            <div class="flex flex-col items-center w-full">
+            <div class="flex flex-col items-center w-full py-4">
                 <div class="text-[9px] font-bold border px-3 py-1 rounded-full uppercase mb-6 tracking-widest" 
                      style="color:${user.color}; border-color:${user.color}44; background: ${user.color}11;">
                      SAN WOORI RANKER
                 </div>
-                <div class="text-8xl mb-4 leading-none select-none">${emoji}</div>
+                <div class="text-8xl mb-4 leading-none">${emoji}</div>
                 <div class="text-[10px] font-medium text-white/50 mb-6 tracking-tight">
-                    <span class="font-bold text-white text-xs">"${label}"</span> 등급을 획득하셨습니다!
+                    <span class="font-bold text-white text-xs">"${label}"</span> 등급 획득!
                 </div>
                 <div class="text-5xl font-black mb-1" style="color:${user.color}">LV.${user.level}</div>
                 <div class="text-3xl font-bold text-white mb-4">${user.name} 님</div>
@@ -2823,42 +2824,45 @@ window.showCombinedLevelUpAlert = () => {
             </div>
         `;
     } else {
-        // [단체 모드] 빨간 줄 그으신 외부 영역에 멘트 배치
+        // [다수 인원 모드] 가로 그리드 레이아웃 (6명 이상 최적화)
         const container = document.createElement('div');
         container.className = "flex flex-col items-center w-full h-full";
 
-        // 1. [상단 빨간줄 위치] 외부 타이틀
+        // 상단 헤더 (빨간 줄 영역 안쪽 상단)
         const topSection = `
-            <div class="text-[10px] font-bold border px-4 py-1.5 rounded-full uppercase mb-8 tracking-[0.2em]" 
+            <div class="text-[10px] font-bold border px-4 py-1.5 rounded-full uppercase mb-6 tracking-[0.2em]" 
                  style="color:${primaryColor}; border-color:${primaryColor}44; background: ${primaryColor}11;">
-                 SAN WOORI RANKER
+                 GROUP LEVEL UP ACHIEVED
             </div>
+            <h4 class="text-white text-lg font-black mb-6 tracking-tighter">축하합니다! 총 ${pendingLevelUpCards.length}명 레벨업</h4>
         `;
 
-        // 2. 중간 격자 (작은 카드들)
+        // 그리드 설정: 6명 이상이면 3열, 그 미만이면 2열로 가로 배치
+        const gridCount = pendingLevelUpCards.length >= 6 ? 'grid-cols-3' : 'grid-cols-2';
         const grid = document.createElement('div');
-        grid.className = `grid gap-3 w-full mb-8 ${pendingLevelUpCards.length <= 4 ? 'grid-cols-2' : 'grid-cols-3'}`;
+        grid.className = `grid gap-2 w-full mb-6 ${gridCount}`;
         
         pendingLevelUpCards.forEach(user => {
             const emoji = user.badgeText.split(' ')[0];
             const label = user.badgeText.split(' ')[1] || "";
             const userBox = document.createElement('div');
-            userBox.className = "bg-black/40 rounded-2xl p-4 border border-white/5 flex flex-col items-center text-center";
             
+            // 개별 카드를 가로로 짧고 밀도있게 구성
+            userBox.className = "bg-white/5 rounded-xl p-3 border border-white/10 flex flex-col items-center text-center";
             userBox.innerHTML = `
-                <div class="text-4xl mb-2">${emoji}</div>
-                <div class="text-[8px] text-white/40 mb-1 italic">"${label}" 획득</div>
-                <div class="text-xl font-black mb-1" style="color:${user.color}">LV.${user.level}</div>
-                <div class="text-[11px] text-white font-bold truncate w-full">${user.name} 님</div>
+                <div class="text-3xl mb-1">${emoji}</div>
+                <div class="text-[14px] font-black leading-tight" style="color:${user.color}">LV.${user.level}</div>
+                <div class="text-[11px] text-white font-bold truncate w-full">${user.name}</div>
+                <div class="text-[8px] text-white/40 mt-1 scale-90">"${label}"</div>
             `;
             grid.appendChild(userBox);
         });
 
-        // 3. [하단 빨간줄 위치] 외부 하단 멘트
+        // 하단 멘트 (빨간 줄 영역 안쪽 하단)
         const bottomSection = `
-            <div class="mt-auto pt-6 w-full text-center border-t border-white/5">
-                <p class="text-slate-400 text-sm italic tracking-tight font-medium">
-                    "산우리의 든든한 등불입니다"
+            <div class="mt-auto pt-4 w-full text-center border-t border-white/10">
+                <p class="text-slate-400 text-[10px] italic font-medium">
+                    "우리들의 발걸음이 모여 산우리의 역사가 됩니다"
                 </p>
             </div>
         `;
@@ -2866,11 +2870,10 @@ window.showCombinedLevelUpAlert = () => {
         container.innerHTML = topSection;
         container.appendChild(grid);
         container.innerHTML += bottomSection;
-        
         content.appendChild(container);
     }
 
- document.getElementById('cardDate').innerText = `${new Date().toLocaleDateString()} OFFICIAL RECORD`;
+    document.getElementById('cardDate').innerText = `${new Date().toLocaleDateString()} OFFICIAL RECORD`;
     modal.style.display = 'flex';
 };
 
