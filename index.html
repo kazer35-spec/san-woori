@@ -1563,7 +1563,7 @@ overflow: hidden;
 <div id="levelUpCardModal" class="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-md hidden items-center justify-center p-5">
     <div class="w-full max-w-[400px] text-center">
         <h2 id="modalTitle" class="text-2xl font-black mb-1 text-white">LEVEL UP!</h2>
-        <p class="text-slate-400 text-[10px] italic mb-5">영광스러운 순간을 기록하세요.</p>
+        <p class="text-slate-400 text-[10px] italic mb-5">레벨업 축하합니다 🎉</p>
         
         <div id="cardToCapture" class="inline-block bg-black p-[3px] rounded-[22px]">
             <div id="cardFrame" class="relative w-[340px] min-h-[340px] bg-[#0f172a] rounded-[20px] overflow-hidden flex flex-col p-6 border-4 border-emerald-500">
@@ -1835,6 +1835,14 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 </div>
 </div>
 <div class="p-4 text-center"><button onclick="logoutAdmin()" class="text-gray-400 underline font-bold text-xs">로그아웃</button></div>
+<div style="margin-top: 30px; padding: 20px; border-top: 1px dashed #ccc;">
+    <button onclick="exportAllData()" style="width: 100%; py: 15px; background-color: #333; color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer;">
+        💾 전체 데이터 원클릭 백업 (JSON 다운로드)
+    </button>
+    <p style="text-align: center; font-size: 11px; color: #888; margin-top: 8px;">
+        ※ 클릭 시 전체 멤버와 산행 기록이 파일로 저장됩니다.
+    </p>
+</div>
 </div>
 
 <div id="levelModal" class="modal-overlay" onclick="toggleModal(false)">
@@ -3145,6 +3153,46 @@ await addDoc(collection(db, "sanwoori"), { name, level: 0, gender, lastDate: Tim
 alert("등록 완료");
 }
 };
+window.exportAllData = async () => {
+    if (!confirm("데이터베이스의 전체 내용을 백업하시겠습니까?")) return;
+
+    try {
+        const backupData = {
+            bakcupTime: new Date().toLocaleString(),
+            data: []
+        };
+
+        // 1. 멤버 명단 가져오기
+        const memberSnap = await getDocs(collection(db, "sanwoori"));
+        
+        // 2. 멤버별로 기록(logs)까지 싹 다 긁어모으기
+        for (const mDoc of memberSnap.docs) {
+            const memberInfo = { id: mDoc.id, ...mDoc.data() };
+            const logsSnap = await getDocs(collection(db, `sanwoori/${mDoc.id}/logs`));
+            const logs = logsSnap.docs.map(lDoc => ({
+                id: lDoc.id,
+                ...lDoc.data(),
+                date: lDoc.data().date?.toDate().toISOString() // 날짜 형식 변환
+            }));
+            
+            backupData.data.push({ ...memberInfo, logs });
+        }
+
+        // 3. 파일로 만들어서 다운로드 시키기
+        const jsonBlob = new Blob([JSON.stringify(backupData, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(jsonBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `산우리_전체백업_${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        alert("백업 파일 다운로드가 완료되었습니다!");
+    } catch (e) {
+        console.error(e);
+        alert("백업 중 오류 발생: " + e.message);
+    }
+};
 
 window.updateBonusDays = async () => {
 const id = document.getElementById('memberSelectManage').value;
@@ -3532,7 +3580,7 @@ window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
     }
 
     // [3] 날짜 및 나이테 개수 계산 (만 개월수 로직 통합)
-    const fixedList = ["오즈","나스","해수","용삼","지니","아랑","민이","몰랑","길치","등초","무니","식이","구름","뚜벅","윤윤","햄찌","이구","후후","튜브","피치","사랑","송돌","호프","애플","얌얌","태기","희야","멸치","성민","루이","섭섭","하트"];
+    const fixedList = ["오즈","나스","해수","용삼","지니","아랑","민이","몰랑","길치","등초","무니","식이","구름","뚜벅","윤윤","햄찌","이구","후후","튜브","피치","사랑","송돌","호프","애플","얌얌","태기","희야","멸치","성민","섭섭","하트"];
     
     // 가입일 설정 (고정 리스트는 25년 11월 24일 고정)
     let jDate = fixedList.includes(memberName) 
