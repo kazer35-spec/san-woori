@@ -13,6 +13,25 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+/* 기존 twinkle을 대체하거나 새로 추가하세요 */
+@keyframes intense-glow {
+    0%, 100% {
+        transform: scale(1);
+        filter: brightness(1.2) blur(0px);
+        box-shadow: 0 0 10px var(--star-color), 0 0 20px var(--star-color);
+    }
+    50% {
+        transform: scale(1.3); /* 별 크기 자체가 살짝 커짐 */
+        filter: brightness(1.8) blur(1px); /* 훨씬 환하게 빛남 */
+        /* 빛이 더 멀리 퍼지는 효과 */
+        box-shadow: 0 0 20px var(--star-color), 0 0 40px var(--star-color), 0 0 60px var(--star-color);
+    }
+}
+
+.animate-twinkle {
+    animation: intense-glow 2s infinite ease-in-out !important;
+}
+
 /* 그래프의 '활성화된(데이터가 있는) 칸'의 배경색을 변수로 연결 */
 .activity-grass.active {
     background-color: var(--season-theme-color) !important;
@@ -3807,17 +3826,19 @@ window.showMilkyWay = async (mId, mName) => {
         } else if (log.starType === "special") {
             starSize = "w-2 h-2"; 
             customStyle = `background: radial-gradient(circle, #A020F0 20%, #00FF7F 100%); box-shadow: 0 0 12px 4px rgba(160, 32, 240, 0.6), 0 0 25px 8px rgba(0, 255, 127, 0.4); filter: brightness(1.3);`;
-        } else if (log.starType.startsWith("regular")) {
-            const colors = ["#00FFFF", "#FF8C00", "#D32F2F", "#7C4DFF"]; 
-            const idx = parseInt(log.starType.split('_')[1]) - 1;
-            starColor = colors[idx] || "white";
-            shadowColor = starColor;
-            customStyle = `background-color: ${starColor}; box-shadow: 0 0 12px ${shadowColor}, 0 0 22px ${shadowColor};`;
-        }
-    } else if (log.isTop100) {
-        starColor = "#F7E7CE"; shadowColor = "#F7E7CE";
-        customStyle = `background-color: ${starColor}; box-shadow: 0 0 6px ${shadowColor};`;
-    }
+        } else if else if (log.starType.startsWith("regular")) {
+    const colors = ["#00FFFF", "#FF8C00", "#FF007F", "#7C4DFF"]; // 3호를 더 진한 핑크/레드로 보정
+    const idx = parseInt(log.starType.split('_')[1]) - 1;
+    starColor = colors[idx] || "white";
+    
+    // CSS 변수(--star-color)를 직접 주입하여 Glow 효과를 극대화합니다.
+    customStyle = `
+        background-color: #fff; /* 별 중심은 하얗게 해서 더 밝아 보이게 */
+        border: 1px solid ${starColor};
+        --star-color: ${starColor}; 
+        box-shadow: 0 0 15px ${starColor}, 0 0 30px ${starColor};
+    `;
+}
 
     const star = document.createElement('div');
     star.className = `absolute ${starSize} rounded-full z-10`; 
