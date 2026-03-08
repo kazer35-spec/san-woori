@@ -2778,21 +2778,23 @@ let pendingLevelUpCards = [];
 
 window.checkLevelUpgrade = (name, oldLevel, newLevel) => {
     if (typeof levelThresholds === 'undefined') return;
-    
-    const thresholdLevels = levelThresholds.map(t => t.lv);
-    for (let lv = oldLevel + 1; lv <= newLevel; lv++) {
-        if (thresholdLevels.includes(lv)) {
-            const rawBadge = getLevelBadge(lv); 
-            const style = getLevelStyle(lv);
-            
-            pendingLevelUpCards.push({ 
-                name: name, 
-                level: lv, 
-                badgeText: rawBadge, 
-                color: style.border 
-            });
-            break; 
-        }
+
+    // 1. 현재 도달한 최종 레벨(newLevel)이 어떤 등급 구간인지 찾습니다.
+    // 예: 2에서 4가 되었다면, 4레벨에 해당하는 등급 정보를 가져옵니다.
+    const currentThreshold = [...levelThresholds].reverse().find(t => newLevel >= t.lv);
+    const oldThreshold = [...levelThresholds].reverse().find(t => oldLevel >= t.lv);
+
+    // 2. 이전 등급보다 높은 등급 구간에 진입했을 때만 카드를 생성합니다.
+    if (currentThreshold && (!oldThreshold || currentThreshold.lv > oldThreshold.lv)) {
+        const rawBadge = getLevelBadge(newLevel); 
+        const style = getLevelStyle(newLevel);
+        
+        pendingLevelUpCards.push({ 
+            name: name, 
+            level: newLevel, // 중간 단계가 아닌 최종 레벨 표시
+            badgeText: rawBadge, // 최종 레벨의 마크 (나무 등)
+            color: style.border 
+        });
     }
 };
 
@@ -3817,14 +3819,13 @@ else if (log.starType.startsWith("regular")) {
     customStyle = `
         background-color: ${starColor}; 
         box-shadow: 
-            0 0 4px 1px ${starColor},    /* 별 바로 옆 아주 진한 빛 */
-            0 0 8px 2px ${starColor}dd,  /* 촘촘하게 채워주는 중간 빛 (투명도 dd) */
+            0 0 4px 1px ${starColor}, /* 별 바로 옆 아주 진한 빛 */
+            0 0 8px 2px ${starColor}dd, /* 촘촘하게 채워주는 중간 빛 (투명도 dd) */
             0 0 10px 3px ${starColor}88; /* 10px에서 선명하게 마무리 (투명도 88) */
         filter: brightness(1.8); /* 아주 작지만 눈이 부실 정도로 선명하게 */
     `;
 }
-
-    } else if (log.isTop100) {
+   } else if (log.isTop100) {
         starColor = "#F7E7CE"; shadowColor = "#F7E7CE";
         customStyle = `background-color: ${starColor}; box-shadow: 0 0 6px ${shadowColor};`;
     }
