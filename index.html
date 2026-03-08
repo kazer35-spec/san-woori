@@ -13,6 +13,24 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+/* 밝은 별이 더 환하게 팽창하며 빛나는 효과 */
+@keyframes intense-glow {
+    0%, 100% {
+        transform: scale(1);
+        filter: brightness(1) blur(0px);
+        box-shadow: 0 0 8px currentColor;
+    }
+    50% {
+        transform: scale(1.3); /* 별 크기가 살짝 커짐 */
+        filter: brightness(1.8) blur(1px); /* 훨씬 더 밝아짐 */
+        box-shadow: 0 0 20px 5px currentColor, 0 0 40px 10px currentColor; /* 후광 폭발 */
+    }
+}
+
+.animate-intense {
+    animation: intense-glow 2s infinite ease-in-out;
+}
+
 /* 그래프의 '활성화된(데이터가 있는) 칸'의 배경색을 변수로 연결 */
 .activity-grass.active {
     background-color: var(--season-theme-color) !important;
@@ -2673,12 +2691,6 @@ document.getElementById('adminManualRegionSelect').value = detectedRegion;
 document.getElementById('coordDisplay').innerText = `좌표: X ${tempCoord.x} / Y ${tempCoord.y} (${detectedRegion})`;
 };
 
-    window.toggleMarkerStyle = () => {
-const marker = document.getElementById('adminMapMarker');
-if(document.getElementById('isTop100Check').checked) marker.classList.add('top-100');
-else marker.classList.remove('top-100');
-};
-
     window.autoFindCoords = async () => {
 const mName = document.getElementById('mountainName').value.trim();
 if(!mName) return;
@@ -3854,8 +3866,9 @@ window.showMilkyWay = async (mId, mName) => {
         
         // 반짝임 효과만 필요한 경우에만 살려둡니다 (제자리에서 반짝)
         if (shouldTwinkle) {
-            setTimeout(() => star.classList.add('animate-twinkle'), 1000);
-        }
+    // 일반 반짝임 대신 새롭게 만든 강력한 빛 효과(animate-intense) 적용
+    setTimeout(() => star.classList.add('animate-intense'), 1000);
+}
         
         if (index === logs.length - 1) {
             setTimeout(() => createShootingStar(board, log.coords.x, log.coords.y), 1000);
@@ -3897,7 +3910,7 @@ function renderStarGuideItems() {
     grid.innerHTML = stars.map(s => `
         <div class="star-info-card" style="background: rgba(255,255,255,0.04); border-radius: 14px; padding: 20px 15px; display: flex; align-items: center; gap: 15px; border: 1px solid rgba(255,255,255,0.08); min-height: 90px;">
             <div style="width: 40px; height: 40px; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
-                <div class="star-preview ${s.twinkle ? 'animate-twinkle' : ''}" style="width: 12px; height: 12px; border-radius: 50%; ${s.style}"></div>
+                <div class="star-preview ${s.twinkle ? 'animate-intense' : ''}" style="width: 12px; height: 12px; border-radius: 50%; ${s.style}"></div>
             </div>
             <div style="display: flex; flex-direction: column; justify-content: center;">
                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
@@ -4136,4 +4149,12 @@ document.addEventListener('touchstart', (e) => {
 
 </script>
 </body>
-</html>
+    </html>
+
+    window.toggleMarkerStyle = () => {
+const marker = document.getElementById('adminMapMarker');
+if(document.getElementById('isTop100Check').checked) marker.classList.add('top-100');
+else marker.classList.remove('top-100');
+};
+
+    
