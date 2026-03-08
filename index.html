@@ -1352,7 +1352,6 @@ border-width: 1.8px !important;
 .level-blink-red { animation: glow-red 1.2s infinite ease-in-out; border-width: 1.8px !important; }
 .level-blink-yellow { animation: glow-yellow 1.8s infinite ease-in-out; border-width: 1.8px !important; }
 
-
         .year-select-custom { padding: 4px 12px; border-radius: 20px; background: #f1f5f9; font-weight: 800; font-size: 0.8rem; height: 32px !important; width: auto !important; }
 #quarterTabs { display: flex; gap: 6px; margin-bottom: 12px; background: #f1f5f9; padding: 4px; border-radius: 30px; }
 .q-btn { flex: 1; padding: 4px 0; border-radius: 20px; font-size: 0.7rem; font-weight: 800; border: none; background: transparent; color: #94a3b8; cursor: pointer; }
@@ -3817,17 +3816,18 @@ else if (log.starType.startsWith("regular")) {
     const colors = ["#00FFFF", "#FF8C00", "#D32F2F", "#7C4DFF"]; 
     const idx = parseInt(log.starType.split('_')[1]) - 1;
     starColor = colors[idx] || "white";
-
-    // ✨ 10px 초정밀 광채 (가장 깔끔하고 단단한 빛)
+    
+    // 광채 효과 유지
     customStyle = `
         background-color: ${starColor}; 
-        box-shadow: 
-            0 0 4px 1px ${starColor}, /* 별 바로 옆 아주 진한 빛 */
-            0 0 8px 2px ${starColor}dd, /* 촘촘하게 채워주는 중간 빛 (투명도 dd) */
-            0 0 10px 3px ${starColor}88; /* 10px에서 선명하게 마무리 (투명도 88) */
-        filter: brightness(1.8); /* 아주 작지만 눈이 부실 정도로 선명하게 */
+        box-shadow: 0 0 4px 1px ${starColor}, 0 0 8px 2px ${starColor}dd, 0 0 10px 3px ${starColor}88;
+        filter: brightness(1.8);
     `;
+    
+    // ✨ 정기산행 별도 깜빡이도록 설정
+    shouldTwinkle = true; 
 }
+
    } else if (log.isTop100) {
         starColor = "#F7E7CE"; shadowColor = "#F7E7CE";
         customStyle = `background-color: ${starColor}; box-shadow: 0 0 6px ${shadowColor};`;
@@ -3868,8 +3868,8 @@ else if (log.starType.startsWith("regular")) {
         
         // 반짝임 효과만 필요한 경우에만 살려둡니다 (제자리에서 반짝)
      if (shouldTwinkle) {
-    // 슈퍼별이나 스페셜별일 때만 깜빡임(twinkle) 추가
-    if (log.starType === "super" || log.starType === "special") {
+    // 슈퍼별, 스페셜별, 정기산행 별(regular) 모두 깜빡임 클래스 추가
+    if (log.starType === "super" || log.starType === "special" || log.starType.startsWith("regular")) {
         setTimeout(() => star.classList.add('animate-twinkle'), 1000);
     }
 }
