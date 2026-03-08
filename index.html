@@ -1366,7 +1366,8 @@ border-width: 1.8px !important;
 .hall-of-fame-btn { width: 32px; height: 32px; border-radius: 50%; background: #fff; border: 1.5px solid #facc15; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; cursor: pointer; transition: 0.2s; box-shadow: 0 2px 5px rgba(250, 204, 21, 0.2); }
 .hall-of-fame-btn:hover { transform: scale(1.1); background: #fefce8; }
 
-​/* [추가/수정] 열정 온도 버튼 스타일 */
+​
+    /* [추가/수정] 열정 온도 버튼 스타일 */
 .vibe-temp-btn {
 width: 32px; height: 32px; border-radius: 50%; background: #fff; border: 1.5px solid #fee2e2;
 display: flex; align-items: center; justify-content: center; font-size: 1rem; cursor: pointer; transition: 0.2s;
@@ -3685,16 +3686,22 @@ window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
                 const satellite = document.createElementNS(svgNS, "circle");
                 satellite.setAttribute("cx", pos.x);
                 satellite.setAttribute("cy", pos.y);
-                satellite.setAttribute("r", "1.8");
-                satellite.setAttribute("fill", starColor);
-                satellite.setAttribute("opacity", "0");
-                satellite.style.filter = `drop-shadow(0 0 3px ${starColor}) brightness(1.2)`;
-                
-                const duration = (2 + Math.random() * 2).toFixed(2);
-                const delay = (Math.random() * -5).toFixed(2);
-                satellite.style.transformBox = "fill-box";
-                satellite.style.transformOrigin = "center";
-                satellite.style.filter = `drop-shadow(0 0 6px ${starColor}) brightness(1.5)`;
+                // [수정된 부분] 나이테 위 정기산행 별 스타일
+satellite.setAttribute("r", "2.2"); // 크기를 1.8에서 2.2로 살짝 키움
+satellite.setAttribute("fill", "#FFFFFF"); // 별 자체는 흰색으로 (더 밝아보임)
+satellite.setAttribute("stroke", starColor); // 테두리에 고유 색상
+satellite.setAttribute("stroke-width", "0.5");
+satellite.setAttribute("opacity", "1"); // 투명도 고정
+
+// 필터를 강화하여 일반 별보다 환하게 빛나게 함
+satellite.style.filter = `drop-shadow(0 0 4px #FFF) drop-shadow(0 0 8px ${starColor})`;
+
+// 깜빡임(애니메이션) 제거: 그냥 환하게 켜져 있게 함
+satellite.style.animation = "none"; 
+satellite.style.transformBox = "fill-box";
+satellite.style.transformOrigin = "center";
+
+                satellite.style.animation = `starFloating ${duration}s infinite ease-in-out ${delay}s`;
 
                 svg.appendChild(satellite);
                 satellites.push({el: satellite, ringIdx: i});
@@ -3809,10 +3816,15 @@ window.showMilkyWay = async (mId, mName) => {
             customStyle = `background: radial-gradient(circle, #A020F0 20%, #00FF7F 100%); box-shadow: 0 0 12px 4px rgba(160, 32, 240, 0.6), 0 0 25px 8px rgba(0, 255, 127, 0.4); filter: brightness(1.3);`;
         } else if (log.starType.startsWith("regular")) {
             const colors = ["#00FFFF", "#FF8C00", "#D32F2F", "#7C4DFF"]; 
-            const idx = parseInt(log.starType.split('_')[1]) - 1;
-            starColor = colors[idx] || "white";
-            shadowColor = starColor;
-            customStyle = `background-color: ${starColor}; box-shadow: 0 0 12px ${shadowColor}, 0 0 22px ${shadowColor};`;
+const idx = parseInt(log.starType.split('_')[1]) - 1;
+starColor = colors[idx] || "white";
+// 일반 별보다 훨씬 강한 3중 그림자 효과로 '환하게' 연출
+customStyle = `
+    background-color: #FFFFFF; 
+   border: 1.5px solid ${starColor};
+    box-shadow: 0 0 10px #FFF, 0 0 20px ${starColor}, 0 0 35px ${starColor};
+    filter: brightness(1.5);
+`;
         }
     } else if (log.isTop100) {
         starColor = "#F7E7CE"; shadowColor = "#F7E7CE";
@@ -3852,14 +3864,10 @@ window.showMilkyWay = async (mId, mName) => {
         star.style.opacity = "1"; // 별이 나타남
         if (line) line.style.opacity = "1"; // 선이 나타남
         
-       // 수정된 로직: 슈퍼별과 스페셜별만 반짝이고, 정기산행 별은 그대로 둠
-if (shouldTwinkle) {
-    const isRegularStar = log.starType && log.starType.startsWith("regular");
-    // 정기산행 별이 아닐 때만(슈퍼/스페셜일 때만) 애니메이션 추가
-    if (!isRegularStar) {
-        setTimeout(() => star.classList.add('animate-twinkle'), 1000);
-    }
-}
+        // 반짝임 효과만 필요한 경우에만 살려둡니다 (제자리에서 반짝)
+        if (shouldTwinkle) {
+            setTimeout(() => star.classList.add('animate-twinkle'), 1000);
+        }
         
         if (index === logs.length - 1) {
             setTimeout(() => createShootingStar(board, log.coords.x, log.coords.y), 1000);
@@ -3890,10 +3898,10 @@ function renderStarGuideItems() {
     const stars = [
         { name: "슈퍼별", prob: "3%", desc: "타오르는 태양의 전설", style: "background: radial-gradient(circle, #FF0000 10%, #FFFF00 70%, #fff 100%); box-shadow: 0 0 15px 4px #FF0000, 0 0 30px 8px #FFFF00;", twinkle: true },
         { name: "스페셜별", prob: "7%", desc: "신비로운 에픽 오로라", style: "background: radial-gradient(circle, #A020F0 10%, #00FF7F 70%, #fff 100%); box-shadow: 0 0 15px 4px #A020F0, 0 0 30px 8px #00FF7F;", twinkle: true },
-        { name: "정기 1호", prob: "22.5%", desc: "청명한 시안 블루", style: "background: #00FFFF; box-shadow: 0 0 15px 5px #00FFFF;", twinkle: false },
-{ name: "정기 2호", prob: "22.5%", desc: "정열의 오렌지", style: "background: #FF8C00; box-shadow: 0 0 15px 5px #FF8C00;", twinkle: false },
-{ name: "정기 3호", prob: "22.5%", desc: "위엄있는 다크레드", style: "background: #D32F2F; box-shadow: 0 0 15px 5px #D32F2F;", twinkle: false },
-{ name: "정기 4호", prob: "22.5%", desc: "진하고 우아한 퍼플", style: "background: #7C4DFF; box-shadow: 0 0 15px 5px #7C4DFF;", twinkle: false },
+        { name: "정기 1호", prob: "22.5%", desc: "청명한 시안 블루", style: "background: #FFF; border: 1.5px solid #00FFFF; box-shadow: 0 0 10px #FFF, 0 0 20px #00FFFF;", twinkle: false },
+{ name: "정기 2호", prob: "22.5%", desc: "정열의 오렌지", style: "background: #FFF; border: 1.5px solid #FF8C00; box-shadow: 0 0 10px #FFF, 0 0 20px #FF8C00;", twinkle: false },
+{ name: "정기 3호", prob: "22.5%", desc: "위엄있는 다크레드", style: "background: #FFF; border: 1.5px solid #D32F2F; box-shadow: 0 0 10px #FFF, 0 0 20px #D32F2F;", twinkle: false },
+{ name: "정기 4호", prob: "22.5%", desc: "진하고 우아한 퍼플", style: "background: #FFF; border: 1.5px solid #7C4DFF; box-shadow: 0 0 10px #FFF, 0 0 20px #7C4DFF;", twinkle: false },
         { name: "산림청100대", prob: "인증", desc: "영광의 샴페인 골드", style: "background: #F7E7CE; box-shadow: 0 0 8px #F7E7CE;", twinkle: false },
         { name: "일반 <br>산행", prob: "상시", desc: "소중한 일상의 기록", style: "background: #FFFFFF; box-shadow: 0 0 6px #FFFFFF;", twinkle: false }
     ];
@@ -4141,4 +4149,3 @@ document.addEventListener('touchstart', (e) => {
 </script>
 </body>
     </html>
-    
