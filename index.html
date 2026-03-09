@@ -13,52 +13,23 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-    /* 1. 나이테 중앙 코어: 불규칙한 원형 궤도 이동 */
-@keyframes coreOrbit {
-    0%   { transform: translate(0, 0); }
-    33%  { transform: translate(2px, -3px); }
-    66%  { transform: translate(-2px, -1px); }
-    100% { transform: translate(0, 0); }
+/* [1] 나이테 중앙 코어: 제자리에서 미세하게 일렁이며 회전 */
+@keyframes coreSoftMove {
+    0% { transform: rotate(0deg) translate(0.5px, 0.5px); }
+    50% { transform: rotate(180deg) translate(-0.5px, -0.5px); }
+    100% { transform: rotate(360deg) translate(0.5px, 0.5px); }
 }
 
 .tree-ring-core-moving {
-    transform-origin: center;
-    transform-box: fill-box; /* SVG 내부에서 제자리 회전/이동을 보장 */
-    animation: coreOrbit 4s infinite ease-in-out;
-    filter: drop-shadow(0 0 10px var(--glow-color, #fff));
+    /* SVG 중심 좌표(120, 120)를 기준으로 고정 */
+    transform-origin: 120px 120px; 
+    transform-box: fill-box;
+    /* 너무 크게 돌지 않도록 아주 미세한 translate와 회전 결합 */
+    animation: coreSoftMove 6s linear infinite;
+    filter: drop-shadow(0 0 10px var(--glow-color, #fff)) brightness(1.2);
 }
 
-/* 2. 은하수 안개(성운): 몽환적인 흐름 */
-.nebula-cloud {
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-    pointer-events: none;
-    opacity: 0.5;
-    /* 계절별로 다른 색상이 적용될 수 있도록 기본값 설정 */
-    background: radial-gradient(circle at 50% 50%, 
-                rgba(100, 150, 255, 0.2) 0%, 
-                rgba(150, 100, 255, 0.1) 40%, 
-                transparent 80%);
-    filter: blur(40px); /* 안개 느낌을 주는 핵심 속성 */
-    animation: nebulaMove 20s infinite alternate ease-in-out;
-}
-
-@keyframes nebulaMove {
-    from { transform: scale(1) translate(-2%, -2%); }
-    to   { transform: scale(1.2) translate(2%, 2%); }
-}
-
-/* 3. 계절별 성운 색상 보정 (보내주신 JS 클래스와 연동) */
-.nebula-spring-summer .nebula-cloud {
-    background: radial-gradient(circle at 50% 50%, rgba(0, 255, 255, 0.2), rgba(0, 100, 250, 0.1), transparent);
-}
-
-.nebula-fall-winter .nebula-cloud {
-    background: radial-gradient(circle at 50% 50%, rgba(255, 100, 250, 0.2), rgba(100, 50, 200, 0.1), transparent);
-}
-
-/* 1. 안개 효과: 위치와 크기를 강제로 고정 */
+/* [2] 은하수 안개(성운): 보드 전체에 몽환적으로 깔림 */
 .nebula-cloud {
     position: absolute !important;
     top: 0 !important;
@@ -66,24 +37,32 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
     width: 100% !important;
     height: 100% !important;
     pointer-events: none;
-    z-index: 0; /* 별들보다 뒤에 배치 */
+    z-index: 1; /* 별(z-10)보다는 뒤, 배경보다는 앞 */
+    mix-blend-mode: screen; /* 어두운 배경에서 빛만 투명하게 겹침 */
+    filter: blur(40px); /* 안개 효과의 핵심 */
+    opacity: 0.6;
+    animation: nebulaSlowFlow 20s infinite alternate ease-in-out;
+}
+
+/* 기본 성운 색상 */
+.nebula-cloud {
     background: 
-        radial-gradient(circle at 50% 50%, rgba(100, 50, 255, 0.3), transparent 70%),
-        radial-gradient(circle at 30% 30%, rgba(50, 150, 255, 0.2), transparent 60%);
-    filter: blur(30px);
-    mix-blend-mode: screen;
+        radial-gradient(circle at 50% 50%, rgba(100, 50, 255, 0.25), transparent 70%),
+        radial-gradient(circle at 30% 30%, rgba(50, 150, 255, 0.15), transparent 60%);
 }
 
-/* 2. 나이테 코어: 제자리 회전 설정 */
-@keyframes coreRotate {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+/* 계절별 성운 색상 변주 (JS 클래스와 연동) */
+.nebula-spring-summer .nebula-cloud {
+    background: radial-gradient(circle at 50% 50%, rgba(0, 255, 255, 0.2), rgba(0, 100, 250, 0.1), transparent 80%);
 }
 
-.tree-ring-core-moving {
-    /* SVG 내부에서 회전 중심을 '본인 중심'으로 고정 */
-    transform-origin: 120px 120px; /* 나이테 중심 좌표가 120일 때 */
-    animation: coreRotate 10s linear infinite;
+.nebula-fall-winter .nebula-cloud {
+    background: radial-gradient(circle at 50% 50%, rgba(255, 100, 250, 0.2), rgba(100, 50, 200, 0.1), transparent 80%);
+}
+
+@keyframes nebulaSlowFlow {
+    from { transform: scale(1); opacity: 0.4; }
+    to { transform: scale(1.15); opacity: 0.7; }
 }
     
 /* 그래프의 '활성화된(데이터가 있는) 칸'의 배경색을 변수로 연결 */
