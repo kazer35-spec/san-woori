@@ -12,7 +12,8 @@
 body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: #333; }
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
-/* [1] 나이테 컨테이너: 안개를 중앙에 가두고 둥글게 처리 */
+
+    /* [1] 나이테 컨테이너: 안개를 중앙에 가두고 둥글게 처리 */
 .ring-canvas {
     position: relative;
     overflow: hidden;
@@ -20,50 +21,48 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
     background: transparent;
 }
 
-/* [2] 나이테 중앙 안개: 피어오르는 연기 효과 */
+/* [2] 나이테 중앙 안개: 농도와 범위를 낮춘 은은한 효과 */
 .ring-canvas::before {
     content: "";
     position: absolute;
     top: 50%;
     left: 50%;
-    width: 120px; /* 안개 범위를 코어 주변으로 한정 */
-    height: 120px;
-    /* 중앙 정렬 유지 */
+    width: 100px; /* 범위를 더 좁힘 */
+    height: 100px;
     transform: translate(-50%, -50%);
     z-index: 0; 
     
-    /* 레벨별 색상(--glow-color)과 연동 */
+    /* opacity와 rgba 값을 조절하여 농도를 낮춤 */
     background: radial-gradient(circle, 
-                var(--glow-color, rgba(255,255,255,0.3)) 0%, 
-                rgba(255,255,255,0.1) 40%, 
-                transparent 75%);
-    filter: blur(25px); /* 안개가 뭉치지 않게 확산 */
+                var(--glow-color, rgba(255,255,255,0.2)) 0%, 
+                rgba(255,255,255,0.05) 30%, 
+                transparent 70%);
+    filter: blur(20px); /* 번짐 정도를 줄여서 더 뚜렷하고 옅게 */
     pointer-events: none;
-    animation: ringNebulaPulse 5s infinite alternate ease-in-out;
+    opacity: 0.4; /* 전체적인 투명도를 낮춤 */
+    animation: ringNebulaPulse 6s infinite alternate ease-in-out;
 }
 
 @keyframes ringNebulaPulse {
-    0% { opacity: 0.3; transform: translate(-50%, -50%) scale(0.9); }
-    100% { opacity: 0.6; transform: translate(-50%, -50%) scale(1.2); }
+    0% { opacity: 0.2; transform: translate(-50%, -50%) scale(0.95); }
+    100% { opacity: 0.4; transform: translate(-50%, -50%) scale(1.1); }
 }
 
-/* [3] 나이테 중앙 코어: 궤도 이동 없이 제자리에서 각도만 일렁임 */
-@keyframes coreMicroVibe {
-    0% { transform: rotate(0deg) scale(1); }
-    25% { transform: rotate(2deg) scale(1.05); }
-    50% { transform: rotate(-1deg) scale(1); }
-    75% { transform: rotate(-2deg) scale(1.05); }
-    100% { transform: rotate(0deg) scale(1); }
+/* [3] 나이테 중앙 코어: 좁은 반경으로 빙글빙글 도는 효과 */
+@keyframes coreNarrowOrbit {
+    from { transform: rotate(0deg) translateX(1px) rotate(0deg); }
+    to   { transform: rotate(360deg) translateX(1px) rotate(-360deg); }
 }
 
 .tree-ring-core-moving {
-    /* SVG 중심(120, 120)을 정확히 고정 */
+    /* SVG 중심(120, 120)을 기준으로 좁게 회전 */
     transform-origin: 120px 120px; 
     transform-box: fill-box;
-    /* translate를 제거하고 미세 회전과 크기 변화만 주어 튀지 않게 함 */
-    animation: coreMicroVibe 4s infinite ease-in-out;
+    /* translateX(1px)로 회전 반경을 아주 좁게 설정 */
+    animation: coreNarrowOrbit 8s linear infinite;
     filter: drop-shadow(0 0 8px var(--glow-color, #fff)) brightness(1.2);
 }
+
     
 /* 그래프의 '활성화된(데이터가 있는) 칸'의 배경색을 변수로 연결 */
 .activity-grass.active {
