@@ -13,28 +13,6 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-/* 1. 중앙 코어 맥동 효과 */
-@keyframes corePulse {
-    0% { transform: scale(1); filter: drop-shadow(0 0 5px var(--ring-color)); opacity: 0.8; }
-    50% { transform: scale(1.3); filter: drop-shadow(0 0 15px var(--ring-color)); opacity: 1; }
-    100% { transform: scale(1); filter: drop-shadow(0 0 5px var(--ring-color)); opacity: 0.8; }
-}
-
-/* 2. 위성 별들의 더 역동적인 움직임 */
-@keyframes starFloating {
-    0% { transform: translate(0, 0) scale(1); }
-    33% { transform: translate(2px, -3px) scale(1.2); }
-    66% { transform: translate(-2px, 1px) scale(0.9); }
-    100% { transform: translate(0, 0) scale(1); }
-}
-
-/* 3. 슈퍼/스페셜별 전용 광채 효과 */
-@keyframes superStarGlow {
-    0% { filter: brightness(1.2) blur(0px); stroke-width: 0; }
-    50% { filter: brightness(2) blur(1px); stroke-width: 2px; stroke: #fff; }
-    100% { filter: brightness(1.2) blur(0px); stroke-width: 0; }
-}
-
 /* 그래프의 '활성화된(데이터가 있는) 칸'의 배경색을 변수로 연결 */
 .activity-grass.active {
     background-color: var(--season-theme-color) !important;
@@ -1101,7 +1079,7 @@ font-size: 18px; color: #8b4513; opacity: 0.6; margin-top: 8px;
 
 @keyframes slogan-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
-    /* 탭 메뉴 */
+/* 탭 메뉴 */
 .tab-menu { display: flex; background: #f8fafc; padding: 8px; gap: 8px; border-bottom: 1px solid #e2e8f0; }
 .tab-btn { flex: 1; padding: 10px; border-radius: 10px; font-weight: 700; font-size: 0.9rem; border: 1px solid #e2e8f0; background: white; color: #64748b; }
 .active-tab { background: #3b82f6; color: white; border: none; }
@@ -2133,6 +2111,7 @@ if (lv >= 10) return { bg: '#f5f3ff', border: '#ddd6fe', text: '#7c3aed', blink:
 if (lv >= 3) return { bg: '#f8fafc', border: '#94a3b8', text: '#475569', blink: '' };
 return { bg: '#ffffff', border: '#e2e8f0', text: '#94a3b8', blink: '' };
 };
+
 const getDDayStyle = (dday, level) => {
 // 1. 신입(Lv 0)인 경우: 10일 이하일 때만 아주 빠르게 빨간 깜빡임
 if (level === 0) {
@@ -3127,7 +3106,7 @@ window.syncLastDateAfterDelete = async (mId) => {
     }
 };
 
-    window.deleteLog = async (mId, logId, shouldDownLevel) => {
+window.deleteLog = async (mId, logId, shouldDownLevel) => {
     if(!confirm("삭제하시겠습니까?")) return;
     
     try {
@@ -3667,12 +3646,10 @@ window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
     svg.style.cssText = "width:100%; height:100%; overflow:visible;";
 
     const coreCircle = document.createElementNS(svgNS, "circle");
-coreCircle.setAttribute("cx", "120"); coreCircle.setAttribute("cy", "120"); coreCircle.setAttribute("r", "5");
-coreCircle.setAttribute("fill", ringColor);
-// [수정] 코어에 애니메이션과 변수 추가
-coreCircle.style.setProperty('--ring-color', ringColor);
-coreCircle.style.animation = "corePulse 2s infinite ease-in-out";
-svg.appendChild(coreCircle);
+    coreCircle.setAttribute("cx", "120"); coreCircle.setAttribute("cy", "120"); coreCircle.setAttribute("r", "5");
+    coreCircle.setAttribute("fill", ringColor);
+    coreCircle.style.filter = `drop-shadow(0 0 10px ${ringColor})`;
+    svg.appendChild(coreCircle);
 
     // [6] 나이테 및 위성 별 생성
     const rings = [];
@@ -3708,55 +3685,30 @@ svg.appendChild(coreCircle);
         rings.push(path);
 
         if (regularHikesByMonth[i]) {
-            regularHikesByMonth[i].forEach((starType, idx) => {
-    const satellite = document.createElementNS(svgNS, "circle");
-    
-    // [중요] 위치 계산: 나이테 경로(points) 상의 지점을 선택하여 별의 좌표로 설정
-    // 별이 여러 개일 경우 겹치지 않도록 idx를 활용해 분산 배치합니다.
-    const posIdx = (idx * 20) % points.length; 
-    const pos = points[posIdx];
+            regularHikesByMonth[i].forEach(starType => {
+                const colorIdx = parseInt(starType.split('_')[1]) - 1;
+                const starColor = regularStarColors[colorIdx] || "#ffffff";
+                const pointIdx = Math.floor(Math.random() * (points.length - 1));
+                const pos = points[pointIdx];
 
-    // 기본 설정
-    let r = "1.8";
-    let color = "#ffffff";
-    let extraEffect = "";
+                const satellite = document.createElementNS(svgNS, "circle");
+                satellite.setAttribute("cx", pos.x);
+                satellite.setAttribute("cy", pos.y);
+                satellite.setAttribute("r", "1.8");
+                satellite.setAttribute("fill", starColor);
+                satellite.setAttribute("opacity", "0");
+                satellite.style.filter = `drop-shadow(0 0 3px ${starColor}) brightness(1.2)`;
+                
+                const duration = (2 + Math.random() * 2).toFixed(2);
+                const delay = (Math.random() * -5).toFixed(2);
+                satellite.style.transformBox = "fill-box";
+                satellite.style.transformOrigin = "center";
+                satellite.style.animation = `starFloating ${duration}s infinite ease-in-out ${delay}s`;
 
-    // 별 종류에 따른 크기와 색상 차별화
-    if (starType === "super") {
-        r = "4.5"; // 슈퍼별: 압도적인 크기
-        color = "#ffff00"; // 황금빛
-        extraEffect = "superStarGlow 1.2s infinite alternate"; 
-    } else if (starType === "special") {
-        r = "3.8"; // 스페셜별: 일반보다 큰 크기
-        color = "#00FF7F"; // 에메랄드 그린
-        extraEffect = "superStarGlow 1.8s infinite alternate-reverse";
-    } else {
-        // 일반 정기산행 별들
-        const colorParts = starType.split('_');
-        const colorIdx = colorParts.length > 1 ? parseInt(colorParts[1]) - 1 : 0;
-        color = regularStarColors[colorIdx] || "#ffffff";
-    }
-
-    // SVG 속성 적용
-    satellite.setAttribute("cx", pos.x);
-    satellite.setAttribute("cy", pos.y);
-    satellite.setAttribute("r", r);
-    satellite.setAttribute("fill", color);
-    satellite.setAttribute("opacity", "0"); // 처음엔 투명 (애니메이션으로 나타남)
-    
-    // 스타일 및 애니메이션 적용
-    satellite.style.filter = `drop-shadow(0 0 5px ${color})`; // 기본 광채
-    satellite.style.transformBox = "fill-box";
-    satellite.style.transformOrigin = "center";
-    
-    // 움직임(starFloating) + 특수효과(슈퍼/스페셜 전용) 결합
-    // Math.random을 섞어 별마다 움직이는 타이밍을 다르게 설정합니다.
-    const floatAnim = `starFloating ${2 + Math.random()}s infinite ease-in-out`;
-    satellite.style.animation = extraEffect ? `${floatAnim}, ${extraEffect}` : floatAnim;
-
-    svg.appendChild(satellite);
-    satellites.push({ el: satellite, ringIdx: i });
-});
+                svg.appendChild(satellite);
+                satellites.push({el: satellite, ringIdx: i});
+            });
+        }
     }
     container.appendChild(svg);
 
@@ -4207,4 +4159,3 @@ document.addEventListener('touchstart', (e) => {
 </script>
 </body>
     </html>
-    
