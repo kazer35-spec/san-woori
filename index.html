@@ -12,57 +12,57 @@
 body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: #333; }
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
+/* [1] 나이테 컨테이너: 안개를 중앙에 가두고 둥글게 처리 */
+.ring-canvas {
+    position: relative;
+    overflow: hidden;
+    border-radius: 50%;
+    background: transparent;
+}
 
-/* [1] 나이테 중앙 코어: 제자리에서 미세하게 일렁이며 회전 */
-@keyframes coreSoftMove {
-    0% { transform: rotate(0deg) translate(0.5px, 0.5px); }
-    50% { transform: rotate(180deg) translate(-0.5px, -0.5px); }
-    100% { transform: rotate(360deg) translate(0.5px, 0.5px); }
+/* [2] 나이테 중앙 안개: 피어오르는 연기 효과 */
+.ring-canvas::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 120px; /* 안개 범위를 코어 주변으로 한정 */
+    height: 120px;
+    /* 중앙 정렬 유지 */
+    transform: translate(-50%, -50%);
+    z-index: 0; 
+    
+    /* 레벨별 색상(--glow-color)과 연동 */
+    background: radial-gradient(circle, 
+                var(--glow-color, rgba(255,255,255,0.3)) 0%, 
+                rgba(255,255,255,0.1) 40%, 
+                transparent 75%);
+    filter: blur(25px); /* 안개가 뭉치지 않게 확산 */
+    pointer-events: none;
+    animation: ringNebulaPulse 5s infinite alternate ease-in-out;
+}
+
+@keyframes ringNebulaPulse {
+    0% { opacity: 0.3; transform: translate(-50%, -50%) scale(0.9); }
+    100% { opacity: 0.6; transform: translate(-50%, -50%) scale(1.2); }
+}
+
+/* [3] 나이테 중앙 코어: 궤도 이동 없이 제자리에서 각도만 일렁임 */
+@keyframes coreMicroVibe {
+    0% { transform: rotate(0deg) scale(1); }
+    25% { transform: rotate(2deg) scale(1.05); }
+    50% { transform: rotate(-1deg) scale(1); }
+    75% { transform: rotate(-2deg) scale(1.05); }
+    100% { transform: rotate(0deg) scale(1); }
 }
 
 .tree-ring-core-moving {
-    /* SVG 중심 좌표(120, 120)를 기준으로 고정 */
+    /* SVG 중심(120, 120)을 정확히 고정 */
     transform-origin: 120px 120px; 
     transform-box: fill-box;
-    /* 너무 크게 돌지 않도록 아주 미세한 translate와 회전 결합 */
-    animation: coreSoftMove 6s linear infinite;
-    filter: drop-shadow(0 0 10px var(--glow-color, #fff)) brightness(1.2);
-}
-
-/* [2] 은하수 안개(성운): 보드 전체에 몽환적으로 깔림 */
-.nebula-cloud {
-    position: absolute !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
-    pointer-events: none;
-    z-index: 1; /* 별(z-10)보다는 뒤, 배경보다는 앞 */
-    mix-blend-mode: screen; /* 어두운 배경에서 빛만 투명하게 겹침 */
-    filter: blur(40px); /* 안개 효과의 핵심 */
-    opacity: 0.6;
-    animation: nebulaSlowFlow 20s infinite alternate ease-in-out;
-}
-
-/* 기본 성운 색상 */
-.nebula-cloud {
-    background: 
-        radial-gradient(circle at 50% 50%, rgba(100, 50, 255, 0.25), transparent 70%),
-        radial-gradient(circle at 30% 30%, rgba(50, 150, 255, 0.15), transparent 60%);
-}
-
-/* 계절별 성운 색상 변주 (JS 클래스와 연동) */
-.nebula-spring-summer .nebula-cloud {
-    background: radial-gradient(circle at 50% 50%, rgba(0, 255, 255, 0.2), rgba(0, 100, 250, 0.1), transparent 80%);
-}
-
-.nebula-fall-winter .nebula-cloud {
-    background: radial-gradient(circle at 50% 50%, rgba(255, 100, 250, 0.2), rgba(100, 50, 200, 0.1), transparent 80%);
-}
-
-@keyframes nebulaSlowFlow {
-    from { transform: scale(1); opacity: 0.4; }
-    to { transform: scale(1.15); opacity: 0.7; }
+    /* translate를 제거하고 미세 회전과 크기 변화만 주어 튀지 않게 함 */
+    animation: coreMicroVibe 4s infinite ease-in-out;
+    filter: drop-shadow(0 0 8px var(--glow-color, #fff)) brightness(1.2);
 }
     
 /* 그래프의 '활성화된(데이터가 있는) 칸'의 배경색을 변수로 연결 */
