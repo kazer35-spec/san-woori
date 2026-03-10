@@ -14,53 +14,49 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
     /* [1] 나이테 컨테이너: 안개를 중앙에 가두고 둥글게 처리 */
-.ring-canvas {
-    position: relative;
-    overflow: hidden;
-    border-radius: 50%;
-    background: transparent;
-}
-
-/* [2] 나이테 중앙 안개: 농도와 범위를 낮춘 은은한 효과 */
-.ring-canvas::before {
-    content: "";
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 100px; /* 범위를 더 좁힘 */
-    height: 100px;
-    transform: translate(-50%, -50%);
-    z-index: 0; 
-    
-    /* opacity와 rgba 값을 조절하여 농도를 낮춤 */
-    background: radial-gradient(circle, 
-                var(--glow-color, rgba(255,255,255,0.2)) 0%, 
-                rgba(255,255,255,0.05) 30%, 
-                transparent 70%);
-    filter: blur(20px); /* 번짐 정도를 줄여서 더 뚜렷하고 옅게 */
-    pointer-events: none;
-    opacity: 0.4; /* 전체적인 투명도를 낮춤 */
-    animation: ringNebulaPulse 6s infinite alternate ease-in-out;
-}
-
-@keyframes ringNebulaPulse {
-    0% { opacity: 0.2; transform: translate(-50%, -50%) scale(0.95); }
-    100% { opacity: 0.4; transform: translate(-50%, -50%) scale(1.1); }
-}
-
-/* [3] 나이테 중앙 코어: 좁은 반경으로 빙글빙글 도는 효과 */
+.rin/* [1] 중앙 코어 전용: 좁은 반경 회전 (별들과 분리) */
 @keyframes coreNarrowOrbit {
+    /* 회전 중심축은 유지하되, 위치 이동(translateX)을 1px로 극도로 제한 */
     from { transform: rotate(0deg) translateX(1px) rotate(0deg); }
     to   { transform: rotate(360deg) translateX(1px) rotate(-360deg); }
 }
 
+/* 클래스명을 'tree-ring-core-moving'으로 유지하되, 
+   이 클래스가 위성 별(circle)에는 붙지 않도록 JS 확인이 필요합니다. */
 .tree-ring-core-moving {
-    /* SVG 중심(120, 120)을 기준으로 좁게 회전 */
-    transform-origin: 120px 120px; 
+    transform-origin: 120px 120px !important; 
     transform-box: fill-box;
-    /* translateX(1px)로 회전 반경을 아주 좁게 설정 */
     animation: coreNarrowOrbit 8s linear infinite;
     filter: drop-shadow(0 0 8px var(--glow-color, #fff)) brightness(1.2);
+}
+
+/* [2] 위성 별(정기산행 별) 설정: 위치 고정 및 제자리 반짝임 */
+/* 별들에게는 절대로 'core-moving' 클래스가 붙으면 안 됩니다. */
+.tree-ring-satellite {
+    transform-origin: center; /* 자신의 중심에서 반짝임 */
+    transform-box: fill-box;
+    animation: starTwinkle 2s infinite ease-in-out;
+}
+
+@keyframes starTwinkle {
+    0%, 100% { opacity: 0.6; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.2); }
+}
+
+/* [3] 나이테 안개: 농도 대폭 낮춤 (중앙 집중) */
+.ring-canvas::before {
+    content: "";
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 80px; height: 80px; /* 크기 더 줄임 */
+    transform: translate(-50%, -50%);
+    background: radial-gradient(circle, 
+                var(--glow-color, rgba(255,255,255,0.15)) 0%, 
+                transparent 70%);
+    filter: blur(15px);
+    opacity: 0.25; /* 아주 연하게 */
+    pointer-events: none;
+    z-index: 0;
 }
 
     
