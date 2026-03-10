@@ -16,7 +16,7 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
     /* [1] 중앙 코어: 아주 작은 원(0.8px 반경)을 그리며 쫀득하게 회전 */
 @keyframes coreTinyCircle {
     from { transform: rotate(0deg) translateX(0.8px) rotate(0deg); }
-    to   { transform: rotate(360deg) translateX(0.8px) rotate(-360deg); }
+    to { transform: rotate(360deg) translateX(0.8px) rotate(-360deg); }
 }
 
 .tree-ring-core-moving {
@@ -31,8 +31,8 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 
 /* [2] 빛줄기 상승 및 충돌 폭발 (가시성 강화) */
 @keyframes beamRise {
-    0%   { transform: translateY(80px) scaleY(0); opacity: 0; }
-    40%  { transform: translateY(40px) scaleY(1.2); opacity: 1; }
+    0% { transform: translateY(80px) scaleY(0); opacity: 0; }
+    40% { transform: translateY(40px) scaleY(1.2); opacity: 1; }
     100% { transform: translateY(0) scaleY(0); opacity: 0; }
 }
 
@@ -46,7 +46,7 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 }
 
 @keyframes sparkBurst {
-    0%   { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+    0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
     100% { transform: translate(-50%, -50%) scale(2.5); opacity: 0; }
 }
 
@@ -71,7 +71,7 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 
 @keyframes starFloating {
     0%, 100% { transform: translate(0, 0); }
-    50%      { transform: translate(1px, -1.2px); }
+    50% { transform: translate(1px, -1.2px); }
 }
 
 /* [4] 나이테 안개: 아주 은은하게 (배경) */
@@ -1126,7 +1126,7 @@ display: inline-block;
 animation: gold-pulse 1.5s infinite alternate;
 }
 
-@keyframes gold-pulse {
+    @keyframes gold-pulse {
 from { transform: scale(1); filter: brightness(1); }
 to { transform: scale(1.05); filter: brightness(1.3); }
 }
@@ -2138,7 +2138,7 @@ const regionBoundaries = [
 { name: "울릉도/독도", x: [88, 100], y: [35, 48] }
 ];
 
-function getRegionFromCoord(coords) {
+    function getRegionFromCoord(coords) {
 if(!coords) return "기타";
 const priorityRegions = ["서울특별시", "대구광역시", "부산광역시", "광주광역시", "대전/세종", "인천광역시", "울산광역시", "제주도"];
 for(let rName of priorityRegions) {
@@ -3115,7 +3115,7 @@ await updateDoc(doc(db, "sanwoori", id), updateData);
     }
 };
 
-window.loadMemberLogs = async () => {
+    window.loadMemberLogs = async () => {
 const id = document.getElementById('memberSelectEdit').value;
 const area = document.getElementById('logListArea'); area.innerHTML = ""; if(!id) return;
 const snap = await getDocs(query(collection(db, `sanwoori/${id}/logs`), orderBy("date", "desc"), limit(20)));
@@ -3719,18 +3719,42 @@ window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
     svg.setAttribute("viewBox", "0 0 240 240");
     svg.style.cssText = "width:100%; height:100%; overflow:visible;";
 
-    const coreCircle = document.createElementNS(svgNS, "circle");
-   
-// --- 여기서부터 복사해서 덮어쓰세요 ---
-coreCircle.setAttribute("cx", "120");
-coreCircle.setAttribute("cy", "120");
-coreCircle.setAttribute("r", "6"); // 크기를 살짝 키우면 더 잘 보여요
-coreCircle.classList.add('tree-ring-core-moving'); // 움직임 효과 적용
-coreCircle.setAttribute("fill", ringColor);
-coreCircle.classList.add('tree-ring-core-moving'); // 움직이는 클래스 추가
-coreCircle.style.filter = `drop-shadow(0 0 15px ${ringColor})`;
-// --- 여기까지 ---
-    svg.appendChild(coreCircle);
+    // --- [중앙 코어 생성: 레벨별 모양 변경 로직] ---
+let coreShape;
+const cx = 120, cy = 120, r = 6; // 중심 좌표와 크기
+
+if (memberLevel >= 80) {
+// 80레벨 이상: 별 모양 (Polygon)
+coreShape = document.createElementNS(svgNS, "polygon");
+let points = "";
+for (let i = 0; i < 10; i++) {
+let angle = (i * Math.PI) / 5 - Math.PI / 2;
+let currR = (i % 2 === 0) ? r * 1.5 : r * 0.6;
+points += `${cx + currR * Math.cos(angle)},${cy + currR * Math.sin(angle)} `;
+}
+coreShape.setAttribute("points", points);
+} else if (memberLevel >= 50) {
+// 50~79레벨: 다이아몬드 (Polygon)
+coreShape = document.createElementNS(svgNS, "polygon");
+coreShape.setAttribute("points", `${cx},${cy-r*1.2} ${cx+r*1.2},${cy} ${cx},${cy+r*1.2} ${cx-r*1.2},${cy}`);
+} else if (memberLevel >= 20) {
+// 20~49레벨: 삼각형 (Polygon)
+coreShape = document.createElementNS(svgNS, "polygon");
+coreShape.setAttribute("points", `${cx},${cy-r*1.2} ${cx+r*1.2},${cy+r} ${cx-r*1.2},${cy+r}`);
+} else {
+// 1~19레벨: 원형 (Circle)
+coreShape = document.createElementNS(svgNS, "circle");
+coreShape.setAttribute("cx", cx);
+coreShape.setAttribute("cy", cy);
+coreShape.setAttribute("r", r);
+}
+
+// 공통 스타일 및 애니메이션 적용
+coreShape.setAttribute("fill", ringColor);
+coreShape.classList.add('tree-ring-core-moving');
+coreShape.style.filter = `drop-shadow(0 0 15px ${ringColor})`;
+svg.appendChild(coreShape);
+// --- [교체 완료] ---
 
     // [6] 나이테 및 위성 별 생성
     const rings = [];
