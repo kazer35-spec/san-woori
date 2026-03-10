@@ -13,77 +13,79 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-    /* [1] 빛줄기 상승 효과 (Rise Up) */
+    /* [1] 중앙 코어: 궤도 이동 없이 제자리에서 미세하게 일렁임 */
+@keyframes coreSteadyVibe {
+    0%   { transform: rotate(0deg) scale(1); }
+    33%  { transform: rotate(3deg) scale(1.03); }
+    66%  { transform: rotate(-2deg) scale(0.98); }
+    100% { transform: rotate(0deg) scale(1); }
+}
+
+.tree-ring-core-moving {
+    /* SVG 중심(120, 120)을 절대 축으로 고정 */
+    transform-origin: 120px 120px !important; 
+    transform-box: fill-box !important;
+    
+    /* translate를 제거하여 궤도가 커지는 현상 원천 차단 */
+    animation: coreSteadyVibe 4s infinite ease-in-out !important;
+    filter: drop-shadow(0 0 10px var(--glow-color, #fff)) brightness(1.2);
+}
+
+/* [2] 빛줄기 상승 & 폭발 효과 복구 */
 @keyframes beamRise {
-    0% { transform: translateY(100px) scaleY(0); opacity: 0; }
-    50% { transform: translateY(50px) scaleY(1.5); opacity: 1; }
+    0%   { transform: translateY(80px) scaleY(0); opacity: 0; }
+    40%  { transform: translateY(40px) scaleY(1.2); opacity: 1; }
     100% { transform: translateY(0) scaleY(0); opacity: 0; }
 }
 
 .tree-ring-beam {
     position: absolute;
-    bottom: 0;
-    width: 2px;
-    height: 40px;
+    bottom: 20%; left: 50%;
+    width: 2px; height: 50px;
     background: linear-gradient(to top, transparent, var(--glow-color, #fff));
-    animation: beamRise 1.5s ease-out forwards;
-    z-index: 5;
+    animation: beamRise 1.2s ease-out forwards;
+    z-index: 10;
 }
 
-/* [2] 충돌 폭발 효과 (Explosion/Spark) */
 @keyframes sparkBurst {
-    0% { transform: scale(0); opacity: 1; }
-    100% { transform: scale(2.5); opacity: 0; }
+    0%   { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
 }
 
 .tree-ring-spark {
     position: absolute;
     top: 50%; left: 50%;
-    width: 20px; height: 20px;
-    transform: translate(-50%, -50%);
+    width: 30px; height: 30px;
     border-radius: 50%;
     background: radial-gradient(circle, var(--glow-color, #fff) 0%, transparent 70%);
-    animation: sparkBurst 0.6s ease-out forwards;
-    z-index: 6;
+    animation: sparkBurst 0.5s ease-out forwards;
+    z-index: 11;
 }
 
-/* [3] 중앙 코어: 좁은 반경 미세 회전 (복구) */
-@keyframes coreNarrowOrbit {
-    0% { transform: translate(0, 0) rotate(0deg); }
-    100% { transform: translate(0.5px, 0.5px) rotate(360deg); }
-}
-
-.tree-ring-core-moving {
-    transform-origin: 120px 120px !important;
-    transform-box: fill-box !important;
-    animation: coreNarrowOrbit 8s linear infinite !important;
-    filter: drop-shadow(0 0 10px var(--glow-color, #fff)) brightness(1.2);
-}
-
-/* [4] 정기산행 별 (1~4호): 오렌지색 유지 및 유영 */
+/* [3] 정기산행 별 (1~4호): 오렌지색 유영 */
 .tree-ring-star-moving {
     transform-origin: center !important;
     transform-box: fill-box !important;
-    animation: starFloating 4s infinite ease-in-out;
-    fill: #FF8C00 !important; /* 오렌지색 고정 */
+    animation: starFloating 5s infinite ease-in-out;
+    fill: #FF8C00 !important; 
     filter: drop-shadow(0 0 4px rgba(255, 140, 0, 0.7));
 }
 
 @keyframes starFloating {
     0%, 100% { transform: translate(0, 0); }
-    50% { transform: translate(1px, -1.5px); }
+    50%      { transform: translate(1px, -1.5px); }
 }
 
-/* [5] 나이테 중앙 안개: 아주 은은하게 */
+/* [4] 나이테 안개: 아주 은은하게 */
 .ring-canvas::before {
     content: "";
     position: absolute;
     top: 50%; left: 50%;
     width: 80px; height: 80px;
     transform: translate(-50%, -50%);
-    background: radial-gradient(circle, var(--glow-color, rgba(255,255,255,0.1)) 0%, transparent 70%);
+    background: radial-gradient(circle, var(--glow-color, rgba(255,255,255,0.1)) 0%, transparent 75%);
     filter: blur(20px);
-    opacity: 0.15;
+    opacity: 0.12;
     z-index: 1;
 }
     
