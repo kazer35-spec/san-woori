@@ -1821,20 +1821,24 @@ overflow: hidden;
                 
                 <div>
                     <label class="text-[9px] font-black text-gray-500 ml-1 mb-1 block">🟠 일시</label>
-                    <div class="flex gap-2 items-center w-full">
-                        <div class="flex-1 flex items-center bg-white/5 border border-white/5 rounded-2xl px-3 h-[44px]">
+                    <div class="flex gap-1.5 items-center w-full">
+                        <div class="flex-auto flex items-center bg-white/5 border border-white/5 rounded-2xl px-2 h-[44px]">
                             <input type="number" id="n_month" placeholder="12" class="w-full bg-transparent text-white text-sm outline-none text-center border-none p-0">
-                            <span class="text-gray-600 text-[10px] font-black mx-0.5">월</span>
+                            <span class="text-gray-600 text-[10px] font-black mx-0.5 shrink-0">월</span>
                             <input type="number" id="n_day" placeholder="25" class="w-full bg-transparent text-white text-sm outline-none text-center border-none p-0">
-                            <span class="text-gray-600 text-[10px] font-black ml-0.5">일</span>
+                            <span class="text-gray-600 text-[10px] font-black ml-0.5 shrink-0">일</span>
                         </div>
-                        <select id="n_ampm" class="w-14 h-[44px] bg-slate-800 border border-white/5 rounded-2xl text-white text-[11px] outline-none text-center appearance-none cursor-pointer">
+                        
+                        <select id="n_ampm" class="w-[50px] shrink-0 h-[44px] bg-slate-800 border border-white/5 rounded-2xl text-white text-[10px] outline-none text-center appearance-none cursor-pointer">
                             <option value="오전" selected>오전</option>
                             <option value="오후">오후</option>
                         </select>
-                        <div class="w-16 flex items-center bg-white/5 border border-white/5 rounded-2xl px-2 h-[44px]">
+                        
+                        <div class="w-[110px] shrink-0 flex items-center bg-white/5 border border-white/5 rounded-2xl px-2 h-[44px]">
                             <input type="number" id="n_hour" placeholder="10" class="w-full bg-transparent text-white text-sm outline-none text-center border-none p-0">
-                            <span class="text-gray-600 text-[10px] font-black ml-1">시</span>
+                            <span class="text-gray-600 text-[10px] font-black mx-0.5 shrink-0">시</span>
+                            <input type="number" id="n_min" placeholder="00" class="w-full bg-transparent text-white text-sm outline-none text-center border-none p-0">
+                            <span class="text-gray-600 text-[10px] font-black ml-0.5 shrink-0">분</span>
                         </div>
                     </div>
                 </div>
@@ -1864,9 +1868,9 @@ overflow: hidden;
                         <span class="text-gray-600 text-[11px] font-black ml-1 shrink-0">km</span>
                     </div>
                     <select id="n_lv" class="col-span-2 h-[44px] bg-slate-800 border border-white/5 px-3 rounded-2xl text-white text-[12px] outline-none appearance-none cursor-pointer">
-                        <option value="하 (산책)">하 (산책)</option>
+                        <option value="하 (산책)" selected>하 (산책)</option>
                         <option value="중하 (약간힘듦)">중하 (약간힘듦)</option>
-                        <option value="중 (평범)" selected>중 (평범)</option>
+                        <option value="중 (평범)">중 (평범)</option>
                         <option value="중상 (힘듦)">중상 (힘듦)</option>
                         <option value="상 (매우힘듦)">상 (매우힘듦)</option>
                     </select>
@@ -4383,30 +4387,41 @@ window.toggleNoticeModal = (show) => {
     if(!show) document.getElementById('n_result_box').classList.add('hidden');
 };
 
-// 공지 텍스트 조립 (사용자 요청 통합 버전)
+// 스크립트 부분의 조립 로직만 이 코드로 확인하시면 됩니다.
 window.makeNoticeText = () => {
-    // 값 가져오기
-    const mt = document.getElementById('n_mt').value || '미정';
-    const pickup = document.querySelector('input[name="n_pickup"]:checked').value;
-    const month = document.getElementById('n_month').value || 'ㅇㅇ';
-    const day = document.getElementById('n_day').value || 'ㅇㅇ';
-    const ampm = document.getElementById('n_ampm').value;
-    const hour = document.getElementById('n_hour').value || 'ㅇㅇ';
+    const mt = document.getElementById('n_mt').value || '';
+    const pickupOption = document.querySelector('input[name="n_pickup"]:checked');
+    const pickup = pickupOption ? pickupOption.value : "";
     
-    const meet = document.getElementById('n_meet').value || '미정';
-    const time = document.getElementById('n_time').value || 'ㅇ';
-    const course = document.getElementById('n_course').value || '현장 결정';
-    const dist = document.getElementById('n_dist').value || '0';
+    const month = document.getElementById('n_month').value || '';
+    const day = document.getElementById('n_day').value || '';
+    const ampm = document.getElementById('n_ampm').value;
+    const hour = document.getElementById('n_hour').value || '';
+    const min = document.getElementById('n_min').value; // '분' 값 가져오기
+    
+    // [수정된 부분] 분 입력값이 있으면 '시 분', 없으면 '시'만 표시
+    let timeStr = "";
+    if (hour) {
+        timeStr = min ? `${hour}시 ${min}분` : `${hour}시`;
+    }
+    
+    const dateStr = month ? `${month}월 ${day}일 ${ampm} ${timeStr}` : '';
+    
+    const meet = document.getElementById('n_meet').value || '';
+    const timeVal = document.getElementById('n_time').value;
+    const time = timeVal ? `${timeVal}시간` : '';
+    const course = document.getElementById('n_course').value || '';
+    const distVal = document.getElementById('n_dist').value;
+    const dist = distVal ? `${distVal}km` : '';
     const lv = document.getElementById('n_lv').value;
     const etc = document.getElementById('n_etc').value;
 
-    // 조립
     const template = `🔴산행지: ${mt} ${pickup}
-🟠일시: ${month}월 ${day}일 ${ampm} ${hour}시
+🟠일시: ${dateStr}
 🟡집결지: ${meet}
-🟢소요시간: ${time}시간
+🟢소요시간: ${time}
 🔵산행코스: ${course}
-⚪️거리: ${dist}km
+⚪️거리: ${dist}
 🟣난이도: ${lv}
 🟤준비물: ${etc}
 
@@ -4417,22 +4432,10 @@ window.makeNoticeText = () => {
 💢일자, 시간, 장소 조율 가능합니다
     차량 픽업 관련 문의 서브방에 입장해주세요`;
 
-    // 출력 및 스크롤
+ document.getElementById('n_final_text').innerText = template;
     const resultBox = document.getElementById('n_result_box');
-    document.getElementById('n_final_text').innerText = template;
     resultBox.classList.remove('hidden');
-    
-    // 결과창 생성 시 해당 위치로 부드럽게 스크롤
     resultBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
-};
-
-// 복사 기능
-window.copyNoticeContent = () => {
-    const text = document.getElementById('n_final_text').innerText;
-    navigator.clipboard.writeText(text).then(() => {
-        alert("공지가 클립보드에 복사되었습니다! ✅");
-        toggleNoticeModal(false);
-    });
 };
 
 </script>
