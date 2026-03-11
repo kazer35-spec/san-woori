@@ -2023,17 +2023,23 @@ overflow: hidden;
                         <input type="text" id="n_meet" placeholder="만남 장소" class="w-full bg-white/5 h-[44px] rounded-2xl text-white text-sm outline-none px-4 border-none">
                     </div>
                     <div class="flex flex-col">
-                        <label class="text-[9px] font-black text-gray-500 ml-1 mb-1 block">🟢 소요시간</label>
-                        <div class="flex items-center bg-white/5 border border-white/5 rounded-2xl pr-4 h-[44px]">
-                            <input type="text" id="n_time" placeholder="0" class="w-full bg-transparent text-white text-sm outline-none text-right border-none p-0 px-2">
-                            <span class="text-gray-600 text-[11px] font-black ml-1 shrink-0">시간</span>
-                        </div>
+    <label class="text-[9px] font-black text-gray-500 ml-1 mb-1 block">🟢 소요시간</label>
+    <div class="flex items-center bg-white/5 border border-white/5 rounded-2xl pr-4 h-[44px]">
+        <input type="text" id="n_time" 
+               inputmode="decimal" 
+               placeholder="0" 
+               class="w-full bg-transparent text-white text-sm outline-none text-right border-none p-0 px-2">
+        <span class="text-gray-600 text-[11px] font-black ml-1 shrink-0">시간</span>
+    </div>
                     </div>
                 </div>
 
                 <div>
-                    <label class="text-[9px] font-black text-gray-500 ml-1 mb-1 block">🔵 산행코스</label>
-                    <input type="text" id="n_course" placeholder="코스를 입력하세요" class="w-full bg-white/5 h-[44px] rounded-2xl text-white text-sm outline-none px-4 border-none">
+    <label class="text-[9px] font-black text-gray-500 ml-1 mb-1 block">🔵 산행코스</label>
+    <input type="text" id="n_course" 
+           placeholder='스페이스바 두번 누르면 "-" 생깁니다' 
+           onkeydown="handleSpaceHyphen(event)"
+           class="w-full bg-white/5 h-[44px] rounded-2xl text-white text-sm outline-none px-4 border-none">
                 </div>
                 
                 <div class="grid grid-cols-2 gap-3">
@@ -4653,6 +4659,39 @@ window.copyNoticeContent = () => {
 
     document.body.removeChild(textArea);
 };
+let lastSpaceTime = 0;
+
+function handleSpaceHyphen(event) {
+    const input = event.target;
+    
+    // 스페이스바(KeyCode 32)를 눌렀을 때
+    if (event.keyCode === 32) {
+        const currentTime = new Date().getTime();
+        const gap = currentTime - lastSpaceTime;
+
+        // 0.3초 이내에 연속으로 두 번 눌렀는지 확인
+        if (gap < 300) {
+            event.preventDefault(); // 두 번째 공백 입력 방지
+            
+            const val = input.value;
+            const start = input.selectionStart;
+            const end = input.selectionEnd;
+
+            // 현재 커서 바로 앞의 한 칸 공백을 " - "으로 치환
+            // 앞글자가 공백일 때만 작동하도록 하여 "ㅇㅇ - " 형태 유도
+            if (val.charAt(start - 1) === ' ') {
+                const newValue = val.substring(0, start - 1) + " - " + val.substring(end);
+                input.value = newValue;
+                
+                // 커서를 하이픈 뒤 공백 다음으로 이동시켜 바로 글자를 쓸 수 있게 함
+                input.selectionStart = input.selectionEnd = start + 2;
+            }
+            lastSpaceTime = 0; // 초기화
+        } else {
+            lastSpaceTime = currentTime;
+        }
+    }
+}
 
 </script>
 </body>
