@@ -41,7 +41,7 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 /* [작은 버튼 전용] 메인 화면용 초슬림 설정 */
 .cosmic-admin-btn.btn-small {
     border-radius: 50px !important;
-    padding: 2px 10px !important;
+    padding: 4px 10px !important;
     font-size: 9px !important;
     width: auto !important;
     height: auto !important;
@@ -4660,29 +4660,22 @@ window.copyNoticeContent = () => {
 
 // 2. 모바일/PC 통합 하이픈 로직
 document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', () => {
     const courseInput = document.getElementById('n_course');
-    let lastTap = 0;
 
     if (courseInput) {
         courseInput.addEventListener('input', function(e) {
-            const now = new Date().getTime();
-            const val = this.value;
-
-            // 마지막이 공백으로 끝날 때만 감시
-            if (val.endsWith(' ')) {
-                // 0.3초 이내에 연속 입력(톡톡!) 했는지 확인
-                if (now - lastTap < 300) {
-                    // 마지막 공백 제거 후 " - " 추가
-                    this.value = val.trimEnd() + " - ";
-                    
-                    // 커서를 맨 뒤로 보냄
-                    this.selectionStart = this.selectionEnd = this.value.length;
-                    lastTap = 0; // 초기화
-                } else {
-                    lastTap = now; // 첫 번째 클릭 시간 저장
-                }
-            } else {
-                lastTap = 0; // 글자 입력 시 초기화
+            const input = e.target;
+            const val = input.value;
+            
+            // 1. 마지막 글자가 공백 2개("  ")로 끝나는지 확인 (시간차 상관없이 즉시 실행)
+            if (val.endsWith('  ')) {
+                // 2. 마지막 공백 2개를 지우고 " - "를 추가
+                // slice(0, -2)를 쓰면 글자를 입력하다가 바로 눌러도 정확히 공백만 깎아냅니다.
+                input.value = val.slice(0, -2) + " - ";
+                
+                // 3. 커서를 맨 뒤로 보냄
+                input.selectionStart = input.selectionEnd = input.value.length;
             }
         });
     }
