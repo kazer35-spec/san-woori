@@ -1276,7 +1276,7 @@ select { -webkit-appearance: none; -moz-appearance: none; appearance: none; back
 .up-amount-group input[type="radio"], .gender-select-group input[type="radio"] { display: none; }
 .up-amount-group label:has(input:checked), .gender-select-group label:has(input:checked) { background: #3b82f6; color: white; }
 
-    /* 1. 팝업 배경 및 양피지 기본 디자인 */
+     /* 1. 팝업 배경 및 양피지 기본 디자인 */
 .scroll-overlay {
 position: fixed; top: 0; left: 0; width: 100%; height: 100%;
 background: rgba(0,0,0,0.85); display: none; justify-content: center; align-items: center; z-index: 9999;
@@ -1308,7 +1308,7 @@ border: 2px solid rgba(139, 69, 19, 0.35);
 border-radius: 50%;
 position: absolute;
 /* 세로 위치를 66.6%에서 60%로 상향 조정 */
-top: 90%;
+top: 85%;
 left: 73%;
 transform: translate(-50%, -50%) rotate(-10deg);
 background: rgba(139, 69, 19, 0.03);
@@ -4420,7 +4420,7 @@ setTimeout(() => s.remove(), 500);
 }, 850);
 }
 
-    window.showFadingScroll = async function(mId, dday, level = 0) {
+window.showFadingScroll = async function(mId, dday, level = 0) {
     const modal = document.getElementById('scrollModal');
     const content = document.getElementById('scrollContent');
     const scrollWrap = document.querySelector('.fading-scroll'); 
@@ -4451,16 +4451,16 @@ setTimeout(() => s.remove(), 500);
         subMsg = "지금 당장 기록을 지속하여 문장을 복원하세요.";
     }
 
-    // 2. 연대기 목록 (최근 5개 호출, 하지만 스타일로 2개 높이 고정)
-    // overflow-y: auto를 주어 2개 이상일 때 스크롤이 생기게 합니다.
+    // 2. 연대기 목록 (최근 5개 호출, 높이는 2~3개 분량으로 고정)
+    // min-height를 90px로 설정하여 기록이 없어도 하단 문구가 고정된 위치에 옵니다.
     let chronicleHTML = `
-        <div class="chronicle-container" style="max-height: 85px; overflow-y: auto; padding-right: 5px;">
+        <div class="chronicle-container" style="min-height: 90px; max-height: 90px; overflow-y: auto; padding-right: 5px; margin-bottom: 20px;">
     `;
     
     try {
         const snap = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc"), limit(5)));
         if (snap.empty) {
-            chronicleHTML += `<div class="chronicle-item"><p class="chronicle-text">새겨진 역사가 없습니다.</p></div>`;
+            chronicleHTML += `<div class="chronicle-item" style="text-align: center; padding-top: 30px;"><p class="chronicle-text" style="color: #8d775f; font-size: 11px;">새겨진 역사가 없습니다.</p></div>`;
         } else {
             snap.forEach(doc => {
                 const data = doc.data();
@@ -4471,7 +4471,7 @@ setTimeout(() => s.remove(), 500);
                 const dotColor = isGold ? "background: #d4af37;" : "background: #8d775f;";
 
                 chronicleHTML += `
-                    <div class="chronicle-item" style="margin-bottom: 12px; display: flex; align-items: center;">
+                    <div class="chronicle-item" style="margin-bottom: 10px; display: flex; align-items: center;">
                         <div class="chronicle-dot" style="${dotColor} width: 6px; height: 6px; border-radius: 50%; margin-right: 8px;"></div>
                         <div class="chronicle-date" style="${textColor} font-size: 11px; margin-right: 10px;">${date}</div>
                         <div class="chronicle-text" style="${textColor} font-size: 11px;">${typeIcon} ${data.mountain || '활동'} 정복</div>
@@ -4483,7 +4483,7 @@ setTimeout(() => s.remove(), 500);
     }
     chronicleHTML += `</div>`;
 
-    // 3. UI 렌더링
+    // 3. UI 렌더링 (하단 문구와 서명 위치 고정)
     content.innerHTML = `
         <p class="${isGold ? 'gold-glow' : effectClass}" style="font-weight: 500;">
             "혼자 가면 기록이지만<br>함께 가면 역사"
@@ -4493,15 +4493,19 @@ setTimeout(() => s.remove(), 500);
             ${subMsg}
         </div>
         <hr style="border: 0; border-top: 1px dashed #d4c4a8; margin: 20px 0;">
+        
         ${chronicleHTML}
+        
+        <div style="font-size: 11px; color: #5a4a3a; font-weight: bold; margin-bottom: 5px;">
+            기록 연장이 필요하면 요청해 주세요.
+        </div>
+        <div class="ancient-signature" style="font-size: 12px; color: #3e2723; opacity: 0.8;">San:woori Management</div>
     `;
 
-    // 4. 전방위 클릭 닫기 (스크롤 영역 클릭 시 닫히지 않게 하려면 아래 조건 추가)
+    // 4. 전방위 클릭 닫기
     modal.onclick = () => { modal.style.display = 'none'; };
-    
     if(scrollWrap) {
         scrollWrap.onclick = (e) => {
-            // 스크롤바를 조작할 때는 창이 닫히지 않도록 방지 (선택 사항)
             if (e.target.closest('.chronicle-container')) return; 
             modal.style.display = 'none';
             e.stopPropagation(); 
@@ -4509,7 +4513,7 @@ setTimeout(() => s.remove(), 500);
     }
 
     modal.style.display = 'flex';
-};    
+};
 </script>
 
 <div id="mountainViewModal" class="mountain-modal" onclick="this.style.display='none'">
