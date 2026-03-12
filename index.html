@@ -4462,23 +4462,22 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
         if (snap.empty) {
             chronicleHTML += `<div class="chronicle-item" style="text-align: center; padding-top: 30px;"><p class="chronicle-text" style="color: #8d775f; font-size: 11px;">새겨진 역사가 없습니다.</p></div>`;
         } else {
-            snap.forEach(doc => {
+                        snap.forEach(doc => {
                 const data = doc.data();
                 const date = data.date ? data.date.toDate().toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' }) : '??.??';
-               // 주신 코드의 데이터 구조에 맞춘 정확한 아이콘 판별 로직
-let typeIcon = "🧗‍♂️"; // 기본값 (등산)
-
-if (data.run) { 
-    typeIcon = "🏃"; // 런닝이 있으면 런닝
-} else if (data.trek) { 
-    typeIcon = "👩‍🦯"; // 트레킹이 있으면 트레킹
-}
-// 둘 다 없으면 위에서 설정한 🧗‍♂️ (등산)이 나옵니다.
-
-             
+                
+                // 1. 아이콘 결정 (주신 코드의 데이터를 바탕으로 정확히 판별)
+                let typeIcon = "🧗‍♂️"; // 기본: 등산
+                if (data.run === true || data.run > 0) {
+                    typeIcon = "🏃";   // 런닝
+                } else if (data.trek === true || data.trek > 0) {
+                    typeIcon = "👩‍🦯";  // 트레킹
+                }
+                
                 const textColor = isGold ? "color: #d4af37; font-weight: bold;" : "color: #5a4a3a;";
                 const dotColor = isGold ? "background: #d4af37;" : "background: #8d775f;";
 
+                // 2. HTML 조립 (수정된 아이콘 반영)
                 chronicleHTML += `
                     <div class="chronicle-item" style="margin-bottom: 10px; display: flex; align-items: center;">
                         <div class="chronicle-dot" style="${dotColor} width: 6px; height: 6px; border-radius: 50%; margin-right: 8px;"></div>
