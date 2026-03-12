@@ -1276,7 +1276,7 @@ select { -webkit-appearance: none; -moz-appearance: none; appearance: none; back
 .up-amount-group input[type="radio"], .gender-select-group input[type="radio"] { display: none; }
 .up-amount-group label:has(input:checked), .gender-select-group label:has(input:checked) { background: #3b82f6; color: white; }
 
-/* 1. 팝업 배경 및 양피지 기본 디자인 */
+    /* 1. 팝업 배경 및 양피지 기본 디자인 */
 .scroll-overlay {
 position: fixed; top: 0; left: 0; width: 100%; height: 100%;
 background: rgba(0,0,0,0.85); display: none; justify-content: center; align-items: center; z-index: 9999;
@@ -4420,11 +4420,13 @@ setTimeout(() => s.remove(), 500);
 }, 850);
 }
 
+// [통합] 고대 예언서 및 연대기 표시 함수 (버튼 제거 + 클릭 닫기 버전)
 window.showFadingScroll = async function(mId, dday, level = 0) {
     const modal = document.getElementById('scrollModal');
     const content = document.getElementById('scrollContent');
     if(!modal || !content) return;
 
+    // 1. 신입(Lv 0) 보호 로직
     if (level === 0 && dday > 10) return;
 
     let effectClass = "";
@@ -4432,29 +4434,36 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
     let subMsg = "";
     let isGold = false;
 
+    // 2. D-Day 상태별 메시지 및 효과 설정
     if (dday > 30) {
         isGold = true;
         statusMsg = "기록이 황금빛으로 선명하게 빛나고 있습니다.";
-        subMsg = "당신의 발자취가 찬란한 역사가 되고 있습니다.";
+        subMsg = "당신의 발자취가 찬란한 역사가 되고 있습니다.<br>지금처럼 소중한 걸음을 계속 이어가세요.";
     } else if (dday <= 30 && dday > 20) {
         effectClass = "fading-normal"; 
         statusMsg = "기록의 빛이 조금씩 약해지기 시작합니다.";
-        subMsg = "역사의 페이지가 넘어가기 전에 새로운 기록을 새겨주세요.";
+        subMsg = "완벽했던 기록에 미세한 균열이 생기고 있습니다.<br>역사의 페이지가 넘어가기 전에 새로운 기록을 새겨주세요.";
     } else if (dday <= 20 && dday > 10) {
         effectClass = "fading-20";
         statusMsg = "기록의 온기가 식어가며 흐릿해집니다.";
-        subMsg = "조금 더 힘을 내어 당신의 문장을 완성해 보세요.";
+        subMsg = "조금 더 힘을 내어 당신의 문장을 완성해 보세요.<br>역사는 멈추지 않는 기록으로 완성됩니다.";
     } else {
         effectClass = "fading-10";
         statusMsg = "기록이 거의 증발하여 사라지고 있습니다!";
-        subMsg = "지금 당장 기록을 지속하여 문장을 복원하세요.";
+        subMsg = "당신의 역사가 거의 잊혀 가고 있습니다.<br>지금 당장 기록을 지속하여 문장을 복원하세요.";
     }
 
+    // 3. 연대기(Chronicle) 데이터 로드 로직
     let chronicleHTML = `<div class="chronicle-container">`;
     try {
-        const snap = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc"), limit(5)));
+        const snap = await getDocs(query(
+            collection(db, `sanwoori/${mId}/logs`), 
+            orderBy("date", "desc"), 
+            limit(5)
+        ));
+
         if (snap.empty) {
-            chronicleHTML += `<div class="chronicle-item"><p class="chronicle-text">새겨진 역사가 없습니다.</p></div>`;
+            chronicleHTML += `<div class="chronicle-item"><p class="chronicle-text">아직 새겨진 역사가 없습니다.</p></div>`;
         } else {
             snap.forEach(doc => {
                 const data = doc.data();
@@ -4469,11 +4478,12 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
             });
         }
     } catch (e) {
-        chronicleHTML += `<div class="chronicle-item">기록 로드 실패</div>`;
+        console.error("연대기 로드 에러:", e);
+        chronicleHTML += `<div class="chronicle-item"><p class="chronicle-text">역사를 불러오는 데 실패했습니다.</p></div>`;
     }
     chronicleHTML += `</div>`;
 
-    // 4. 최종 UI (불필요한 문구 삭제, 요청하신 문구 추가)
+       // 4. 최종 UI (HTML 뼈대와 중복되는 도장, 문구, 서명 삭제)
     content.innerHTML = `
         <p class="${isGold ? 'gold-glow' : effectClass}" style="font-weight: 500;">
             "혼자 가면 기록이지만<br>함께 가면 역사"
@@ -4484,25 +4494,15 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
         </div>
         <hr style="border: 0; border-top: 1px dashed #d4c4a8; margin: 20px 0;">
         ${chronicleHTML}
-        
-        <div class="Ancient-seal">
-            <div class="seal-text">SAN<br>WOORI</div>
-        </div>
-        
-        <div style="font-size: 11px; color: #5a4a3a; margin-top: 20px; font-weight: bold;">
-            기록 연장이 필요하면 요청해 주세요.
-        </div>
-        <div class="ancient-signature" style="margin-top: 10px;">San:woori Management</div>
     `;
 
-    // 아무 화면이나 누르면 닫힘
+    // 5. [중요] 아무 곳이나 누르면 닫히는 기능 추가
     modal.onclick = function() {
         modal.style.display = 'none';
     };
 
     modal.style.display = 'flex';
 };
-
 </script>
 
 <div id="mountainViewModal" class="mountain-modal" onclick="this.style.display='none'">
@@ -4563,18 +4563,22 @@ style="position:absolute; top:15px; right:15px; color:white; background:none; bo
 <h3 class="scroll-title-main">고대 예언서</h3>
 </div>
 
-<div id="scrollContent" class="scroll-body"></div>
+<div id="scrollContent" class="scroll-body">
+</div>
 
 <div class="scroll-footer">
-<hr class="scroll-divider">
-<div class="ancient-seal">
-<div class="seal-text">SAN<br>WOORI</div>
-</div>
-<p class="footer-note">기록 연장이 필요하면 요청해 주세요.</p>
-<p class="ancient-signature">Guardian of History</p>
-<button onclick="document.getElementById('scrollModal').style.display='none'" class="scroll-close-btn">
-            닫기
-        </button>
+    <hr class="scroll-divider">
+    
+    <div class="ancient-seal">
+        <div class="seal-text">SAN<br>WOORI</div>
+    </div>
+    
+    <p class="footer-note" style="font-weight: bold; color: #5a4a3a; margin-top: 15px;">
+        기록 연장이 필요하면 요청해 주세요.
+    </p>
+    
+    <p class="ancient-signature">San:woori Management</p>
+
     </div>
 </div>
 
@@ -4779,5 +4783,4 @@ document.addEventListener('DOMContentLoaded', () => {
 </body>
     </html>
     
-
     
