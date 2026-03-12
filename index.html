@@ -4420,19 +4420,19 @@ setTimeout(() => s.remove(), 500);
 }, 850);
 }
 
-window.showFadingScroll = async function(mId, dday, level = 0) {
+ window.showFadingScroll = async function(mId, dday, level = 0) {
     const modal = document.getElementById('scrollModal');
     const content = document.getElementById('scrollContent');
     const scrollWrap = document.querySelector('.fading-scroll'); 
     if(!modal || !content) return;
 
-    // 1. D-Day 상태 메시지
+    // 1. D-Day 상태 로직
     let isGold = dday > 30;
     let effectClass = isGold ? "" : (dday > 20 ? "fading-normal" : (dday > 10 ? "fading-20" : "fading-10"));
     let statusMsg = isGold ? "기록이 황금빛으로 선명하게 빛나고 있습니다." : (dday > 20 ? "기록의 빛이 조금씩 약해지기 시작합니다." : (dday > 10 ? "기록의 온기가 식어가며 흐릿해집니다." : "기록이 거의 증발하여 사라지고 있습니다!"));
     let subMsg = isGold ? "당신의 발자취가 찬란한 역사가 되고 있습니다." : (dday > 20 ? "역사의 페이지가 넘어가기 전에 새로운 기록을 새겨주세요." : (dday > 10 ? "조금 더 힘을 내어 당신의 문장을 완성해 보세요." : "지금 당장 기록을 지속하여 문장을 복원하세요."));
 
-    // 2. 연대기 목록 (기록이 0개여도 90px 공간 확보하여 하단 문구 고정)
+    // 2. 연대기 목록 (높이 90px 고정으로 하단 문구 위치 사수)
     let chronicleHTML = `<div class="chronicle-container" style="min-height: 90px; max-height: 90px; overflow-y: auto; padding-right: 5px; margin-bottom: 5px;">`;
     
     try {
@@ -4444,21 +4444,24 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
                 const data = doc.data();
                 const date = data.date ? data.date.toDate().toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' }) : '??.??';
                 
-                // [수정] 올려주신 잔디 기록 코드와 100% 일치하도록 필드명 수정
-                // 1. mountain이 아니라 mName을 쓰고 계실 확률이 높음 (이미지 코드 확인)
-                // 2. trekking / running 필드 존재 여부로 판별
+                // [잔디 기록 로직 복사] 
+                // trekking/running이 체크되어 저장되었다면 해당 필드를 우선적으로 이모지 처리합니다.
                 let typeIcon = "⛰️"; 
-                if (data.trekking) typeIcon = "🥾";
-                else if (data.running) typeIcon = "🏃";
+                if (data.trekking === true || data.trekking === "true") {
+                    typeIcon = "🥾";
+                } else if (data.running === true || data.running === "true") {
+                    typeIcon = "🏃";
+                }
 
                 const textColor = isGold ? "color: #d4af37; font-weight: bold;" : "color: #5a4a3a;";
                 const dotColor = isGold ? "background: #d4af37;" : "background: #8d775f;";
 
+                // 기록지 답게 정확한 산 이름(mountain) 또는 활동명을 출력
                 chronicleHTML += `
                     <div class="chronicle-item" style="margin-bottom: 8px; display: flex; align-items: center;">
                         <div class="chronicle-dot" style="${dotColor} width: 6px; height: 6px; border-radius: 50%; margin-right: 8px;"></div>
                         <div class="chronicle-date" style="${textColor} font-size: 11px; margin-right: 10px;">${date}</div>
-                        <div class="chronicle-text" style="${textColor} font-size: 11px;">${typeIcon} ${data.mName || data.mountain || '활동'} 정복</div>
+                        <div class="chronicle-text" style="${textColor} font-size: 11px;">${typeIcon} ${data.mountain || '기록'} 정복</div>
                     </div>`;
             });
         }
@@ -4467,7 +4470,7 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
     }
     chronicleHTML += `</div>`;
 
-    // 3. UI 렌더링 (footer 문구 고정을 위해 content 영역만 주입)
+    // 3. UI 렌더링 (하단 Footer 문구는 HTML에 있으므로 content만 교체)
     content.innerHTML = `
         <p class="${isGold ? 'gold-glow' : effectClass}" style="font-weight: 500;">"혼자 가면 기록이지만<br>함께 가면 역사"</p>
         <div style="margin-top: 25px; font-size: 10px; line-height: 1.8; color: #5a4a3a;">
@@ -4489,7 +4492,6 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
     }
     modal.style.display = 'flex';
 };
-
 </script>
 
 <div id="mountainViewModal" class="mountain-modal" onclick="this.style.display='none'">
