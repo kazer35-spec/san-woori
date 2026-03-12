@@ -1276,7 +1276,7 @@ select { -webkit-appearance: none; -moz-appearance: none; appearance: none; back
 .up-amount-group input[type="radio"], .gender-select-group input[type="radio"] { display: none; }
 .up-amount-group label:has(input:checked), .gender-select-group label:has(input:checked) { background: #3b82f6; color: white; }
 
-     /* 1. 팝업 배경 및 양피지 기본 디자인 */
+    /* 1. 팝업 배경 및 양피지 기본 디자인 */
 .scroll-overlay {
 position: fixed; top: 0; left: 0; width: 100%; height: 100%;
 background: rgba(0,0,0,0.85); display: none; justify-content: center; align-items: center; z-index: 9999;
@@ -4420,63 +4420,85 @@ setTimeout(() => s.remove(), 500);
 }, 850);
 }
 
- window.showFadingScroll = async function(mId, dday, level = 0) {
+window.showFadingScroll = async function(mId, dday, level = 0) {
     const modal = document.getElementById('scrollModal');
     const content = document.getElementById('scrollContent');
     const scrollWrap = document.querySelector('.fading-scroll'); 
+    
     if(!modal || !content) return;
 
-    // 1. D-Day 상태 메시지
-    let isGold = dday > 30;
-    let effectClass = isGold ? "" : (dday > 20 ? "fading-normal" : (dday > 10 ? "fading-20" : "fading-10"));
-    let statusMsg = isGold ? "기록이 황금빛으로 선명하게 빛나고 있습니다." : (dday > 20 ? "기록의 빛이 조금씩 약해지기 시작합니다." : (dday > 10 ? "기록의 온기가 식어가며 흐릿해집니다." : "기록이 거의 증발하여 사라지고 있습니다!"));
-    let subMsg = isGold ? "당신의 발자취가 찬란한 역사가 되고 있습니다." : (dday > 20 ? "역사의 페이지가 넘어가기 전에 새로운 기록을 새겨주세요." : (dday > 10 ? "조금 더 힘을 내어 당신의 문장을 완성해 보세요." : "지금 당장 기록을 지속하여 문장을 복원하세요."));
+    let effectClass = "";
+    let statusMsg = "";
+    let subMsg = "";
+    let isGold = false;
 
-    // 2. 연대기 목록 (90px 높이 고정으로 하단 HTML 문구 위치 절대 고정)
-    let chronicleHTML = `<div class="chronicle-container" style="min-height: 90px; max-height: 90px; overflow-y: auto; padding-right: 5px; margin-bottom: 5px;">`;
+    // 1. D-Day 상태 로직
+    if (dday > 30) {
+        isGold = true;
+        statusMsg = "기록이 황금빛으로 선명하게 빛나고 있습니다.";
+        subMsg = "당신의 발자취가 찬란한 역사가 되고 있습니다.";
+    } else if (dday <= 30 && dday > 20) {
+        effectClass = "fading-normal"; 
+        statusMsg = "기록의 빛이 조금씩 약해지기 시작합니다.";
+        subMsg = "역사의 페이지가 넘어가기 전에 새로운 기록을 새겨주세요.";
+    } else if (dday <= 20 && dday > 10) {
+        effectClass = "fading-20";
+        statusMsg = "기록의 온기가 식어가며 흐릿해집니다.";
+        subMsg = "조금 더 힘을 내어 당신의 문장을 완성해 보세요.";
+    } else {
+        effectClass = "fading-10";
+        statusMsg = "기록이 거의 증발하여 사라지고 있습니다!";
+        subMsg = "지금 당장 기록을 지속하여 문장을 복원하세요.";
+    }
+
+    // 2. 연대기 목록 (5개 호출하되, 보이는 높이는 고정)
+    // 기록이 없어도 하단 문구가 고정되도록 min-height와 max-height를 똑같이 90px로 맞춥니다.
+    let chronicleHTML = `
+        <div class="chronicle-container" style="min-height: 90px; max-height: 90px; overflow-y: auto; padding-right: 5px; margin-bottom: 10px;">
+    `;
     
     try {
         const snap = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc"), limit(5)));
         if (snap.empty) {
-            chronicleHTML += `<div style="text-align: center; line-height: 90px; font-size: 11px; color: #8d775f; opacity: 0.6;">새겨진 역사가 없습니다.</div>`;
+            chronicleHTML += `<div class="chronicle-item" style="text-align: center; padding-top: 30px;"><p class="chronicle-text" style="color: #8d775f; font-size: 11px;">새겨진 역사가 없습니다.</p></div>`;
         } else {
             snap.forEach(doc => {
                 const data = doc.data();
                 const date = data.date ? data.date.toDate().toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' }) : '??.??';
-                
-                // [수정] 모든 가능성을 열어둔 이모지 판별 로직
-                // 잔디 기록에서 사용하는 모든 필드명(trek, trekking, run, running) 대응
-                let typeIcon = "⛰️"; 
-                if (data.trekking === true || data.trek === true || data.type === 'trekking') {
-                    typeIcon = "🥾";
-                } else if (data.running === true || data.run === true || data.type === 'running') {
-                    typeIcon = "🏃";
-                }
+               let typeIcon = "🧗‍♂️"; // 기본값은 등산
 
+if (data.run === true || data.run > 0) {
+    typeIcon = "🏃"; // 런닝
+} else if (data.trek === true || data.trek > 0) {
+    typeIcon = "👩‍🦯"; // 트레킹
+}
+             
                 const textColor = isGold ? "color: #d4af37; font-weight: bold;" : "color: #5a4a3a;";
                 const dotColor = isGold ? "background: #d4af37;" : "background: #8d775f;";
 
                 chronicleHTML += `
-                    <div class="chronicle-item" style="margin-bottom: 8px; display: flex; align-items: center;">
+                    <div class="chronicle-item" style="margin-bottom: 10px; display: flex; align-items: center;">
                         <div class="chronicle-dot" style="${dotColor} width: 6px; height: 6px; border-radius: 50%; margin-right: 8px;"></div>
                         <div class="chronicle-date" style="${textColor} font-size: 11px; margin-right: 10px;">${date}</div>
-                        <div class="chronicle-text" style="${textColor} font-size: 11px;">${typeIcon} ${data.mountain || '기록'} 정복</div>
+                        <div class="chronicle-text" style="${textColor} font-size: 11px;">${typeIcon} ${data.mountain || '활동'} 정복</div>
                     </div>`;
             });
         }
     } catch (e) {
-        chronicleHTML += `<div style="font-size: 11px; color: red; text-align: center; line-height: 90px;">기록 로드 실패</div>`;
+        chronicleHTML += `<div class="chronicle-item">기록 로드 실패</div>`;
     }
     chronicleHTML += `</div>`;
 
-    // 3. UI 렌더링 (하단 Footer 영역은 HTML에 이미 존재하므로 본문만 삽입)
+    // 3. UI 렌더링 (HTML 뼈대에 있는 중복 문구 제거)
     content.innerHTML = `
-        <p class="${isGold ? 'gold-glow' : effectClass}" style="font-weight: 500;">"혼자 가면 기록이지만<br>함께 가면 역사"</p>
+        <p class="${isGold ? 'gold-glow' : effectClass}" style="font-weight: 500;">
+            "혼자 가면 기록이지만<br>함께 가면 역사"
+        </p>
         <div style="margin-top: 25px; font-size: 10px; line-height: 1.8; color: #5a4a3a;">
             <strong style="font-size: 12px; display: block; margin-bottom: 10px; color: #3e2723; font-weight: 800;">${statusMsg}</strong>
             ${subMsg}
         </div>
-        <hr style="border: 0; border-top: 1px dashed #d4c4a8; margin: 15px 0;">
+        <hr style="border: 0; border-top: 1px dashed #d4c4a8; margin: 20px 0;">
         ${chronicleHTML}
     `;
 
@@ -4489,6 +4511,7 @@ setTimeout(() => s.remove(), 500);
             e.stopPropagation(); 
         };
     }
+
     modal.style.display = 'flex';
 };
 </script>
