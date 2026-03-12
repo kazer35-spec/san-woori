@@ -1308,7 +1308,7 @@ border: 2px solid rgba(139, 69, 19, 0.35);
 border-radius: 50%;
 position: absolute;
 /* 세로 위치를 66.6%에서 60%로 상향 조정 */
-top: 50%;
+top: 68%;
 left: 73%;
 transform: translate(-50%, -50%) rotate(-10deg);
 background: rgba(139, 69, 19, 0.03);
@@ -4420,13 +4420,11 @@ setTimeout(() => s.remove(), 500);
 }, 850);
 }
 
-// [통합] 고대 예언서 및 연대기 표시 함수 (버튼 제거 + 클릭 닫기 버전)
 window.showFadingScroll = async function(mId, dday, level = 0) {
     const modal = document.getElementById('scrollModal');
     const content = document.getElementById('scrollContent');
     if(!modal || !content) return;
 
-    // 1. 신입(Lv 0) 보호 로직
     if (level === 0 && dday > 10) return;
 
     let effectClass = "";
@@ -4434,36 +4432,32 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
     let subMsg = "";
     let isGold = false;
 
-    // 2. D-Day 상태별 메시지 및 효과 설정
+    // D-Day 상태 로직
     if (dday > 30) {
         isGold = true;
         statusMsg = "기록이 황금빛으로 선명하게 빛나고 있습니다.";
-        subMsg = "당신의 발자취가 찬란한 역사가 되고 있습니다.<br>지금처럼 소중한 걸음을 계속 이어가세요.";
+        subMsg = "당신의 발자취가 찬란한 역사가 되고 있습니다.";
     } else if (dday <= 30 && dday > 20) {
         effectClass = "fading-normal"; 
         statusMsg = "기록의 빛이 조금씩 약해지기 시작합니다.";
-        subMsg = "완벽했던 기록에 미세한 균열이 생기고 있습니다.<br>역사의 페이지가 넘어가기 전에 새로운 기록을 새겨주세요.";
+        subMsg = "역사의 페이지가 넘어가기 전에 새로운 기록을 새겨주세요.";
     } else if (dday <= 20 && dday > 10) {
         effectClass = "fading-20";
         statusMsg = "기록의 온기가 식어가며 흐릿해집니다.";
-        subMsg = "조금 더 힘을 내어 당신의 문장을 완성해 보세요.<br>역사는 멈추지 않는 기록으로 완성됩니다.";
+        subMsg = "조금 더 힘을 내어 당신의 문장을 완성해 보세요.";
     } else {
         effectClass = "fading-10";
         statusMsg = "기록이 거의 증발하여 사라지고 있습니다!";
-        subMsg = "당신의 역사가 거의 잊혀 가고 있습니다.<br>지금 당장 기록을 지속하여 문장을 복원하세요.";
+        subMsg = "지금 당장 기록을 지속하여 문장을 복원하세요.";
     }
 
-    // 3. 연대기(Chronicle) 데이터 로드 로직
+    // 1. 연대기 목록 (딱 2개로 제한)
     let chronicleHTML = `<div class="chronicle-container">`;
     try {
-        const snap = await getDocs(query(
-            collection(db, `sanwoori/${mId}/logs`), 
-            orderBy("date", "desc"), 
-            limit(5)
-        ));
-
+        // limit(2)를 사용하여 최근 2개만 호출
+        const snap = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc"), limit(2)));
         if (snap.empty) {
-            chronicleHTML += `<div class="chronicle-item"><p class="chronicle-text">아직 새겨진 역사가 없습니다.</p></div>`;
+            chronicleHTML += `<div class="chronicle-item"><p class="chronicle-text">새겨진 역사가 없습니다.</p></div>`;
         } else {
             snap.forEach(doc => {
                 const data = doc.data();
@@ -4478,12 +4472,11 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
             });
         }
     } catch (e) {
-        console.error("연대기 로드 에러:", e);
-        chronicleHTML += `<div class="chronicle-item"><p class="chronicle-text">역사를 불러오는 데 실패했습니다.</p></div>`;
+        chronicleHTML += `<div class="chronicle-item">기록 로드 실패</div>`;
     }
     chronicleHTML += `</div>`;
 
-       // 4. 최종 UI (HTML 뼈대와 중복되는 도장, 문구, 서명 삭제)
+    // 2. 내용 출력 (중복 방지를 위해 기록 내용까지만 포함)
     content.innerHTML = `
         <p class="${isGold ? 'gold-glow' : effectClass}" style="font-weight: 500;">
             "혼자 가면 기록이지만<br>함께 가면 역사"
@@ -4496,7 +4489,7 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
         ${chronicleHTML}
     `;
 
-    // 5. [중요] 아무 곳이나 누르면 닫히는 기능 추가
+    // 3. 닫기 기능 강화: 예언서 어디를 누르던 창이 닫히도록 설정
     modal.onclick = function() {
         modal.style.display = 'none';
     };
