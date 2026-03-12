@@ -4420,7 +4420,7 @@ setTimeout(() => s.remove(), 500);
 }, 850);
 }
 
-window.showFadingScroll = async function(mId, dday, level = 0) {
+    window.showFadingScroll = async function(mId, dday, level = 0) {
     const modal = document.getElementById('scrollModal');
     const content = document.getElementById('scrollContent');
     const scrollWrap = document.querySelector('.fading-scroll'); 
@@ -4451,8 +4451,7 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
         subMsg = "지금 당장 기록을 지속하여 문장을 복원하세요.";
     }
 
-    // 2. 연대기 목록 (5개 호출하되, 보이는 높이는 고정)
-    // 기록이 없어도 하단 문구가 고정되도록 min-height와 max-height를 똑같이 90px로 맞춥니다.
+    // 2. 연대기 목록 (최근 5개 호출, 높이 90px 고정)
     let chronicleHTML = `
         <div class="chronicle-container" style="min-height: 90px; max-height: 90px; overflow-y: auto; padding-right: 5px; margin-bottom: 10px;">
     `;
@@ -4465,7 +4464,11 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
             snap.forEach(doc => {
                 const data = doc.data();
                 const date = data.date ? data.date.toDate().toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' }) : '??.??';
-                const typeIcon = data.run ? "🏃" : (data.trek ? "🥾" : "⛰️");
+                
+                // [수정] 이모지 매칭 로직 강화
+                let typeIcon = "⛰️"; // 기본값
+                if (data.run === true) typeIcon = "🏃";
+                else if (data.trek === true) typeIcon = "🥾";
                 
                 const textColor = isGold ? "color: #d4af37; font-weight: bold;" : "color: #5a4a3a;";
                 const dotColor = isGold ? "background: #d4af37;" : "background: #8d775f;";
@@ -4483,7 +4486,7 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
     }
     chronicleHTML += `</div>`;
 
-    // 3. UI 렌더링 (HTML 뼈대에 있는 중복 문구 제거)
+    // 3. UI 렌더링 (HTML 뼈대의 고정 문구를 사용하므로 기록까지만 출력)
     content.innerHTML = `
         <p class="${isGold ? 'gold-glow' : effectClass}" style="font-weight: 500;">
             "혼자 가면 기록이지만<br>함께 가면 역사"
@@ -4508,7 +4511,6 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
 
     modal.style.display = 'flex';
 };
-    
 </script>
 
 <div id="mountainViewModal" class="mountain-modal" onclick="this.style.display='none'">
