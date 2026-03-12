@@ -4426,28 +4426,28 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
     const scrollWrap = document.querySelector('.fading-scroll'); 
     if(!modal || !content) return;
 
-    // 1. 상태 메시지 판별 (D-Day 기준)
+    // 1. D-Day 상태에 따른 메시지 설정
     let isGold = dday > 30;
     let effectClass = isGold ? "" : (dday > 20 ? "fading-normal" : (dday > 10 ? "fading-20" : "fading-10"));
     let statusMsg = isGold ? "기록이 황금빛으로 선명하게 빛나고 있습니다." : (dday > 20 ? "기록의 빛이 조금씩 약해지기 시작합니다." : (dday > 10 ? "기록의 온기가 식어가며 흐릿해집니다." : "기록이 거의 증발하여 사라지고 있습니다!"));
     let subMsg = isGold ? "당신의 발자취가 찬란한 역사가 되고 있습니다." : (dday > 20 ? "역사의 페이지가 넘어가기 전에 새로운 기록을 새겨주세요." : (dday > 10 ? "조금 더 힘을 내어 당신의 문장을 완성해 보세요." : "지금 당장 기록을 지속하여 문장을 복원하세요."));
 
-    // 2. 연대기 목록 (높이 90px 고정으로 하단 HTML 문구 위치 사수)
+    // 2. 연대기 목록 (잔디 기록 로직 완전 이식 + 높이 90px 고정)
     let chronicleHTML = `<div class="chronicle-container" style="min-height: 90px; max-height: 90px; overflow-y: auto; padding-right: 5px; margin-bottom: 10px;">`;
     
     try {
         const snap = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc"), limit(5)));
         if (snap.empty) {
-            chronicleHTML += `<div style="text-align: center; padding-top: 30px; font-size: 11px; color: #8d775f;">새겨진 역사가 없습니다.</div>`;
+            // 기록이 없을 때도 90px 높이 내에서 중앙 정렬로 표시하여 하단 문구 위치 고정
+            chronicleHTML += `<div style="text-align: center; padding-top: 35px; font-size: 11px; color: #8d775f; opacity: 0.6;">새겨진 역사가 없습니다.</div>`;
         } else {
             snap.forEach(doc => {
                 const data = doc.data();
                 const date = data.date ? data.date.toDate().toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' }) : '??.??';
                 
-                // [코드 분석 결과 반영] 잔디 기록 로직과 동일하게 필드 판별
-                // 필드명이 trekking/running 이거나 trek/run 일 경우 모두 대응
-                const isTrek = data.trekking || data.trek;
-                const isRun = data.running || data.run;
+                // [잔디 기록 코드 로직 100% 이식]
+                const isTrek = data.trekking; // 첫 번째 코드의 변수명 그대로
+                const isRun = data.running;   // 첫 번째 코드의 변수명 그대로
                 
                 let typeIcon = "⛰️"; 
                 if (isTrek) typeIcon = "🥾";
@@ -4465,11 +4465,11 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
             });
         }
     } catch (e) {
-        chronicleHTML += `<div style="font-size: 11px; color: red;">기록 로드 실패</div>`;
+        chronicleHTML += `<div style="font-size: 11px; color: red; text-align: center; padding-top: 30px;">기록 로드 실패</div>`;
     }
     chronicleHTML += `</div>`;
 
-    // 3. UI 렌더링 (기존 HTML 뼈대 하단의 footer 문구 위치를 위해 상단만 주입)
+    // 3. UI 렌더링 (하단 Footer 영역은 HTML에 이미 있으므로 본문만 삽입)
     content.innerHTML = `
         <p class="${isGold ? 'gold-glow' : effectClass}" style="font-weight: 500;">"혼자 가면 기록이지만<br>함께 가면 역사"</p>
         <div style="margin-top: 25px; font-size: 10px; line-height: 1.8; color: #5a4a3a;">
@@ -4480,18 +4480,17 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
         ${chronicleHTML}
     `;
 
-    // 4. 전방위 클릭 닫기 (배경 + 종이)
+    // 4. 전방위 클릭 닫기 (스크롤 영역은 제외하여 조작 편의성 제공)
     modal.onclick = () => { modal.style.display = 'none'; };
     if(scrollWrap) {
         scrollWrap.onclick = (e) => {
-            // 스크롤 시 닫히지 않도록 스크롤 영역 제외
             if (e.target.closest('.chronicle-container')) return; 
             modal.style.display = 'none';
             e.stopPropagation(); 
         };
     }
     modal.style.display = 'flex';
-};
+};  
 </script>
 
 <div id="mountainViewModal" class="mountain-modal" onclick="this.style.display='none'">
