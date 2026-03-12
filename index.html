@@ -4424,24 +4424,22 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
     const modal = document.getElementById('scrollModal');
     const content = document.getElementById('scrollContent');
     const scrollWrap = document.querySelector('.fading-scroll'); 
-    
     if(!modal || !content) return;
 
+    let isGold = dday > 30;
     let effectClass = "";
     let statusMsg = "";
     let subMsg = "";
-    let isGold = false;
 
-    // 1. D-Day 상태 로직
-    if (dday > 30) {
-        isGold = true;
+    // 1. 상태 메시지 로직
+    if (isGold) {
         statusMsg = "기록이 황금빛으로 선명하게 빛나고 있습니다.";
         subMsg = "당신의 발자취가 찬란한 역사가 되고 있습니다.";
-    } else if (dday <= 30 && dday > 20) {
+    } else if (dday > 20) {
         effectClass = "fading-normal"; 
         statusMsg = "기록의 빛이 조금씩 약해지기 시작합니다.";
         subMsg = "역사의 페이지가 넘어가기 전에 새로운 기록을 새겨주세요.";
-    } else if (dday <= 20 && dday > 10) {
+    } else if (dday > 10) {
         effectClass = "fading-20";
         statusMsg = "기록의 온기가 식어가며 흐릿해집니다.";
         subMsg = "조금 더 힘을 내어 당신의 문장을 완성해 보세요.";
@@ -4451,25 +4449,29 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
         subMsg = "지금 당장 기록을 지속하여 문장을 복원하세요.";
     }
 
-    // 2. 연대기 목록 (최근 5개 호출, 높이 90px 고정)
-    let chronicleHTML = `
-        <div class="chronicle-container" style="min-height: 90px; max-height: 90px; overflow-y: auto; padding-right: 5px; margin-bottom: 10px;">
-    `;
+    // 2. 연대기 목록 (높이 90px 고정)
+    let chronicleHTML = `<div class="chronicle-container" style="min-height: 90px; max-height: 90px; overflow-y: auto; padding-right: 5px; margin-bottom: 10px;">`;
     
     try {
         const snap = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc"), limit(5)));
         if (snap.empty) {
-            chronicleHTML += `<div class="chronicle-item" style="text-align: center; padding-top: 30px;"><p class="chronicle-text" style="color: #8d775f; font-size: 11px;">새겨진 역사가 없습니다.</p></div>`;
+            chronicleHTML += `<div style="text-align: center; padding-top: 30px; font-size: 11px; color: #8d775f;">새겨진 역사가 없습니다.</div>`;
         } else {
             snap.forEach(doc => {
                 const data = doc.data();
+                // 데이터 확인용 (문제 발생 시 F12 콘솔창 확인)
+                console.log("Member Data:", data);
+
                 const date = data.date ? data.date.toDate().toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' }) : '??.??';
                 
-                // [수정] 이모지만 상황에 맞게 변경하고, 뒤에는 실제 기록된 산/활동명을 출력
-                let typeIcon = "⛰️";
-                if (data.trek === true || data.trek === "true") typeIcon = "🥾";
-                else if (data.run === true || data.run === "true") typeIcon = "🏃";
-                
+                // [필독] 이모지 판별 로직 강화: 불리언, 문자열, 존재여부 모두 체크
+                let typeIcon = "⛰️"; 
+                if (data.trek === true || data.trek === "true" || data.type === "trek") {
+                    typeIcon = "🥾";
+                } else if (data.run === true || data.run === "true" || data.type === "run") {
+                    typeIcon = "🏃";
+                }
+
                 const textColor = isGold ? "color: #d4af37; font-weight: bold;" : "color: #5a4a3a;";
                 const dotColor = isGold ? "background: #d4af37;" : "background: #8d775f;";
 
@@ -4482,15 +4484,14 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
             });
         }
     } catch (e) {
-        chronicleHTML += `<div class="chronicle-item">기록 로드 실패</div>`;
+        console.error("Error loading logs:", e);
+        chronicleHTML += `<div style="font-size: 11px; color: red;">기록 로드 실패</div>`;
     }
     chronicleHTML += `</div>`;
 
-    // 3. UI 렌더링
+    // 3. UI 출력
     content.innerHTML = `
-        <p class="${isGold ? 'gold-glow' : effectClass}" style="font-weight: 500;">
-            "혼자 가면 기록이지만<br>함께 가면 역사"
-        </p>
+        <p class="${isGold ? 'gold-glow' : effectClass}" style="font-weight: 500;">"혼자 가면 기록이지만<br>함께 가면 역사"</p>
         <div style="margin-top: 25px; font-size: 10px; line-height: 1.8; color: #5a4a3a;">
             <strong style="font-size: 12px; display: block; margin-bottom: 10px; color: #3e2723; font-weight: 800;">${statusMsg}</strong>
             ${subMsg}
@@ -4508,7 +4509,6 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
             e.stopPropagation(); 
         };
     }
-
     modal.style.display = 'flex';
 };
 </script>
