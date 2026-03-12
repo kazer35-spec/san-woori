@@ -1308,7 +1308,7 @@ border: 2px solid rgba(139, 69, 19, 0.35);
 border-radius: 50%;
 position: absolute;
 /* 세로 위치를 66.6%에서 60%로 상향 조정 */
-top: 85%;
+top: 90%;
 left: 73%;
 transform: translate(-50%, -50%) rotate(-10deg);
 background: rgba(139, 69, 19, 0.03);
@@ -4432,7 +4432,7 @@ setTimeout(() => s.remove(), 500);
     let subMsg = "";
     let isGold = false;
 
-    // 1. D-Day 상태 로직 및 황금빛 여부 체크
+    // 1. D-Day 상태 로직
     if (dday > 30) {
         isGold = true;
         statusMsg = "기록이 황금빛으로 선명하게 빛나고 있습니다.";
@@ -4451,10 +4451,14 @@ setTimeout(() => s.remove(), 500);
         subMsg = "지금 당장 기록을 지속하여 문장을 복원하세요.";
     }
 
-    // 2. 연대기 목록 호출 (최근 2개 제한 + 황금빛 스타일 적용)
-    let chronicleHTML = `<div class="chronicle-container">`;
+    // 2. 연대기 목록 (최근 5개 호출, 하지만 스타일로 2개 높이 고정)
+    // overflow-y: auto를 주어 2개 이상일 때 스크롤이 생기게 합니다.
+    let chronicleHTML = `
+        <div class="chronicle-container" style="max-height: 85px; overflow-y: auto; padding-right: 5px;">
+    `;
+    
     try {
-        const snap = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc"), limit(2)));
+        const snap = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc"), limit(5)));
         if (snap.empty) {
             chronicleHTML += `<div class="chronicle-item"><p class="chronicle-text">새겨진 역사가 없습니다.</p></div>`;
         } else {
@@ -4463,14 +4467,13 @@ setTimeout(() => s.remove(), 500);
                 const date = data.date ? data.date.toDate().toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' }) : '??.??';
                 const typeIcon = data.run ? "🏃" : (data.trek ? "🥾" : "⛰️");
                 
-                // 황금빛 상태일 때 글자색을 금색(#d4af37)으로 설정
                 const textColor = isGold ? "color: #d4af37; font-weight: bold;" : "color: #5a4a3a;";
                 const dotColor = isGold ? "background: #d4af37;" : "background: #8d775f;";
 
                 chronicleHTML += `
-                    <div class="chronicle-item" style="margin-bottom: 8px;">
-                        <div class="chronicle-dot" style="${dotColor}"></div>
-                        <div class="chronicle-date" style="${textColor} font-size: 11px;">${date}</div>
+                    <div class="chronicle-item" style="margin-bottom: 12px; display: flex; align-items: center;">
+                        <div class="chronicle-dot" style="${dotColor} width: 6px; height: 6px; border-radius: 50%; margin-right: 8px;"></div>
+                        <div class="chronicle-date" style="${textColor} font-size: 11px; margin-right: 10px;">${date}</div>
                         <div class="chronicle-text" style="${textColor} font-size: 11px;">${typeIcon} ${data.mountain || '활동'} 정복</div>
                     </div>`;
             });
@@ -4493,17 +4496,20 @@ setTimeout(() => s.remove(), 500);
         ${chronicleHTML}
     `;
 
-    // 4. 전방위 클릭 닫기 시스템
+    // 4. 전방위 클릭 닫기 (스크롤 영역 클릭 시 닫히지 않게 하려면 아래 조건 추가)
     modal.onclick = () => { modal.style.display = 'none'; };
+    
     if(scrollWrap) {
         scrollWrap.onclick = (e) => {
+            // 스크롤바를 조작할 때는 창이 닫히지 않도록 방지 (선택 사항)
+            if (e.target.closest('.chronicle-container')) return; 
             modal.style.display = 'none';
             e.stopPropagation(); 
         };
     }
 
     modal.style.display = 'flex';
-};
+};    
 </script>
 
 <div id="mountainViewModal" class="mountain-modal" onclick="this.style.display='none'">
