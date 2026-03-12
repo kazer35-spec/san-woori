@@ -4420,13 +4420,13 @@ setTimeout(() => s.remove(), 500);
 }, 850);
 }
 
-// [통합] 고대 예언서 및 연대기 표시 함수
+// [통합] 고대 예언서 및 연대기 표시 함수 (버튼 제거 + 클릭 닫기 버전)
 window.showFadingScroll = async function(mId, dday, level = 0) {
     const modal = document.getElementById('scrollModal');
     const content = document.getElementById('scrollContent');
     if(!modal || !content) return;
 
-    // 1. 신입(Lv 0) 보호 로직 (활동 기록이 넉넉하면 안 띄움)
+    // 1. 신입(Lv 0) 보호 로직
     if (level === 0 && dday > 10) return;
 
     let effectClass = "";
@@ -4456,7 +4456,6 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
     // 3. 연대기(Chronicle) 데이터 로드 로직
     let chronicleHTML = `<div class="chronicle-container">`;
     try {
-        // Firebase에서 해당 멤버의 최신 로그 5개만 가져오기
         const snap = await getDocs(query(
             collection(db, `sanwoori/${mId}/logs`), 
             orderBy("date", "desc"), 
@@ -4484,7 +4483,7 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
     }
     chronicleHTML += `</div>`;
 
-    // 4. 최종 UI 조립 및 출력
+    // 4. 최종 UI 조립 (버튼 삭제 및 도장/문구 구성)
     content.innerHTML = `
         <p class="${isGold ? 'gold-glow' : effectClass}" style="font-weight: 500;">
             "혼자 가면 기록이지만<br>함께 가면 역사"
@@ -4495,7 +4494,18 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
         </div>
         <hr style="border: 0; border-top: 1px dashed #d4c4a8; margin: 20px 0;">
         ${chronicleHTML}
+        
+        <div class="Ancient-seal">
+            <div class="seal-text">SAN<br>WOORI</div>
+        </div>
+        <div class="footer-note">기록의 수호자</div>
+        <div class="ancient-signature">San:woori Management</div>
     `;
+
+    // 5. [중요] 아무 곳이나 누르면 닫히는 기능 추가
+    modal.onclick = function() {
+        modal.style.display = 'none';
+    };
 
     modal.style.display = 'flex';
 };
@@ -4775,4 +4785,5 @@ document.addEventListener('DOMContentLoaded', () => {
 </body>
     </html>
     
+
     
