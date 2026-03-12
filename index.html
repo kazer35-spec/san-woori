@@ -1308,7 +1308,7 @@ border: 2px solid rgba(139, 69, 19, 0.35);
 border-radius: 50%;
 position: absolute;
 /* 세로 위치를 66.6%에서 60%로 상향 조정 */
-top: 68%;
+top: 78%;
 left: 73%;
 transform: translate(-50%, -50%) rotate(-10deg);
 background: rgba(139, 69, 19, 0.03);
@@ -4420,19 +4420,19 @@ setTimeout(() => s.remove(), 500);
 }, 850);
 }
 
-window.showFadingScroll = async function(mId, dday, level = 0) {
+    window.showFadingScroll = async function(mId, dday, level = 0) {
     const modal = document.getElementById('scrollModal');
     const content = document.getElementById('scrollContent');
+    const scrollWrap = document.querySelector('.fading-scroll'); 
+    
     if(!modal || !content) return;
-
-    if (level === 0 && dday > 10) return;
 
     let effectClass = "";
     let statusMsg = "";
     let subMsg = "";
     let isGold = false;
 
-    // D-Day 상태 로직
+    // 1. D-Day 상태 로직 및 황금빛 여부 체크
     if (dday > 30) {
         isGold = true;
         statusMsg = "기록이 황금빛으로 선명하게 빛나고 있습니다.";
@@ -4451,10 +4451,9 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
         subMsg = "지금 당장 기록을 지속하여 문장을 복원하세요.";
     }
 
-    // 1. 연대기 목록 (딱 2개로 제한)
+    // 2. 연대기 목록 호출 (최근 2개 제한 + 황금빛 스타일 적용)
     let chronicleHTML = `<div class="chronicle-container">`;
     try {
-        // limit(2)를 사용하여 최근 2개만 호출
         const snap = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc"), limit(2)));
         if (snap.empty) {
             chronicleHTML += `<div class="chronicle-item"><p class="chronicle-text">새겨진 역사가 없습니다.</p></div>`;
@@ -4463,11 +4462,16 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
                 const data = doc.data();
                 const date = data.date ? data.date.toDate().toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' }) : '??.??';
                 const typeIcon = data.run ? "🏃" : (data.trek ? "🥾" : "⛰️");
+                
+                // 황금빛 상태일 때 글자색을 금색(#d4af37)으로 설정
+                const textColor = isGold ? "color: #d4af37; font-weight: bold;" : "color: #5a4a3a;";
+                const dotColor = isGold ? "background: #d4af37;" : "background: #8d775f;";
+
                 chronicleHTML += `
-                    <div class="chronicle-item">
-                        <div class="chronicle-dot"></div>
-                        <div class="chronicle-date">${date}</div>
-                        <div class="chronicle-text">${typeIcon} ${data.mountain || '활동'} 정복</div>
+                    <div class="chronicle-item" style="margin-bottom: 8px;">
+                        <div class="chronicle-dot" style="${dotColor}"></div>
+                        <div class="chronicle-date" style="${textColor} font-size: 11px;">${date}</div>
+                        <div class="chronicle-text" style="${textColor} font-size: 11px;">${typeIcon} ${data.mountain || '활동'} 정복</div>
                     </div>`;
             });
         }
@@ -4476,7 +4480,7 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
     }
     chronicleHTML += `</div>`;
 
-    // 2. 내용 출력 (중복 방지를 위해 기록 내용까지만 포함)
+    // 3. UI 렌더링
     content.innerHTML = `
         <p class="${isGold ? 'gold-glow' : effectClass}" style="font-weight: 500;">
             "혼자 가면 기록이지만<br>함께 가면 역사"
@@ -4489,10 +4493,14 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
         ${chronicleHTML}
     `;
 
-    // 3. 닫기 기능 강화: 예언서 어디를 누르던 창이 닫히도록 설정
-    modal.onclick = function() {
-        modal.style.display = 'none';
-    };
+    // 4. 전방위 클릭 닫기 시스템
+    modal.onclick = () => { modal.style.display = 'none'; };
+    if(scrollWrap) {
+        scrollWrap.onclick = (e) => {
+            modal.style.display = 'none';
+            e.stopPropagation(); 
+        };
+    }
 
     modal.style.display = 'flex';
 };
