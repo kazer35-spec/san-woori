@@ -4431,7 +4431,6 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
     let statusMsg = "";
     let subMsg = "";
 
-    // 1. 상태 메시지 로직
     if (isGold) {
         statusMsg = "기록이 황금빛으로 선명하게 빛나고 있습니다.";
         subMsg = "당신의 발자취가 찬란한 역사가 되고 있습니다.";
@@ -4449,7 +4448,7 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
         subMsg = "지금 당장 기록을 지속하여 문장을 복원하세요.";
     }
 
-    // 2. 연대기 목록 (높이 90px 고정)
+    // [중요] 기록 5개를 호출하되, 90px 높이로 고정하여 하단 HTML 문구 위치를 지킵니다.
     let chronicleHTML = `<div class="chronicle-container" style="min-height: 90px; max-height: 90px; overflow-y: auto; padding-right: 5px; margin-bottom: 10px;">`;
     
     try {
@@ -4459,17 +4458,15 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
         } else {
             snap.forEach(doc => {
                 const data = doc.data();
-                // 데이터 확인용 (문제 발생 시 F12 콘솔창 확인)
-                console.log("Member Data:", data);
-
                 const date = data.date ? data.date.toDate().toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' }) : '??.??';
                 
-                // [필독] 이모지 판별 로직 강화: 불리언, 문자열, 존재여부 모두 체크
+                // [수정 포인트] 잔디 기록에서 사용하는 필드명을 더 엄격하게 체크
                 let typeIcon = "⛰️"; 
-                if (data.trek === true || data.trek === "true" || data.type === "trek") {
-                    typeIcon = "🥾";
-                } else if (data.run === true || data.run === "true" || data.type === "run") {
+                // data.run이나 data.trek이 true이거나, 체크박스 값이 있는 경우 판별
+                if (data.run === true || String(data.run) === "true") {
                     typeIcon = "🏃";
+                } else if (data.trek === true || String(data.trek) === "true") {
+                    typeIcon = "🥾";
                 }
 
                 const textColor = isGold ? "color: #d4af37; font-weight: bold;" : "color: #5a4a3a;";
@@ -4484,12 +4481,11 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
             });
         }
     } catch (e) {
-        console.error("Error loading logs:", e);
         chronicleHTML += `<div style="font-size: 11px; color: red;">기록 로드 실패</div>`;
     }
     chronicleHTML += `</div>`;
 
-    // 3. UI 출력
+    // UI 출력 (하단 HTML 뼈대는 그대로 두기 위해 상단부만 렌더링)
     content.innerHTML = `
         <p class="${isGold ? 'gold-glow' : effectClass}" style="font-weight: 500;">"혼자 가면 기록이지만<br>함께 가면 역사"</p>
         <div style="margin-top: 25px; font-size: 10px; line-height: 1.8; color: #5a4a3a;">
@@ -4500,7 +4496,7 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
         ${chronicleHTML}
     `;
 
-    // 4. 전방위 클릭 닫기
+    // 클릭 시 닫기
     modal.onclick = () => { modal.style.display = 'none'; };
     if(scrollWrap) {
         scrollWrap.onclick = (e) => {
