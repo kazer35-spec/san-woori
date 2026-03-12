@@ -4458,17 +4458,45 @@ statusMsg = "기록이 거의 증발하여 사라지고 있습니다!";
 subMsg = "당신의 역사가 거의 잊혀 가고 있습니다.<br>지금 당장 기록을 지속하여 문장을 복원하세요.";
 }
 
-content.innerHTML = `
-<p class="${isGold ? 'gold-glow' : effectClass}" style="font-weight: 500;">
-"혼자 가면 기록이지만<br>함께 가면 역사"
-</p>
-<div style="margin-top: 25px; font-size: 10px; line-height: 1.8; color: #5a4a3a;">
-<strong style="font-size: 12px; display: block; margin-bottom: 10px; color: #3e2723; font-weight: 800;">${statusMsg}</strong>
-${subMsg}
-</div>
-`;
+     // 연대기 HTML 생성 시작
+    let chronicleHTML = `<div class="chronicle-container">`;
+    
+    try {
+        // 해당 멤버의 최신 로그 5개를 가져옴
+        const snap = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc"), limit(5)));
+        
+        if(snap.empty) {
+            chronicleHTML += `<div class="chronicle-item"><p class="chronicle-text">아직 기록된 역사가 없습니다.</p></div>`;
+        } else {
+            snap.forEach(doc => {
+                const data = doc.data();
+                const date = data.date ? data.date.toDate().toLocaleDateString() : '알 수 없는 날';
+                chronicleHTML += `
+                    <div class="chronicle-item">
+                        <div class="chronicle-dot"></div>
+                        <div class="chronicle-date">${date}</div>
+                        <div class="chronicle-text">${data.mountain} 정복 (${data.height}m)</div>
+                    </div>`;
+            });
+        }
+    } catch (e) {
+        console.error("연대기 로드 실패:", e);
+    }
+    
+    chronicleHTML += `</div>`;
 
-modal.style.display = 'flex';
+    // 기존 예언서 내용 아래에 연대기 추가
+    content.innerHTML = `
+        <p class="${isGold ? 'gold-glow' : effectClass}" style="font-weight: 500;">
+            "혼자 가면 기록이지만<br>함께 가면 역사"
+        </p>
+        <div style="margin-top: 25px; font-size: 10px; line-height: 1.8; color: #5a4a3a;">
+            <strong style="font-size: 12px; display: block; margin-bottom: 10px; color: #3e2723; font-weight: 800;">${statusMsg}</strong>
+            ${subMsg}
+        </div>
+        ${chronicleHTML} `;
+
+    modal.style.display = 'flex';
 };
 </script>
 
