@@ -2024,14 +2024,17 @@ overflow: hidden;
                     </div>
                     <div class="flex flex-col">
     <label class="text-[9px] font-black text-gray-500 ml-1 mb-1 block">🟢 소요시간</label>
-    <div class="flex items-center bg-white/5 border border-white/5 rounded-2xl pr-4 h-[44px]">
-        <input type="text" id="n_time" 
-               inputmode="decimal" 
-               placeholder="0" 
-               class="w-full bg-transparent text-white text-sm outline-none text-right border-none p-0 px-2">
-        <span class="text-gray-600 text-[11px] font-black ml-1 shrink-0">시간</span>
+    <div class="flex items-center bg-white/5 border border-white/5 rounded-2xl px-3 h-[44px] gap-1">
+        <span class="text-gray-400 text-[11px] font-bold shrink-0">약</span>
+        <input type="text" id="n_time_h" inputmode="decimal" placeholder="0" 
+               class="w-full bg-transparent text-white text-sm outline-none text-right border-none p-0">
+        <span class="text-gray-600 text-[11px] font-black shrink-0">시간</span>
+        
+        <input type="text" id="n_time_m" inputmode="decimal" placeholder="0" 
+               class="w-full bg-transparent text-white text-sm outline-none text-right border-none p-0">
+        <span class="text-gray-600 text-[11px] font-black shrink-0">분</span>
     </div>
-                    </div>
+</div>
                 </div>
 
                 <div>
@@ -4582,7 +4585,8 @@ window.toggleNoticeModal = (show) => {
     if(!show) document.getElementById('n_result_box').classList.add('hidden');
 };
 
-window.makeNoticeText = () => {
+
+    window.makeNoticeText = () => {
     const mt = document.getElementById('n_mt').value || '';
     const pickupOption = document.querySelector('input[name="n_pickup"]:checked');
     const pickup = pickupOption ? pickupOption.value : "";
@@ -4599,8 +4603,22 @@ window.makeNoticeText = () => {
     
     const dateStr = month ? `${month}월 ${day}일 ${ampm} ${timeStr}` : '';
     const meet = document.getElementById('n_meet').value || '';
-    const timeVal = document.getElementById('n_time').value;
-    const time = timeVal ? `${timeVal}시간` : '';
+
+    // --- 소요시간 로직 수정 삽입 시작 ---
+    const hourVal = document.getElementById('n_time_h').value;
+    const minVal = document.getElementById('n_time_m').value;
+    
+    let time = "";
+    if (hourVal) {
+        // 시간이 입력된 경우 '약 ㅇㅇ시간' 기본 생성
+        time = `약 ${hourVal}시간`;
+        // 분도 입력되었다면 'ㅇㅇ분' 추가
+        if (minVal && minVal !== "0" && minVal !== "") {
+            time += ` ${minVal}분`;
+        }
+    }
+    // --- 소요시간 로직 수정 삽입 끝 ---
+
     const course = document.getElementById('n_course').value || '';
     const distVal = document.getElementById('n_dist').value;
     const dist = distVal ? `${distVal}km` : '';
