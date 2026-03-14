@@ -2252,19 +2252,13 @@ overflow: hidden;
     </div>
 
     <div class="bg-blue-50 p-2 rounded-xl border border-blue-100 mb-2">
-        <p class="text-[9px] text-blue-600 font-bold mb-1">⭐ 레벨 관리 (적용/삭제)</p>
+        <p class="text-[9px] text-blue-600 font-bold mb-1">⭐ 레벨 직접 변경</p>
         <div class="flex gap-2">
             <input type="number" id="manualLevelInput" placeholder="Lv" 
-                   class="w-16 h-10 text-sm border rounded-xl px-2 text-black outline-none">
-            
+                   class="w-20 h-10 text-sm border rounded-xl px-3 text-black outline-none">
             <button onclick="window.updateManualLevel()" 
-                    class="flex-1 bg-blue-600 text-white rounded-xl text-xs font-bold whitespace-nowrap">
-                레벨 적용
-            </button>
-            
-            <button onclick="window.adjustLevel(-1)" 
-                    class="flex-1 bg-orange-500 text-white rounded-xl text-xs font-bold whitespace-nowrap">
-                레벨 -1 삭제
+                    class="flex-1 bg-blue-600 text-white rounded-xl text-sm font-black whitespace-nowrap">
+                레벨적용
             </button>
         </div>
     </div>
@@ -2455,7 +2449,8 @@ overflow: hidden;
 </div>
 </div>
 </div>
-<div id="milkyWayModal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/80 backdrop-blur-sm">
+
+    <div id="milkyWayModal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/80 backdrop-blur-sm">
 <div class="relative w-[90%] max-w-md bg-[#050b18] rounded-3xl overflow-hidden border border-blue-900/50 shadow-[0_0_50px_rgba(30,58,138,0.5)]">
 <button onclick="document.getElementById('milkyWayModal').style.display='none'" class="absolute top-5 right-5 z-10 text-white/50 text-2xl">&times;</button>
 
@@ -3610,7 +3605,7 @@ if (snap.exists() && pw === String(snap.data().admin_pw)) { isAdminLoggedIn = tr
 };
 window.logoutAdmin = () => { isAdminLoggedIn = false; showView('status'); };
 
-window.addMember = async () => {
+    window.addMember = async () => {
 const name = document.getElementById('newName').value.trim(); const dateStr = document.getElementById('regDate').value;
 const gender = document.querySelector('input[name="newGender"]:checked').value;
 if(name && dateStr) {
@@ -3698,35 +3693,25 @@ window.deleteMember = async () => {
     }
 };
 
-// 2. 레벨 임의 수정 기능 (새로 추가)
+// 레벨 임의 수정 기능
 window.updateManualLevel = async () => {
     const id = document.getElementById('memberSelectEdit').value; 
     const newLevel = parseInt(document.getElementById('manualLevelInput').value);
-    if(!id || isNaN(newLevel)) return alert("회원 선택 및 레벨 숫자를 입력해주세요.");
-    
-    if(confirm(`레벨을 ${newLevel}(으)로 변경하시겠습니까?`)) {
-        try {
-            await updateDoc(doc(db, "sanwoori", id), { level: newLevel });
-            alert("레벨이 변경되었습니다! ✅");
-            document.getElementById('manualLevelInput').value = "";
-        } catch (e) { alert("에러: " + e.message); }
-    }
-};
 
-// 2. 레벨 -1 삭제 (기존 로직: 레벨 깎고 기록도 같이 처리하는 용도)
-window.adjustLevel = async (amount) => {
-    const id = document.getElementById('memberSelectEdit').value;
-    if(!id) return alert("회원을 선택해주세요.");
-    
-    // 현재 데이터에서 해당 회원 찾기
-    const m = currentData.find(x => x.id === id);
-    const newLevel = (m.level || 0) + amount;
-    
-    if(confirm(`레벨을 1 감소시켜 ${newLevel}로 변경하시겠습니까?`)) {
+    if(!id) return alert("대상 회원을 먼저 선택해주세요.");
+    if(isNaN(newLevel)) return alert("변경할 레벨 숫자를 입력해주세요.");
+
+    if(confirm(`선택한 회원의 레벨을 ${newLevel}(으)로 변경하시겠습니까?`)) {
         try {
             await updateDoc(doc(db, "sanwoori", id), { level: newLevel });
-            alert("삭제 및 변경 완료! ✅");
-        } catch (e) { alert("에러: " + e.message); }
+            alert("레벨 변경이 완료되었습니다! ✅");
+            document.getElementById('manualLevelInput').value = ""; // 입력창 초기화
+            
+            // 실시간 반영을 위해 함수 실행 (함수명이 startRealtimeSync인 경우)
+            if(typeof startRealtimeSync === 'function') startRealtimeSync();
+        } catch (e) {
+            alert("변경 실패: " + e.message);
+        }
     }
 };
 
@@ -4851,7 +4836,5 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
     </html>
-    
-    
     
     
