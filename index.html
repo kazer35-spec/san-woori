@@ -2265,14 +2265,7 @@ overflow: hidden;
 </div>
 <div class="flex gap-2">
 <button onclick="toggleHideMember()" class="flex-1 bg-gray-600 text-white font-bold rounded-lg text-xs h-9">숨기기/보이기</button>
-<div style="display:flex; gap:5px; flex:1;">
-    <input type="number" id="levelReduceInput" placeholder="차감" 
-           style="width:50px; padding:5px; border-radius:8px; border:1px solid #ddd; font-size:12px; color:black;">
-    <button onclick="reduceMemberLevel()" 
-            style="flex:1; background-color: #ef4444; color: white; font-weight: bold; border-radius: 8px; border: none; font-size: 11px; height: 36px; cursor: pointer;">
-        레벨차감
-    </button>
-</div>
+<button onclick="deleteMember()" class="flex-1 bg-red-500 text-white font-bold rounded-lg text-xs h-9">영구 삭제</button>
 </div>
 </div>
 <div class="p-4 text-center"><button onclick="logoutAdmin()" class="text-gray-400 underline font-bold text-xs">로그아웃</button></div>
@@ -3674,38 +3667,9 @@ window.toggleHideMember = async () => {
 const id = document.getElementById('memberSelectManage').value;
 if(id){ const m = currentData.find(x => x.id === id); await updateDoc(doc(db, "sanwoori", id), { isHidden: !m.isHidden }); alert("변경 완료"); }
 };
-// 기존 deleteMember를 삭제하고 추가하는 레벨 차감 로직
-window.reduceMemberLevel = async () => {
-    const id = document.getElementById('memberSelectManage').value;
-    const reduceVal = parseInt(document.getElementById('levelReduceInput')?.value || "1");
-    
-    if(!id) {
-        alert("대상을 선택해주세요.");
-        return;
-    }
-
-    if(id && confirm(`선택한 회원의 레벨을 ${reduceVal}만큼 차감하시겠습니까?`)) {
-        const member = currentData.find(x => x.id === id);
-        if(!member) return;
-
-        // 현재 레벨에서 입력된 값만큼 차감 (최소 0레벨 유지)
-        const newLevel = Math.max(0, (member.level || 0) - reduceVal);
-
-        try {
-            await updateDoc(doc(db, "sanwoori", id), { 
-                level: newLevel 
-            });
-            alert(`차감 완료! 현재 레벨: ${newLevel}`);
-            
-            // 입력창 초기화
-            if(document.getElementById('levelReduceInput')) {
-                document.getElementById('levelReduceInput').value = "";
-            }
-        } catch (e) {
-            console.error("레벨 수정 에러:", e);
-            alert("수정 중 오류가 발생했습니다.");
-        }
-    }
+window.deleteMember = async () => {
+const id = document.getElementById('memberSelectManage').value;
+if(id && confirm("삭제하시겠습니까?")) { await deleteDoc(doc(db, "sanwoori", id)); alert("삭제 완료"); }
 };
 
 // 초기 실행 로직 정리
