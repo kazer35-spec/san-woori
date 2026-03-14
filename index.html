@@ -2247,20 +2247,13 @@ overflow: hidden;
     </select>
 
     <div class="flex gap-2 mb-3">
-        <input type="text" id="editMemberNameInput" placeholder="변경할 이름" class="h-10 text-sm flex-1 border rounded-xl px-3 outline-none">
+        <input type="text" id="editMemberNameInput" placeholder="변경할 이름 입력" class="h-10 text-sm flex-1 border rounded-xl px-3 outline-none">
         <button onclick="updateMemberName()" class="bg-indigo-500 text-white px-3 rounded-xl text-xs font-bold whitespace-nowrap">이름 수정</button>
     </div>
 
-    <div class="bg-blue-50 p-2 rounded-xl border border-blue-100 mb-2">
-        <p class="text-[9px] text-blue-600 font-bold mb-1">⭐ 레벨 직접 변경</p>
-        <div class="flex gap-2">
-            <input type="number" id="manualLevelInput" placeholder="Lv" 
-                   class="w-20 h-10 text-sm border rounded-xl px-3 text-black outline-none">
-            <button onclick="window.updateManualLevel()" 
-                    class="flex-1 bg-blue-600 text-white rounded-xl text-sm font-black whitespace-nowrap">
-                레벨적용
-            </button>
-        </div>
+    <div class="flex gap-2 mb-3">
+        <input type="number" id="manualLevelInput" placeholder="레벨(Lv) 입력" class="h-10 text-sm flex-1 border rounded-xl px-3 outline-none">
+        <button onclick="window.updateManualLevel()" class="bg-indigo-500 text-white px-3 rounded-xl text-xs font-bold whitespace-nowrap">레벨 적용</button>
     </div>
 
     <div id="logListArea" class="log-grid"></div>
@@ -3605,6 +3598,7 @@ if (snap.exists() && pw === String(snap.data().admin_pw)) { isAdminLoggedIn = tr
 };
 window.logoutAdmin = () => { isAdminLoggedIn = false; showView('status'); };
 
+
     window.addMember = async () => {
 const name = document.getElementById('newName').value.trim(); const dateStr = document.getElementById('regDate').value;
 const gender = document.querySelector('input[name="newGender"]:checked').value;
@@ -3695,6 +3689,7 @@ window.deleteMember = async () => {
 
 // 레벨 임의 수정 기능
 window.updateManualLevel = async () => {
+    // memberSelectEdit에서 선택된 회원 ID 가져오기
     const id = document.getElementById('memberSelectEdit').value; 
     const newLevel = parseInt(document.getElementById('manualLevelInput').value);
 
@@ -3703,13 +3698,14 @@ window.updateManualLevel = async () => {
 
     if(confirm(`선택한 회원의 레벨을 ${newLevel}(으)로 변경하시겠습니까?`)) {
         try {
+            // DB 업데이트
             await updateDoc(doc(db, "sanwoori", id), { level: newLevel });
-            alert("레벨 변경이 완료되었습니다! ✅");
-            document.getElementById('manualLevelInput').value = ""; // 입력창 초기화
+            alert("레벨 변경 완료! ✅");
+            document.getElementById('manualLevelInput').value = ""; // 입력창 비우기
             
-            // 실시간 반영을 위해 함수 실행 (함수명이 startRealtimeSync인 경우)
-            if(typeof startRealtimeSync === 'function') startRealtimeSync();
+            // 화면 갱신 (실시간 리스너가 있다면 자동으로 반영됨)
         } catch (e) {
+            console.error(e);
             alert("변경 실패: " + e.message);
         }
     }
