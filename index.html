@@ -1281,6 +1281,7 @@ select { -webkit-appearance: none; -moz-appearance: none; appearance: none; back
 position: fixed; top: 0; left: 0; width: 100%; height: 100%;
 background: rgba(0,0,0,0.85); display: none; justify-content: center; align-items: center; z-index: 9999;
 }
+
     .fading-scroll {
 font-family: 'ChosunGu', 'Nanum Myeongjo', serif;
 background: #f4e4bc;
@@ -2541,7 +2542,8 @@ const levelThresholds = [
 { lv: 3, name: "🌿 풀잎" }, { lv: 1, name: "🌱 새싹" }, { lv: 0, name: "🫘 신입" }
 ];
 
-const getLevelBadge = (lv) => { for (const t of levelThresholds) { if (lv >= t.lv) return t.name; } return "🫘 신입"; };
+
+    const getLevelBadge = (lv) => { for (const t of levelThresholds) { if (lv >= t.lv) return t.name; } return "🫘 신입"; };
 
 const getLevelStyle = (lv) => {
 if (lv >= 100) return { bg: '#fee2e2', border: '#ef4444', text: '#991b1b', blink: 'level-blink-red' };
@@ -2944,91 +2946,6 @@ for (let i = 0; i < totalDaysInQ; i++) {
     } catch (e) {
         console.error("Timeline Error:", e);
         container.innerHTML = "<p class='text-center text-xs text-red-400'>데이터 조회 실패</p>";
-    }
-};
-
-<div id="grassArea" style="position: relative; width: 100%;">
-    </div>
-
-window.showBondForest = async (event, mId, mName) => {
-    if (event) event.stopPropagation();
-
-    const popup = document.getElementById('bondForestPopup');
-    const grassArea = document.getElementById('grassArea'); 
-
-    if (!popup) return;
-
-    popup.classList.remove('hidden');
-    popup.style.display = 'block';
-    popup.style.position = 'fixed';
-    popup.style.zIndex = '9999999';
-
-    // 잔디창(grassArea) 위치를 찾아서 그 위로 팝업을 보냄
-    if (grassArea) {
-        const rect = grassArea.getBoundingClientRect();
-        // 잔디 영역 중앙 위쪽에 배치
-        popup.style.left = `${rect.left + (rect.width / 2) - 110}px`;
-        popup.style.top = `${rect.top - 10}px`; 
-    }
-
-    // 데이터 계산 로직 (기존과 동일)
-    document.getElementById('bestPartner').innerText = "분석 중...";
-
-    try {
-        let myLogs = [];
-        let allOtherLogs = [];
-
-        const mySnap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
-        mySnap.forEach(doc => myLogs.push(doc.data()));
-
-        if (window.currentData) {
-            for (const member of window.currentData) {
-                if (member.id === mId) continue;
-                const otherSnap = await getDocs(collection(db, `sanwoori/${member.id}/logs`));
-                otherSnap.forEach(doc => {
-                    allOtherLogs.push({ ...doc.data(), ownerName: member.name });
-                });
-            }
-        }
-
-        let bondCount = 0;
-        let metPeople = new Set();
-        let partnerMap = {};
-
-        myLogs.forEach(myLog => {
-            if (!myLog.date || !myLog.mountain) return;
-            const myDate = myLog.date.toDate().toLocaleDateString();
-            const companions = allOtherLogs.filter(otherLog => {
-                if (!otherLog.date) return false;
-                return otherLog.date.toDate().toLocaleDateString() === myDate && 
-                       otherLog.mountain === myLog.mountain;
-            });
-            if (companions.length > 0) {
-                bondCount++;
-                companions.forEach(c => {
-                    metPeople.add(c.ownerName);
-                    partnerMap[c.ownerName] = (partnerMap[c.ownerName] || 0) + 1;
-                });
-            }
-        });
-
-        const total = myLogs.length;
-        const synergy = total > 0 ? Math.round((bondCount / total) * 100) : 0;
-        document.getElementById('synergyRate').innerText = `${synergy}%`;
-        document.getElementById('synergyBar').style.width = `${synergy}%`;
-        document.getElementById('socialRadius').innerText = `${metPeople.size}명`;
-
-        let bestName = "-";
-        let maxVal = 0;
-        for (const name in partnerMap) {
-            if (partnerMap[name] > maxVal) {
-                maxVal = partnerMap[name];
-                bestName = name;
-            }
-        }
-        document.getElementById('bestPartner').innerText = maxVal > 0 ? `${bestName} (${maxVal}회)` : "기록 없음";
-    } catch (e) {
-        console.error(e);
     }
 };
 
@@ -4749,6 +4666,8 @@ style="position:absolute; top:15px; right:15px; color:white; background:none; bo
         <button onclick="document.getElementById('bondForestPopup').classList.add('hidden')" style="background:none; border:none; color:#94a3b8; font-size:11px; cursor:pointer;">[닫기]</button>
     </div>
 </div>
+<div id="grassArea" style="position: relative; width: 100%;">
+    </div>
 
 <script>
    // --- 잔디 상세 팝업 및 이벤트 제어 (통합본) ---
@@ -4821,6 +4740,97 @@ document.addEventListener('touchstart', (e) => {
         popup.style.display = 'none';
     }
 }, { passive: true });
+
+window.showBondForest = async (event, mId, mName) => {
+    if (event) event.stopPropagation();
+
+        const popup = document.getElementById('bondForestPopup');
+    // 여기서 'grassContainer'는 잔디 네모칸들이 실제로 그려지는 박스입니다.
+    const grassContainer = document.getElementById('grassContainer'); 
+
+    if (!popup) return;
+
+    popup.classList.remove('hidden');
+    popup.style.display = 'block';
+    popup.style.position = 'fixed';
+    popup.style.zIndex = '9999999';
+
+    // 잔디창(grassContainer)의 현재 화면 위치를 실시간으로 계산
+    if (grassContainer) {
+        const rect = grassContainer.getBoundingClientRect();
+        
+        // 1. 가로 위치: 잔디창 중앙에 맞춤 (팝업 너비 220px의 절반인 110을 뺌)
+        popup.style.left = `${rect.left + (rect.width / 2) - 110}px`;
+        
+        // 2. 세로 위치: 잔디창 바로 위(약 50px 위)에 띄움
+        popup.style.top = `${rect.top - 50}px`; 
+    } else {
+        // 혹시라도 잔디창을 못 찾으면 화면 정중앙에 띄움 (비상용)
+        popup.style.left = '50%';
+        popup.style.top = '50%';
+        popup.style.transform = 'translate(-50%, -50%)';
+    }
+
+    // 데이터 계산 로직 (기존과 동일)
+    document.getElementById('bestPartner').innerText = "분석 중...";
+
+    try {
+        let myLogs = [];
+        let allOtherLogs = [];
+
+        const mySnap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
+        mySnap.forEach(doc => myLogs.push(doc.data()));
+
+        if (window.currentData) {
+            for (const member of window.currentData) {
+                if (member.id === mId) continue;
+                const otherSnap = await getDocs(collection(db, `sanwoori/${member.id}/logs`));
+                otherSnap.forEach(doc => {
+                    allOtherLogs.push({ ...doc.data(), ownerName: member.name });
+                });
+            }
+        }
+
+        let bondCount = 0;
+        let metPeople = new Set();
+        let partnerMap = {};
+
+        myLogs.forEach(myLog => {
+            if (!myLog.date || !myLog.mountain) return;
+            const myDate = myLog.date.toDate().toLocaleDateString();
+            const companions = allOtherLogs.filter(otherLog => {
+                if (!otherLog.date) return false;
+                return otherLog.date.toDate().toLocaleDateString() === myDate && 
+                       otherLog.mountain === myLog.mountain;
+            });
+            if (companions.length > 0) {
+                bondCount++;
+                companions.forEach(c => {
+                    metPeople.add(c.ownerName);
+                    partnerMap[c.ownerName] = (partnerMap[c.ownerName] || 0) + 1;
+                });
+            }
+        });
+
+        const total = myLogs.length;
+        const synergy = total > 0 ? Math.round((bondCount / total) * 100) : 0;
+        document.getElementById('synergyRate').innerText = `${synergy}%`;
+        document.getElementById('synergyBar').style.width = `${synergy}%`;
+        document.getElementById('socialRadius').innerText = `${metPeople.size}명`;
+
+        let bestName = "-";
+        let maxVal = 0;
+        for (const name in partnerMap) {
+            if (partnerMap[name] > maxVal) {
+                maxVal = partnerMap[name];
+                bestName = name;
+            }
+        }
+        document.getElementById('bestPartner').innerText = maxVal > 0 ? `${bestName} (${maxVal}회)` : "기록 없음";
+    } catch (e) {
+        console.error(e);
+    }
+};
 
 // [기존 코드 유지] 모달 제어 및 텍스트 조립 로직
 window.toggleNoticeModal = (show) => {
@@ -4945,7 +4955,6 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
     </html>
-    
     
     
     
