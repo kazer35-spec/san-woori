@@ -4827,36 +4827,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-<div id="socialForestModal" class="fixed inset-0 bg-black/90 z-[200] hidden flex flex-col p-6">
-    <div class="flex justify-between items-center mb-6">
-        <div>
-            <h2 class="text-green-400 text-xl font-black italic">FOREST OF CONNECTION</h2>
-            <p class="text-[10px] text-gray-400">인연의 숲 : 관계 밀도 리포트</p>
-        </div>
-        <button onclick="closeSocialForest()" class="text-white text-2xl">&times;</button>
-    </div>
 
-    <div class="grid grid-cols-3 gap-3 mb-6">
-        <div class="bg-white/10 p-3 rounded-2xl border border-white/10">
-            <p class="text-[9px] text-gray-400 font-bold mb-1">동행 지수</p>
-            <p id="synergyRate" class="text-xs font-black text-white">75%</p>
-        </div>
-        <div class="bg-white/10 p-3 rounded-2xl border border-white/10">
-            <p class="text-[9px] text-gray-400 font-bold mb-1">인연의 반경</p>
-            <p id="socialRadius" class="text-xs font-black text-white">12명</p>
-        </div>
-        <div class="bg-white/10 p-3 rounded-2xl border border-white/10">
-            <p class="text-[9px] text-gray-400 font-bold mb-1">우정 콤비</p>
-            <p id="bestPartner" class="text-[10px] font-black text-green-400 leading-tight">산신령(15회)</p>
-        </div>
-    </div>
-
-    <div class="flex-1 bg-black rounded-3xl relative overflow-hidden border border-green-900/30">
-        <canvas id="forestCanvas" class="w-full h-full"></canvas>
-        <div class="absolute bottom-4 left-0 right-0 text-center pointer-events-none">
-            <p class="text-[9px] text-green-700 font-bold animate-pulse">데이터 패킷 실시간 흐름 활성화 중...</p>
-        </div>
-    </div>
 </div>
 
 let forestAnimation;
@@ -4875,99 +4846,141 @@ window.openSocialForest = () => {
     }
 };
 
-// [닫기 버튼] X 버튼 클릭 시 호출되는 함수
-window.closeSocialForest = () => {
-    const modal = document.getElementById('socialForestModal');
-    if (modal) {
-        modal.classList.add('hidden'); // 다시 숨김
-        // 애니메이션 정지 (배터리 절약)
-        if (typeof forestAnimation !== 'undefined') {
-            cancelAnimationFrame(forestAnimation);
+<div id="socialForestModal" class="fixed inset-0 bg-black/95 z-[200] hidden flex-col p-6 transition-all duration-300">
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h2 class="text-green-400 text-xl font-black italic tracking-tighter">FOREST OF CONNECTION</h2>
+            <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">인연의 숲 : 관계 밀도 리포트</p>
+        </div>
+        <button onclick="closeSocialForest()" class="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20">
+            <i class="fas fa-times text-xl"></i>
+        </button>
+    </div>
+
+    <div class="grid grid-cols-3 gap-3 mb-6">
+        <div class="bg-white/5 p-3 rounded-2xl border border-white/10 text-center">
+            <p class="text-[9px] text-gray-400 font-bold mb-1 uppercase">동행 지수</p>
+            <p id="synergyRate" class="text-sm font-black text-white">75%</p>
+        </div>
+        <div class="bg-white/5 p-3 rounded-2xl border border-white/10 text-center">
+            <p class="text-[9px] text-gray-400 font-bold mb-1 uppercase">인연의 반경</p>
+            <p id="socialRadius" class="text-sm font-black text-white">12명</p>
+        </div>
+        <div class="bg-white/5 p-3 rounded-2xl border border-white/10 text-center flex flex-col justify-center">
+            <p class="text-[9px] text-gray-400 font-bold mb-1 uppercase">우정 콤비</p>
+            <p id="bestPartner" class="text-[10px] font-black text-green-400 leading-tight">산신령(15회)</p>
+        </div>
+    </div>
+
+    <div class="flex-1 bg-black rounded-[40px] relative overflow-hidden border border-green-900/30 shadow-[0_0_40px_rgba(34,197,94,0.1)]">
+        <canvas id="forestCanvas" class="w-full h-full"></canvas>
+        <div class="absolute bottom-6 left-0 right-0 text-center pointer-events-none">
+            <p class="text-[9px] text-green-700 font-bold animate-pulse tracking-[0.3em] uppercase">Data Packet Stream Active</p>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    let forestAnimation;
+
+    // 1. 모달 열기 함수
+    window.openSocialForest = function() {
+        const modal = document.getElementById('socialForestModal');
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.classList.add('flex'); // hidden 해제 후 flex 적용
+            
+            // 화면 크기 계산을 위해 약간의 지연 후 캔버스 실행
+            setTimeout(() => {
+                initForestNetwork();
+            }, 100);
         }
-    }
-};
+    };
 
+    // 2. 모달 닫기 함수
+    window.closeSocialForest = function() {
+        const modal = document.getElementById('socialForestModal');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            if (forestAnimation) cancelAnimationFrame(forestAnimation);
+        }
+    };
 
-function openSocialForest() {
-    document.getElementById('socialForestModal').classList.remove('hidden');
-    initForestNetwork();
-}
+    // 3. 신경망 및 데이터 패킷 애니메이션 로직
+    function initForestNetwork() {
+        const canvas = document.getElementById('forestCanvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
 
-function closeSocialForest() {
-    document.getElementById('socialForestModal').classList.add('hidden');
-    cancelAnimationFrame(forestAnimation);
-}
+        const particles = [];
+        const nodeCount = 14; // 연결될 인연의 수
 
-function initForestNetwork() {
-    const canvas = document.getElementById('forestCanvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = canvas.offsetWidth;
-    canvas.height = canvas.offsetHeight;
+        for(let i=0; i<nodeCount; i++) {
+            particles.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                vx: (Math.random() - 0.5) * 0.4,
+                vy: (Math.random() - 0.5) * 0.4
+            });
+        }
 
-    const particles = [];
-    const connections = [];
-    const nodeCount = 12; // 인연의 반경 데이터와 연동 가능
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            particles.forEach((p, i) => {
+                p.x += p.vx;
+                p.y += p.vy;
 
-    // 노드(인연의 별) 생성
-    for(let i=0; i<nodeCount; i++) {
-        particles.push({
-            x: Math.random() * canvas.width,
-            y: Math.random() * canvas.height,
-            vx: (Math.random() - 0.5) * 0.5,
-            vy: (Math.random() - 0.5) * 0.5
-        });
-    }
+                // 화면 경계 튕기기
+                if(p.x < 0 || p.x > canvas.width) p.vx *= -1;
+                if(p.y < 0 || p.y > canvas.height) p.vy *= -1;
 
-    // 빛의 알갱이(패킷) 애니메이션
-    function animate() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.strokeStyle = 'rgba(34, 197, 94, 0.2)'; // 연한 초록 선
-        ctx.lineWidth = 1;
+                // 노드 연결선 및 패킷 흐름
+                for(let j=i+1; j<particles.length; j++) {
+                    const p2 = particles[j];
+                    const dx = p.x - p2.x;
+                    const dy = p.y - p2.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
 
-        particles.forEach((p, i) => {
-            p.x += p.vx;
-            p.y += p.vy;
+                    if(dist < 180) {
+                        // 연결선
+                        ctx.strokeStyle = `rgba(34, 197, 94, ${0.2 * (1 - dist/180)})`;
+                        ctx.lineWidth = 0.5;
+                        ctx.beginPath();
+                        ctx.moveTo(p.x, p.y);
+                        ctx.lineTo(p2.x, p2.y);
+                        ctx.stroke();
 
-            if(p.x < 0 || p.x > canvas.width) p.vx *= -1;
-            if(p.y < 0 || p.y > canvas.height) p.vy *= -1;
+                        // ✨ 빛의 알갱이 패킷 흐름
+                        let time = Date.now() * 0.0015;
+                        let packetPos = (time + (i + j)) % 1; 
+                        let px = p.x + (p2.x - p.x) * packetPos;
+                        let py = p.y + (p2.y - p.y) * packetPos;
 
-            // 선 긋기 및 패킷 흐름
-            for(let j=i+1; j<particles.length; j++) {
-                const p2 = particles[j];
-                const dx = p.x - p2.x;
-                const dy = p.y - p2.y;
-                const dist = Math.sqrt(dx*dx + dy*dy);
-
-                if(dist < 150) {
-                    ctx.beginPath();
-                    ctx.moveTo(p.x, p.y);
-                    ctx.lineTo(p2.x, p2.y);
-                    ctx.stroke();
-
-                    // 빛의 알갱이 패킷 계산 (시간에 따라 이동)
-                    let time = Date.now() * 0.002;
-                    let packetPos = (time % 1); 
-                    let px = p.x + (p2.x - p.x) * packetPos;
-                    let py = p.y + (p2.y - p.y) * packetPos;
-
-                    ctx.fillStyle = '#4ade80'; // 빛나는 초록색
-                    ctx.beginPath();
-                    ctx.arc(px, py, 1.5, 0, Math.PI * 2);
-                    ctx.fill();
+                        ctx.fillStyle = '#4ade80';
+                        ctx.beginPath();
+                        ctx.arc(px, py, 1.2, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
                 }
-            }
 
-            // 노드(별) 그리기
-            ctx.fillStyle = '#ffffff';
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
-            ctx.fill();
-        });
+                // 노드(별) 그리기
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 1.5, 0, Math.PI * 2);
+                ctx.fill();
+            });
 
-        forestAnimation = requestAnimationFrame(animate);
+            forestAnimation = requestAnimationFrame(animate);
+        }
+        animate();
     }
-    animate();
-}
+})();
 
 </script>
 </body>
