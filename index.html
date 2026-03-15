@@ -2341,12 +2341,13 @@ overflow: hidden;
 <div id="passionVibeArea"></div>
 
 <div id="friendshipPointArea" 
-     onclick="event.stopPropagation(); window.showSocialForest(window.currentViewMemberId, '오즈')" 
+     onclick="event.stopPropagation(); 
+              const mId = window.currentViewMemberId || document.getElementById('memberSelectManage')?.value; 
+              if(mId) { window.showSocialForest(mId); } else { alert('ID를 찾을 수 없습니다.'); }" 
      class="flex items-center h-[18px] text-[9px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100" 
      style="cursor:pointer;">
     💞 우정 <span id="memberFriendshipPoint" class="ml-1">0</span>P
 </div>
-
 </div>
 </div>
 
@@ -4452,78 +4453,72 @@ setTimeout(() => s.remove(), 500);
 }, 850);
 }
 
-window.showSocialForest = async (mId, mName) => {
-    // 만약 ID가 없으면 현재 상세창에 열린 ID를 시도
-    const targetId = mId || window.currentViewMemberId; 
+window.showSocialForest = async (mId) => {
+    if (!mId) return alert("회원 정보를 확인할 수 없습니다.");
     
-    if (!targetId) {
-        alert("회원 정보를 찾을 수 없습니다.");
-        return;
-    }
-
     const modal = document.getElementById('socialForestModal');
     modal.style.display = 'flex';
 
-    // 초기화
-    document.getElementById('socialSynergy').innerText = "계산 중...";
-    document.getElementById('socialRadius').innerText = "계산 중...";
-    document.getElementById('socialPartner').innerText = "계산 중...";
+    // 로딩 표시
+    document.getElementById('socialSynergy').innerText = "기록 대조 중...";
+    document.getElementById('socialRadius').innerText = "인연 찾는 중...";
+    document.getElementById('socialPartner').innerText = "데이터 분석 중...";
 
     try {
-        // 경로 확인: sanwoori -> 문서(ID) -> logs
-        const logRef = collection(db, "sanwoori", targetId, "logs");
-        const snap = await getDocs(logRef);
-        
-        if (snap.empty) {
-            document.getElementById('socialSynergy').innerText = "기록 없음";
-            document.getElementById('socialRadius').innerText = "0명";
-            document.getElementById('socialPartner').innerText = "없음";
-            return;
-        }
-
-        const logs = snap.docs.map(doc => doc.data());
-        let soloCount = 0;
-        let withCount = 0;
-        let partners = {};
-        let uniquePeers = new Set();
-
-        logs.forEach(log => {
-            // 필드 이름이 'with' 또는 'peers'인지 확인 필요
-            const peerData = log.with || log.peers; 
-            if (peerData && peerData.length > 0) {
-                withCount++;
-                const peerList = Array.isArray(peerData) ? peerData : peerData.split(',');
-                peerList.forEach(p => {
-                    const name = p.trim();
-                    if(name) {
-                        partners[name] = (partners[name] || 0) + 1;
-                        uniquePeers.add(name);
-                    }
-                });
-            } else {
-                soloCount++;
-            }
+        // 1. 모든 멤버 데이터 가져오기 (비교 대상)
+        const allMembersSnap = await getDocs(collection(db, "sanwoori"));
+        const memberMap = {}; // ID로 이름을 찾기 위한 지도
+        allMembersSnap.forEach(doc => {
+            memberMap[doc.id] = doc.data().name || "무명회원";
         });
 
-        const total = soloCount + withCount;
-        const synergyRate = total > 0 ? Math.round((withCount / total) * 100) : 0;
+        // 2. 현재 선택된 멤버의 로그 가져오기
+        const myLogsSnap = await getDocs(collection(db, "sanwoori", mId, "logs"));
+        const myLogs = myLogsSnap.docs.map(doc => doc.data());
 
-        let bestName = "없음";
-        let maxVal = 0;
-        for (const [name, count] of Object.entries(partners)) {
-            if (count > maxVal) {
-                maxVal = count;
-                bestName = name;
-            }
+        if (myLogs.length === 0) throw new Error("산행 기록이 없습니다.");
+
+        let withCount = 0;
+        let partners = {}; // { "이름": 횟수 }
+        let uniquePeers = new Set();
+
+        // 3. 모든 멤버의 로그를 돌며 '같은 날 + 같은 산' 찾기
+        for (const otherId of Object.keys(memberMap)) {
+            if (otherId === mId) continue; // 본인은 제외
+
+            const otherLogsSnap = await getDocs(collection(db, "sanwoori", otherId, "logs"));
+            otherLogsSnap.forEach(doc => {
+                const otherLog = doc.data();
+                
+                // 내 로그 중에서 같은 날, 같은 산이 있는지 비교
+                myLogs.forEach(myLog => {
+                    // 날짜 형식에 따라 slice(0, 10) 등으로 날짜만 추출해서 비교
+                    const myDate = myLog.date?.split('T')[0] || myLog.date;
+                    const otherDate = otherLog.date?.split('T')[0] || otherLog.date;
+                    
+                    if (myDate === otherDate && myLog.mountain === otherLog.mountain) {
+                        const peerName = memberMap[otherId];
+                        partners[peerName] = (partners[peerName] || 0) + 1;
+                        uniquePeers.add(peerName);
+                    }
+                });
+            });
         }
 
-        document.getElementById('socialSynergy').innerText = `동행률 ${synergyRate}%`;
+        // 4. 결과 도출
+        // 중복 계산 방지를 위해 동행 횟수 합산
+        withCount = Object.values(partners).reduce((a, b) => a + b, 0); 
+        const synergy = Math.round((withCount / myLogs.length) * 100);
+        let best = Object.entries(partners).sort((a, b) => b[1] - a[1])[0];
+
+        // 5. 화면에 뿌려주기
+        document.getElementById('socialSynergy').innerText = `동행률 ${synergy}%`;
         document.getElementById('socialRadius').innerText = `인연 ${uniquePeers.size}명`;
-        document.getElementById('socialPartner').innerText = maxVal > 0 ? `${bestName}(${maxVal}회)` : "없음";
+        document.getElementById('socialPartner').innerText = best ? `${best[0]}(${best[1]}회)` : "아직 콤비 없음";
 
     } catch (e) {
-        console.error("Error Details:", e);
-        alert("데이터 구조가 다르거나 권한이 없습니다: " + e.message);
+        console.error("분석 실패:", e);
+        alert("데이터 분석 중 오류가 발생했습니다.");
     }
 };
 
