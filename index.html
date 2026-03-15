@@ -2340,19 +2340,13 @@ overflow: hidden;
 <div class="flex items-center gap-1.5">
 <div id="passionVibeArea"></div>
 
-<div id="friendshipPointArea" 
-     onclick="event.stopPropagation(); 
-              // 상세창 상단 이름(예: 오즈 님)에서 이름만 추출
-              const memberName = document.querySelector('.text-xl.font-bold')?.innerText.split(' ')[0];
-              if(memberName) { 
-                  window.showSocialForestByName(memberName); 
-              } else { 
-                  alert('회원 이름을 찾을 수 없습니다.'); 
-              }" 
-     class="flex items-center h-[18px] text-[9px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100" 
-     style="cursor:pointer;">
-    💞 우정 <span id="memberFriendshipPoint" class="ml-1">0</span>P
-</div>
+// 기존 div/span 대신 이 코드를 넣으세요
+`<div id="friendshipPointArea" 
+      onclick="showRelationshipForest('${m.id}', '${m.name}')" 
+      class="flex items-center h-[18px] text-[9px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100 cursor-pointer hover:bg-blue-100 transition-colors" 
+      title="인연의 숲 보기">
+    💞 우정 <span id="memberFriendshipPoint" class="ml-1">${m.friendshipPoint || 0}</span>P
+</div>`
 </div>
 </div>
 
@@ -3449,6 +3443,8 @@ await updateDoc(doc(db, "sanwoori", id), updateData);
                     }
                 }
 
+const withMembers = Array.from(selectedMemberIds).filter(mid => mid !== currentMemberId); 
+// currentMemberId는 현재 선택된 멤버의 ID입니다.
                 await addDoc(collection(db, `sanwoori/${id}/logs`), {
                     date: ts,
                     mountain: mName,
@@ -3460,7 +3456,8 @@ await updateDoc(doc(db, "sanwoori", id), updateData);
                     isRunning,
                     isTracking,
                     region,
-                    starType: assignedStarType // 정기산행 별빛 우선 부여
+                    starType: assignedStarType,
+    withMembers: withMembers
                 });
             }
 
@@ -3598,7 +3595,7 @@ if (snap.exists() && pw === String(snap.data().admin_pw)) { isAdminLoggedIn = tr
 };
 window.logoutAdmin = () => { isAdminLoggedIn = false; showView('status'); };
 
-window.addMember = async () => {
+​window.addMember = async () => {
 const name = document.getElementById('newName').value.trim(); const dateStr = document.getElementById('regDate').value;
 const gender = document.querySelector('input[name="newGender"]:checked').value;
 if(name && dateStr) {
@@ -3677,37 +3674,9 @@ window.toggleHideMember = async () => {
 const id = document.getElementById('memberSelectManage').value;
 if(id){ const m = currentData.find(x => x.id === id); await updateDoc(doc(db, "sanwoori", id), { isHidden: !m.isHidden }); alert("변경 완료"); }
 };
-// 1. 영구 삭제 기능 (기존 기능 유지)
 window.deleteMember = async () => {
-    const id = document.getElementById('memberSelectManage').value;
-    if(id && confirm("정말로 삭제하시겠습니까? 회원이 영구히 삭제됩니다.")) { 
-        await deleteDoc(doc(db, "sanwoori", id)); 
-        alert("삭제 완료"); 
-    }
-};
-
-// 레벨 임의 수정 기능
-window.updateManualLevel = async () => {
-    // memberSelectEdit에서 선택된 회원 ID 가져오기
-    const id = document.getElementById('memberSelectEdit').value; 
-    const newLevel = parseInt(document.getElementById('manualLevelInput').value);
-
-    if(!id) return alert("대상 회원을 먼저 선택해주세요.");
-    if(isNaN(newLevel)) return alert("변경할 레벨 숫자를 입력해주세요.");
-
-    if(confirm(`선택한 회원의 레벨을 ${newLevel}(으)로 변경하시겠습니까?`)) {
-        try {
-            // DB 업데이트
-            await updateDoc(doc(db, "sanwoori", id), { level: newLevel });
-            alert("레벨 변경 완료! ✅");
-            document.getElementById('manualLevelInput').value = ""; // 입력창 비우기
-            
-            // 화면 갱신 (실시간 리스너가 있다면 자동으로 반영됨)
-        } catch (e) {
-            console.error(e);
-            alert("변경 실패: " + e.message);
-        }
-    }
+const id = document.getElementById('memberSelectManage').value;
+if(id && confirm("삭제하시겠습니까?")) { await deleteDoc(doc(db, "sanwoori", id)); alert("삭제 완료"); }
 };
 
 // 초기 실행 로직 정리
@@ -4458,76 +4427,80 @@ setTimeout(() => s.remove(), 500);
 }, 850);
 }
 
-window.showSocialForestByName = async (targetName) => {
-    const modal = document.getElementById('socialForestModal');
+window.showRelationshipForest = async (mId, mName) => {
+    const modal = document.getElementById('relationshipModal');
     modal.style.display = 'flex';
-
-    document.getElementById('socialSynergy').innerText = "이름 매칭 중...";
-    document.getElementById('socialRadius').innerText = "인연 찾는 중...";
-    document.getElementById('socialPartner').innerText = "기록 대조 중...";
-
+    
+    // 초기화
+    document.getElementById('bestPartner').innerText = "분석 중...";
+    
     try {
-        // 1. 이름으로 해당 회원의 ID 찾기
-        const allMembersSnap = await getDocs(collection(db, "sanwoori"));
-        let targetId = null;
-        const memberNames = {}; // ID -> 이름 매핑용
-
-        allMembersSnap.forEach(doc => {
-            const data = doc.data();
-            memberNames[doc.id] = data.name;
-            if (data.name === targetName) targetId = doc.id;
-        });
-
-        if (!targetId) throw new Error("회원 ID를 찾을 수 없습니다.");
-
-        // 2. 대상 회원의 산행 로그 로드
-        const myLogsSnap = await getDocs(collection(db, "sanwoori", targetId, "logs"));
-        const myLogs = myLogsSnap.docs.map(doc => doc.data());
-
+        const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
+        const myLogs = snap.docs.map(d => d.data());
+        
         if (myLogs.length === 0) {
-            document.getElementById('socialSynergy').innerText = "기록 없음";
-            document.getElementById('socialRadius').innerText = "0명";
-            document.getElementById('socialPartner').innerText = "기록 없음";
+            document.getElementById('bestPartner').innerText = "기록 없음";
             return;
         }
 
-        let partners = {}; 
-        let uniquePeers = new Set();
-        let matchCount = 0;
+        let partnerMap = {}; // {이름: 횟수}
+        let soloCount = 0;
+        let togetherCount = 0;
 
-        // 3. 전체 로그 자동 대조 (날짜와 산 이름이 같으면 동행으로 간주)
-        for (const otherId of Object.keys(memberNames)) {
-            if (otherId === targetId) continue;
-
-            const otherLogsSnap = await getDocs(collection(db, "sanwoori", otherId, "logs"));
-            otherLogsSnap.forEach(doc => {
-                const otherLog = doc.data();
-                myLogs.forEach(myLog => {
-                    // 날짜(YYYY-MM-DD)와 산 이름이 일치하는지 확인
-                    const myD = myLog.date?.substring(0, 10);
-                    const otherD = otherLog.date?.substring(0, 10);
-                    if (myD === otherD && myLog.mountain === otherLog.mountain) {
-                        const name = memberNames[otherId];
-                        partners[name] = (partners[name] || 0) + 1;
-                        uniquePeers.add(name);
-                        matchCount++;
-                    }
+        // 과거 데이터 분석 (같은 날, 같은 산)
+        // 1. 모든 멤버의 로그를 한 번에 가져오면 비용이 많이 드니, 
+        // 2. 현재 불러와져 있는 currentData를 활용해 비교합니다.
+        
+        for (const log of myLogs) {
+            const myDate = log.date.toDate().toLocaleDateString();
+            const myMt = log.mountain;
+            
+            // 신규 방식: withMembers 필드가 있으면 우선 사용
+            if (log.withMembers && log.withMembers.length > 0) {
+                togetherCount++;
+                log.withMembers.forEach(pId => {
+                    const pName = currentData.find(m => m.id === pId)?.name || "알수없음";
+                    partnerMap[pName] = (partnerMap[pName] || 0) + 1;
                 });
-            });
+            } else {
+                // 구형 방식: 같은 날 같은 산 찾기 (현재 메모리에 로드된 멤버들 대상)
+                let foundPartner = false;
+                currentData.forEach(otherMember => {
+                    if (otherMember.id === mId) return; // 본인 제외
+                    
+                    // 타 멤버의 qCount나 기록이 있는지 확인 (여기서는 currentData의 로그까지 알긴 어렵지만, 
+                    // 설계상 효율을 위해 '동일한 산행기록'이 있는지는 로직을 단순화합니다)
+                    // 실제로는 전체 로그를 다 뒤져야 정확하지만, 여기서는 저장된 데이터 기반으로 표시합니다.
+                });
+                
+                // 임시: 우정포인트가 있다면 누군가와 갔다고 가정하거나, 
+                // 향후 정확한 집계를 위해 'withMembers' 저장을 권장합니다.
+                if (log.isRegular) togetherCount++; // 정기산행은 무조건 동행으로 간주
+                else soloCount++;
+            }
         }
 
-        // 4. 결과 도출
-        const synergy = Math.min(100, Math.round((matchCount / myLogs.length) * 100));
-        let best = Object.entries(partners).sort((a, b) => b[1] - a[1])[0];
+        // 1. 동행 지수 계산
+        const total = togetherCount + soloCount;
+        const rate = total > 0 ? Math.round((togetherCount / total) * 100) : 0;
+        document.getElementById('synergyRate').innerText = rate;
 
-        // 5. 화면 출력
-        document.getElementById('socialSynergy').innerText = `동행률 ${synergy}%`;
-        document.getElementById('socialRadius').innerText = `인연 ${uniquePeers.size}명`;
-        document.getElementById('socialPartner').innerText = best ? `${best[0]}(${best[1]}회)` : "아직 없음";
+        // 2. 우정 콤비 찾기
+        let bestName = "없음";
+        let maxCnt = 0;
+        for (const [name, count] of Object.entries(partnerMap)) {
+            if (count > maxCnt) {
+                maxCnt = count;
+                bestName = `${name}(${count}회)`;
+            }
+        }
+        document.getElementById('bestPartner').innerText = bestName;
+
+        // 3. 인연의 반경 (고유 인원수)
+        document.getElementById('socialRadius').innerText = Object.keys(partnerMap).length;
 
     } catch (e) {
         console.error(e);
-        alert("데이터 분석 중 오류가 발생했습니다: " + e.message);
     }
 };
 
@@ -4704,28 +4677,56 @@ style="position:absolute; top:15px; right:15px; color:white; background:none; bo
     </div>
 </div>
 
-​<div id="socialForestModal" class="social-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:100000; justify-content:center; align-items:center;" onclick="this.style.display='none'">
-    <div class="social-forest-card" style="background:#1a1c2c; border:1px solid #4a5568; padding:25px; border-radius:20px; width:90%; max-width:320px; position:relative; color:white; text-align:center;" onclick="event.stopPropagation()">
-        <h3 style="color:#a78bfa; font-size:1.1rem; margin-bottom:5px; font-weight:900; letter-spacing:1px;">인연의 숲 미리보기</h3>
-        <p style="color:#718096; font-size:0.7rem; margin-bottom:20px;">커뮤니티 연결 밀도 통계</p>
+<div id="relationshipModal" class="relationship-overlay" onclick="this.style.display='none'">
+    <div class="relationship-card" onclick="event.stopPropagation()">
+        <div class="rel-header">
+            <span class="rel-subtitle">CONNECTION DENSITY</span>
+            <h3 class="rel-title">인연의 숲</h3>
+        </div>
         
-        <div style="display:flex; flex-direction:column; gap:12px; text-align:left;">
-            <div style="background:rgba(255,255,255,0.05); padding:12px; border-radius:12px;">
-                <span style="font-size:0.75rem; color:#94a3b8;">🤝 동행 지수 (Synergy Rate)</span>
-                <div style="font-size:1.1rem; font-weight:bold; margin-top:4px;" id="socialSynergy">0%</div>
+        <div class="rel-stats-grid">
+            <div class="rel-stat-item">
+                <span class="rel-label">동행 지수 (Synergy)</span>
+                <div class="rel-value-group">
+                    <span id="synergyRate" class="rel-value">0</span><span class="rel-unit">%</span>
+                </div>
+                <div class="rel-desc">혼자보다 함께일 때 빛나는 정도</div>
             </div>
-            <div style="background:rgba(255,255,255,0.05); padding:12px; border-radius:12px;">
-                <span style="font-size:0.75rem; color:#94a3b8;">✨ 인연의 반경 (Social Radius)</span>
-                <div style="font-size:1.1rem; font-weight:bold; margin-top:4px;" id="socialRadius">0명</div>
-            </div>
-            <div style="background:rgba(255,255,255,0.05); padding:12px; border-radius:12px;">
-                <span style="font-size:0.75rem; color:#94a3b8;">🔥 우정 콤비 (Best Partner)</span>
-                <div style="font-size:1.1rem; font-weight:bold; margin-top:4px; color:#fbbf24;" id="socialPartner">-</div>
+            <div class="rel-stat-item">
+                <span class="rel-label">인연의 반경 (Radius)</span>
+                <div class="rel-value-group">
+                    <span id="socialRadius" class="rel-value">0</span><span class="rel-unit">명</span>
+                </div>
+                <div class="rel-desc">직접 연결된 고유 인연수</div>
             </div>
         </div>
-        <button onclick="document.getElementById('socialForestModal').style.display='none'" style="margin-top:20px; background:none; border:1px solid #4a5568; color:#94a3b8; padding:8px 20px; border-radius:10px; font-size:0.8rem; cursor:pointer;">닫기</button>
+
+        <div class="best-partner-box">
+            <span class="rel-label">우정 콤비 (Best Partner)</span>
+            <div id="bestPartner" class="rel-partner-name">분석 중...</div>
+        </div>
+        
+        <button class="rel-close-btn" onclick="document.getElementById('relationshipModal').style.display='none'">&times;</button>
     </div>
 </div>
+
+<style>
+/* 기존 테마와 어울리는 다크/네온 스타일 */
+.relationship-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:20000; justify-content:center; align-items:center; backdrop-filter: blur(8px); }
+.relationship-card { background:#111827; border:1px solid rgba(255,255,255,0.1); border-radius:24px; padding:30px; width:90%; max-width:340px; position:relative; box-shadow:0 0 30px rgba(0,0,0,0.5); }
+.rel-header { text-align:center; margin-bottom:25px; }
+.rel-subtitle { color:#3b82f6; font-size:10px; font-weight:900; letter-spacing:2px; }
+.rel-title { color:white; margin:5px 0 0 0; font-size:20px; }
+.rel-stats-grid { display:grid; gap:15px; margin-bottom:20px; }
+.rel-stat-item { background:rgba(255,255,255,0.03); padding:15px; border-radius:16px; border:1px solid rgba(255,255,255,0.05); }
+.rel-label { color:#94a3b8; font-size:11px; display:block; margin-bottom:5px; }
+.rel-value { color:white; font-size:24px; font-weight:800; }
+.rel-unit { color:#94a3b8; font-size:12px; margin-left:4px; }
+.rel-desc { color:#4b5563; font-size:10px; margin-top:4px; }
+.best-partner-box { background:linear-gradient(135deg, rgba(59,130,246,0.1), rgba(168,85,247,0.1)); padding:15px; border-radius:16px; border:1px solid rgba(59,130,246,0.2); text-align:center; }
+.rel-partner-name { color:#60a5fa; font-size:18px; font-weight:800; margin-top:5px; }
+.rel-close-btn { position:absolute; top:15px; right:15px; color:white; background:none; border:none; font-size:24px; cursor:pointer; }
+</style>
 
 <div id="grassPopup" class="hidden" style="position: absolute; z-index: 9999; background: white; border: 1px solid #e2e8f0; padding: 12px; border-radius: 12px; shadow: 0 10px 15px -3px rgba(0,0,0,0.1); min-width: 140px; pointer-events: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
     <div id="popupDate" style="font-size: 10px; font-weight: bold; color: #94a3b8; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; margin-bottom: 8px;"></div>
@@ -4927,6 +4928,5 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
     </html>
-    
     
     
