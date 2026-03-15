@@ -2359,7 +2359,7 @@ overflow: hidden;
 <div class="flex items-center gap-1.5">
 <div id="passionVibeArea"></div>
 
-<div id="friendshipPointArea" onclick="showForestOfFate()" class="cursor-pointer flex items-center h-[18px] text-[9px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+<div id="friendshipPointArea" onclick="openForest()" class="cursor-pointer flex items-center h-[18px] text-[9px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
   💞 우정 <span id="memberFriendshipPoint" class="ml-1">0</span>P
 </div>
 </div>
@@ -4838,63 +4838,64 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-<div id="forestModal" class="forest-overlay" onclick="this.style.display='none'">
-    <div class="forest-card" onclick="event.stopPropagation()">
-        <div class="forest-header">
-            <span class="forest-label">COMMUNITY NETWORK</span>
-            <h3 class="forest-title">인연의 숲</h3>
+<div id="forestModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:99999; align-items:center; justify-content:center; color:white; font-family:sans-serif;">
+    <div style="background:#0a1a10; width:90%; max-width:320px; padding:25px; border-radius:20px; border:1px solid #4ade80; position:relative;">
+        <button onclick="this.parentElement.parentElement.style.display='none'" style="position:absolute; top:15px; right:15px; background:none; border:none; color:white; font-size:24px; cursor:pointer;">&times;</button>
+        <div style="text-align:center; margin-bottom:20px;">
+            <small style="color:#4ade80; letter-spacing:2px;">SANWOORI NETWORK</small>
+            <h3 style="margin:5px 0; font-size:1.5rem;">🌿 인연의 숲</h3>
         </div>
-        <div id="forestContent" class="forest-body">
+        <div id="forestContent" style="font-size:0.9rem; line-height:1.6;">
             </div>
-        <button onclick="document.getElementById('forestModal').style.display='none'" class="forest-close">&times;</button>
     </div>
 </div>
 
-window.showForestOfFate = async () => {
-    // 1. 현재 화면(관리자 창 등)에서 선택된 멤버의 ID를 가져옵니다.
-    // 보통 select 박스의 id가 'memberSelectEdit'인 경우가 많으므로 이를 먼저 확인합니다.
+<script>
+async function openForest() {
+    // 1. 현재 선택된 멤버 ID 가져오기 (관리자 패널 기준)
     const mId = document.getElementById('memberSelectEdit')?.value;
-    
-    if (!mId) {
-        alert("회원 정보가 로드되지 않았습니다. 회원을 먼저 선택한 후 클릭해주세요.");
-        return;
-    }
+    if (!mId) return alert("회원을 먼저 선택해주세요.");
 
     const modal = document.getElementById('forestModal');
     const content = document.getElementById('forestContent');
-    
-    // 모달 띄우기
     modal.style.display = 'flex';
-    content.innerHTML = `<div class="forest-loading">숲속에서 인연을 찾는 중...</div>`;
+    content.innerHTML = "<div style='text-align:center; padding:20px;'>데이터를 분석 중입니다...</div>";
 
     try {
-        // 내 기록 가져오기
-        const myLogsSnap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
-        const myLogs = myLogsSnap.docs.map(d => d.data()).filter(l => l.date && l.mountain);
-        
-        if (myLogs.length === 0) {
-            content.innerHTML = `<div class="forest-loading" style="color:#94a3b8">아직 기록된 산행이 없어<br>인연의 숲이 고요합니다.</div>`;
+        // 2. 외부 라이브러리(Firebase) 참조 확인
+        // 만약 코드 상단에 import를 쓰지 않는 방식이라면 window 객체에서 찾아야 합니다.
+        const _db = typeof db !== 'undefined' ? db : (window.db || null);
+        const _collection = typeof collection !== 'undefined' ? collection : (window.collection || null);
+        const _getDocs = typeof getDocs !== 'undefined' ? getDocs : (window.getDocs || null);
+
+        if (!_db || !_getDocs) {
+            content.innerHTML = "Firebase 설정(db)을 찾을 수 없습니다. <br>스크립트 순서를 확인해주세요.";
             return;
         }
 
-        // 전체 멤버 목록 가져오기 (변수 의존성 제거를 위해 직접 호출)
-        const allMembersSnap = await getDocs(collection(db, "sanwoori"));
+        // 3. 내 기록 불러오기
+        const myLogsSnap = await _getDocs(_collection(_db, `sanwoori/${mId}/logs`));
+        const myLogs = myLogsSnap.docs.map(d => d.data());
+
+        if (myLogs.length === 0) {
+            content.innerHTML = "기록이 없어 인연을 찾을 수 없습니다.";
+            return;
+        }
+
+        // 4. 전체 인연 계산 (날짜 & 산 이름 매칭)
+        const allMembersSnap = await _getDocs(_collection(_db, "sanwoori"));
         let togetherCount = 0;
-        let partners = {}; 
+        let partners = {};
 
-        // 비교 로직 실행
-        for (const memberDoc of allMembersSnap.docs) {
-            const otherId = memberDoc.id;
-            if (otherId === mId) continue;
-            const otherName = memberDoc.data().name;
-
-            const otherLogsSnap = await getDocs(collection(db, `sanwoori/${otherId}/logs`));
+        for (const mDoc of allMembersSnap.docs) {
+            if (mDoc.id === mId) continue;
+            const otherName = mDoc.data().name;
+            const otherLogsSnap = await _getDocs(_collection(_db, `sanwoori/${mDoc.id}/logs`));
+            
             otherLogsSnap.forEach(oloc => {
-                const oData = oloc.data();
-                myLogs.forEach(myData => {
-                    const isSameDay = myData.date?.toDate().toDateString() === oData.date?.toDate().toDateString();
-                    const isSameMt = myData.mountain === oData.mountain;
-                    if (isSameDay && isSameMt) {
+                const o = oloc.data();
+                myLogs.forEach(m => {
+                    if (m.date?.toDate().toDateString() === o.date?.toDate().toDateString() && m.mountain === o.mountain) {
                         togetherCount++;
                         partners[otherName] = (partners[otherName] || 0) + 1;
                     }
@@ -4902,34 +4903,31 @@ window.showForestOfFate = async () => {
             });
         }
 
-        // 통계 계산
-        const synergyRate = ((togetherCount / myLogs.length) * 100).toFixed(1);
-        const socialRadius = Object.keys(partners).length;
-        const sorted = Object.entries(partners).sort((a, b) => b[1] - a[1]);
-        const bestPartner = sorted.length > 0 ? `${sorted[0][0]} (${sorted[0][1]}회)` : "없음";
+        // 5. 결과 화면 구성
+        const radius = Object.keys(partners).length;
+        const rate = ((togetherCount / myLogs.length) * 100).toFixed(1);
+        const sorted = Object.entries(partners).sort((a,b) => b[1]-a[1]);
+        const best = sorted.length > 0 ? `${sorted[0][0]} (${sorted[0][1]}회)` : "없음";
 
-        // 결과 출력
         content.innerHTML = `
-            <div class="forest-stat-grid">
-                <div class="stat-item">
-                    <span class="stat-label">동행 지수 (Synergy Rate)</span>
-                    <div class="stat-value">⚡ ${synergyRate}%</div>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">인연의 반경 (Social Radius)</span>
-                    <div class="stat-value">🌐 ${socialRadius} 명</div>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">우정 콤비 (Best Partner)</span>
-                    <div class="stat-value">🤝 ${bestPartner}</div>
-                </div>
+            <div style="background:rgba(255,255,255,0.05); padding:12px; border-radius:10px; margin-bottom:10px;">
+                <span style="color:#888; font-size:0.75rem;">동행 지수</span><br>
+                <b style="font-size:1.1rem; color:#4ade80;">⚡ ${rate}%</b>
+            </div>
+            <div style="background:rgba(255,255,255,0.05); padding:12px; border-radius:10px; margin-bottom:10px;">
+                <span style="color:#888; font-size:0.75rem;">인연의 반경</span><br>
+                <b style="font-size:1.1rem; color:#60a5fa;">🌐 ${radius} 명</b>
+            </div>
+            <div style="background:rgba(255,255,255,0.05); padding:12px; border-radius:10px;">
+                <span style="color:#888; font-size:0.75rem;">우정 콤비</span><br>
+                <b style="font-size:1.1rem; color:#f87171;">🤝 ${best}</b>
             </div>
         `;
-    } catch (e) {
-        console.error("인연의 숲 에러:", e);
-        content.innerHTML = `<div class="forest-loading">데이터 호출 중 오류가 발생했습니다.<br>콘솔창을 확인해주세요.</div>`;
+    } catch (err) {
+        console.error(err);
+        content.innerHTML = "에러 발생: " + err.message;
     }
-};
+}
 
 </script>
 </body>
