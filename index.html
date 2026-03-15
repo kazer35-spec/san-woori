@@ -1229,6 +1229,7 @@ justify-content: center;
 align-items: center;
 backdrop-filter: blur(4px);
 }
+
     /* 2. 예언서 종이 스타일 */
 .fading-scroll {
 position: relative;
@@ -2363,9 +2364,9 @@ overflow: hidden;
 <div id="passionVibeArea"></div>
 
 <div id="friendshipPointArea" 
-     onclick="handleFriendshipClick()" 
+     onclick="safeOpenForest()" 
      style="cursor: pointer;"
-     class="flex items-center h-[18px] text-[9px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100 hover:bg-blue-100 transition-all">
+     class="flex items-center h-[18px] text-[9px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100 hover:bg-blue-200">
     💞 우정 <span id="memberFriendshipPoint" class="ml-1">0</span>P
 </div>
 </div>
@@ -4843,8 +4844,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-<div id="forestModal" class="forest-overlay" onclick="this.style.display='none'" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px); z-index: 99999; justify-content: center; align-items: center;">
-    <div class="forest-card" onclick="event.stopPropagation()" style="background: linear-gradient(145deg, #1a1f2e, #0f172a); width: 90%; max-width: 380px; border-radius: 24px; padding: 25px; border: 1px solid rgba(255, 255, 255, 0.1); color: white; text-align: center; font-family: sans-serif;">
+<div id="forestModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px); z-index: 99999; justify-content: center; align-items: center;" onclick="this.style.display='none'">
+    <div style="background: linear-gradient(145deg, #1a1f2e, #0f172a); width: 90%; max-width: 380px; border-radius: 24px; padding: 25px; border: 1px solid rgba(255, 255, 255, 0.1); color: white; text-align: center; font-family: sans-serif;" onclick="event.stopPropagation()">
         <span style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; padding: 4px 12px; border-radius: 20px; font-size: 10px; font-weight: bold;">RELATIONSHIP DENSITY</span>
         <h3 id="forestOwner" style="margin: 15px 0 5px 0; font-size: 1.2rem;">인연의 숲</h3>
         <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 20px;">커뮤니티 연결 지수 리포트</p>
@@ -4869,76 +4870,72 @@ document.addEventListener('DOMContentLoaded', () => {
 </div>
 
 <script>
-async function handleFriendshipClick() {
+async function safeOpenForest() {
     try {
-        // [중요] 기존 잔디창 함수가 있다면 아래 주석을 풀고 이름을 적으세요.
-        // 예: if (typeof openActivityLog === 'function') openActivityLog();
-
-        // 인연의 숲 실행
-        await openForestReport();
-    } catch (e) {
-        console.error("클릭 이벤트 오류:", e);
+        const modal = document.getElementById('forestModal');
+        if (!modal) return;
+        modal.style.display = 'flex';
+        
+        // 데이터 로드 함수 실행
+        await renderForestData();
+    } catch (err) {
+        console.error("창 열기 오류:", err);
     }
 }
 
-async function openForestReport() {
-    // 1. 데이터 추출 (ID와 이름)
-    const mId = document.getElementById('editMemberId')?.value || window.currentEditMemberId;
-    const mName = document.getElementById('memberName')?.innerText || document.getElementById('editMemberName')?.value;
-
-    if (!mId) {
-        console.error("멤버 ID를 찾을 수 없습니다.");
-        return;
-    }
-
-    const modal = document.getElementById('forestModal');
-    if (!modal) return;
-
-    modal.style.display = 'flex';
-    document.getElementById('forestOwner').innerText = `${mName || '멤버'}님의 인연의 숲`;
-
+async function renderForestData() {
     try {
-        // 2. Firebase 데이터 쿼리 (컬렉션 이름 확인: "logs")
-        const q = query(collection(db, "logs"), where("participants", "array-contains", mName));
+        // 이름 가져오기
+        const mName = document.getElementById('memberName')?.innerText || 
+                      document.getElementById('editMemberName')?.value;
+        if (!mName) return;
+        document.getElementById('forestOwner').innerText = `${mName}님의 인연의 숲`;
+
+        // [핵심] Firebase 함수들이 전역에 선언되어 있지 않을 경우를 대비한 안전장치
+        // 사용하시는 환경에 따라 'firebase' 혹은 'Firestore' 라이브러리에서 직접 가져와야 할 수 있습니다.
+        const _db = window.db; 
+        
+        // 쿼리 시도 (query, collection 등이 정의되어 있는지 체크)
+        if (typeof query === 'undefined') {
+            console.error("Firebase query 함수가 정의되지 않았습니다. 상단에 Firebase import를 확인하세요.");
+            document.getElementById('bestPartner').innerText = "시스템 연결 확인 필요";
+            return;
+        }
+
+        const q = query(collection(_db, "logs"), where("participants", "array-contains", mName));
         const snap = await getDocs(q);
         
-        let withOthersCount = 0;
+        let withOthers = 0;
         let partners = {};
-        let uniquePartners = new Set();
+        let uniqueOnes = new Set();
 
         snap.forEach(doc => {
             const data = doc.data();
-            if (data.participants && data.participants.length > 1) {
-                withOthersCount++;
-                data.participants.forEach(p => {
-                    if (p !== mName) {
-                        uniquePartners.add(p);
-                        partners[p] = (partners[p] || 0) + 1;
+            const p = data.participants || [];
+            if (p.length > 1) {
+                withOthers++;
+                p.forEach(person => {
+                    if(person !== mName) {
+                        uniqueOnes.add(person);
+                        partners[person] = (partners[person] || 0) + 1;
                     }
                 });
             }
         });
 
-        // 3. 수치 계산
         const total = snap.size;
-        const rate = total > 0 ? Math.round((withOthersCount / total) * 100) : 0;
-        
-        // 4. 화면 업데이트
-        document.getElementById('synergyRate').innerText = `동행률 ${rate}%`;
-        document.getElementById('socialRadius').innerText = `인연 ${uniquePartners.size}명`;
+        document.getElementById('synergyRate').innerText = `동행률 ${total > 0 ? Math.round((withOthers/total)*100) : 0}%`;
+        document.getElementById('socialRadius').innerText = `인연 ${uniqueOnes.size}명`;
 
-        let bestName = "없음";
-        let maxCount = 0;
-        for (const name in partners) {
-            if (partners[name] > maxCount) { maxCount = partners[name]; bestName = name; }
-        }
-        document.getElementById('bestPartner').innerText = maxCount > 0 ? `${bestName}(${maxCount}회)` : "기록 없음";
+        let best = { n: "없음", c: 0 };
+        for (const n in partners) { if (partners[n] > best.c) { best.n = n; best.c = partners[n]; } }
+        document.getElementById('bestPartner').innerText = best.c > 0 ? `${best.n}(${best.c}회)` : "기록 없음";
 
-    } catch (err) {
-        console.error("데이터 로드 에러:", err);
+    } catch (e) {
+        console.warn("데이터 분석 오류:", e);
+        document.getElementById('bestPartner').innerText = "데이터 로드 실패";
     }
 }
-</script>
 
 </script>
 </body>
