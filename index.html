@@ -13,29 +13,6 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-/* 인연의 숲 모달 스타일 */
-.forest-overlay {
-    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px); z-index: 20000;
-    justify-content: center; align-items: center;
-}
-.forest-card {
-    background: linear-gradient(145deg, #1a1f2e, #0f172a);
-    width: 90%; max-width: 380px; border-radius: 24px; padding: 25px;
-    border: 1px solid rgba(255, 255, 255, 0.1); color: white; text-align: center;
-}
-.density-badge {
-    background: rgba(59, 130, 246, 0.2); color: #60a5fa;
-    padding: 4px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: bold;
-}
-.stat-grid {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px;
-}
-.stat-item { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 16px; }
-.stat-label { font-size: 0.7rem; color: #94a3b8; display: block; margin-bottom: 5px; }
-.stat-value { font-size: 1rem; font-weight: 800; color: #f8fafc; }
-.partner-highlight { color: #fbbf24; text-shadow: 0 0 8px rgba(251, 191, 36, 0.4); }
-
 /* 연대기 레이아웃 */
 .chronicle-container {
     margin-top: 15px;
@@ -2262,14 +2239,24 @@ overflow: hidden;
 <button onclick="addMultiActivity()" class="btn-submit bg-blue-500 mt-0">기록 저장하기</button>
 </div>
 
-<div class="card" style="background-color: #fffdf0; border-color: #fef3c7;">
-<div class="card-title text-yellow-700 font-bold">✏️ 기록 수정 및 레벨 관리</div>
-<select id="memberSelectEdit" onchange="loadMemberLogs()" class="input-gap"><option value="">대상 회원 선택</option></select>
-<div class="flex gap-2 mb-3">
-<input type="text" id="editMemberNameInput" placeholder="변경할 이름 입력" class="h-10 text-sm flex-1 border rounded-xl px-3 outline-none">
-<button onclick="updateMemberName()" class="bg-indigo-500 text-white px-3 rounded-xl text-xs font-bold whitespace-nowrap">이름 수정</button>
-</div>
-<div id="logListArea" class="log-grid"></div>
+<div class="card" style="background-color: #fffdf0; border-color: #fef3c7; margin-bottom: 15px;">
+    <div class="card-title text-yellow-700 font-bold">✏️ 기록 수정 및 레벨 관리</div>
+    
+    <select id="memberSelectEdit" onchange="loadMemberLogs()" class="input-gap">
+        <option value="">대상 회원 선택</option>
+    </select>
+
+    <div class="flex gap-2 mb-3">
+        <input type="text" id="editMemberNameInput" placeholder="변경할 이름 입력" class="h-10 text-sm flex-1 border rounded-xl px-3 outline-none">
+        <button onclick="updateMemberName()" class="bg-indigo-500 text-white px-3 rounded-xl text-xs font-bold whitespace-nowrap">이름 수정</button>
+    </div>
+
+    <div class="flex gap-2 mb-3">
+        <input type="number" id="manualLevelInput" placeholder="레벨(Lv) 입력" class="h-10 text-sm flex-1 border rounded-xl px-3 outline-none">
+        <button onclick="window.updateManualLevel()" class="bg-indigo-500 text-white px-3 rounded-xl text-xs font-bold whitespace-nowrap">레벨 적용</button>
+    </div>
+
+    <div id="logListArea" class="log-grid"></div>
 </div>
 
 <div class="card" style="background-color: #fff5f5; border-color: #fee2e2;">
@@ -2363,11 +2350,8 @@ overflow: hidden;
 <div class="flex items-center gap-1.5">
 <div id="passionVibeArea"></div>
 
-<div id="friendshipPointArea" 
-     onclick="safeOpenForest()" 
-     style="cursor: pointer;"
-     class="flex items-center h-[18px] text-[9px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100 hover:bg-blue-200">
-    💞 우정 <span id="memberFriendshipPoint" class="ml-1">0</span>P
+<div id="friendshipPointArea" class="flex items-center h-[18px] text-[9px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+💞 우정 <span id="memberFriendshipPoint" class="ml-1">0</span>P
 </div>
 </div>
 </div>
@@ -3614,7 +3598,8 @@ if (snap.exists() && pw === String(snap.data().admin_pw)) { isAdminLoggedIn = tr
 };
 window.logoutAdmin = () => { isAdminLoggedIn = false; showView('status'); };
 
-window.addMember = async () => {
+
+    window.addMember = async () => {
 const name = document.getElementById('newName').value.trim(); const dateStr = document.getElementById('regDate').value;
 const gender = document.querySelector('input[name="newGender"]:checked').value;
 if(name && dateStr) {
@@ -4844,102 +4829,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-<div id="forestModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px); z-index: 99999; justify-content: center; align-items: center;" onclick="this.style.display='none'">
-    <div style="background: linear-gradient(145deg, #1a1f2e, #0f172a); width: 90%; max-width: 380px; border-radius: 24px; padding: 25px; border: 1px solid rgba(255, 255, 255, 0.1); color: white; text-align: center; font-family: sans-serif;" onclick="event.stopPropagation()">
-        <span style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; padding: 4px 12px; border-radius: 20px; font-size: 10px; font-weight: bold;">RELATIONSHIP DENSITY</span>
-        <h3 id="forestOwner" style="margin: 15px 0 5px 0; font-size: 1.2rem;">인연의 숲</h3>
-        <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 20px;">커뮤니티 연결 지수 리포트</p>
-        
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px;">
-            <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 16px;">
-                <span style="font-size: 0.7rem; color: #94a3b8; display: block; margin-bottom: 5px;">동행 지수</span>
-                <span id="synergyRate" style="font-size: 1rem; font-weight: 800;">0%</span>
-            </div>
-            <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 16px;">
-                <span style="font-size: 0.7rem; color: #94a3b8; display: block; margin-bottom: 5px;">인연의 반경</span>
-                <span id="socialRadius" style="font-size: 1rem; font-weight: 800;">0명</span>
-            </div>
-            <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 16px; grid-column: span 2;">
-                <span style="font-size: 0.7rem; color: #94a3b8; display: block; margin-bottom: 5px;">우정 콤비 (Best Partner)</span>
-                <span id="bestPartner" style="font-size: 1rem; font-weight: 800; color: #fbbf24;">데이터 분석 중...</span>
-            </div>
-        </div>
-        
-        <button onclick="document.getElementById('forestModal').style.display='none'" style="margin-top: 25px; background: none; border: 1px solid rgba(255,255,255,0.2); color: #94a3b8; padding: 8px 20px; border-radius: 12px; cursor: pointer;">닫기</button>
-    </div>
-</div>
-
-<script>
-async function safeOpenForest() {
-    try {
-        const modal = document.getElementById('forestModal');
-        if (!modal) return;
-        modal.style.display = 'flex';
-        
-        // 데이터 로드 함수 실행
-        await renderForestData();
-    } catch (err) {
-        console.error("창 열기 오류:", err);
-    }
-}
-
-async function renderForestData() {
-    try {
-        // 이름 가져오기
-        const mName = document.getElementById('memberName')?.innerText || 
-                      document.getElementById('editMemberName')?.value;
-        if (!mName) return;
-        document.getElementById('forestOwner').innerText = `${mName}님의 인연의 숲`;
-
-        // [핵심] Firebase 함수들이 전역에 선언되어 있지 않을 경우를 대비한 안전장치
-        // 사용하시는 환경에 따라 'firebase' 혹은 'Firestore' 라이브러리에서 직접 가져와야 할 수 있습니다.
-        const _db = window.db; 
-        
-        // 쿼리 시도 (query, collection 등이 정의되어 있는지 체크)
-        if (typeof query === 'undefined') {
-            console.error("Firebase query 함수가 정의되지 않았습니다. 상단에 Firebase import를 확인하세요.");
-            document.getElementById('bestPartner').innerText = "시스템 연결 확인 필요";
-            return;
-        }
-
-        const q = query(collection(_db, "logs"), where("participants", "array-contains", mName));
-        const snap = await getDocs(q);
-        
-        let withOthers = 0;
-        let partners = {};
-        let uniqueOnes = new Set();
-
-        snap.forEach(doc => {
-            const data = doc.data();
-            const p = data.participants || [];
-            if (p.length > 1) {
-                withOthers++;
-                p.forEach(person => {
-                    if(person !== mName) {
-                        uniqueOnes.add(person);
-                        partners[person] = (partners[person] || 0) + 1;
-                    }
-                });
-            }
-        });
-
-        const total = snap.size;
-        document.getElementById('synergyRate').innerText = `동행률 ${total > 0 ? Math.round((withOthers/total)*100) : 0}%`;
-        document.getElementById('socialRadius').innerText = `인연 ${uniqueOnes.size}명`;
-
-        let best = { n: "없음", c: 0 };
-        for (const n in partners) { if (partners[n] > best.c) { best.n = n; best.c = partners[n]; } }
-        document.getElementById('bestPartner').innerText = best.c > 0 ? `${best.n}(${best.c}회)` : "기록 없음";
-
-    } catch (e) {
-        console.warn("데이터 분석 오류:", e);
-        document.getElementById('bestPartner').innerText = "데이터 로드 실패";
-    }
-}
-
 </script>
 </body>
     </html>
-    
     
     
