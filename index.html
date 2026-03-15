@@ -13,22 +13,6 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-/* 인연의 숲 팝업 스타일 */
-.forest-modal {
-    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.85); z-index: 100000; justify-content: center; align-items: center;
-    backdrop-filter: blur(8px);
-}
-.forest-card {
-    background: linear-gradient(145deg, #1a2e1a, #0d1a0d);
-    border: 1px solid #3d5a3d; border-radius: 20px; width: 90%; max-width: 350px;
-    padding: 25px; color: #e2e8f0; position: relative; box-shadow: 0 0 30px rgba(0,255,100,0.1);
-}
-.forest-title { font-weight: 900; color: #4ade80; text-align: center; letter-spacing: 2px; margin-bottom: 20px; }
-.stat-box { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; margin-bottom: 10px; border-left: 3px solid #4ade80; }
-.stat-label { font-size: 11px; color: #94a3b8; display: block; }
-.stat-value { font-size: 16px; font-weight: bold; color: #f8fafc; }
-
 /* 연대기 레이아웃 */
 .chronicle-container {
     margin-top: 15px;
@@ -1298,7 +1282,7 @@ position: fixed; top: 0; left: 0; width: 100%; height: 100%;
 background: rgba(0,0,0,0.85); display: none; justify-content: center; align-items: center; z-index: 9999;
 }
 
-    .fading-scroll {
+.fading-scroll {
 font-family: 'ChosunGu', 'Nanum Myeongjo', serif;
 background: #f4e4bc;
 background-image: url("https://www.transparenttextures.com/patterns/handmade-paper.png");
@@ -2360,19 +2344,15 @@ overflow: hidden;
 <span id="timelineCountBadge" class="bg-blue-100 text-blue-600 text-[10px] font-black px-2 py-1 rounded-full"></span>
 </div>
 
-    <div class="flex justify-between items-center mb-2">
+<div class="flex justify-between items-center mb-2">
 <p class="text-[10px] font-extrabold text-slate-500">🌱 분기 운동 잔디</p>
 
 <div class="flex items-center gap-1.5">
 <div id="passionVibeArea"></div>
-    
-<div id="friendshipPointArea" 
-     onclick="showRelationshipForest('${m.id}', '${m.name}')" 
-     class="flex items-center h-[18px] text-[9px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100 cursor-pointer hover:bg-blue-100 transition-colors" 
-     title="인연의 숲 보기">
-    💞 우정 <span id="memberFriendshipPoint" class="ml-1">0</span>P
-</div>
 
+<div id="friendshipPointArea" class="flex items-center h-[18px] text-[9px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+💞 우정 <span id="memberFriendshipPoint" class="ml-1">0</span>P
+</div>
 </div>
 </div>
 
@@ -2559,7 +2539,7 @@ const levelThresholds = [
 { lv: 3, name: "🌿 풀잎" }, { lv: 1, name: "🌱 새싹" }, { lv: 0, name: "🫘 신입" }
 ];
 
-    const getLevelBadge = (lv) => { for (const t of levelThresholds) { if (lv >= t.lv) return t.name; } return "🫘 신입"; };
+const getLevelBadge = (lv) => { for (const t of levelThresholds) { if (lv >= t.lv) return t.name; } return "🫘 신입"; };
 
 const getLevelStyle = (lv) => {
 if (lv >= 100) return { bg: '#fee2e2', border: '#ef4444', text: '#991b1b', blink: 'level-blink-red' };
@@ -3707,7 +3687,7 @@ window.deleteMember = async () => {
     }
 };
 
-    // 레벨 임의 수정 기능
+// 레벨 임의 수정 기능
 window.updateManualLevel = async () => {
     // memberSelectEdit에서 선택된 회원 ID 가져오기
     const id = document.getElementById('memberSelectEdit').value; 
@@ -4479,67 +4459,6 @@ setTimeout(() => s.remove(), 500);
 }, 850);
 }
 
-window.showConnectionForest = async (targetId, targetName) => {
-    // 1. 팝업창 존재 확인 및 표시
-    const modal = document.getElementById('forestModal');
-    if (!modal) {
-        console.error("ID가 'forestModal'인 HTML 요소가 없습니다. 뼈대 코드를 확인하세요.");
-        alert("팝업창 설정을 확인해주세요.");
-        return;
-    }
-    
-    modal.style.display = 'flex'; // 여기서 창이 떠야 합니다.
-
-    // 2. 로딩 표시
-    document.getElementById('synergyRate').innerText = "분석 중...";
-    document.getElementById('socialRadius').innerText = "분석 중...";
-    document.getElementById('bestPartner').innerText = "분석 중...";
-
-    try {
-        // 데이터 수집 (로그 데이터)
-        const targetLogsSnap = await getDocs(collection(db, `sanwoori/${targetId}/logs`));
-        const targetLogs = targetLogsSnap.docs.map(d => ({
-            mountain: d.data().mountain,
-            dateStr: d.data().date?.toDate().toDateString()
-        }));
-
-        if (targetLogs.length === 0) {
-            document.getElementById('synergyRate').innerText = "0%";
-            document.getElementById('socialRadius').innerText = "인연 0명";
-            document.getElementById('bestPartner').innerText = "기록 없음";
-            return;
-        }
-
-        let connections = {};
-        // currentData(전체 멤버)를 순회하며 동행 확인
-        for (const m of currentData) {
-            if (m.id === targetId) continue;
-
-            const otherLogsSnap = await getDocs(collection(db, `sanwoori/${m.id}/logs`));
-            otherLogsSnap.forEach(doc => {
-                const oData = doc.data();
-                const oDateStr = oData.date?.toDate().toDateString();
-                const isTogether = targetLogs.some(t => t.dateStr === oDateStr && t.mountain === oData.mountain);
-                
-                if (isTogether) {
-                    connections[m.name] = (connections[m.name] || 0) + 1;
-                }
-            });
-        }
-
-        const partners = Object.keys(connections);
-        const maxCount = Math.max(...Object.values(connections), 0);
-        const bestPartner = partners.find(name => connections[name] === maxCount) || "없음";
-
-        // 결과 업데이트
-        document.getElementById('synergyRate').innerText = `동행률 ${Math.min(100, Math.round((partners.length / targetLogs.length) * 100))}%`;
-        document.getElementById('socialRadius').innerText = `인연 ${partners.length}명`;
-        document.getElementById('bestPartner').innerText = maxCount > 0 ? `${bestPartner}(${maxCount}회)` : "없음";
-
-    } catch (err) {
-        console.error("인연의 숲 에러:", err);
-    }
-};
 window.showFadingScroll = async function(mId, dday, level = 0) {
     const modal = document.getElementById('scrollModal');
     const content = document.getElementById('scrollContent');
@@ -4710,26 +4629,6 @@ style="position:absolute; top:15px; right:15px; color:white; background:none; bo
     
     <p class="ancient-signature">San:woori Management</p>
 
-    </div>
-</div>
-
-<div id="forestModal" class="forest-modal" onclick="this.style.display='none'">
-    <div class="forest-card" onclick="event.stopPropagation()">
-        <h3 class="forest-title">🌲 인연의 숲</h3>
-        <div class="stat-box">
-            <span class="stat-label">동행 지수 (Synergy Rate)</span>
-            <div id="synergyRate" class="stat-value">분석 중...</div>
-        </div>
-        <div class="stat-box">
-            <span class="stat-label">인연의 반경 (Social Radius)</span>
-            <div id="socialRadius" class="stat-value">분석 중...</div>
-        </div>
-        <div class="stat-box">
-            <span class="stat-label">우정 콤비 (Best Partner)</span>
-            <div id="bestPartner" class="stat-value">분석 중...</div>
-        </div>
-        <button onclick="document.getElementById('forestModal').style.display='none'" 
-                style="width:100%; margin-top:15px; padding:10px; background:#2d4a2d; border:none; border-radius:8px; color:white; cursor:pointer;">닫기</button>
     </div>
 </div>
 
