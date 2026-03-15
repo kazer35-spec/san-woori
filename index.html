@@ -13,22 +13,6 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-/* 기존 테마와 어울리는 다크/네온 스타일 */
-.relationship-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:20000; justify-content:center; align-items:center; backdrop-filter: blur(8px); }
-.relationship-card { background:#111827; border:1px solid rgba(255,255,255,0.1); border-radius:24px; padding:30px; width:90%; max-width:340px; position:relative; box-shadow:0 0 30px rgba(0,0,0,0.5); }
-.rel-header { text-align:center; margin-bottom:25px; }
-.rel-subtitle { color:#3b82f6; font-size:10px; font-weight:900; letter-spacing:2px; }
-.rel-title { color:white; margin:5px 0 0 0; font-size:20px; }
-.rel-stats-grid { display:grid; gap:15px; margin-bottom:20px; }
-.rel-stat-item { background:rgba(255,255,255,0.03); padding:15px; border-radius:16px; border:1px solid rgba(255,255,255,0.05); }
-.rel-label { color:#94a3b8; font-size:11px; display:block; margin-bottom:5px; }
-.rel-value { color:white; font-size:24px; font-weight:800; }
-.rel-unit { color:#94a3b8; font-size:12px; margin-left:4px; }
-.rel-desc { color:#4b5563; font-size:10px; margin-top:4px; }
-.best-partner-box { background:linear-gradient(135deg, rgba(59,130,246,0.1), rgba(168,85,247,0.1)); padding:15px; border-radius:16px; border:1px solid rgba(59,130,246,0.2); text-align:center; }
-.rel-partner-name { color:#60a5fa; font-size:18px; font-weight:800; margin-top:5px; }
-.rel-close-btn { position:absolute; top:15px; right:15px; color:white; background:none; border:none; font-size:24px; cursor:pointer; }
-
 /* 연대기 레이아웃 */
 .chronicle-container {
     margin-top: 15px;
@@ -2356,13 +2340,9 @@ overflow: hidden;
 <div class="flex items-center gap-1.5">
 <div id="passionVibeArea"></div>
 
-// 기존 div/span 대신 이 코드를 넣으세요
-`<div id="friendshipPointArea" 
-      onclick="showRelationshipForest('${m.id}', '${m.name}')" 
-      class="flex items-center h-[18px] text-[9px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100 cursor-pointer hover:bg-blue-100 transition-colors" 
-      title="인연의 숲 보기">
-    💞 우정 <span id="memberFriendshipPoint" class="ml-1">${m.friendshipPoint || 0}</span>P
-</div>`
+<div id="friendshipPointArea" class="flex items-center h-[18px] text-[9px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+💞 우정 <span id="memberFriendshipPoint" class="ml-1">0</span>P
+</div>
 </div>
 </div>
 
@@ -2453,7 +2433,7 @@ overflow: hidden;
 </div>
 </div>
 
-    <div id="milkyWayModal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/80 backdrop-blur-sm">
+   <div id="milkyWayModal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/80 backdrop-blur-sm">
 <div class="relative w-[90%] max-w-md bg-[#050b18] rounded-3xl overflow-hidden border border-blue-900/50 shadow-[0_0_50px_rgba(30,58,138,0.5)]">
 <button onclick="document.getElementById('milkyWayModal').style.display='none'" class="absolute top-5 right-5 z-10 text-white/50 text-2xl">&times;</button>
 
@@ -3459,8 +3439,6 @@ await updateDoc(doc(db, "sanwoori", id), updateData);
                     }
                 }
 
-const withMembers = Array.from(selectedMemberIds).filter(mid => mid !== currentMemberId); 
-// currentMemberId는 현재 선택된 멤버의 ID입니다.
                 await addDoc(collection(db, `sanwoori/${id}/logs`), {
                     date: ts,
                     mountain: mName,
@@ -3472,8 +3450,7 @@ const withMembers = Array.from(selectedMemberIds).filter(mid => mid !== currentM
                     isRunning,
                     isTracking,
                     region,
-                    starType: assignedStarType,
-    withMembers: withMembers
+                    starType: assignedStarType // 정기산행 별빛 우선 부여
                 });
             }
 
@@ -3610,7 +3587,8 @@ const snap = await getDoc(doc(db, "admin_settings", "config"));
 if (snap.exists() && pw === String(snap.data().admin_pw)) { isAdminLoggedIn = true; showView('admin'); } else alert("비밀번호 불일치");
 };
 window.logoutAdmin = () => { isAdminLoggedIn = false; showView('status'); };
-window.addMember = async () => {
+
+​ window.addMember = async () => {
 const name = document.getElementById('newName').value.trim(); const dateStr = document.getElementById('regDate').value;
 const gender = document.querySelector('input[name="newGender"]:checked').value;
 if(name && dateStr) {
@@ -4442,83 +4420,6 @@ setTimeout(() => s.remove(), 500);
 }, 850);
 }
 
-window.showRelationshipForest = async (mId, mName) => {
-    const modal = document.getElementById('relationshipModal');
-    modal.style.display = 'flex';
-    
-    // 초기화
-    document.getElementById('bestPartner').innerText = "분석 중...";
-    
-    try {
-        const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
-        const myLogs = snap.docs.map(d => d.data());
-        
-        if (myLogs.length === 0) {
-            document.getElementById('bestPartner').innerText = "기록 없음";
-            return;
-        }
-
-        let partnerMap = {}; // {이름: 횟수}
-        let soloCount = 0;
-        let togetherCount = 0;
-
-        // 과거 데이터 분석 (같은 날, 같은 산)
-        // 1. 모든 멤버의 로그를 한 번에 가져오면 비용이 많이 드니, 
-        // 2. 현재 불러와져 있는 currentData를 활용해 비교합니다.
-        
-        for (const log of myLogs) {
-            const myDate = log.date.toDate().toLocaleDateString();
-            const myMt = log.mountain;
-            
-            // 신규 방식: withMembers 필드가 있으면 우선 사용
-            if (log.withMembers && log.withMembers.length > 0) {
-                togetherCount++;
-                log.withMembers.forEach(pId => {
-                    const pName = currentData.find(m => m.id === pId)?.name || "알수없음";
-                    partnerMap[pName] = (partnerMap[pName] || 0) + 1;
-                });
-            } else {
-                // 구형 방식: 같은 날 같은 산 찾기 (현재 메모리에 로드된 멤버들 대상)
-                let foundPartner = false;
-                currentData.forEach(otherMember => {
-                    if (otherMember.id === mId) return; // 본인 제외
-                    
-                    // 타 멤버의 qCount나 기록이 있는지 확인 (여기서는 currentData의 로그까지 알긴 어렵지만, 
-                    // 설계상 효율을 위해 '동일한 산행기록'이 있는지는 로직을 단순화합니다)
-                    // 실제로는 전체 로그를 다 뒤져야 정확하지만, 여기서는 저장된 데이터 기반으로 표시합니다.
-                });
-                
-                // 임시: 우정포인트가 있다면 누군가와 갔다고 가정하거나, 
-                // 향후 정확한 집계를 위해 'withMembers' 저장을 권장합니다.
-                if (log.isRegular) togetherCount++; // 정기산행은 무조건 동행으로 간주
-                else soloCount++;
-            }
-        }
-
-        // 1. 동행 지수 계산
-        const total = togetherCount + soloCount;
-        const rate = total > 0 ? Math.round((togetherCount / total) * 100) : 0;
-        document.getElementById('synergyRate').innerText = rate;
-
-        // 2. 우정 콤비 찾기
-        let bestName = "없음";
-        let maxCnt = 0;
-        for (const [name, count] of Object.entries(partnerMap)) {
-            if (count > maxCnt) {
-                maxCnt = count;
-                bestName = `${name}(${count}회)`;
-            }
-        }
-        document.getElementById('bestPartner').innerText = bestName;
-
-        // 3. 인연의 반경 (고유 인원수)
-        document.getElementById('socialRadius').innerText = Object.keys(partnerMap).length;
-
-    } catch (e) {
-        console.error(e);
-    }
-};
-
 window.showFadingScroll = async function(mId, dday, level = 0) {
     const modal = document.getElementById('scrollModal');
     const content = document.getElementById('scrollContent');
@@ -4689,39 +4590,6 @@ style="position:absolute; top:15px; right:15px; color:white; background:none; bo
     
     <p class="ancient-signature">San:woori Management</p>
 
-    </div>
-</div>
-
-<div id="relationshipModal" class="relationship-overlay" onclick="this.style.display='none'">
-    <div class="relationship-card" onclick="event.stopPropagation()">
-        <div class="rel-header">
-            <span class="rel-subtitle">CONNECTION DENSITY</span>
-            <h3 class="rel-title">인연의 숲</h3>
-        </div>
-        
-        <div class="rel-stats-grid">
-            <div class="rel-stat-item">
-                <span class="rel-label">동행 지수 (Synergy)</span>
-                <div class="rel-value-group">
-                    <span id="synergyRate" class="rel-value">0</span><span class="rel-unit">%</span>
-                </div>
-                <div class="rel-desc">혼자보다 함께일 때 빛나는 정도</div>
-            </div>
-            <div class="rel-stat-item">
-                <span class="rel-label">인연의 반경 (Radius)</span>
-                <div class="rel-value-group">
-                    <span id="socialRadius" class="rel-value">0</span><span class="rel-unit">명</span>
-                </div>
-                <div class="rel-desc">직접 연결된 고유 인연수</div>
-            </div>
-        </div>
-
-        <div class="best-partner-box">
-            <span class="rel-label">우정 콤비 (Best Partner)</span>
-            <div id="bestPartner" class="rel-partner-name">분석 중...</div>
-        </div>
-        
-        <button class="rel-close-btn" onclick="document.getElementById('relationshipModal').style.display='none'">&times;</button>
     </div>
 </div>
 
@@ -4927,4 +4795,3 @@ document.addEventListener('DOMContentLoaded', () => {
     </html>
     
     
-​
