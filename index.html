@@ -2367,9 +2367,9 @@ overflow: hidden;
 <div id="passionVibeArea"></div>
 
 <div id="friendshipPointArea" 
-     onclick="handleForestClick()"
+     onclick="window.showConnectionForest('${m.id}', '${m.name}')"
      class="flex items-center h-[18px] text-[9px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100 cursor-pointer hover:bg-blue-100 transition-colors">
-    💞 우정 <span id="memberFriendshipPoint" class="ml-1">0</span>P
+    💞 우정 <span id="memberFriendshipPoint" class="ml-1">${m.friendshipPoint || 0}</span>P
 </div>
 </div>
 </div>
@@ -2556,7 +2556,6 @@ const levelThresholds = [
 { lv: 15, name: "🏔️ 설산" }, { lv: 10, name: "⛰️ 산" }, { lv: 5, name: "🌳 나무" },
 { lv: 3, name: "🌿 풀잎" }, { lv: 1, name: "🌱 새싹" }, { lv: 0, name: "🫘 신입" }
 ];
-
 
     const getLevelBadge = (lv) => { for (const t of levelThresholds) { if (lv >= t.lv) return t.name; } return "🫘 신입"; };
 
@@ -3706,7 +3705,7 @@ window.deleteMember = async () => {
     }
 };
 
-// 레벨 임의 수정 기능
+    // 레벨 임의 수정 기능
 window.updateManualLevel = async () => {
     // memberSelectEdit에서 선택된 회원 ID 가져오기
     const id = document.getElementById('memberSelectEdit').value; 
@@ -4479,75 +4478,66 @@ setTimeout(() => s.remove(), 500);
 }
 
 window.showConnectionForest = async (targetId, targetName) => {
+    // 1. 팝업창 존재 확인 및 표시
     const modal = document.getElementById('forestModal');
-    modal.style.display = 'flex';
+    if (!modal) {
+        console.error("ID가 'forestModal'인 HTML 요소가 없습니다. 뼈대 코드를 확인하세요.");
+        alert("팝업창 설정을 확인해주세요.");
+        return;
+    }
+    
+    modal.style.display = 'flex'; // 여기서 창이 떠야 합니다.
+
+    // 2. 로딩 표시
+    document.getElementById('synergyRate').innerText = "분석 중...";
+    document.getElementById('socialRadius').innerText = "분석 중...";
+    document.getElementById('bestPartner').innerText = "분석 중...";
 
     try {
-        // 1. 모든 멤버의 로그 데이터를 수집 (동행 판별용)
-        // 주의: 멤버가 아주 많아지면 성능을 위해 로직 수정이 필요할 수 있습니다.
-        const allMembers = currentData; // 이미 불러온 전체 멤버 데이터 사용
+        // 데이터 수집 (로그 데이터)
         const targetLogsSnap = await getDocs(collection(db, `sanwoori/${targetId}/logs`));
-        const targetLogs = targetLogsSnap.docs.map(d => ({...d.data(), dateStr: d.data().date?.toDate().toDateString()}));
+        const targetLogs = targetLogsSnap.docs.map(d => ({
+            mountain: d.data().mountain,
+            dateStr: d.data().date?.toDate().toDateString()
+        }));
 
         if (targetLogs.length === 0) {
             document.getElementById('synergyRate').innerText = "0%";
             document.getElementById('socialRadius').innerText = "인연 0명";
-            document.getElementById('bestPartner').innerText = "없음";
+            document.getElementById('bestPartner').innerText = "기록 없음";
             return;
         }
 
-        let totalHikes = targetLogs.length;
-        let accompaniedHikes = 0;
-        let connections = {}; // {이름: 횟수}
-
-        // 2. 동행 찾기 (날짜와 산 이름이 같은 경우)
-        for (const m of allMembers) {
-            if (m.id === targetId) continue; // 본인 제외
+        let connections = {};
+        // currentData(전체 멤버)를 순회하며 동행 확인
+        for (const m of currentData) {
+            if (m.id === targetId) continue;
 
             const otherLogsSnap = await getDocs(collection(db, `sanwoori/${m.id}/logs`));
             otherLogsSnap.forEach(doc => {
                 const oData = doc.data();
                 const oDateStr = oData.date?.toDate().toDateString();
+                const isTogether = targetLogs.some(t => t.dateStr === oDateStr && t.mountain === oData.mountain);
                 
-                // 같은 날, 같은 산(혹은 활동)을 간 기록이 있는지 확인
-                const isTogether = targetLogs.some(tLog => 
-                    tLog.dateStr === oDateStr && tLog.mountain === oData.mountain
-                );
-
                 if (isTogether) {
                     connections[m.name] = (connections[m.name] || 0) + 1;
                 }
             });
         }
 
-        // 3. 수치 계산
-        // 동행 지수: 한 번이라도 누군가와 같이 간 기록이 있는 로그 수 / 총 로그 수
-        // (단순 계산을 위해 중복을 포함한 동행 횟수 기반으로 처리)
         const partners = Object.keys(connections);
-        const totalPartnerCount = Object.values(connections).reduce((a, b) => a + b, 0);
-        const synergyRate = Math.min(100, Math.round((totalPartnerCount / totalHikes) * 100));
+        const maxCount = Math.max(...Object.values(connections), 0);
+        const bestPartner = partners.find(name => connections[name] === maxCount) || "없음";
 
-        // 4. 우정 콤비 찾기
-        let bestPartnerName = "없음";
-        let maxCount = 0;
-        for (const name in connections) {
-            if (connections[name] > maxCount) {
-                maxCount = connections[name];
-                bestPartnerName = name;
-            }
-        }
-
-        // 5. UI 업데이트
-        document.getElementById('synergyRate').innerText = `동행률 ${synergyRate}%`;
+        // 결과 업데이트
+        document.getElementById('synergyRate').innerText = `동행률 ${Math.min(100, Math.round((partners.length / targetLogs.length) * 100))}%`;
         document.getElementById('socialRadius').innerText = `인연 ${partners.length}명`;
-        document.getElementById('bestPartner').innerText = maxCount > 0 ? `${bestPartnerName}(${maxCount}회)` : "없음";
+        document.getElementById('bestPartner').innerText = maxCount > 0 ? `${bestPartner}(${maxCount}회)` : "없음";
 
-    } catch (e) {
-        console.error("인연의 숲 로딩 에러:", e);
-        alert("데이터를 분석하는 중 오류가 발생했습니다.");
+    } catch (err) {
+        console.error("인연의 숲 에러:", err);
     }
 };
-
 window.showFadingScroll = async function(mId, dday, level = 0) {
     const modal = document.getElementById('scrollModal');
     const content = document.getElementById('scrollContent');
@@ -4945,6 +4935,5 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
     </html>
-    
     
     
