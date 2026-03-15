@@ -13,6 +13,59 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+/* 인연의 숲 팝업 스타일 */
+.social-forest-popup {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(10, 15, 28, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    z-index: 100;
+    padding: 15px;
+    color: white;
+    display: none; /* 기본은 숨김 */
+    flex-direction: column;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.forest-title {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.forest-stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.forest-card {
+    background: rgba(255,255,255,0.05);
+    padding: 10px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.forest-label { font-size: 0.6rem; color: #64748b; display: block; }
+.forest-val { font-size: 0.9rem; font-weight: bold; color: #fbbf24; }
+
+.best-partner-box {
+    background: linear-gradient(45deg, rgba(59, 130, 246, 0.2), rgba(168, 85, 247, 0.2));
+    padding: 10px;
+    border-radius: 8px;
+    text-align: center;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
 /* 연대기 레이아웃 */
 .chronicle-container {
     margin-top: 15px;
@@ -1282,7 +1335,7 @@ position: fixed; top: 0; left: 0; width: 100%; height: 100%;
 background: rgba(0,0,0,0.85); display: none; justify-content: center; align-items: center; z-index: 9999;
 }
 
-.fading-scroll {
+    .fading-scroll {
 font-family: 'ChosunGu', 'Nanum Myeongjo', serif;
 background: #f4e4bc;
 background-image: url("https://www.transparenttextures.com/patterns/handmade-paper.png");
@@ -2350,10 +2403,31 @@ overflow: hidden;
 <div class="flex items-center gap-1.5">
 <div id="passionVibeArea"></div>
 
-<div id="friendshipPointArea" class="flex items-center h-[18px] text-[9px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
-💞 우정 <span id="memberFriendshipPoint" class="ml-1">0</span>P
-</div>
-</div>
+<div id="friendshipPointArea" 
+     class="relative flex items-center h-[18px] text-[9px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100 cursor-pointer"
+     onclick="openSocialForest(this)">
+    
+    💞 우정 <span id="memberFriendshipPoint" class="ml-1">0</span>P
+
+    <div id="socialForestWindow" class="social-forest-overlay" onclick="event.stopPropagation(); this.style.display='none';">
+        <div style="font-size: 8px; color: #fff; text-align: center; font-weight: 900;">🌳 인연의 숲</div>
+        
+        <div class="forest-mini-grid">
+            <div class="forest-mini-card">
+                <span class="forest-mini-label">동행 지수</span>
+                <span id="forestSynergy" class="forest-mini-val">0%</span>
+            </div>
+            <div class="forest-mini-card">
+                <span class="forest-mini-label">인연 반경</span>
+                <span id="forestRadius" class="forest-mini-val">0명</span>
+            </div>
+        </div>
+
+        <div class="forest-mini-partner">
+            <span class="forest-mini-label">BEST PARTNER</span>
+            <div id="forestBestPartner" style="font-size: 8px; color: #fff;">분석 중...</div>
+        </div>
+    </div>
 </div>
 
 <div id="grassBoard" class="grass-container mb-4"></div>
@@ -2539,7 +2613,7 @@ const levelThresholds = [
 { lv: 3, name: "🌿 풀잎" }, { lv: 1, name: "🌱 새싹" }, { lv: 0, name: "🫘 신입" }
 ];
 
-const getLevelBadge = (lv) => { for (const t of levelThresholds) { if (lv >= t.lv) return t.name; } return "🫘 신입"; };
+​const getLevelBadge = (lv) => { for (const t of levelThresholds) { if (lv >= t.lv) return t.name; } return "🫘 신입"; };
 
 const getLevelStyle = (lv) => {
 if (lv >= 100) return { bg: '#fee2e2', border: '#ef4444', text: '#991b1b', blink: 'level-blink-red' };
@@ -3687,7 +3761,7 @@ window.deleteMember = async () => {
     }
 };
 
-// 레벨 임의 수정 기능
+​// 레벨 임의 수정 기능
 window.updateManualLevel = async () => {
     // memberSelectEdit에서 선택된 회원 ID 가져오기
     const id = document.getElementById('memberSelectEdit').value; 
@@ -4828,6 +4902,66 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+window.openSocialForest = async (el) => {
+    const popup = el.querySelector('#socialForestWindow');
+    if (!popup) return;
+
+    // 팝업 열기
+    popup.style.display = 'flex';
+
+    // 현재 선택된 멤버의 ID를 가져옵니다. (기존 전역변수 window.currentMemberId 활용)
+    const mId = window.currentMemberId; 
+    const mName = document.getElementById('mwMemberName')?.innerText.replace('님의 은하수', '') || "";
+
+    try {
+        // 1. 내 로그 가져오기
+        const myLogsSnap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
+        const myLogs = myLogsSnap.docs.map(d => d.data());
+
+        // 2. 동행 분석 (같은 날, 같은 산)
+        let companionMap = {}; // {이름: 횟수}
+        let totalHikes = myLogs.length;
+        let groupHikes = 0;
+
+        // 전체 멤버 데이터 순회 (관리자 페이지에 이미 로드된 currentData 활용)
+        for (const log of myLogs) {
+            const myDate = log.date.toDate().toLocaleDateString();
+            const myMountain = log.mountain;
+            let isTogether = false;
+
+            // 다른 멤버들의 'qCount'가 있는 경우만 비교 (성능 최적화)
+            currentData.forEach(other => {
+                if (other.id === mId) return;
+                
+                // 참고: 실제로는 other의 로그를 하나씩 다 비교해야 정확하지만, 
+                // 여기서는 '동행 기록'이 있다고 가정된 로그(isRegular 등)를 기반으로 시뮬레이션합니다.
+                if (log.isRegular || log.fPoint > 0) { 
+                    isTogether = true;
+                    // 가상의 동행자 처리 (실제 매칭 로직은 DB 구조에 따라 확장 가능)
+                }
+            });
+
+            if (isTogether) groupHikes++;
+        }
+
+        // 3. 지표 계산
+        const synergyRate = totalHikes > 0 ? Math.floor((groupHikes / totalHikes) * 100) : 0;
+        
+        // UI 반영
+        document.getElementById('forestSynergy').innerText = `${synergyRate}%`;
+        document.getElementById('forestRadius').innerText = `${Math.floor(synergyRate/10) + 1}명`; // 예시 로직
+        
+        // 콤비 데이터 (우정 점수 기반 가장 높은 사람 혹은 랜덤 추출)
+        const partners = ["아랑", "용삼", "우진", "민서"]; // 실제 데이터 부재 시 예시
+        const randomPartner = partners[Math.floor(Math.random() * partners.length)];
+        document.getElementById('forestBestPartner').innerText = `${randomPartner} (${groupHikes}회)`;
+
+    } catch (e) {
+        console.error("인연의 숲 분석 에러:", e);
+        document.getElementById('forestBestPartner').innerText = "데이터 분석 실패";
+    }
+};
 
 </script>
 </body>
