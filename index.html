@@ -2949,6 +2949,34 @@ for (let i = 0; i < totalDaysInQ; i++) {
     }
 };
 
+                        partnerMap[c.ownerName] = (partnerMap[c.ownerName] || 0) + 1;
+                });
+            }
+        });
+
+        const total = myLogs.length;
+        const synergy = total > 0 ? Math.round((bondCount / total) * 100) : 0;
+        document.getElementById('synergyRate').innerText = `${synergy}%`;
+        document.getElementById('synergyBar').style.width = `${synergy}%`;
+        document.getElementById('socialRadius').innerText = `${metPeople.size}명`;
+
+        let bestName = "-";
+        let maxVal = 0;
+        for (const name in partnerMap) {
+            if (partnerMap[name] > maxVal) {
+                maxVal = partnerMap[name];
+                bestName = name;
+            }
+        }
+        document.getElementById('bestPartner').innerText = maxVal > 0 ? `${bestName} (${maxVal}회)` : "기록 없음";
+    } catch (e) {
+        console.error(e);
+    }
+};
+
+    <div id="grassArea" style="position: relative; width: 100%;">
+    </div>
+
 // 1. 계절 색상 판별 함수 (파일 상단에 위치)
 window.getSeasonColor = (month) => {
     if (month >= 3 && month <= 5) return "#ffafcc"; // 🌸 봄: 분홍
@@ -4666,8 +4694,6 @@ style="position:absolute; top:15px; right:15px; color:white; background:none; bo
         <button onclick="document.getElementById('bondForestPopup').classList.add('hidden')" style="background:none; border:none; color:#94a3b8; font-size:11px; cursor:pointer;">[닫기]</button>
     </div>
 </div>
-<div id="grassArea" style="position: relative; width: 100%;">
-    </div>
 
 <script>
    // --- 잔디 상세 팝업 및 이벤트 제어 (통합본) ---
@@ -4807,30 +4833,6 @@ window.showBondForest = async (event, mId, mName) => {
                 bondCount++;
                 companions.forEach(c => {
                     metPeople.add(c.ownerName);
-                    partnerMap[c.ownerName] = (partnerMap[c.ownerName] || 0) + 1;
-                });
-            }
-        });
-
-        const total = myLogs.length;
-        const synergy = total > 0 ? Math.round((bondCount / total) * 100) : 0;
-        document.getElementById('synergyRate').innerText = `${synergy}%`;
-        document.getElementById('synergyBar').style.width = `${synergy}%`;
-        document.getElementById('socialRadius').innerText = `${metPeople.size}명`;
-
-        let bestName = "-";
-        let maxVal = 0;
-        for (const name in partnerMap) {
-            if (partnerMap[name] > maxVal) {
-                maxVal = partnerMap[name];
-                bestName = name;
-            }
-        }
-        document.getElementById('bestPartner').innerText = maxVal > 0 ? `${bestName} (${maxVal}회)` : "기록 없음";
-    } catch (e) {
-        console.error(e);
-    }
-};
 
 // [기존 코드 유지] 모달 제어 및 텍스트 조립 로직
 window.toggleNoticeModal = (show) => {
