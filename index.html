@@ -13,21 +13,21 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-/* 기존 테마와 어울리는 다크/네온 스타일 */
-.relationship-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:20000; justify-content:center; align-items:center; backdrop-filter: blur(8px); }
-.relationship-card { background:#111827; border:1px solid rgba(255,255,255,0.1); border-radius:24px; padding:30px; width:90%; max-width:340px; position:relative; box-shadow:0 0 30px rgba(0,0,0,0.5); }
-.rel-header { text-align:center; margin-bottom:25px; }
-.rel-subtitle { color:#3b82f6; font-size:10px; font-weight:900; letter-spacing:2px; }
-.rel-title { color:white; margin:5px 0 0 0; font-size:20px; }
-.rel-stats-grid { display:grid; gap:15px; margin-bottom:20px; }
-.rel-stat-item { background:rgba(255,255,255,0.03); padding:15px; border-radius:16px; border:1px solid rgba(255,255,255,0.05); }
-.rel-label { color:#94a3b8; font-size:11px; display:block; margin-bottom:5px; }
-.rel-value { color:white; font-size:24px; font-weight:800; }
-.rel-unit { color:#94a3b8; font-size:12px; margin-left:4px; }
-.rel-desc { color:#4b5563; font-size:10px; margin-top:4px; }
-.best-partner-box { background:linear-gradient(135deg, rgba(59,130,246,0.1), rgba(168,85,247,0.1)); padding:15px; border-radius:16px; border:1px solid rgba(59,130,246,0.2); text-align:center; }
-.rel-partner-name { color:#60a5fa; font-size:18px; font-weight:800; margin-top:5px; }
-.rel-close-btn { position:absolute; top:15px; right:15px; color:white; background:none; border:none; font-size:24px; cursor:pointer; }
+/* 인연의 숲 팝업 스타일 */
+.forest-modal {
+    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.85); z-index: 100000; justify-content: center; align-items: center;
+    backdrop-filter: blur(8px);
+}
+.forest-card {
+    background: linear-gradient(145deg, #1a2e1a, #0d1a0d);
+    border: 1px solid #3d5a3d; border-radius: 20px; width: 90%; max-width: 350px;
+    padding: 25px; color: #e2e8f0; position: relative; box-shadow: 0 0 30px rgba(0,255,100,0.1);
+}
+.forest-title { font-weight: 900; color: #4ade80; text-align: center; letter-spacing: 2px; margin-bottom: 20px; }
+.stat-box { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; margin-bottom: 10px; border-left: 3px solid #4ade80; }
+.stat-label { font-size: 11px; color: #94a3b8; display: block; }
+.stat-value { font-size: 16px; font-weight: bold; color: #f8fafc; }
 
 /* 연대기 레이아웃 */
 .chronicle-container {
@@ -2367,9 +2367,8 @@ overflow: hidden;
 <div id="passionVibeArea"></div>
 
 <div id="friendshipPointArea" 
-     onclick="showRelationshipForest('${m.id}', '${m.name}')" 
-     class="flex items-center h-[18px] text-[9px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100 cursor-pointer hover:bg-blue-100 transition-colors" 
-     title="인연의 숲 보기">
+     onclick="handleForestClick()"
+     class="flex items-center h-[18px] text-[9px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100 cursor-pointer hover:bg-blue-100 transition-colors">
     💞 우정 <span id="memberFriendshipPoint" class="ml-1">0</span>P
 </div>
 </div>
@@ -2557,6 +2556,7 @@ const levelThresholds = [
 { lv: 15, name: "🏔️ 설산" }, { lv: 10, name: "⛰️ 산" }, { lv: 5, name: "🌳 나무" },
 { lv: 3, name: "🌿 풀잎" }, { lv: 1, name: "🌱 새싹" }, { lv: 0, name: "🫘 신입" }
 ];
+
 
     const getLevelBadge = (lv) => { for (const t of levelThresholds) { if (lv >= t.lv) return t.name; } return "🫘 신입"; };
 
@@ -3468,22 +3468,18 @@ await updateDoc(doc(db, "sanwoori", id), updateData);
                     }
                 }
 
-                // ... (위쪽 코드는 동일)
-const withMembers = Array.from(selectedMemberIds).filter(mid => mid !== currentMemberId);
-
-await addDoc(collection(db, `sanwoori/${id}/logs`), {
-    date: ts,
-    mountain: mName,
-    height,
-    coords: tempCoord,
-    isTop100,
-    isBAC,
-    isRegular,
-    isRunning,
-    isTracking,
-    region,
-    starType: assignedStarType,
-    withMembers: withMembers
+                await addDoc(collection(db, `sanwoori/${id}/logs`), {
+                    date: ts,
+                    mountain: mName,
+                    height,
+                    coords: tempCoord,
+                    isTop100,
+                    isBAC,
+                    isRegular,
+                    isRunning,
+                    isTracking,
+                    region,
+                    starType: assignedStarType // 정기산행 별빛 우선 부여
                 });
             }
 
@@ -3710,7 +3706,7 @@ window.deleteMember = async () => {
     }
 };
 
-    // 레벨 임의 수정 기능
+// 레벨 임의 수정 기능
 window.updateManualLevel = async () => {
     // memberSelectEdit에서 선택된 회원 ID 가져오기
     const id = document.getElementById('memberSelectEdit').value; 
@@ -4281,83 +4277,6 @@ svg.appendChild(coreShape);
     }, 100);
 };
 
-window.showRelationshipForest = async (mId, mName) => {
-    const modal = document.getElementById('relationshipModal');
-    modal.style.display = 'flex';
-    
-    // 초기화
-    document.getElementById('bestPartner').innerText = "분석 중...";
-    
-    try {
-        const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
-        const myLogs = snap.docs.map(d => d.data());
-        
-        if (myLogs.length === 0) {
-            document.getElementById('bestPartner').innerText = "기록 없음";
-            return;
-        }
-
-        let partnerMap = {}; // {이름: 횟수}
-        let soloCount = 0;
-        let togetherCount = 0;
-
-        // 과거 데이터 분석 (같은 날, 같은 산)
-        // 1. 모든 멤버의 로그를 한 번에 가져오면 비용이 많이 드니, 
-        // 2. 현재 불러와져 있는 currentData를 활용해 비교합니다.
-        
-        for (const log of myLogs) {
-            const myDate = log.date.toDate().toLocaleDateString();
-            const myMt = log.mountain;
-            
-            // 신규 방식: withMembers 필드가 있으면 우선 사용
-            if (log.withMembers && log.withMembers.length > 0) {
-                togetherCount++;
-                log.withMembers.forEach(pId => {
-                    const pName = currentData.find(m => m.id === pId)?.name || "알수없음";
-                    partnerMap[pName] = (partnerMap[pName] || 0) + 1;
-                });
-            } else {
-                // 구형 방식: 같은 날 같은 산 찾기 (현재 메모리에 로드된 멤버들 대상)
-                let foundPartner = false;
-                currentData.forEach(otherMember => {
-                    if (otherMember.id === mId) return; // 본인 제외
-                    
-                    // 타 멤버의 qCount나 기록이 있는지 확인 (여기서는 currentData의 로그까지 알긴 어렵지만, 
-                    // 설계상 효율을 위해 '동일한 산행기록'이 있는지는 로직을 단순화합니다)
-                    // 실제로는 전체 로그를 다 뒤져야 정확하지만, 여기서는 저장된 데이터 기반으로 표시합니다.
-                });
-                
-                // 임시: 우정포인트가 있다면 누군가와 갔다고 가정하거나, 
-                // 향후 정확한 집계를 위해 'withMembers' 저장을 권장합니다.
-                if (log.isRegular) togetherCount++; // 정기산행은 무조건 동행으로 간주
-                else soloCount++;
-            }
-        }
-
-        // 1. 동행 지수 계산
-        const total = togetherCount + soloCount;
-        const rate = total > 0 ? Math.round((togetherCount / total) * 100) : 0;
-        document.getElementById('synergyRate').innerText = rate;
-
-        // 2. 우정 콤비 찾기
-        let bestName = "없음";
-        let maxCnt = 0;
-        for (const [name, count] of Object.entries(partnerMap)) {
-            if (count > maxCnt) {
-                maxCnt = count;
-                bestName = `${name}(${count}회)`;
-            }
-        }
-        document.getElementById('bestPartner').innerText = bestName;
-
-        // 3. 인연의 반경 (고유 인원수)
-        document.getElementById('socialRadius').innerText = Object.keys(partnerMap).length;
-
-    } catch (e) {
-        console.error(e);
-    }
-};
-
 window.showMilkyWay = async (mId, mName) => {
     const modal = document.getElementById('milkyWayModal');
     const board = document.getElementById('constellationBoard');
@@ -4559,6 +4478,76 @@ setTimeout(() => s.remove(), 500);
 }, 850);
 }
 
+window.showConnectionForest = async (targetId, targetName) => {
+    const modal = document.getElementById('forestModal');
+    modal.style.display = 'flex';
+
+    try {
+        // 1. 모든 멤버의 로그 데이터를 수집 (동행 판별용)
+        // 주의: 멤버가 아주 많아지면 성능을 위해 로직 수정이 필요할 수 있습니다.
+        const allMembers = currentData; // 이미 불러온 전체 멤버 데이터 사용
+        const targetLogsSnap = await getDocs(collection(db, `sanwoori/${targetId}/logs`));
+        const targetLogs = targetLogsSnap.docs.map(d => ({...d.data(), dateStr: d.data().date?.toDate().toDateString()}));
+
+        if (targetLogs.length === 0) {
+            document.getElementById('synergyRate').innerText = "0%";
+            document.getElementById('socialRadius').innerText = "인연 0명";
+            document.getElementById('bestPartner').innerText = "없음";
+            return;
+        }
+
+        let totalHikes = targetLogs.length;
+        let accompaniedHikes = 0;
+        let connections = {}; // {이름: 횟수}
+
+        // 2. 동행 찾기 (날짜와 산 이름이 같은 경우)
+        for (const m of allMembers) {
+            if (m.id === targetId) continue; // 본인 제외
+
+            const otherLogsSnap = await getDocs(collection(db, `sanwoori/${m.id}/logs`));
+            otherLogsSnap.forEach(doc => {
+                const oData = doc.data();
+                const oDateStr = oData.date?.toDate().toDateString();
+                
+                // 같은 날, 같은 산(혹은 활동)을 간 기록이 있는지 확인
+                const isTogether = targetLogs.some(tLog => 
+                    tLog.dateStr === oDateStr && tLog.mountain === oData.mountain
+                );
+
+                if (isTogether) {
+                    connections[m.name] = (connections[m.name] || 0) + 1;
+                }
+            });
+        }
+
+        // 3. 수치 계산
+        // 동행 지수: 한 번이라도 누군가와 같이 간 기록이 있는 로그 수 / 총 로그 수
+        // (단순 계산을 위해 중복을 포함한 동행 횟수 기반으로 처리)
+        const partners = Object.keys(connections);
+        const totalPartnerCount = Object.values(connections).reduce((a, b) => a + b, 0);
+        const synergyRate = Math.min(100, Math.round((totalPartnerCount / totalHikes) * 100));
+
+        // 4. 우정 콤비 찾기
+        let bestPartnerName = "없음";
+        let maxCount = 0;
+        for (const name in connections) {
+            if (connections[name] > maxCount) {
+                maxCount = connections[name];
+                bestPartnerName = name;
+            }
+        }
+
+        // 5. UI 업데이트
+        document.getElementById('synergyRate').innerText = `동행률 ${synergyRate}%`;
+        document.getElementById('socialRadius').innerText = `인연 ${partners.length}명`;
+        document.getElementById('bestPartner').innerText = maxCount > 0 ? `${bestPartnerName}(${maxCount}회)` : "없음";
+
+    } catch (e) {
+        console.error("인연의 숲 로딩 에러:", e);
+        alert("데이터를 분석하는 중 오류가 발생했습니다.");
+    }
+};
+
 window.showFadingScroll = async function(mId, dday, level = 0) {
     const modal = document.getElementById('scrollModal');
     const content = document.getElementById('scrollContent');
@@ -4732,36 +4721,27 @@ style="position:absolute; top:15px; right:15px; color:white; background:none; bo
     </div>
 </div>
 
-<div id="relationshipModal" class="relationship-overlay" onclick="this.style.display='none'">
-    <div class="relationship-card" onclick="event.stopPropagation()">
-        <div class="rel-header">
-            <span class="rel-subtitle">CONNECTION DENSITY</span>
-            <h3 class="rel-title">인연의 숲</h3>
+<div id="forestModal" class="forest-modal" onclick="this.style.display='none'">
+    <div class="forest-card" onclick="event.stopPropagation()">
+        <h3 class="forest-title">🌲 인연의 숲</h3>
+        
+        <div class="stat-box">
+            <span class="stat-label">동행 지수 (Synergy Rate)</span>
+            <div id="synergyRate" class="stat-value">계산 중...</div>
         </div>
         
-        <div class="rel-stats-grid">
-            <div class="rel-stat-item">
-                <span class="rel-label">동행 지수 (Synergy)</span>
-                <div class="rel-value-group">
-                    <span id="synergyRate" class="rel-value">0</span><span class="rel-unit">%</span>
-                </div>
-                <div class="rel-desc">혼자보다 함께일 때 빛나는 정도</div>
-            </div>
-            <div class="rel-stat-item">
-                <span class="rel-label">인연의 반경 (Radius)</span>
-                <div class="rel-value-group">
-                    <span id="socialRadius" class="rel-value">0</span><span class="rel-unit">명</span>
-                </div>
-                <div class="rel-desc">직접 연결된 고유 인연수</div>
-            </div>
+        <div class="stat-box">
+            <span class="stat-label">인연의 반경 (Social Radius)</span>
+            <div id="socialRadius" class="stat-value">계산 중...</div>
+        </div>
+        
+        <div class="stat-box">
+            <span class="stat-label">우정 콤비 (Best Partner)</span>
+            <div id="bestPartner" class="stat-value">계산 중...</div>
         </div>
 
-        <div class="best-partner-box">
-            <span class="rel-label">우정 콤비 (Best Partner)</span>
-            <div id="bestPartner" class="rel-partner-name">분석 중...</div>
-        </div>
-        
-        <button class="rel-close-btn" onclick="document.getElementById('relationshipModal').style.display='none'">&times;</button>
+        <button onclick="document.getElementById('forestModal').style.display='none'" 
+                style="width:100%; margin-top:15px; padding:10px; background:#2d4a2d; border:none; border-radius:8px; color:white; cursor:pointer;">닫기</button>
     </div>
 </div>
 
@@ -4965,5 +4945,6 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
     </html>
+    
     
     
