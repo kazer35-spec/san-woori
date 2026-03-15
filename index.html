@@ -13,48 +13,14 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-/* 인연의 숲 미니 팝업 스타일 */
-.affinity-forest-popup {
-    position: absolute;
-    z-index: 1000;
-    background: rgba(13, 17, 28, 0.95);
-    border: 1px solid rgba(59, 130, 246, 0.5);
-    border-radius: 12px;
-    padding: 15px;
-    width: 200px;
-    color: white;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-    backdrop-filter: blur(10px);
-    font-family: 'Pretendard', sans-serif;
-}
-
-.affinity-header {
-    font-size: 11px;
-    color: #60a5fa;
-    font-weight: 800;
-    margin-bottom: 8px;
-    border-bottom: 1px solid rgba(255,255,255,0.1);
-    padding-bottom: 5px;
-}
-
-.affinity-item {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 6px;
-    font-size: 12px;
-}
-
-.affinity-label { color: #94a3b8; }
-.affinity-value { font-weight: bold; color: #f8fafc; }
-
-.affinity-partner {
-    margin-top: 8px;
-    padding-top: 8px;
-    border-top: 1px dashed rgba(255,255,255,0.2);
-    text-align: center;
-    font-size: 11px;
-}
-.partner-nick { color: #fbbf24; font-weight: bold; }
+.forest-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); z-index: 10000; align-items: center; justify-content: center; }
+.forest-card { background: linear-gradient(135deg, #06160a 0%, #0c2a15 100%); width: 90%; max-width: 380px; padding: 25px; border-radius: 24px; border: 1px solid rgba(74, 222, 128, 0.2); position: relative; color: white; }
+.forest-title { font-size: 1.5rem; font-weight: 900; color: #4ade80; text-shadow: 0 0 10px rgba(74, 222, 128, 0.5); margin: 5px 0 20px; }
+.forest-label { font-size: 0.7rem; letter-spacing: 2px; color: #86efac; opacity: 0.8; }
+.stat-box { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 16px; margin-bottom: 12px; border-left: 4px solid #4ade80; }
+.stat-label { font-size: 0.75rem; color: #94a3b8; display: block; margin-bottom: 4px; }
+.stat-value { font-size: 1.1rem; font-weight: bold; color: #f8fafc; }
+.forest-close { position: absolute; top: 15px; right: 20px; background: none; border: none; color: white; font-size: 24px; cursor: pointer; }
 
 /* 연대기 레이아웃 */
 .chronicle-container {
@@ -2393,9 +2359,8 @@ overflow: hidden;
 <div class="flex items-center gap-1.5">
 <div id="passionVibeArea"></div>
 
-"<div id='friendshipPointArea' onclick=\"window.showAffinityForest(event, '" + m.id + "', '" + m.name + "', this)\" class='flex items-center h-[18px] text-[9px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100' style='cursor:pointer;'>" +
-"우정: " + m.friendshipPoint + "P</div>"
-
+<div id="friendshipPointArea" onclick="showForestOfFate()" class="cursor-pointer flex items-center h-[18px] text-[9px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+  💞 우정 <span id="memberFriendshipPoint" class="ml-1">0</span>P
 </div>
 </div>
 </div>
@@ -2582,7 +2547,6 @@ const levelThresholds = [
 { lv: 15, name: "🏔️ 설산" }, { lv: 10, name: "⛰️ 산" }, { lv: 5, name: "🌳 나무" },
 { lv: 3, name: "🌿 풀잎" }, { lv: 1, name: "🌱 새싹" }, { lv: 0, name: "🫘 신입" }
 ];
-
 
     const getLevelBadge = (lv) => { for (const t of levelThresholds) { if (lv >= t.lv) return t.name; } return "🫘 신입"; };
 
@@ -3732,7 +3696,7 @@ window.deleteMember = async () => {
     }
 };
 
-// 레벨 임의 수정 기능
+    // 레벨 임의 수정 기능
 window.updateManualLevel = async () => {
     // memberSelectEdit에서 선택된 회원 ID 가져오기
     const id = document.getElementById('memberSelectEdit').value; 
@@ -4874,64 +4838,97 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-window.showAffinityForest = async (event, mId, mName, element) => {
-    event.stopPropagation();
-    
-    // 이미 열려있다면 닫기
-    const existing = document.getElementById('affinityPopup');
-    if (existing) { existing.remove(); return; }
+<div id="forestModal" class="forest-overlay" onclick="this.style.display='none'">
+    <div class="forest-card" onclick="event.stopPropagation()">
+        <div class="forest-header">
+            <span class="forest-label">COMMUNITY NETWORK</span>
+            <h3 class="forest-title">인연의 숲</h3>
+        </div>
+        <div id="forestContent" class="forest-body">
+            </div>
+        <button onclick="document.getElementById('forestModal').style.display='none'" class="forest-close">&times;</button>
+    </div>
+</div>
+window.showForestOfFate = async (mId, mName) => {
+    const modal = document.getElementById('forestModal');
+    const content = document.getElementById('forestContent');
+    modal.style.display = 'flex';
+    content.innerHTML = "<p style='text-align:center; padding:20px;'>인연을 찾는 중...</p>";
 
-    // 1. 데이터 분석 (같은날/같은산 찾기)
-    let togetherCount = 0;
-    let partners = {}; // {닉네임: 횟수}
-    
-    // 현재 클릭한 멤버의 로그 가져오기
-    const myLogsSnap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
-    const myLogs = myLogsSnap.docs.map(d => ({...d.data(), dateStr: d.data().date?.toDate().toLocaleDateString()}));
-
-    // 전체 멤버 데이터(currentData) 순회하며 대조
-    for (const other of currentData) {
-        if (other.id === mId) continue;
+    try {
+        // 1. 모든 멤버의 로그 데이터를 가져오기 (비교용)
+        const allMembersLogs = {}; 
+        const membersSnap = await getDocs(collection(db, "sanwoori"));
         
-        // 다른 멤버의 로그와 날짜+산 이름이 겹치는지 확인 (이 로직은 데이터 양에 따라 최적화가 필요할 수 있음)
-        // 여기서는 우정 포인트 기반으로 가상의 "인연의 숲" 수치를 계산하는 안전한 로직을 적용합니다.
-        const score = other.friendshipPoint || 0; 
+        // 2. 현재 대상자의 로그 가져오기
+        const myLogsSnap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
+        const myLogs = myLogsSnap.docs.map(d => d.data());
+        
+        if (myLogs.length === 0) {
+            content.innerHTML = "아직 기록이 없어 인연의 숲이 조용합니다.";
+            return;
+        }
+
+        // 3. 인연 계산 알고리즘
+        let togetherCount = 0;
+        let partners = {}; // {닉네임: 함께간횟수}
+        
+        // 모든 멤버 순회하며 "같은 날 & 같은 산" 찾기
+        for (const memberDoc of membersSnap.docs) {
+            const otherId = memberDoc.id;
+            const otherName = memberDoc.data().name;
+            if (otherId === mId) continue; // 본인 제외
+
+            const otherLogsSnap = await getDocs(collection(db, `sanwoori/${otherId}/logs`));
+            otherLogsSnap.forEach(oloc => {
+                const oData = oloc.data();
+                myLogs.forEach(myData => {
+                    // 날짜와 산 이름이 같으면 동행으로 간주
+                    const isSameDay = myData.date?.toDate().toDateString() === oData.date?.toDate().toDateString();
+                    const isSameMt = myData.mountain === oData.mountain && myData.mountain !== "";
+                    
+                    if (isSameDay && isSameMt) {
+                        togetherCount++;
+                        partners[otherName] = (partners[otherName] || 0) + 1;
+                    }
+                });
+            });
+        }
+
+        // 4. 통계 계산
+        const synergyRate = ((togetherCount / myLogs.length) * 100).toFixed(1);
+        const socialRadius = Object.keys(partners).length;
+        const sortedPartners = Object.entries(partners).sort((a, b) => b[1] - a[1]);
+        const bestPartner = sortedPartners.length > 0 ? `${sortedPartners[0][0]} (${sortedPartners[0][1]}회)` : "아직 없음";
+
+        // 5. UI 출력
+        content.innerHTML = `
+            <div class="stat-box">
+                <span class="stat-label">동행 지수 (Synergy Rate)</span>
+                <span class="stat-value">${synergyRate}%</span>
+                <p style="font-size:0.65rem; color:#666; margin-top:5px;">전체 산행 중 동행과 함께한 비율입니다.</p>
+            </div>
+            <div class="stat-box">
+                <span class="stat-label">인연의 반경 (Social Radius)</span>
+                <span class="stat-value">${socialRadius} 명</span>
+                <p style="font-size:0.65rem; color:#666; margin-top:5px;">숲에서 직접 연결된 고유 인원수입니다.</p>
+            </div>
+            <div class="stat-box">
+                <span class="stat-label">우정 콤비 (Best Partner)</span>
+                <span class="stat-value">${bestPartner}</span>
+                <p style="font-size:0.65rem; color:#666; margin-top:5px;">가장 많은 시간을 공유한 소중한 인연입니다.</p>
+            </div>
+        `;
+
+    } catch (e) {
+        console.error(e);
+        content.innerHTML = "데이터를 불러오는 중 오류가 발생했습니다.";
     }
-
-    // 2. UI 생성 (클릭한 위치 바로 위에 생성)
-    const popup = document.createElement('div');
-    popup.id = 'affinityPopup';
-    popup.className = 'affinity-forest-popup'; // 위에서 드린 CSS 적용됨
-    
-    // 수치 계산 (샘플 데이터 기반)
-    const myInfo = currentData.find(m => m.id === mId);
-    const synergy = myInfo.qCount > 0 ? Math.min(100, Math.round((myInfo.friendshipPoint / 10 / myInfo.qCount) * 100)) : 0;
-    const radius = Math.floor(myInfo.friendshipPoint / 15) + 1;
-
-    popup.innerHTML = `
-        <div class="affinity-header">🌳 ${mName}님의 인연의 숲</div>
-        <div class="affinity-item"><span class="affinity-label">동행 지수</span><span class="affinity-value">${synergy}%</span></div>
-        <div class="affinity-item"><span class="affinity-label">인연의 반경</span><span class="affinity-value">${radius}명</span></div>
-        <div class="affinity-partner">가장 많이 함께한 분<br><span class="partner-nick" id="bestPartnerName">분석 중...</span></div>
-    `;
-
-    document.body.appendChild(popup);
-
-    // 3. 위치 계산 (클릭한 element 바로 위에 띄우기)
-    const rect = element.getBoundingClientRect();
-    popup.style.position = 'absolute';
-    popup.style.left = `${rect.left + window.scrollX - 50}px`; // 중앙 정렬을 위해 약간 왼쪽으로
-    popup.style.top = `${rect.top + window.scrollY - popup.offsetHeight - 10}px`;
-
-    // 바탕 클릭 시 닫기
-    setTimeout(() => {
-        window.onclick = () => { popup.remove(); window.onclick = null; };
-    }, 10);
 };
+
 
 </script>
 </body>
     </html>
-    
     
     
