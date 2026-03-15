@@ -13,59 +13,6 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-/* 인연의 숲 팝업 스타일 */
-.bond-popup {
-    position: absolute;
-    z-index: 10000;
-    background: rgba(15, 23, 42, 0.95); /* 어두운 네이비톤 */
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 16px;
-    padding: 15px;
-    width: 200px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.5), 0 0 15px rgba(59, 130, 246, 0.3);
-    color: white;
-    font-family: 'Pretendard', sans-serif;
-}
-
-.bond-title {
-    font-size: 11px;
-    color: #94a3b8;
-    margin-bottom: 8px;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
-
-.bond-stat-item {
-    margin-bottom: 10px;
-}
-
-.bond-label {
-    font-size: 10px;
-    color: #64748b;
-    display: block;
-}
-
-.bond-value {
-    font-size: 14px;
-    font-weight: 800;
-    color: #f8fafc;
-}
-
-.bond-highlight {
-    color: #3b82f6; /* 강조색 블루 */
-}
-
-.bond-close {
-    position: absolute;
-    top: 8px;
-    right: 10px;
-    cursor: pointer;
-    color: #475569;
-}
-
-
 /* 연대기 레이아웃 */
 .chronicle-container {
     margin-top: 15px;
@@ -1335,7 +1282,7 @@ position: fixed; top: 0; left: 0; width: 100%; height: 100%;
 background: rgba(0,0,0,0.85); display: none; justify-content: center; align-items: center; z-index: 9999;
 }
 
-    .fading-scroll {
+.fading-scroll {
 font-family: 'ChosunGu', 'Nanum Myeongjo', serif;
 background: #f4e4bc;
 background-image: url("https://www.transparenttextures.com/patterns/handmade-paper.png");
@@ -2403,10 +2350,8 @@ overflow: hidden;
 <div class="flex items-center gap-1.5">
 <div id="passionVibeArea"></div>
 
-<div id="friendshipPointArea" 
-     onclick="showBondForest(event)" 
-     class="flex items-center h-[18px] text-[9px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100 cursor-pointer hover:bg-blue-100 transition-colors">
-    💞 우정 <span id="memberFriendshipPoint" class="ml-1">0</span>P
+<div id="friendshipPointArea" class="flex items-center h-[18px] text-[9px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+💞 우정 <span id="memberFriendshipPoint" class="ml-1">0</span>P
 </div>
 </div>
 </div>
@@ -2594,8 +2539,7 @@ const levelThresholds = [
 { lv: 3, name: "🌿 풀잎" }, { lv: 1, name: "🌱 새싹" }, { lv: 0, name: "🫘 신입" }
 ];
 
-
-    const getLevelBadge = (lv) => { for (const t of levelThresholds) { if (lv >= t.lv) return t.name; } return "🫘 신입"; };
+const getLevelBadge = (lv) => { for (const t of levelThresholds) { if (lv >= t.lv) return t.name; } return "🫘 신입"; };
 
 const getLevelStyle = (lv) => {
 if (lv >= 100) return { bg: '#fee2e2', border: '#ef4444', text: '#991b1b', blink: 'level-blink-red' };
@@ -2767,8 +2711,9 @@ ${clickTag}
 
 <div class="flex flex-col items-center justify-center">
 ${rankT ? `<span class="rank-badge ${rankC}" style="margin-bottom: 2px;">${rankT}</span>` : ''}
-<span class="font-bold ${nameColor} cursor-pointer hover:underline" onclick="window.currentMemberId='${m.id}'; showMemberMountain('${m.id}', '${m.name}')">
-    ${m.name}
+<span class="font-bold ${nameColor} cursor-pointer hover:underline"
+onclick="showMemberMountain('${m.id}', '${m.name}')">
+${m.name}
 </span>
 </div>
 </td>
@@ -4884,71 +4829,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-window.showBondForest = async (event) => {
-    event.stopPropagation();
-    
-    // 방금 클릭해서 저장된 ID를 가져옵니다.
-    const mId = window.currentMemberId; 
-    if (!mId) {
-        alert("멤버 정보를 찾을 수 없습니다.");
-        return;
-    }
-
-    // 팝업 생성
-    const oldPopup = document.getElementById('bondPopup');
-    if (oldPopup) oldPopup.remove();
-
-    const popup = document.createElement('div');
-    popup.id = 'bondPopup';
-    popup.className = 'bond-popup'; // 이전에 드린 CSS가 적용됩니다.
-    document.body.appendChild(popup);
-
-    // 위치 설정 (클릭한 우정 포인트 버튼 아래)
-    const rect = event.currentTarget.getBoundingClientRect();
-    popup.style.left = `${rect.left}px`;
-    popup.style.top = `${rect.bottom + window.scrollY + 5}px`;
-
-    popup.innerHTML = `<div class="text-[10px] text-blue-400 animate-pulse">인연 분석 중...</div>`;
-
-    try {
-        // 내 산행 기록 가져오기
-        const myLogsSnap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
-        const myLogs = myLogsSnap.docs.map(d => ({
-            date: d.data().date?.toDate().toLocaleDateString(),
-            mt: d.data().mountain
-        })).filter(l => l.mt);
-
-        // 수치 계산 (동행률, 인연 수)
-        const totalHikes = myLogs.length;
-        const synergyRate = totalHikes > 0 ? Math.floor(Math.random() * 10) + 80 : 0; 
-        const socialRadius = totalHikes > 0 ? Math.floor(totalHikes * 0.5) + 2 : 0;
-
-        // 팝업 내용 렌더링
-        popup.innerHTML = `
-            <div class="bond-header">
-                <span>IN-YEON FOREST</span>
-                <span onclick="this.parentElement.parentElement.remove()" class="cursor-pointer text-gray-500 hover:text-white">×</span>
-            </div>
-            <div class="bond-row">
-                <span class="bond-label">동행 지수 (Synergy Rate)</span>
-                <div class="bond-value">동행률 <span class="bond-highlight">${synergyRate}%</span></div>
-            </div>
-            <div class="bond-row">
-                <span class="bond-label">인연의 반경 (Social Radius)</span>
-                <div class="bond-value">총 <span class="bond-highlight">${socialRadius}명</span>의 인연</div>
-            </div>
-            <div class="bond-divider"></div>
-            <div class="text-[10px] text-yellow-500/80">🏅 콤비: 집계 중...</div>
-        `;
-    } catch (e) {
-        console.error(e);
-        popup.innerHTML = `<div class="text-[10px] text-red-400">로드 실패</div>`;
-    }
-};
-
 </script>
 </body>
     </html>
-    
     
     
