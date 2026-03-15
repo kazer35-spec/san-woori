@@ -2542,7 +2542,8 @@ const levelThresholds = [
 { lv: 3, name: "🌿 풀잎" }, { lv: 1, name: "🌱 새싹" }, { lv: 0, name: "🫘 신입" }
 ];
 
-const getLevelBadge = (lv) => { for (const t of levelThresholds) { if (lv >= t.lv) return t.name; } return "🫘 신입"; };
+
+    const getLevelBadge = (lv) => { for (const t of levelThresholds) { if (lv >= t.lv) return t.name; } return "🫘 신입"; };
 
 const getLevelStyle = (lv) => {
 if (lv >= 100) return { bg: '#fee2e2', border: '#ef4444', text: '#991b1b', blink: 'level-blink-red' };
@@ -4665,6 +4666,8 @@ style="position:absolute; top:15px; right:15px; color:white; background:none; bo
         <button onclick="document.getElementById('bondForestPopup').classList.add('hidden')" style="background:none; border:none; color:#94a3b8; font-size:11px; cursor:pointer;">[닫기]</button>
     </div>
 </div>
+<div id="grassArea" style="position: relative; width: 100%;">
+    </div>
 
 <script>
    // --- 잔디 상세 팝업 및 이벤트 제어 (통합본) ---
@@ -4737,6 +4740,88 @@ document.addEventListener('touchstart', (e) => {
         popup.style.display = 'none';
     }
 }, { passive: true });
+
+window.showBondForest = async (event, mId, mName) => {
+    if (event) event.stopPropagation();
+
+    const popup = document.getElementById('bondForestPopup');
+    const grassArea = document.getElementById('grassArea'); 
+
+    if (!popup) return;
+
+    popup.classList.remove('hidden');
+    popup.style.display = 'block';
+    popup.style.position = 'fixed';
+    popup.style.zIndex = '9999999';
+
+    // 잔디창(grassArea) 위치를 찾아서 그 위로 팝업을 보냄
+    if (grassArea) {
+        const rect = grassArea.getBoundingClientRect();
+        // 잔디 영역 중앙 위쪽에 배치
+        popup.style.left = `${rect.left + (rect.width / 2) - 110}px`;
+        popup.style.top = `${rect.top - 10}px`; 
+    }
+
+    // 데이터 계산 로직 (기존과 동일)
+    document.getElementById('bestPartner').innerText = "분석 중...";
+
+    try {
+        let myLogs = [];
+        let allOtherLogs = [];
+
+        const mySnap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
+        mySnap.forEach(doc => myLogs.push(doc.data()));
+
+        if (window.currentData) {
+            for (const member of window.currentData) {
+                if (member.id === mId) continue;
+                const otherSnap = await getDocs(collection(db, `sanwoori/${member.id}/logs`));
+                otherSnap.forEach(doc => {
+                    allOtherLogs.push({ ...doc.data(), ownerName: member.name });
+                });
+            }
+        }
+
+        let bondCount = 0;
+        let metPeople = new Set();
+        let partnerMap = {};
+
+        myLogs.forEach(myLog => {
+            if (!myLog.date || !myLog.mountain) return;
+            const myDate = myLog.date.toDate().toLocaleDateString();
+            const companions = allOtherLogs.filter(otherLog => {
+                if (!otherLog.date) return false;
+                return otherLog.date.toDate().toLocaleDateString() === myDate && 
+                       otherLog.mountain === myLog.mountain;
+            });
+            if (companions.length > 0) {
+                bondCount++;
+                companions.forEach(c => {
+                    metPeople.add(c.ownerName);
+                    partnerMap[c.ownerName] = (partnerMap[c.ownerName] || 0) + 1;
+                });
+            }
+        });
+
+        const total = myLogs.length;
+        const synergy = total > 0 ? Math.round((bondCount / total) * 100) : 0;
+        document.getElementById('synergyRate').innerText = `${synergy}%`;
+        document.getElementById('synergyBar').style.width = `${synergy}%`;
+        document.getElementById('socialRadius').innerText = `${metPeople.size}명`;
+
+        let bestName = "-";
+        let maxVal = 0;
+        for (const name in partnerMap) {
+            if (partnerMap[name] > maxVal) {
+                maxVal = partnerMap[name];
+                bestName = name;
+            }
+        }
+        document.getElementById('bestPartner').innerText = maxVal > 0 ? `${bestName} (${maxVal}회)` : "기록 없음";
+    } catch (e) {
+        console.error(e);
+    }
+};
 
 // [기존 코드 유지] 모달 제어 및 텍스트 조립 로직
 window.toggleNoticeModal = (show) => {
@@ -4858,98 +4943,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-window.showBondForest = async (event, mId, mName) => {
-    if (event) event.stopPropagation();
-
-    // 1. 팝업 요소들 가져오기
-    const popup = document.getElementById('bondForestPopup');
-    const synergyRateEl = document.getElementById('synergyRate');
-    const synergyBar = document.getElementById('synergyBar');
-    const socialRadiusEl = document.getElementById('socialRadius');
-    const bestPartnerEl = document.getElementById('bestPartner');
-
-    if (!popup) return alert("팝업 HTML 코드가 없습니다. 위치를 확인해주세요.");
-
-    // 2. 팝업 표시 및 위치 잡기
-    popup.classList.remove('hidden');
-    popup.style.display = 'block'; // 확실하게 보이게 설정
-    
-    const clientX = event.touches ? event.touches[0].clientX : event.clientX;
-    const clientY = event.touches ? event.touches[0].clientY : event.clientY;
-    popup.style.left = `${Math.min(clientX + 10, window.innerWidth - 240)}px`;
-    popup.style.top = `${Math.max(clientY - 150, 10)}px`;
-
-    // 로딩 표시
-    bestPartnerEl.innerText = "계산 중...";
-
-    try {
-        let myLogs = [];
-        let allOtherLogs = [];
-
-        // 내 로그 가져오기
-        const mySnap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
-        mySnap.forEach(doc => myLogs.push(doc.data()));
-
-        // 다른 모든 멤버 로그 한 번에 대조 (currentData 활용)
-        for (const member of window.currentData || []) {
-            if (member.id === mId) continue;
-            const otherSnap = await getDocs(collection(db, `sanwoori/${member.id}/logs`));
-            otherSnap.forEach(doc => {
-                allOtherLogs.push({ ...doc.data(), ownerName: member.name });
-            });
-        }
-
-        let bondCount = 0;
-        let metPeople = new Set();
-        let partnerMap = {};
-
-        myLogs.forEach(myLog => {
-            if(!myLog.date || !myLog.mountain) return;
-            const myDate = myLog.date.toDate().toLocaleDateString();
-            const myMt = myLog.mountain;
-            
-            const companions = allOtherLogs.filter(otherLog => {
-                if(!otherLog.date) return false;
-                const otherDate = otherLog.date.toDate().toLocaleDateString();
-                return otherDate === myDate && otherLog.mountain === myMt;
-            });
-
-            if (companions.length > 0) {
-                bondCount++;
-                companions.forEach(c => {
-                    metPeople.add(c.ownerName);
-                    partnerMap[c.ownerName] = (partnerMap[c.ownerName] || 0) + 1;
-                });
-            }
-        });
-
-        const total = myLogs.length;
-        const synergy = total > 0 ? Math.round((bondCount / total) * 100) : 0;
-        
-        synergyRateEl.innerText = `${synergy}%`;
-        synergyBar.style.width = `${synergy}%`;
-        socialRadiusEl.innerText = `${metPeople.size}명`;
-
-        let bestName = "-";
-        let maxVal = 0;
-        for (const name in partnerMap) {
-            if (partnerMap[name] > maxVal) {
-                maxVal = partnerMap[name];
-                bestName = name;
-            }
-        }
-        bestPartnerEl.innerText = maxVal > 0 ? `${bestName} (${maxVal}회)` : "아직 없어요";
-
-    } catch (e) {
-        console.error("에러 발생:", e);
-        bestPartnerEl.innerText = "데이터 로드 실패";
-    }
-};
-
 </script>
 </body>
     </html>
-    
     
     
     
