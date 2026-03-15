@@ -2239,24 +2239,14 @@ overflow: hidden;
 <button onclick="addMultiActivity()" class="btn-submit bg-blue-500 mt-0">기록 저장하기</button>
 </div>
 
-<div class="card" style="background-color: #fffdf0; border-color: #fef3c7; margin-bottom: 15px;">
-    <div class="card-title text-yellow-700 font-bold">✏️ 기록 수정 및 레벨 관리</div>
-    
-    <select id="memberSelectEdit" onchange="loadMemberLogs()" class="input-gap">
-        <option value="">대상 회원 선택</option>
-    </select>
-
-    <div class="flex gap-2 mb-3">
-        <input type="text" id="editMemberNameInput" placeholder="변경할 이름 입력" class="h-10 text-sm flex-1 border rounded-xl px-3 outline-none">
-        <button onclick="updateMemberName()" class="bg-indigo-500 text-white px-3 rounded-xl text-xs font-bold whitespace-nowrap">이름 수정</button>
-    </div>
-
-    <div class="flex gap-2 mb-3">
-        <input type="number" id="manualLevelInput" placeholder="레벨(Lv) 입력" class="h-10 text-sm flex-1 border rounded-xl px-3 outline-none">
-        <button onclick="window.updateManualLevel()" class="bg-indigo-500 text-white px-3 rounded-xl text-xs font-bold whitespace-nowrap">레벨 적용</button>
-    </div>
-
-    <div id="logListArea" class="log-grid"></div>
+<div class="card" style="background-color: #fffdf0; border-color: #fef3c7;">
+<div class="card-title text-yellow-700 font-bold">✏️ 기록 수정 및 레벨 관리</div>
+<select id="memberSelectEdit" onchange="loadMemberLogs()" class="input-gap"><option value="">대상 회원 선택</option></select>
+<div class="flex gap-2 mb-3">
+<input type="text" id="editMemberNameInput" placeholder="변경할 이름 입력" class="h-10 text-sm flex-1 border rounded-xl px-3 outline-none">
+<button onclick="updateMemberName()" class="bg-indigo-500 text-white px-3 rounded-xl text-xs font-bold whitespace-nowrap">이름 수정</button>
+</div>
+<div id="logListArea" class="log-grid"></div>
 </div>
 
 <div class="card" style="background-color: #fff5f5; border-color: #fee2e2;">
@@ -4463,6 +4453,60 @@ setTimeout(() => s.remove(), 500);
 }, 850);
 }
 
+window.showSocialForest = async (mId, mName) => {
+    const modal = document.getElementById('socialForestModal');
+    modal.style.display = 'flex';
+
+    try {
+        const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
+        const logs = snap.docs.map(doc => doc.data());
+
+        let soloCount = 0;
+        let withCount = 0;
+        let partners = {};
+        let uniquePeers = new Set();
+
+        logs.forEach(log => {
+            // 동행자가 있는지 확인 (with/peers 필드가 있다고 가정)
+            if (log.with || (log.peers && log.peers.length > 0)) {
+                withCount++;
+                const peerList = log.with ? log.with.split(',') : (log.peers || []);
+                peerList.forEach(p => {
+                    const name = p.trim();
+                    if(name) {
+                        partners[name] = (partners[name] || 0) + 1;
+                        uniquePeers.add(name);
+                    }
+                });
+            } else {
+                soloCount++;
+            }
+        });
+
+        const total = soloCount + withCount;
+        const synergyRate = total > 0 ? Math.round((withCount / total) * 100) : 0;
+
+        // 베스트 파트너 찾기
+        let bestName = "없음";
+        let maxVal = 0;
+        for (const [name, count] of Object.entries(partners)) {
+            if (count > maxVal) {
+                maxVal = count;
+                bestName = name;
+            }
+        }
+
+        // 화면 업데이트
+        document.getElementById('socialSynergy').innerText = `동행률 ${synergyRate}%`;
+        document.getElementById('socialRadius').innerText = `인연 ${uniquePeers.size}명`;
+        document.getElementById('socialPartner').innerText = maxVal > 0 ? `${bestName}(${maxVal}회)` : "없음";
+
+    } catch (e) {
+        console.error("인연의 숲 로딩 에러:", e);
+        alert("데이터를 불러오는 중 오류가 발생했습니다.");
+    }
+};
+
 window.showFadingScroll = async function(mId, dday, level = 0) {
     const modal = document.getElementById('scrollModal');
     const content = document.getElementById('scrollContent');
@@ -4633,6 +4677,29 @@ style="position:absolute; top:15px; right:15px; color:white; background:none; bo
     
     <p class="ancient-signature">San:woori Management</p>
 
+    </div>
+</div>
+
+​<div id="socialForestModal" class="social-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:100000; justify-content:center; align-items:center;" onclick="this.style.display='none'">
+    <div class="social-forest-card" style="background:#1a1c2c; border:1px solid #4a5568; padding:25px; border-radius:20px; width:90%; max-width:320px; position:relative; color:white; text-align:center;" onclick="event.stopPropagation()">
+        <h3 style="color:#a78bfa; font-size:1.1rem; margin-bottom:5px; font-weight:900; letter-spacing:1px;">인연의 숲 미리보기</h3>
+        <p style="color:#718096; font-size:0.7rem; margin-bottom:20px;">커뮤니티 연결 밀도 통계</p>
+        
+        <div style="display:flex; flex-direction:column; gap:12px; text-align:left;">
+            <div style="background:rgba(255,255,255,0.05); padding:12px; border-radius:12px;">
+                <span style="font-size:0.75rem; color:#94a3b8;">🤝 동행 지수 (Synergy Rate)</span>
+                <div style="font-size:1.1rem; font-weight:bold; margin-top:4px;" id="socialSynergy">0%</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.05); padding:12px; border-radius:12px;">
+                <span style="font-size:0.75rem; color:#94a3b8;">✨ 인연의 반경 (Social Radius)</span>
+                <div style="font-size:1.1rem; font-weight:bold; margin-top:4px;" id="socialRadius">0명</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.05); padding:12px; border-radius:12px;">
+                <span style="font-size:0.75rem; color:#94a3b8;">🔥 우정 콤비 (Best Partner)</span>
+                <div style="font-size:1.1rem; font-weight:bold; margin-top:4px; color:#fbbf24;" id="socialPartner">-</div>
+            </div>
+        </div>
+        <button onclick="document.getElementById('socialForestModal').style.display='none'" style="margin-top:20px; background:none; border:1px solid #4a5568; color:#94a3b8; padding:8px 20px; border-radius:10px; font-size:0.8rem; cursor:pointer;">닫기</button>
     </div>
 </div>
 
