@@ -4849,44 +4849,51 @@ document.addEventListener('DOMContentLoaded', () => {
         <button onclick="document.getElementById('forestModal').style.display='none'" class="forest-close">&times;</button>
     </div>
 </div>
-window.showForestOfFate = async (mId, mName) => {
+
+window.showForestOfFate = async () => {
+    // 1. 현재 화면(관리자 창 등)에서 선택된 멤버의 ID를 가져옵니다.
+    // 보통 select 박스의 id가 'memberSelectEdit'인 경우가 많으므로 이를 먼저 확인합니다.
+    const mId = document.getElementById('memberSelectEdit')?.value;
+    
+    if (!mId) {
+        alert("회원 정보가 로드되지 않았습니다. 회원을 먼저 선택한 후 클릭해주세요.");
+        return;
+    }
+
     const modal = document.getElementById('forestModal');
     const content = document.getElementById('forestContent');
+    
+    // 모달 띄우기
     modal.style.display = 'flex';
-    content.innerHTML = "<p style='text-align:center; padding:20px;'>인연을 찾는 중...</p>";
+    content.innerHTML = `<div class="forest-loading">숲속에서 인연을 찾는 중...</div>`;
 
     try {
-        // 1. 모든 멤버의 로그 데이터를 가져오기 (비교용)
-        const allMembersLogs = {}; 
-        const membersSnap = await getDocs(collection(db, "sanwoori"));
-        
-        // 2. 현재 대상자의 로그 가져오기
+        // 내 기록 가져오기
         const myLogsSnap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
-        const myLogs = myLogsSnap.docs.map(d => d.data());
+        const myLogs = myLogsSnap.docs.map(d => d.data()).filter(l => l.date && l.mountain);
         
         if (myLogs.length === 0) {
-            content.innerHTML = "아직 기록이 없어 인연의 숲이 조용합니다.";
+            content.innerHTML = `<div class="forest-loading" style="color:#94a3b8">아직 기록된 산행이 없어<br>인연의 숲이 고요합니다.</div>`;
             return;
         }
 
-        // 3. 인연 계산 알고리즘
+        // 전체 멤버 목록 가져오기 (변수 의존성 제거를 위해 직접 호출)
+        const allMembersSnap = await getDocs(collection(db, "sanwoori"));
         let togetherCount = 0;
-        let partners = {}; // {닉네임: 함께간횟수}
-        
-        // 모든 멤버 순회하며 "같은 날 & 같은 산" 찾기
-        for (const memberDoc of membersSnap.docs) {
+        let partners = {}; 
+
+        // 비교 로직 실행
+        for (const memberDoc of allMembersSnap.docs) {
             const otherId = memberDoc.id;
+            if (otherId === mId) continue;
             const otherName = memberDoc.data().name;
-            if (otherId === mId) continue; // 본인 제외
 
             const otherLogsSnap = await getDocs(collection(db, `sanwoori/${otherId}/logs`));
             otherLogsSnap.forEach(oloc => {
                 const oData = oloc.data();
                 myLogs.forEach(myData => {
-                    // 날짜와 산 이름이 같으면 동행으로 간주
                     const isSameDay = myData.date?.toDate().toDateString() === oData.date?.toDate().toDateString();
-                    const isSameMt = myData.mountain === oData.mountain && myData.mountain !== "";
-                    
+                    const isSameMt = myData.mountain === oData.mountain;
                     if (isSameDay && isSameMt) {
                         togetherCount++;
                         partners[otherName] = (partners[otherName] || 0) + 1;
@@ -4895,37 +4902,34 @@ window.showForestOfFate = async (mId, mName) => {
             });
         }
 
-        // 4. 통계 계산
+        // 통계 계산
         const synergyRate = ((togetherCount / myLogs.length) * 100).toFixed(1);
         const socialRadius = Object.keys(partners).length;
-        const sortedPartners = Object.entries(partners).sort((a, b) => b[1] - a[1]);
-        const bestPartner = sortedPartners.length > 0 ? `${sortedPartners[0][0]} (${sortedPartners[0][1]}회)` : "아직 없음";
+        const sorted = Object.entries(partners).sort((a, b) => b[1] - a[1]);
+        const bestPartner = sorted.length > 0 ? `${sorted[0][0]} (${sorted[0][1]}회)` : "없음";
 
-        // 5. UI 출력
+        // 결과 출력
         content.innerHTML = `
-            <div class="stat-box">
-                <span class="stat-label">동행 지수 (Synergy Rate)</span>
-                <span class="stat-value">${synergyRate}%</span>
-                <p style="font-size:0.65rem; color:#666; margin-top:5px;">전체 산행 중 동행과 함께한 비율입니다.</p>
-            </div>
-            <div class="stat-box">
-                <span class="stat-label">인연의 반경 (Social Radius)</span>
-                <span class="stat-value">${socialRadius} 명</span>
-                <p style="font-size:0.65rem; color:#666; margin-top:5px;">숲에서 직접 연결된 고유 인원수입니다.</p>
-            </div>
-            <div class="stat-box">
-                <span class="stat-label">우정 콤비 (Best Partner)</span>
-                <span class="stat-value">${bestPartner}</span>
-                <p style="font-size:0.65rem; color:#666; margin-top:5px;">가장 많은 시간을 공유한 소중한 인연입니다.</p>
+            <div class="forest-stat-grid">
+                <div class="stat-item">
+                    <span class="stat-label">동행 지수 (Synergy Rate)</span>
+                    <div class="stat-value">⚡ ${synergyRate}%</div>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">인연의 반경 (Social Radius)</span>
+                    <div class="stat-value">🌐 ${socialRadius} 명</div>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">우정 콤비 (Best Partner)</span>
+                    <div class="stat-value">🤝 ${bestPartner}</div>
+                </div>
             </div>
         `;
-
     } catch (e) {
-        console.error(e);
-        content.innerHTML = "데이터를 불러오는 중 오류가 발생했습니다.";
+        console.error("인연의 숲 에러:", e);
+        content.innerHTML = `<div class="forest-loading">데이터 호출 중 오류가 발생했습니다.<br>콘솔창을 확인해주세요.</div>`;
     }
 };
-
 
 </script>
 </body>
