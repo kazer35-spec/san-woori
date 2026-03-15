@@ -4906,65 +4906,64 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-window.openSocialForest = async (el) => {
+window.openSocialForest = async (event, el) => {
+    // 1. 부모 클릭 시 이벤트가 위로 퍼져서 창이 바로 닫히는 것 방지
+    if (event) event.stopPropagation();
+
     const popup = el.querySelector('#socialForestWindow');
     if (!popup) return;
 
-    // 팝업 열기
+    // 2. 이미 열려있다면 닫기 (토글 기능)
+    if (popup.style.display === 'flex' || popup.style.display === 'block') {
+        popup.style.display = 'none';
+        return;
+    }
+
+    // 3. 팝업 열기
     popup.style.display = 'flex';
 
-    // 현재 선택된 멤버의 ID를 가져옵니다. (기존 전역변수 window.currentMemberId 활용)
+    // 4. 멤버 ID 확인 (전역 변수 체크)
     const mId = window.currentMemberId; 
+    if (!mId) {
+        document.getElementById('forestBestPartner').innerText = "회원 선택 필요";
+        return;
+    }
+
     const mName = document.getElementById('mwMemberName')?.innerText.replace('님의 은하수', '') || "";
 
     try {
-        // 1. 내 로그 가져오기
+        // 분석 중 표시
+        document.getElementById('forestBestPartner').innerText = "분석 중...";
+
         const myLogsSnap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
         const myLogs = myLogsSnap.docs.map(d => d.data());
 
-        // 2. 동행 분석 (같은 날, 같은 산)
-        let companionMap = {}; // {이름: 횟수}
         let totalHikes = myLogs.length;
         let groupHikes = 0;
 
-        // 전체 멤버 데이터 순회 (관리자 페이지에 이미 로드된 currentData 활용)
+        // 동행 분석 로직 (기존 유지)
         for (const log of myLogs) {
-            const myDate = log.date.toDate().toLocaleDateString();
-            const myMountain = log.mountain;
-            let isTogether = false;
-
-            // 다른 멤버들의 'qCount'가 있는 경우만 비교 (성능 최적화)
-            currentData.forEach(other => {
-                if (other.id === mId) return;
-                
-                // 참고: 실제로는 other의 로그를 하나씩 다 비교해야 정확하지만, 
-                // 여기서는 '동행 기록'이 있다고 가정된 로그(isRegular 등)를 기반으로 시뮬레이션합니다.
-                if (log.isRegular || log.fPoint > 0) { 
-                    isTogether = true;
-                    // 가상의 동행자 처리 (실제 매칭 로직은 DB 구조에 따라 확장 가능)
-                }
-            });
-
-            if (isTogether) groupHikes++;
+            if (log.isRegular || (log.fPoint && log.fPoint > 0)) { 
+                groupHikes++;
+            }
         }
 
-        // 3. 지표 계산
         const synergyRate = totalHikes > 0 ? Math.floor((groupHikes / totalHikes) * 100) : 0;
         
-        // UI 반영
         document.getElementById('forestSynergy').innerText = `${synergyRate}%`;
-        document.getElementById('forestRadius').innerText = `${Math.floor(synergyRate/10) + 1}명`; // 예시 로직
+        document.getElementById('forestRadius').innerText = `${Math.floor(synergyRate/10) + 1}명`;
         
-        // 콤비 데이터 (우정 점수 기반 가장 높은 사람 혹은 랜덤 추출)
-        const partners = ["아랑", "용삼", "우진", "민서"]; // 실제 데이터 부재 시 예시
+        // 파트너 데이터 예시 (currentData 기반으로 확장 가능)
+        const partners = ["아랑", "용삼", "우진", "민서"];
         const randomPartner = partners[Math.floor(Math.random() * partners.length)];
         document.getElementById('forestBestPartner').innerText = `${randomPartner} (${groupHikes}회)`;
 
     } catch (e) {
         console.error("인연의 숲 분석 에러:", e);
-        document.getElementById('forestBestPartner').innerText = "데이터 분석 실패";
+        document.getElementById('forestBestPartner').innerText = "데이터 오류";
     }
 };
+
 
 </script>
 </body>
