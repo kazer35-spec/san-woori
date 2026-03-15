@@ -4458,70 +4458,75 @@ setTimeout(() => s.remove(), 500);
 }, 850);
 }
 
-window.showSocialForest = async (mId) => {
+window.showSocialForestByName = async (targetName) => {
     const modal = document.getElementById('socialForestModal');
     modal.style.display = 'flex';
 
-    // 팝업 내부 텍스트 초기화
-    document.getElementById('socialSynergy').innerText = "전체 대조 중...";
+    document.getElementById('socialSynergy').innerText = "이름 대조 중...";
     document.getElementById('socialRadius').innerText = "인연 찾는 중...";
-    document.getElementById('socialPartner').innerText = "분석 중...";
+    document.getElementById('socialPartner').innerText = "기록 분석 중...";
 
     try {
-        // 1. 모든 멤버의 이름 정보 로드
+        // 1. 이름으로 해당 회원의 ID 찾기
         const allMembersSnap = await getDocs(collection(db, "sanwoori"));
-        const memberNames = {};
-        allMembersSnap.forEach(doc => { memberNames[doc.id] = doc.data().name; });
+        let targetId = null;
+        const memberMap = {}; // ID -> 이름 매핑
 
-        // 2. 현재 대상자의 산행 로그 로드
-        const myLogsSnap = await getDocs(collection(db, "sanwoori", mId, "logs"));
+        allMembersSnap.forEach(doc => {
+            const data = doc.data();
+            memberMap[doc.id] = data.name;
+            if (data.name === targetName) targetId = doc.id;
+        });
+
+        if (!targetId) throw new Error("회원 ID를 찾을 수 없습니다.");
+
+        // 2. 대상 회원의 로그 가져오기
+        const myLogsSnap = await getDocs(collection(db, "sanwoori", targetId, "logs"));
         const myLogs = myLogsSnap.docs.map(doc => doc.data());
 
         if (myLogs.length === 0) {
             document.getElementById('socialSynergy').innerText = "기록 없음";
             document.getElementById('socialRadius').innerText = "0명";
-            document.getElementById('socialPartner').innerText = "데이터 없음";
+            document.getElementById('socialPartner').innerText = "데이터 부족";
             return;
         }
 
         let partners = {}; 
         let uniquePeers = new Set();
-        let totalTogether = 0;
+        let matchCount = 0;
 
-        // 3. 모든 멤버와 "날짜 + 산" 일치 여부 대조 (자동 동기화)
-        for (const otherId of Object.keys(memberNames)) {
-            if (otherId === mId) continue; // 본인 제외
+        // 3. 전체 로그 자동 대조 (같은 날 + 같은 산)
+        for (const otherId of Object.keys(memberMap)) {
+            if (otherId === targetId) continue;
 
             const otherLogsSnap = await getDocs(collection(db, "sanwoori", otherId, "logs"));
             otherLogsSnap.forEach(doc => {
                 const otherLog = doc.data();
                 myLogs.forEach(myLog => {
-                    // 날짜(YYYY-MM-DD)와 산 이름이 같으면 같이 간 것으로 인정
-                    const myDate = myLog.date?.substring(0, 10);
-                    const otherDate = otherLog.date?.substring(0, 10);
-                    
-                    if (myDate === otherDate && myLog.mountain === otherLog.mountain) {
-                        const peerName = memberNames[otherId];
-                        partners[peerName] = (partners[peerName] || 0) + 1;
-                        uniquePeers.add(peerName);
-                        totalTogether++;
+                    // YYYY-MM-DD 날짜와 산 이름이 같으면 같이 간 것으로 간주
+                    const myD = myLog.date?.substring(0, 10);
+                    const otherD = otherLog.date?.substring(0, 10);
+                    if (myD === otherD && myLog.mountain === otherLog.mountain) {
+                        const name = memberMap[otherId];
+                        partners[name] = (partners[name] || 0) + 1;
+                        uniquePeers.add(name);
+                        matchCount++;
                     }
                 });
             });
         }
 
-        // 4. 결과 도출
-        const synergy = Math.min(100, Math.round((totalTogether / myLogs.length) * 100));
-        let best = Object.entries(partners).sort((a,b) => b[1] - a[1])[0];
+        // 4. 수치 출력
+        const synergy = Math.min(100, Math.round((matchCount / myLogs.length) * 100));
+        let best = Object.entries(partners).sort((a, b) => b[1] - a[1])[0];
 
-        // 5. 화면에 출력
         document.getElementById('socialSynergy').innerText = `동행률 ${synergy}%`;
         document.getElementById('socialRadius').innerText = `인연 ${uniquePeers.size}명`;
         document.getElementById('socialPartner').innerText = best ? `${best[0]}(${best[1]}회)` : "아직 없음";
 
     } catch (e) {
-        console.error("인연의 숲 분석 에러:", e);
-        alert("데이터 분석 중 오류가 발생했습니다.");
+        console.error(e);
+        alert("분석 중 오류가 발생했습니다: " + e.message);
     }
 };
 
