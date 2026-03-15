@@ -2994,27 +2994,37 @@ window.showForestOfDestiny = async (mId, mName) => {
     content.innerHTML = `<p style="text-align:center; font-size:0.9rem; color:#81c784;">${mName}님의 인연을 찾는 중...</p>`;
 
     try {
-        // 1. 나의 전체 로그 가져오기
-        const myLogsSnap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
+        // 1. 나의 "이번 분기" 로그만 가져오기 (전체 로그보다 훨씬 빠름)
+        const start = Timestamp.fromDate(new Date(selectedYear, (selectedQuarter - 1) * 3, 1));
+        const end = Timestamp.fromDate(new Date(selectedYear, selectedQuarter * 3, 1));
+        
+        const myLogsSnap = await getDocs(query(
+            collection(db, `sanwoori/${mId}/logs`),
+            where("date", ">=", start),
+            where("date", "<", end)
+        ));
         const myLogs = myLogsSnap.docs.map(d => d.data());
         
-        // 2. 다른 모든 회원의 로그와 비교 (날짜/산 매칭)
         let totalHikes = myLogs.length;
         let withPartnerCount = 0;
-        let partnersMap = {}; // {이름: 횟수}
+        let partnersMap = {};
 
-        // 모든 회원 데이터 순회 (currentData 활용)
+        // 2. 다른 회원의 로그 비교 (이번 분기 데이터만 필터링해서 조회)
         for (const member of window.currentData) {
-            if (member.id === mId) continue; // 본인은 제외
+            if (member.id === mId || member.isHidden) continue;
 
-            const pLogsSnap = await getDocs(collection(db, `sanwoori/${member.id}/logs`));
+            const pLogsSnap = await getDocs(query(
+                collection(db, `sanwoori/${member.id}/logs`),
+                where("date", ">=", start),
+                where("date", "<", end)
+            ));
+
             pLogsSnap.forEach(pDoc => {
                 const pLog = pDoc.data();
-                
-                // 나의 로그 중 날짜와 산 이름이 같은 게 있는지 확인
                 const match = myLogs.find(myLog => {
                     const myDate = myLog.date?.toDate().toLocaleDateString();
                     const pDate = pLog.date?.toDate().toLocaleDateString();
+                    // 산 이름이 같고 날짜가 같은 경우
                     return myDate === pDate && myLog.mountain === pLog.mountain && myLog.mountain;
                 });
 
@@ -3024,46 +3034,6 @@ window.showForestOfDestiny = async (mId, mName) => {
                 }
             });
         }
-
-        // 3. 통계 계산
-        const synergyRate = totalHikes > 0 ? Math.round((withPartnerCount / totalHikes) * 100) : 0;
-        const socialRadius = Object.keys(partnersMap).length;
-        
-        // 가장 많이 함께한 사람 찾기
-        let bestPartnerName = "없음";
-        let bestCount = 0;
-        for (const name in partnersMap) {
-            if (partnersMap[name] > bestCount) {
-                bestCount = partnersMap[name];
-                bestPartnerName = name;
-            }
-        }
-
-        // 4. UI 렌더링
-        content.innerHTML = `
-            <div class="forest-stat-item">
-                <span class="forest-label">동행 지수 (Synergy Rate)</span>
-                <div class="forest-value">${synergyRate}%</div>
-                <div style="width:100%; height:4px; background:#2e442e; margin-top:8px; border-radius:2px;">
-                    <div style="width:${synergyRate}%; height:100%; background:#4caf50; border-radius:2px;"></div>
-                </div>
-            </div>
-            <div class="forest-stat-item">
-                <span class="forest-label">인연의 반경 (Social Radius)</span>
-                <div class="forest-value">${socialRadius} 명</div>
-                <p style="font-size:0.6rem; color:#81c784; margin-top:4px;">직접 연결된 고유 인원수</p>
-            </div>
-            <div class="forest-stat-item" style="border-left-color: #ffca28;">
-                <span class="forest-label">우정 콤비 (Best Partner)</span>
-                <div class="forest-value">${bestPartnerName} <span style="font-size:0.8rem; font-weight:normal;">(${bestCount}회)</span></div>
-            </div>
-        `;
-
-    } catch (e) {
-        console.error(e);
-        content.innerHTML = `<p style="color:#ff8a80; font-size:0.8rem;">데이터를 불러오는 중 오류가 발생했습니다.</p>`;
-    }
-};
 
 // 1. 계절 색상 판별 함수 (파일 상단에 위치)
 window.getSeasonColor = (month) => {
@@ -3806,6 +3776,7 @@ window.deleteMember = async () => {
         alert("삭제 완료"); 
     }
 };
+
 
     // 레벨 임의 수정 기능
 window.updateManualLevel = async () => {
