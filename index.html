@@ -1229,7 +1229,6 @@ justify-content: center;
 align-items: center;
 backdrop-filter: blur(4px);
 }
-
     /* 2. 예언서 종이 스타일 */
 .fading-scroll {
 position: relative;
@@ -2364,7 +2363,7 @@ overflow: hidden;
 <div id="passionVibeArea"></div>
 
 <div id="friendshipPointArea" 
-     onclick="openForestReport()" 
+     onclick="handleFriendshipClick()" 
      style="cursor: pointer;"
      class="flex items-center h-[18px] text-[9px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100 hover:bg-blue-100 transition-all">
     💞 우정 <span id="memberFriendshipPoint" class="ml-1">0</span>P
@@ -4844,95 +4843,102 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-<div id="forestModal" class="forest-overlay" onclick="this.style.display='none'">
-    <div class="forest-card" onclick="event.stopPropagation()">
-        <span class="density-badge">RELATIONSHIP DENSITY</span>
+<div id="forestModal" class="forest-overlay" onclick="this.style.display='none'" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px); z-index: 99999; justify-content: center; align-items: center;">
+    <div class="forest-card" onclick="event.stopPropagation()" style="background: linear-gradient(145deg, #1a1f2e, #0f172a); width: 90%; max-width: 380px; border-radius: 24px; padding: 25px; border: 1px solid rgba(255, 255, 255, 0.1); color: white; text-align: center; font-family: sans-serif;">
+        <span style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; padding: 4px 12px; border-radius: 20px; font-size: 10px; font-weight: bold;">RELATIONSHIP DENSITY</span>
         <h3 id="forestOwner" style="margin: 15px 0 5px 0; font-size: 1.2rem;">인연의 숲</h3>
         <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 20px;">커뮤니티 연결 지수 리포트</p>
         
-        <div class="stat-grid">
-            <div class="stat-item">
-                <span class="stat-label">동행 지수 (Synergy)</span>
-                <span id="synergyRate" class="stat-value">0%</span>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px;">
+            <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 16px;">
+                <span style="font-size: 0.7rem; color: #94a3b8; display: block; margin-bottom: 5px;">동행 지수</span>
+                <span id="synergyRate" style="font-size: 1rem; font-weight: 800;">0%</span>
             </div>
-            <div class="stat-item">
-                <span class="stat-label">인연의 반경 (Radius)</span>
-                <span id="socialRadius" class="stat-value">0명</span>
+            <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 16px;">
+                <span style="font-size: 0.7rem; color: #94a3b8; display: block; margin-bottom: 5px;">인연의 반경</span>
+                <span id="socialRadius" style="font-size: 1rem; font-weight: 800;">0명</span>
             </div>
-            <div class="stat-item" style="grid-column: span 2;">
-                <span class="stat-label">우정 콤비 (Best Partner)</span>
-                <span id="bestPartner" class="stat-value partner-highlight">분석 중...</span>
+            <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 16px; grid-column: span 2;">
+                <span style="font-size: 0.7rem; color: #94a3b8; display: block; margin-bottom: 5px;">우정 콤비 (Best Partner)</span>
+                <span id="bestPartner" style="font-size: 1rem; font-weight: 800; color: #fbbf24;">데이터 분석 중...</span>
             </div>
         </div>
         
-        <button onclick="document.getElementById('forestModal').style.display='none'" 
-                style="margin-top: 25px; background: none; border: 1px solid rgba(255,255,255,0.2); color: #94a3b8; padding: 8px 20px; border-radius: 12px; cursor: pointer; font-size: 0.8rem;">
-            닫기
-        </button>
+        <button onclick="document.getElementById('forestModal').style.display='none'" style="margin-top: 25px; background: none; border: 1px solid rgba(255,255,255,0.2); color: #94a3b8; padding: 8px 20px; border-radius: 12px; cursor: pointer;">닫기</button>
     </div>
 </div>
-window.showForestReport = async (mId, mName) => {
+
+<script>
+async function handleFriendshipClick() {
+    try {
+        // [중요] 기존 잔디창 함수가 있다면 아래 주석을 풀고 이름을 적으세요.
+        // 예: if (typeof openActivityLog === 'function') openActivityLog();
+
+        // 인연의 숲 실행
+        await openForestReport();
+    } catch (e) {
+        console.error("클릭 이벤트 오류:", e);
+    }
+}
+
+async function openForestReport() {
+    // 1. 데이터 추출 (ID와 이름)
+    const mId = document.getElementById('editMemberId')?.value || window.currentEditMemberId;
+    const mName = document.getElementById('memberName')?.innerText || document.getElementById('editMemberName')?.value;
+
+    if (!mId) {
+        console.error("멤버 ID를 찾을 수 없습니다.");
+        return;
+    }
+
     const modal = document.getElementById('forestModal');
-    if(!modal) return;
+    if (!modal) return;
 
     modal.style.display = 'flex';
-    document.getElementById('forestOwner').innerText = `${mName}님의 인연의 숲`;
+    document.getElementById('forestOwner').innerText = `${mName || '멤버'}님의 인연의 숲`;
 
     try {
-        // 해당 멤버의 모든 활동 기록 가져오기
-        const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
-        const logs = snap.docs.map(d => d.data());
-
-        if (logs.length === 0) {
-            document.getElementById('synergyRate').innerText = "0%";
-            document.getElementById('socialRadius').innerText = "0명";
-            document.getElementById('bestPartner').innerText = "기록 없음";
-            return;
-        }
-
-        let soloCount = 0;
+        // 2. Firebase 데이터 쿼리 (컬렉션 이름 확인: "logs")
+        const q = query(collection(db, "logs"), where("participants", "array-contains", mName));
+        const snap = await getDocs(q);
+        
         let withOthersCount = 0;
-        let partners = {}; // 함께한 사람 카운트
-        let uniquePartners = new Set(); // 고유 인원수
+        let partners = {};
+        let uniquePartners = new Set();
 
-        logs.forEach(log => {
-            // 'with' 필드나 동행자 정보가 기록된 필드를 기반으로 계산
-            // (사용하시는 DB 구조에 따라 'with' 혹은 'companion' 필드명을 확인해주세요)
-            if (log.with && log.with.length > 0) {
+        snap.forEach(doc => {
+            const data = doc.data();
+            if (data.participants && data.participants.length > 1) {
                 withOthersCount++;
-                log.with.forEach(p => {
-                    uniquePartners.add(p);
-                    partners[p] = (partners[p] || 0) + 1;
+                data.participants.forEach(p => {
+                    if (p !== mName) {
+                        uniquePartners.add(p);
+                        partners[p] = (partners[p] || 0) + 1;
+                    }
                 });
-            } else {
-                soloCount++;
             }
         });
 
-        // 1. 동행 지수 계산
-        const total = soloCount + withOthersCount;
+        // 3. 수치 계산
+        const total = snap.size;
         const rate = total > 0 ? Math.round((withOthersCount / total) * 100) : 0;
+        
+        // 4. 화면 업데이트
         document.getElementById('synergyRate').innerText = `동행률 ${rate}%`;
-
-        // 2. 인연의 반경
         document.getElementById('socialRadius').innerText = `인연 ${uniquePartners.size}명`;
 
-        // 3. 우정 콤비 찾기
         let bestName = "없음";
         let maxCount = 0;
         for (const name in partners) {
-            if (partners[name] > maxCount) {
-                maxCount = partners[name];
-                bestName = name;
-            }
+            if (partners[name] > maxCount) { maxCount = partners[name]; bestName = name; }
         }
-        document.getElementById('bestPartner').innerText = maxCount > 0 ? `콤비: ${bestName}(${maxCount}회)` : "기록 없음";
+        document.getElementById('bestPartner').innerText = maxCount > 0 ? `${bestName}(${maxCount}회)` : "기록 없음";
 
-    } catch (e) {
-        console.error("인연의 숲 로드 에러:", e);
+    } catch (err) {
+        console.error("데이터 로드 에러:", err);
     }
-};
-
+}
+</script>
 
 </script>
 </body>
