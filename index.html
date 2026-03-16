@@ -3415,27 +3415,31 @@ window.addMultiActivity = async () => {
             const newLevel = oldLevel + effectiveUp;
 
 // [A] 회원 문서 업데이트 부분 (수정 완료)
-const updateData = {
-    level: newLevel,
-    totalHeight: increment(height)
-};
+            // [A] 회원 문서 업데이트 부분 (수정 완료!)
+            const updateData = {
+                level: newLevel,
+                totalHeight: increment(height)
+            };
 
-// 런닝(isRunning) 또는 트레킹(isTracking)이 체크되어 있다면 날짜 계산!
-if (isRunning || isTracking) {
-    // 변수명을 memberData에서 member로 고쳤습니다.
-    const currentDays = member.remainingDays || 0;
-    
-    // 15일 더하되 최대 122일로 제한 (120일에서 등록하면 122일이 됨)
-    updateData.remainingDays = Math.min(currentDays + 15, 122);
-}
+            // 런닝(isRunning) 또는 트레킹(isTracking)이 체크되어 있다면 날짜 계산!
+            if (isRunning || isTracking) {
+                // 이름을 memberData에서 member로 정확히 고쳤습니다.
+                const currentDays = member.remainingDays || 0;
+                
+                // 15일 더하되 최대 122일로 제한 (120일에서 등록하면 122일이 됨)
+                updateData.remainingDays = Math.min(currentDays + 15, 122);
+                
+                // 잘 작동하는지 확인용 (개발자 도구 콘솔에 찍힘)
+                console.log(`${member.name}님 날짜 업데이트: ${updateData.remainingDays}`);
+            }
 
-if (isHike) {
-    updateData.lastDate = ts; // 최근 산행일을 오늘(입력일)로 갱신
-    updateData.bonusDays = 0; // 산행 리셋 로직
-}
+            if (isHike) {
+                updateData.lastDate = ts; // 최근 산행일 갱신
+                updateData.bonusDays = 0; // 보너스 리셋
+            }
 
-// 수정된 데이터를 DB에 저장
-await updateDoc(doc(db, "sanwoori", id), updateData);
+            // 진짜로 DB에 저장하는 명령어
+            await updateDoc(doc(db, "sanwoori", id), updateData);
 
             
             // [B] 우정 포인트 계산 (2인 이상 산행 시)
