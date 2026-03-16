@@ -3453,31 +3453,13 @@ const finalDday = Timestamp.fromDate(newDdayDate);
                 dday: finalDday
             };
 
-            // 1. 현재 데이터 수집
-            const baseDays = Number(member.remainingDays) || 0;
-            const currentBonus = Number(member.bonusDays) || 0;
-            const currentLevel = Number(member.level) || 0;
-
-            // 2. 활동 유형에 따른 날짜(bonusDays) 처리
             if (isHike) {
-                // [산행] 최근 산행일 갱신 + 보너스 0으로 리셋 (화면상 122일로 고정)
-                updateData.lastDate = ts;
-                // 산행 후 '122일'을 딱 맞추기 위해 보너스 점수를 역산해서 할당
-                updateData.bonusDays = 122 - baseDays - 17;
-            } 
-            else if (isSpecial) { // 런닝 또는 트래킹
-                if (currentLevel === 0) {
-                    // [신입 0레벨] 활동을 해도 무조건 '30일'로 고정
-                    updateData.bonusDays = 30 - baseDays - 17;
-                } else {
-                    // [기존 회원] 런닝 기록 시 무조건 '122일'로 고정 (산행과 동일 로직)
-                    updateData.bonusDays = 122 - baseDays - 17;
-                }
-            }
+    updateData.lastDate = ts; // 최근 산행일을 오늘(입력일)로 갱신
+    updateData.bonusDays = 0; // 중요: 산행을 했으므로 임의로 조정한 보너스 날짜를 0으로 리셋!
+}
 
-            // 3. 최종 DB 업데이트 (이제 122일/30일 위로 절대 안 올라갑니다)
-            await updateDoc(doc(db, "sanwoori", id), updateData);
-                                 
+await updateDoc(doc(db, "sanwoori", id), updateData);
+        
             // [B] 우정 포인트 계산 (2인 이상 산행 시)
             if (selectedMemberIds.size >= 2 && isHike) {
                 const pointToAdd = isRegular ? 10 : (10 * effectiveUp); 
