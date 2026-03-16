@@ -3414,43 +3414,43 @@ window.addMultiActivity = async () => {
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
-
-                                                        // 1. 현재 레벨 및 보너스 수집
-        let currentLevel = Number(member.level) || 0;
-        let currentBonus = Number(member.bonusDays) || 0;
+        // 1. 현재 값들을 숫자로 확실히 고정
         let base = Number(member.remainingDays) || 0;
+        let currentBonus = Number(member.bonusDays) || 0;
+        let level = Number(member.level) || 0;
+        
+        // 2. 일단 보너스 값 유지
+        let nextBonus = currentBonus;
 
-        const updateData = {
+        // 3. 런닝/트래킹 시: 신입(0레벨)이 아닐 때만 15일 추가
+        if ((isRunning || isTracking) && level > 0) {
+            nextBonus = currentBonus + 15;
+        }
+
+        // 4. [122일 절대 방어] 어떤 경우든 합계가 122 넘으면 강제 고정
+        // (기본 + 보너스 + 유령17일)
+        if (base + nextBonus + 17 > 122) {
+            nextBonus = 122 - base - 17;
+        }
+
+        // 5. 최종 데이터 보따리 (여기에 모든 걸 다 담습니다)
+        const finalUpdate = {
             level: newLevel,
-            totalHeight: increment(height)
+            totalHeight: increment(height),
+            bonusDays: Math.max(0, nextBonus) // 숫자로 강제 주입 (increment 금지)
         };
 
-        // 2. 런닝/트래킹 시 15일 추가 (신입 Lv.0은 아예 제외)
-        if ((isRunning || isTracking) && currentLevel > 0) {
-            updateData.bonusDays = currentBonus + 15;
-        }
-
-        // 3. [최후의 통첩] 저장 직전, 화면에 표시될 '최종 합계'를 계산
-        // 현재 보너스값이 업데이트되었다면 그 값을 쓰고, 아니면 기존 값을 씁니다.
-        let checkBonus = updateData.bonusDays !== undefined ? updateData.bonusDays : currentBonus;
-        
-        // 합계 = 기본일수 + 보너스 + 유령17일
-        let finalTotal = base + checkBonus + 17;
-
-        if (finalTotal > 122) {
-            // 합계가 122를 넘으면, '현재 기본일수'가 몇이든 상관없이 
-            // 무조건 합계가 122가 되도록 보너스 점수를 역산해서 박아넣습니다.
-            updateData.bonusDays = 122 - base - 17;
-        }
-
-        // 4. 산행 시 날짜 업데이트
         if (isHike) {
-            updateData.lastDate = ts;
+            finalUpdate.lastDate = ts;
         }
 
-        // 5. DB 저장 (이 한 줄로 모든 논란을 종결합니다)
-        await updateDoc(doc(db, "sanwoori", id), updateData);
+        // 6. [중요] 이 아래로 await updateDoc이 또 있으면 안 됩니다!
+        // 기존의 저장 코드를 이 한 줄로 완전히 대체하세요.
+        await updateDoc(doc(db, "sanwoori", id), finalUpdate);
+        
+        // 여기서 함수가 끝날 수 있게 아래에 있는 기존 저장 코드들은 지우거나 주석 처리하세요.
 
+                                                        
             // [B] 우정 포인트 계산 (2인 이상 산행 시)
             if (selectedMemberIds.size >= 2 && isHike) {
                 const pointToAdd = isRegular ? 10 : (10 * effectiveUp); 
