@@ -3382,7 +3382,7 @@ window.addMultiActivity = async () => {
 
     if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜 확인");
 
-    // 2. 레벨업 설정
+      // 2. 레벨업 설정
     const upElement = document.querySelector('input[name="upAmount"]:checked');
     if(!upElement) return alert("레벨업 수치를 선택해주세요.");
     const up = parseInt(upElement.value);
@@ -3396,38 +3396,6 @@ window.addMultiActivity = async () => {
     const logLoopCount = isRegular ? 1 : (isSpecial ? 1 : (isQuarterOnlyOne ? 1 : up));
     
     const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
-
-    // --- 날짜 계산 로직 추가 (여기서부터 복사) ---
-let today = new Date();
-let newDdayDate = new Date(); 
-
-// 1. 산행일 경우 (isHike가 true일 때)
-if (isHike) {
-    if (oldLevel > 0) {
-        newDdayDate.setDate(today.getDate() + 122); // 일반회원 122일 풀 충전
-    } else {
-        newDdayDate.setDate(today.getDate() + 30);  // 신입(0레벨) 30일 고정
-    }
-} 
-// 2. 런닝/트래킹일 경우 (isSpecial이 true일 때)
-else {
-    if (oldLevel > 0) {
-        newDdayDate.setDate(today.getDate() + 15);  // 일반회원 15일만 추가
-    } else {
-        newDdayDate.setDate(today.getDate() + 30);  // 신입(0레벨) 30일 고정
-    }
-}
-
-// 3. 상한선 체크 (오늘 기준 최대 122일)
-const absoluteMax = new Date();
-absoluteMax.setDate(today.getDate() + 122);
-if (newDdayDate > absoluteMax) {
-    newDdayDate = absoluteMax;
-}
-
-// 최종 dday 변수 생성
-const finalDday = Timestamp.fromDate(newDdayDate);
-// --- 여기까지 복사 ---
 
     // 3. 산 데이터 DB 업데이트
     if(mName && tempCoord) {
@@ -3446,22 +3414,18 @@ const finalDday = Timestamp.fromDate(newDdayDate);
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
-                      // [A] 회원 문서 업데이트 부분 (통합본)
-            const updateData = {
-                level: newLevel,
-                totalHeight: increment(height), // <-- 여기에 쉼표가 꼭 있어야 합니다!
-                dday: finalDday                 // <-- 위에서 계산한 finalDday 연결
-            };
+                      // [A] 회원 문서 업데이트 부분 (수정 후)
+const updateData = {
+    level: newLevel,
+    totalHeight: increment(height)
+};
 
-            // 3. 산행일 경우 추가 정보 갱신
-            if (isHike) {
-                updateData.lastDate = ts; // 최근 산행일 갱신
-                updateData.bonusDays = 0; // 보너스 날짜 리셋
-            }
+if (isHike) {
+    updateData.lastDate = ts; // 최근 산행일을 오늘(입력일)로 갱신
+    updateData.bonusDays = 0; // 중요: 산행을 했으므로 임의로 조정한 보너스 날짜를 0으로 리셋!
+}
 
-            // 4. 실제 DB 저장 실행
-            await updateDoc(doc(db, "sanwoori", id), updateData);
-        }
+await updateDoc(doc(db, "sanwoori", id), updateData);
         
             // [B] 우정 포인트 계산 (2인 이상 산행 시)
             if (selectedMemberIds.size >= 2 && isHike) {
