@@ -3414,36 +3414,38 @@ window.addMultiActivity = async () => {
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
-                    // [A] 회원 문서 업데이트 데이터 구성
+                            // [A] 회원 문서 업데이트 데이터 구성
         const updateData = {
             level: newLevel,
             totalHeight: increment(height)
         };
 
-        // --- [날짜 추가 로직: 절대 122일 안 넘게] ---
+        // --- [런닝/트래킹 날짜 추가 로직] ---
         if (isRunning || isTracking) {
-            // 현재 멤버의 기존 bonusDays 확인 (없으면 0)
-            let currentDays = (member && member.bonusDays) ? member.bonusDays : 0;
+            // 1. 현재 멤버 데이터에서 보너스 날짜를 가져옴
+            let currentDays = member.bonusDays || 0;
             
-            // 15일을 더한 값을 계산
-            let newDays = currentDays + 15;
+            // 2. 15일을 더함
+            let resultDays = currentDays + 15;
             
-            // 만약 122보다 커지면 무조건 122로 고정
-            if (newDays > 122) {
-                newDays = 122;
+            // 3. [핵심] 여기서 122를 넘는지 한 번 더 꽉 잠급니다.
+            if (resultDays > 122) {
+                resultDays = 122;
             }
             
-            updateData.bonusDays = newDays;
+            // 4. 최종 결과값만 보따리에 담음
+            updateData.bonusDays = resultDays;
         }
-        // ------------------------------------------
+        // ------------------------------------
 
         if (isHike) {
             updateData.lastDate = ts;
-            // 여기 안에 updateData.bonusDays = 0; 이 있다면 반드시 지워주세요!
+            // 중요: 산행 시 날짜를 0으로 만드는 기존 코드가 있다면 반드시 삭제하세요!
         }
-                            
-await updateDoc(doc(db, "sanwoori", id), updateData);
-                            
+
+        // 최종적으로 DB에 저장 (이 명령어가 실행되어야 실제 반영됩니다)
+        await updateDoc(doc(db, "sanwoori", id), updateData);
+ 
             // [B] 우정 포인트 계산 (2인 이상 산행 시)
             if (selectedMemberIds.size >= 2 && isHike) {
                 const pointToAdd = isRegular ? 10 : (10 * effectiveUp); 
