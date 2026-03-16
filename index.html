@@ -3438,12 +3438,13 @@ const finalDday = Timestamp.fromDate(newDdayDate);
 
     pendingLevelUpCards = [];
 
-            try {
+                try {
+        // 1. 선택된 회원들 한 명씩 반복 처리
         for (const id of selectedMemberIds) {
             const member = currentData.find(m => m.id === id);
             if (!member) continue;
 
-            // 1. 기존 데이터에서 현재 레벨 가져오기
+            // 회원의 현재 레벨 파악
             const currentMemberLevel = member.level || 0;
             const newLevel = currentMemberLevel + effectiveUp;
 
@@ -3454,42 +3455,48 @@ const finalDday = Timestamp.fromDate(newDdayDate);
             if (isHike) {
                 // 일반 산행일 때
                 if (currentMemberLevel > 0) {
-                    calcDate.setDate(today.getDate() + 122);
+                    calcDate.setDate(today.getDate() + 122); // 일반회원 122일 풀
                 } else {
-                    calcDate.setDate(today.getDate() + 30);
+                    calcDate.setDate(today.getDate() + 30);  // 신입 30일 고정
                 }
             } else {
                 // 런닝 또는 트레킹일 때
                 if (currentMemberLevel > 0) {
-                    calcDate.setDate(today.getDate() + 15);
+                    calcDate.setDate(today.getDate() + 15);  // 일반회원 15일 추가
                 } else {
-                    calcDate.setDate(today.getDate() + 30);
+                    calcDate.setDate(today.getDate() + 30);  // 신입 30일 고정
                 }
             }
 
-            // 3. 122일 상한선 강제 적용
+            // 3. 122일 상한선 체크
             const limitDate = new Date();
             limitDate.setDate(today.getDate() + 122);
             if (calcDate > limitDate) calcDate = limitDate;
 
-            // 4. 업데이트할 데이터 보관함(객체) 만들기
+            // 4. 저장할 데이터 준비 (쉼표 주의!)
             const updateData = {
                 level: newLevel,
                 totalHeight: increment(height),
-                dday: Timestamp.fromDate(calcDate) // 계산된 날짜 적용
+                dday: Timestamp.fromDate(calcDate)
             };
 
-            // 5. 산행일 때만 추가로 업데이트할 내용
+            // 5. 산행일 경우에만 추가되는 정보
             if (isHike) {
                 updateData.lastDate = ts;
                 updateData.bonusDays = 0;
             }
 
-            // 6. 진짜로 DB에 저장
+            // 6. 실제 데이터베이스 업데이트
             await updateDoc(doc(db, "sanwoori", id), updateData);
-        }
-        
-        alert("기록이 성공적으로 저장되었습니다!"); // 성공 메시지 추가
+        } // <-- for문 끝
+
+        alert("기록 저장이 완료되었습니다!");
+        if (typeof renderStatusTable === 'function') renderStatusTable();
+
+    } catch (error) {
+        console.error("데이터 저장 중 오류 발생:", error);
+        alert("저장에 실패했습니다. 콘솔 에러를 확인하세요.");
+    }
 
             // [B] 우정 포인트 계산 (2인 이상 산행 시)
             if (selectedMemberIds.size >= 2 && isHike) {
