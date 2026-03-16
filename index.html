@@ -3415,36 +3415,33 @@ window.addMultiActivity = async () => {
             const newLevel = oldLevel + effectiveUp;
 
 
-                                        // 1. 현재 값 가져오기
+                                                // 1. 현재 값 가져오기
         let base = Number(member.remainingDays) || 0;
         let bonus = Number(member.bonusDays) || 0;
         
-        // 2. 런닝/트래킹 시에만 일단 15를 더해본다 (신입 Lv.0 제외)
+        // 2. 런닝/트래킹 시 15일 추가 (신입 Lv.0 제외)
         let nextBonus = bonus;
         if ((isRunning || isTracking) && Number(member.level) > 0) {
             nextBonus = bonus + 15;
         }
 
-        // 3. [이게 핵심] 계산이고 뭐고 다 필요 없고, 합계가 122 넘으면 
-        // 그냥 (122 - 기본일수 - 유령17일) 값을 강제로 주입
+        // 3. [최종 봉쇄] 합계 122 넘으면 강제 고정
         if (base + nextBonus + 17 > 122) {
             nextBonus = 122 - base - 17;
         }
 
-        // 4. 저장할 바구니 만들기
+        // 4. 저장 데이터 구성 (increment(15) 절대 금지)
         const updateData = {
             level: newLevel,
             totalHeight: increment(height),
-            // increment 절대 쓰지 말고, 우리가 계산한 '숫자' 그 자체를 넣습니다.
-            bonusDays: Math.max(0, nextBonus) 
+            bonusDays: Math.max(0, nextBonus) // '계산된 숫자'를 그대로 덮어씌움
         };
 
         if (isHike) {
             updateData.lastDate = ts;
         }
 
-        // 5. [중요] 기존 코드에 혹시라도 있을지 모를 increment(15)를 무력화하기 위해 
-        // 이 명령어로 DB를 완전히 덮어씌웁니다.
+        // 5. DB 업데이트 (여기서 모든 계산이 끝납니다)
         await updateDoc(doc(db, "sanwoori", id), updateData);
 
             // [B] 우정 포인트 계산 (2인 이상 산행 시)
