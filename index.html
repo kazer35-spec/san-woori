@@ -3414,27 +3414,27 @@ window.addMultiActivity = async () => {
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
-            // [A] 회원 문서 업데이트 부분 (수정본)
+            // [A] 회원 문서 업데이트 데이터 구성
 const updateData = {
     level: newLevel,
     totalHeight: increment(height)
 };
 
-// --- [런닝/트래킹 시 날짜 15일 추가 로직] ---
-// 사진에 나온 변수명(isRunning, isTracking)을 그대로 사용합니다.
+// --- [런닝/트래킹 체크 시 날짜 15일 추가] ---
 if (isRunning || isTracking) {
-    // 현재 멤버의 기존 남은 날짜에 15를 더하되, 최대 122일까지만.
-    let currentDays = member.bonusDays || 0;
+    // 'member.bonusDays'가 시스템에서 인식하는 기존 날짜 변수입니다.
+    let currentDays = (member && member.bonusDays) ? member.bonusDays : 0;
     updateData.bonusDays = Math.min(122, currentDays + 15);
 }
+// ------------------------------------------
 
-                           if (isHike) {
+if (isHike) {
     updateData.lastDate = ts; 
-    // 주의: 아래 기존 줄은 반드시 지우거나 앞에 //를 붙여서 주석처리 하세요!
-    // updateData.bonusDays = 0;  <-- 이 줄이 있으면 날짜가 초기화되므로 삭제 필수!
+    // ※ 중요: updateData.bonusDays = 0; 이 줄은 반드시 삭제되어 있어야 합니다!
 }
 
-await updateDoc(doc(db, "sanwoori", id), updateData); 
+// 최종 저장
+await updateDoc(doc(db, "sanwoori", id), updateData);
 
             // 2. 런닝/트래킹 체크 시 15일 추가 (최대 122일)
             if (isRunning || isTracking) {
