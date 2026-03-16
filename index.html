@@ -3414,36 +3414,36 @@ window.addMultiActivity = async () => {
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
-            // [A] 회원 문서 업데이트 데이터 구성
-const updateData = {
-    level: newLevel,
-    totalHeight: increment(height)
-};
+                    // [A] 회원 문서 업데이트 데이터 구성
+        const updateData = {
+            level: newLevel,
+            totalHeight: increment(height)
+        };
 
-// --- [런닝/트래킹 시 날짜 추가 및 122일 강제 고정] ---
-if (isRunning || isTracking) {
-    // 1. 현재 날짜 가져오기 (없으면 0)
-    let currentDays = (member && member.bonusDays) ? member.bonusDays : 0;
-    
-    // 2. 15일을 더한 값을 먼저 계산
-    let addedResult = currentDays + 15;
-    
-    // 3. [핵심] 계산된 값이 122보다 크면 무조건 122로 고정!
-    if (addedResult > 122) {
-        addedResult = 122;
-    }
-    
-    updateData.bonusDays = addedResult;
-}
-// --------------------------------------------------
+        // --- [날짜 추가 로직: 절대 122일 안 넘게] ---
+        if (isRunning || isTracking) {
+            // 현재 멤버의 기존 bonusDays 확인 (없으면 0)
+            let currentDays = (member && member.bonusDays) ? member.bonusDays : 0;
+            
+            // 15일을 더한 값을 계산
+            let newDays = currentDays + 15;
+            
+            // 만약 122보다 커지면 무조건 122로 고정
+            if (newDays > 122) {
+                newDays = 122;
+            }
+            
+            updateData.bonusDays = newDays;
+        }
+        // ------------------------------------------
 
-if (isHike) {
-    updateData.lastDate = ts;
-    // 기존에 있던 bonusDays = 0; 줄은 반드시 지워져 있어야 합니다.
-}
-
+        if (isHike) {
+            updateData.lastDate = ts;
+            // 여기 안에 updateData.bonusDays = 0; 이 있다면 반드시 지워주세요!
+        }
+                            
 await updateDoc(doc(db, "sanwoori", id), updateData);
-
+                            
             // [B] 우정 포인트 계산 (2인 이상 산행 시)
             if (selectedMemberIds.size >= 2 && isHike) {
                 const pointToAdd = isRegular ? 10 : (10 * effectiveUp); 
