@@ -3415,42 +3415,39 @@ window.addMultiActivity = async () => {
             const newLevel = oldLevel + effectiveUp;
 
 
-                                             // 1. 현재 데이터 수집
-        let baseDays = member.remainingDays || 0;
-        let currentBonus = member.bonusDays || 0;
-        let finalBonus = currentBonus; // 기본적으로 현재 값을 유지
+                                // 1. 현재 데이터 수집 (안전하게 숫자로 변환)
+        let baseDays = Number(member.remainingDays) || 0;
+        let currentBonus = Number(member.bonusDays) || 0;
+        let finalBonus = currentBonus; 
 
         const updateData = {
             level: newLevel,
             totalHeight: increment(height)
         };
 
-        // 2. 런닝/트래킹 시 날짜 추가 로직
-        if (isRunning || isTracking) {
-            // [신입 제외 조건] 레벨이 0보다 클 때만 15일 추가 계산 시작
-            if (Number(member.level) > 0) {
-                let totalWithHiddenValue = baseDays + currentBonus + 15 + 17;
-
-                if (totalWithHiddenValue > 122) {
-                    finalBonus = Math.max(0, 122 - baseDays - 17);
-                } else {
-                    finalBonus = currentBonus + 15;
-                }
-            } 
-            // 레벨이 0이면 finalBonus는 위에서 선언한대로 currentBonus(변화없음) 유지
+        // 2. 런닝/트래킹 시: 신입(Lv.0)이 아닐 때만 15일 추가 시도
+        if ((isRunning || isTracking) && Number(member.level) > 0) {
+            finalBonus = currentBonus + 15;
         }
 
-        // 3. 결정된 보너스 값을 보따리에 확실히 담아줍니다 (이게 핵심!)
-        updateData.bonusDays = finalBonus;
+        // 3. [최후의 보루] 저장 직전 합계 검사 (이게 뚫리면 말이 안 됩니다)
+        // 화면 표시 공식: baseDays + finalBonus + 17
+        if (baseDays + finalBonus + 17 > 122) {
+            // 합계가 122를 넘으면, 122에서 나머지 값을 뺀 정확한 보너스 값으로 강제 고정
+            finalBonus = 122 - baseDays - 17;
+        }
 
-        // 4. 산행(isHike) 시 날짜 유지
+        // 4. 마이너스 방지 및 최종값 할당
+        updateData.bonusDays = Math.max(0, finalBonus);
+
+        // 5. 산행 시 날짜 업데이트 (정상 작동 확인됨)
         if (isHike) {
             updateData.lastDate = ts;
         }
 
-        // 5. 최종 저장
+        // 6. DB 저장 (기존 값을 이 값으로 완전히 덮어씌웁니다)
         await updateDoc(doc(db, "sanwoori", id), updateData);
-
+                     
             // [B] 우정 포인트 계산 (2인 이상 산행 시)
             if (selectedMemberIds.size >= 2 && isHike) {
                 const pointToAdd = isRegular ? 10 : (10 * effectiveUp); 
