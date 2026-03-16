@@ -3388,6 +3388,38 @@ window.addMultiActivity = async () => {
     const up = parseInt(upElement.value);
 
     const isSpecial = isRunning || isTracking; 
+    // --- 날짜 계산 로직 추가 (여기서부터 복사) ---
+let today = new Date();
+let newDdayDate = new Date(); 
+
+// 1. 산행일 경우 (isHike가 true일 때)
+if (isHike) {
+    if (oldLevel > 0) {
+        newDdayDate.setDate(today.getDate() + 122); // 일반회원 122일 풀 충전
+    } else {
+        newDdayDate.setDate(today.getDate() + 30);  // 신입(0레벨) 30일 고정
+    }
+} 
+// 2. 런닝/트래킹일 경우 (isSpecial이 true일 때)
+else {
+    if (oldLevel > 0) {
+        newDdayDate.setDate(today.getDate() + 15);  // 일반회원 15일만 추가
+    } else {
+        newDdayDate.setDate(today.getDate() + 30);  // 신입(0레벨) 30일 고정
+    }
+}
+
+// 3. 상한선 체크 (오늘 기준 최대 122일)
+const absoluteMax = new Date();
+absoluteMax.setDate(today.getDate() + 122);
+if (newDdayDate > absoluteMax) {
+    newDdayDate = absoluteMax;
+}
+
+// 최종 dday 변수 생성
+const finalDday = Timestamp.fromDate(newDdayDate);
+// --- 여기까지 복사 ---
+
     const isHike = !isSpecial; 
     const effectiveUp = isHike ? up : 0;
 
@@ -3418,6 +3450,7 @@ window.addMultiActivity = async () => {
             const updateData = {
                 level: newLevel,
                 totalHeight: increment(height)
+                dday: finalDday
             };
 
             // 1. 현재 데이터 수집
