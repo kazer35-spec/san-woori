@@ -3414,37 +3414,37 @@ window.addMultiActivity = async () => {
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
-                       // 1. 현재 멤버의 기본 일수와 보너스 일수를 가져옵니다.
+                               // 1. 현재 데이터 수집
         let baseDays = member.remainingDays || 0;
         let currentBonus = member.bonusDays || 0;
 
-        // 2. 업데이트 보따리 기본 구성
         const updateData = {
             level: newLevel,
             totalHeight: increment(height)
         };
 
-        // 3. 런닝/트래킹 시 날짜 추가 로직
+        // 2. 런닝/트래킹 시 날짜 추가
         if (isRunning || isTracking) {
-            // [핵심] (기본 + 현재 보너스 + 추가 15일)이 122를 넘는지 확인
-            let totalExpected = baseDays + currentBonus + 15;
-            
-            if (totalExpected > 122) {
-                // 합계가 122를 넘으면, 122에서 기본 일수를 뺀 나머지만 보너스로 저장
-                updateData.bonusDays = Math.max(0, 122 - baseDays);
+            // [분석] 화면 표시 공식 = baseDays + currentBonus + 17(기본값)
+            // 따라서 (baseDays + currentBonus + 15 + 17)이 122를 넘는지 확인합니다.
+            let totalWithHiddenValue = baseDays + currentBonus + 15 + 17;
+
+            if (totalWithHiddenValue > 122) {
+                // 합계가 122를 넘으면, 122에서 기본일수와 유령 17일을 뺀 나머지만 보너스로 저장
+                let adjustedBonus = 122 - baseDays - 17;
+                updateData.bonusDays = Math.max(0, adjustedBonus);
             } else {
-                // 122를 안 넘으면 그냥 15일 추가
+                // 여유가 있으면 그냥 15일 추가
                 updateData.bonusDays = currentBonus + 15;
             }
         }
 
-        // 4. 산행(isHike) 시 로직
+        // 3. 산행(isHike) 시 날짜 유지
         if (isHike) {
             updateData.lastDate = ts;
-            // 산행 시 보너스를 리셋하지 않으려면 아래는 비워둡니다.
         }
 
-        // 5. 최종 저장
+        // 4. 최종 저장
         await updateDoc(doc(db, "sanwoori", id), updateData);
 
             // [B] 우정 포인트 계산 (2인 이상 산행 시)
