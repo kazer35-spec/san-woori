@@ -3414,36 +3414,22 @@ window.addMultiActivity = async () => {
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
-                                    // [A] 회원 문서 업데이트 데이터 구성
+                                            // 1. 기본 레벨/높이 업데이트 (기존과 동일)
         const updateData = {
             level: newLevel,
-            totalHeight: increment(height) // 이건 누적되어야 하니 그대로 둡니다.
+            totalHeight: increment(height)
         };
 
-        // --- [런닝/트래킹 날짜 추가: 122일 절대 방어] ---
+        // 2. 런닝/트래킹 체크 시: 기존 날짜에 15를 더하고, 122와 비교해서 작은 걸 선택!
         if (isRunning || isTracking) {
-            // 1. 현재 DB에 저장된 날짜 숫자를 가져옵니다 (없으면 0)
-            let currentBonus = member.bonusDays || 0;
-            
-            // 2. 현재 날짜에 15를 더합니다.
-            let nextBonus = currentBonus + 15;
-            
-            // 3. 만약 더한 값이 122보다 크면? 무조건 122로 깎습니다.
-            if (nextBonus > 122) {
-                nextBonus = 122;
-            }
-            
-            // 4. 결정된 값을 보따리에 담습니다. (increment를 절대 쓰지 마세요!)
-            updateData.bonusDays = nextBonus;
-        }
-        // ----------------------------------------------
-
-        if (isHike) {
-            updateData.lastDate = ts;
-            // 중요: 이 안에서 updateData.bonusDays = 0; 줄은 지우셨죠?
+            let result = (member.bonusDays || 0) + 15;
+            updateData.bonusDays = result > 122 ? 122 : result;
         }
 
-        // 5. 최종 저장 (이 줄이 있어야 반영됩니다)
+        // 3. 만약 산행(isHike)이면? 날짜를 건드리지 않게 (0 리셋 코드 절대 넣지 마세요)
+        // 여기에 아무것도 안 적으면 날짜는 변하지 않습니다.
+
+        // 4. 최종 저장
         await updateDoc(doc(db, "sanwoori", id), updateData);
 
             // [B] 우정 포인트 계산 (2인 이상 산행 시)
