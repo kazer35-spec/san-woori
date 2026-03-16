@@ -3414,38 +3414,38 @@ window.addMultiActivity = async () => {
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
-                            // [A] 회원 문서 업데이트 데이터 구성
+                                    // [A] 회원 문서 업데이트 데이터 구성
         const updateData = {
             level: newLevel,
-            totalHeight: increment(height)
+            totalHeight: increment(height) // 이건 누적되어야 하니 그대로 둡니다.
         };
 
-        // --- [런닝/트래킹 날짜 추가 로직] ---
+        // --- [런닝/트래킹 날짜 추가: 122일 절대 방어] ---
         if (isRunning || isTracking) {
-            // 1. 현재 멤버 데이터에서 보너스 날짜를 가져옴
-            let currentDays = member.bonusDays || 0;
+            // 1. 현재 DB에 저장된 날짜 숫자를 가져옵니다 (없으면 0)
+            let currentBonus = member.bonusDays || 0;
             
-            // 2. 15일을 더함
-            let resultDays = currentDays + 15;
+            // 2. 현재 날짜에 15를 더합니다.
+            let nextBonus = currentBonus + 15;
             
-            // 3. [핵심] 여기서 122를 넘는지 한 번 더 꽉 잠급니다.
-            if (resultDays > 122) {
-                resultDays = 122;
+            // 3. 만약 더한 값이 122보다 크면? 무조건 122로 깎습니다.
+            if (nextBonus > 122) {
+                nextBonus = 122;
             }
             
-            // 4. 최종 결과값만 보따리에 담음
-            updateData.bonusDays = resultDays;
+            // 4. 결정된 값을 보따리에 담습니다. (increment를 절대 쓰지 마세요!)
+            updateData.bonusDays = nextBonus;
         }
-        // ------------------------------------
+        // ----------------------------------------------
 
         if (isHike) {
             updateData.lastDate = ts;
-            // 중요: 산행 시 날짜를 0으로 만드는 기존 코드가 있다면 반드시 삭제하세요!
+            // 중요: 이 안에서 updateData.bonusDays = 0; 줄은 지우셨죠?
         }
 
-        // 최종적으로 DB에 저장 (이 명령어가 실행되어야 실제 반영됩니다)
+        // 5. 최종 저장 (이 줄이 있어야 반영됩니다)
         await updateDoc(doc(db, "sanwoori", id), updateData);
- 
+
             // [B] 우정 포인트 계산 (2인 이상 산행 시)
             if (selectedMemberIds.size >= 2 && isHike) {
                 const pointToAdd = isRegular ? 10 : (10 * effectiveUp); 
