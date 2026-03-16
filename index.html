@@ -3414,35 +3414,30 @@ window.addMultiActivity = async () => {
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
-                      // [A] 회원 문서 업데이트 부분 (수정 후)
+// [A] 회원 문서 업데이트 부분 (수정 완료)
 const updateData = {
     level: newLevel,
     totalHeight: increment(height)
 };
 
-            // [날짜 추가 로직]
-const isRun = document.getElementById('isRunningCheck')?.checked || false;
-const isTrek = document.getElementById('isTrackingCheck')?.checked || false;
-
-if (isRun || isTrek) {
-    // 1. 현재 멤버 데이터(m 혹은 member)에서 날짜를 가져옵니다.
-    // 사진상 mDoc을 사용 중이라면 mDoc.data()를 사용합니다.
-    const currentDays = (typeof m !== 'undefined' ? m.remainingDays : 0) || 0;
+// 런닝(isRunning) 또는 트레킹(isTracking)이 체크되어 있다면 날짜 계산!
+if (isRunning || isTracking) {
+    // 변수명을 memberData에서 member로 고쳤습니다.
+    const currentDays = member.remainingDays || 0;
     
-    // 2. 15일을 더하되 122일 맥시멈 고정
+    // 15일 더하되 최대 122일로 제한 (120일에서 등록하면 122일이 됨)
     updateData.remainingDays = Math.min(currentDays + 15, 122);
-    
-    console.log("날짜 추가됨:", updateData.remainingDays); // 확인용
 }
-
 
 if (isHike) {
     updateData.lastDate = ts; // 최근 산행일을 오늘(입력일)로 갱신
-    updateData.bonusDays = 0; // 중요: 산행을 했으므로 임의로 조정한 보너스 날짜를 0으로 리셋!
+    updateData.bonusDays = 0; // 산행 리셋 로직
 }
 
+// 수정된 데이터를 DB에 저장
 await updateDoc(doc(db, "sanwoori", id), updateData);
 
+            
             // [B] 우정 포인트 계산 (2인 이상 산행 시)
             if (selectedMemberIds.size >= 2 && isHike) {
                 const pointToAdd = isRegular ? 10 : (10 * effectiveUp); 
