@@ -3438,28 +3438,59 @@ const finalDday = Timestamp.fromDate(newDdayDate);
 
     pendingLevelUpCards = [];
 
-    try {
+        try {
         for(const id of selectedMemberIds){
             const member = currentData.find(m => m.id === id);
             if(!member) continue;
 
+            // 1. 여기서 레벨을 먼저 파악합니다 (순서 중요!)
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
-                      // [A] 회원 문서 업데이트 부분 (수정 후)
-const updateData = {
-    level: newLevel,
-    totalHeight: increment(height), // <-- 쉼표를 꼭 찍어주세요
-    dday: finalDday
-};
+            // 2. [날짜 계산 로직]을 for문 안으로 이동 (개별 회원마다 계산)
+            let today = new Date();
+            let newDdayDate = new Date(); 
 
-if (isHike) {
-    updateData.lastDate = ts; // 최근 산행일을 오늘(입력일)로 갱신
-    updateData.bonusDays = 0; // 중요: 산행을 했으므로 임의로 조정한 보너스 날짜를 0으로 리셋!
-}
+            if (isHike) {
+                // 산행일 때
+                if (oldLevel > 0) {
+                    newDdayDate.setDate(today.getDate() + 122);
+                } else {
+                    newDdayDate.setDate(today.getDate() + 30);
+                }
+            } else {
+                // 런닝/트래킹일 때
+                if (oldLevel > 0) {
+                    newDdayDate.setDate(today.getDate() + 15);
+                } else {
+                    newDdayDate.setDate(today.getDate() + 30);
+                }
+            }
 
-await updateDoc(doc(db, "sanwoori", id), updateData);
-        
+            // 상한선 체크
+            const absoluteMax = new Date();
+            absoluteMax.setDate(today.getDate() + 122);
+            if (newDdayDate > absoluteMax) newDdayDate = absoluteMax;
+
+            const finalDday = Timestamp.fromDate(newDdayDate);
+
+            // 3. 회원 문서 업데이트 정보 구성
+            const updateData = {
+                level: newLevel,
+                totalHeight: increment(height),
+                dday: finalDday
+            };
+
+            if (isHike) {
+                updateData.lastDate = ts;
+                updateData.bonusDays = 0;
+            }
+
+            // 4. 실제 DB 저장
+            await updateDoc(doc(db, "sanwoori", id), updateData);
+        }
+        // for문 끝
+
             // [B] 우정 포인트 계산 (2인 이상 산행 시)
             if (selectedMemberIds.size >= 2 && isHike) {
                 const pointToAdd = isRegular ? 10 : (10 * effectiveUp); 
