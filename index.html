@@ -3407,26 +3407,31 @@ window.addMultiActivity = async () => {
     pendingLevelUpCards = [];
 
     try {
-                for(const id of selectedMemberIds){
+                        for(const id of selectedMemberIds){
             const member = currentData.find(m => m.id === id);
             if(!member) continue;
 
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
-            // [핵심 수정] DB에서 현재 회원의 최신 데이터를 먼저 가져옵니다.
+            // 1. [핵심] DB에서 이 멤버의 현재 날짜를 직접 읽어옵니다.
             const memberRef = doc(db, "sanwoori", id);
             const memberSnap = await getDoc(memberRef);
-            const currentRemainingDays = memberSnap.exists() ? (memberSnap.data().remainingDays || 0) : 0;
+            
+            // 현재 DB에 저장된 남은 날짜 (없으면 0)
+            let currentRemainingDays = 0;
+            if (memberSnap.exists()) {
+                currentRemainingDays = memberSnap.data().remainingDays || 0;
+            }
 
             const updateData = {
                 level: newLevel,
                 totalHeight: increment(height)
             };
 
-            // 런닝 또는 트레킹 체크 시 날짜 15일 추가 (최대 122일)
+            // 2. 런닝/트래킹 체크 시 15일 추가 (최대 122일)
             if (isRunning || isTracking) {
-                // 실시간으로 가져온 currentRemainingDays를 사용합니다.
+                // 직접 읽어온 날짜에 15를 더하고, 122를 넘지 않게 제한
                 updateData.remainingDays = Math.min(currentRemainingDays + 15, 122);
             }
 
@@ -3435,8 +3440,10 @@ window.addMultiActivity = async () => {
                 updateData.bonusDays = 0;
             }
 
-            // 최종 업데이트
+            // 3. [최종 저장] 여기서 DB에 확실히 기록됩니다.
             await updateDoc(memberRef, updateData);
+
+            // --- 이후 [B] 우정 포인트, [C] 로그 기록 로직은 그대로 유지 ---
 
             // [B] 우정 포인트 계산 (2인 이상 산행 시)
             if (selectedMemberIds.size >= 2 && isHike) {
