@@ -3414,20 +3414,32 @@ window.addMultiActivity = async () => {
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
-                                            // 1. 기본 레벨/높이 업데이트 (기존과 동일)
+                                                    // 1. 기본 레벨 및 높이 보따리 구성
         const updateData = {
             level: newLevel,
             totalHeight: increment(height)
         };
 
-        // 2. 런닝/트래킹 체크 시: 기존 날짜에 15를 더하고, 122와 비교해서 작은 걸 선택!
+        // 2. [핵심] 런닝/트래킹 날짜 계산 - 절대 increment 쓰지 마세요!
         if (isRunning || isTracking) {
-            let result = (member.bonusDays || 0) + 15;
-            updateData.bonusDays = result > 122 ? 122 : result;
+            // 현재 멤버의 기존 날짜를 가져와서 15를 더합니다.
+            let currentDays = member.bonusDays || 0;
+            let finalDays = currentDays + 15;
+
+            // 만약 122보다 크면 무조건 122로 고정합니다.
+            if (finalDays > 122) {
+                finalDays = 122;
+            }
+
+            // 계산된 "숫자"를 그대로 넣습니다. (increment 삭제됨)
+            updateData.bonusDays = finalDays;
         }
 
-        // 3. 만약 산행(isHike)이면? 날짜를 건드리지 않게 (0 리셋 코드 절대 넣지 마세요)
-        // 여기에 아무것도 안 적으면 날짜는 변하지 않습니다.
+        // 3. 산행 기록 시 날짜 초기화 코드 삭제 확인
+        if (isHike) {
+            updateData.lastDate = ts;
+            // 주의: 이 안에 bonusDays = 0 이라는 줄이 있다면 반드시 지우세요!
+        }
 
         // 4. 최종 저장
         await updateDoc(doc(db, "sanwoori", id), updateData);
