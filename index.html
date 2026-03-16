@@ -3414,32 +3414,30 @@ window.addMultiActivity = async () => {
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
-                                   // 1. 현재 데이터 수집
+
+                             // 1. 데이터 수집
         let baseDays = member.remainingDays || 0;
         let currentBonus = member.bonusDays || 0;
-        let finalBonus = currentBonus;
-        
-        // 현재 레벨이나 바뀔 레벨 중 하나라도 0보다 커야 보너스를 줍니다.
-        let isNotNewbie = (Number(member.level) > 0 || newLevel > 0);
+        let finalBonus = currentBonus; // 기본적으로는 기존 보너스 유지
 
         const updateData = {
             level: newLevel,
             totalHeight: increment(height)
         };
 
-        // 2. 런닝/트래킹: 신입 제외 및 날짜 추가
-        if ((isRunning || isTracking) && isNotNewbie) {
-            // 일단 15일을 더합니다.
+        // 2. 런닝/트래킹일 때: 신입(Lv.0)이 아닐 때만 15일 추가
+        // member.level이 0이면 신입입니다.
+        if ((isRunning || isTracking) && Number(member.level) > 0) {
             finalBonus = currentBonus + 15;
         }
 
-        // 3. [강제 잠금] 어떤 경우에도 합계가 122를 넘지 않게 강제 조정
-        // (기본일수 + 보너스일수 + 숨겨진 17일)이 122를 넘으면 깎습니다.
+        // 3. [핵심] 어떤 경우든(산행 포함) 저장 직전에 122일 체크
+        // (기본 + 보너스 + 유령17일)이 122를 넘으면 강제로 깎음
         if (baseDays + finalBonus + 17 > 122) {
             finalBonus = 122 - baseDays - 17;
         }
 
-        // 4. 보너스 값이 마이너스가 되지 않게 보호하고 대입
+        // 4. 최종 보너스 값을 보따리에 담기 (0보다 작아지지 않게 보호)
         updateData.bonusDays = Math.max(0, finalBonus);
 
         // 5. 산행 시 날짜 업데이트
@@ -3447,9 +3445,9 @@ window.addMultiActivity = async () => {
             updateData.lastDate = ts;
         }
 
-        // 6. 최종 저장
+        // 6. DB 저장
         await updateDoc(doc(db, "sanwoori", id), updateData);
-
+       
             // [B] 우정 포인트 계산 (2인 이상 산행 시)
             if (selectedMemberIds.size >= 2 && isHike) {
                 const pointToAdd = isRegular ? 10 : (10 * effectiveUp); 
