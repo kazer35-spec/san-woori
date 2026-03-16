@@ -3397,6 +3397,38 @@ window.addMultiActivity = async () => {
     
     const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
 
+    // --- 날짜 계산 로직 추가 (여기서부터 복사) ---
+let today = new Date();
+let newDdayDate = new Date(); 
+
+// 1. 산행일 경우 (isHike가 true일 때)
+if (isHike) {
+    if (oldLevel > 0) {
+        newDdayDate.setDate(today.getDate() + 122); // 일반회원 122일 풀 충전
+    } else {
+        newDdayDate.setDate(today.getDate() + 30);  // 신입(0레벨) 30일 고정
+    }
+} 
+// 2. 런닝/트래킹일 경우 (isSpecial이 true일 때)
+else {
+    if (oldLevel > 0) {
+        newDdayDate.setDate(today.getDate() + 15);  // 일반회원 15일만 추가
+    } else {
+        newDdayDate.setDate(today.getDate() + 30);  // 신입(0레벨) 30일 고정
+    }
+}
+
+// 3. 상한선 체크 (오늘 기준 최대 122일)
+const absoluteMax = new Date();
+absoluteMax.setDate(today.getDate() + 122);
+if (newDdayDate > absoluteMax) {
+    newDdayDate = absoluteMax;
+}
+
+// 최종 dday 변수 생성
+const finalDday = Timestamp.fromDate(newDdayDate);
+// --- 여기까지 복사 ---
+
     // 3. 산 데이터 DB 업데이트
     if(mName && tempCoord) {
         await setDoc(doc(db, "mountains", mName), {
@@ -3417,7 +3449,8 @@ window.addMultiActivity = async () => {
                       // [A] 회원 문서 업데이트 부분 (수정 후)
 const updateData = {
     level: newLevel,
-    totalHeight: increment(height)
+    totalHeight: increment(height), // <-- 쉼표를 꼭 찍어주세요
+    dday: finalDday
 };
 
 if (isHike) {
