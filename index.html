@@ -3414,31 +3414,34 @@ window.addMultiActivity = async () => {
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
-                      // 1. 업데이트할 보따리 만들기 (increment 쓰지 않음)
-        let finalBonus = member.bonusDays || 0;
+                            // 1. 현재 멤버의 기존 날짜를 먼저 가져옵니다.
+        let currentBonus = member.bonusDays || 0;
+        let finalBonus = currentBonus;
 
-        // 2. 런닝/트래킹 체크 시에만 15일 추가하되 122일로 꽉 잠금
+        // 2. 런닝(isRunning)이나 트래킹(isTracking) 체크 시 15일 추가
         if (isRunning || isTracking) {
-            finalBonus = finalBonus + 15;
+            finalBonus = currentBonus + 15;
+            // 여기서 122일이 넘으면 딱 122로 고정!
             if (finalBonus > 122) finalBonus = 122;
         }
 
-        // 3. 보따리 내용물 확정
+        // 3. 업데이트 보따리 구성
         const updateData = {
             level: newLevel,
-            totalHeight: increment(height), // 높이는 누적되어야 하니 유지
-            bonusDays: finalBonus           // 계산된 '숫자' 그 자체를 저장
+            totalHeight: increment(height), // 높이는 누적형이라 유지
+            bonusDays: finalBonus           // ★중요: 계산된 숫자를 직접 입력 (산행과 동일 방식)
         };
 
-        // 4. 산행 시 날짜 초기화 코드 삭제 확인
+        // 4. 산행(isHike) 시 로직
         if (isHike) {
             updateData.lastDate = ts;
-            // 여기 안에 updateData.bonusDays = 0; 이 있다면 반드시 지우세요!
+            // 산행 시 기존 날짜를 유지하고 싶으면 아래 줄은 '삭제'된 상태여야 합니다.
+            // updateData.bonusDays = 0; 
         }
 
         // 5. 최종 저장
         await updateDoc(doc(db, "sanwoori", id), updateData);
-                         
+
             // [B] 우정 포인트 계산 (2인 이상 산행 시)
             if (selectedMemberIds.size >= 2 && isHike) {
                 const pointToAdd = isRegular ? 10 : (10 * effectiveUp); 
