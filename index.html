@@ -3414,31 +3414,35 @@ window.addMultiActivity = async () => {
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
-              // 1. 현재 이 멤버의 원래 날짜를 먼저 가져와서 변수에 담습니다.
-let currentBonus = member.bonusDays || 0;
-let finalBonus = currentBonus;
-​// 2. 런닝/트레킹 체크 시에만 15일 추가 계산
-if (isRunning || isTracking) {
-finalBonus = currentBonus + 15;
-// 122일이 넘으면 122로 깎습니다.
-if (finalBonus > 122) {
-finalBonus = 122;
-}
-}
-​// 3. 업데이트 보따리 (increment(15)라는 글자를 아예 지웠습니다)
-const updateData = {
-level: newLevel,
-totalHeight: increment(height),
-bonusDays: finalBonus // ★ 여기에 숫자를 직접 박아야 122일이 지켜집니다.
-};
-​// 4. 산행 기록 시
-if (isHike) {
-updateData.lastDate = ts;
-// 산행 시 기존 날짜가 0으로 초기화되지 않게 이 줄은 비워둡니다.
-}
-​// 5. 최종 저장
-await updateDoc(doc(db, "sanwoori", id), updateData);
-                            
+                      // 1. 현재 멤버의 기존 날짜를 안전하게 가져옵니다.
+        let currentBonus = (member && member.bonusDays) ? member.bonusDays : 0;
+        let finalBonus = currentBonus;
+
+        // 2. 런닝/트래킹 체크 시 15일 추가 (절대 increment 쓰지 마세요)
+        if (isRunning || isTracking) {
+            finalBonus = currentBonus + 15;
+        }
+
+        // 3. [핵심] 어떤 경우에도 122일을 넘지 못하게 강제 고정
+        if (finalBonus > 122) {
+            finalBonus = 122;
+        }
+
+        // 4. 업데이트 보따리 (여기에 숫자를 직접 넣어야 122일이 지켜집니다)
+        const updateData = {
+            level: newLevel,
+            totalHeight: increment(height), // 높이는 계속 쌓여야 하니 유지
+            bonusDays: finalBonus           // 직접 계산한 '숫자'를 저장
+        };
+
+        // 5. 산행 기록 시 날짜 리셋 방지 (기존 0 리셋 코드는 삭제됨)
+        if (isHike) {
+            updateData.lastDate = ts;
+        }
+
+        // 6. 최종 저장 (이 명령어로 DB에 덮어씌웁니다)
+        await updateDoc(doc(db, "sanwoori", id), updateData);
+
             // [B] 우정 포인트 계산 (2인 이상 산행 시)
             if (selectedMemberIds.size >= 2 && isHike) {
                 const pointToAdd = isRegular ? 10 : (10 * effectiveUp); 
