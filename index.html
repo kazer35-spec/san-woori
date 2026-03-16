@@ -3438,58 +3438,58 @@ const finalDday = Timestamp.fromDate(newDdayDate);
 
     pendingLevelUpCards = [];
 
-        try {
-        for(const id of selectedMemberIds){
+            try {
+        for (const id of selectedMemberIds) {
             const member = currentData.find(m => m.id === id);
-            if(!member) continue;
+            if (!member) continue;
 
-            // 1. 여기서 레벨을 먼저 파악합니다 (순서 중요!)
-            const oldLevel = member.level || 0;
-            const newLevel = oldLevel + effectiveUp;
+            // 1. 기존 데이터에서 현재 레벨 가져오기
+            const currentMemberLevel = member.level || 0;
+            const newLevel = currentMemberLevel + effectiveUp;
 
-            // 2. [날짜 계산 로직]을 for문 안으로 이동 (개별 회원마다 계산)
+            // 2. 날짜 계산 (변수 충돌 방지를 위해 이름을 명확히 함)
             let today = new Date();
-            let newDdayDate = new Date(); 
+            let calcDate = new Date(); 
 
             if (isHike) {
-                // 산행일 때
-                if (oldLevel > 0) {
-                    newDdayDate.setDate(today.getDate() + 122);
+                // 일반 산행일 때
+                if (currentMemberLevel > 0) {
+                    calcDate.setDate(today.getDate() + 122);
                 } else {
-                    newDdayDate.setDate(today.getDate() + 30);
+                    calcDate.setDate(today.getDate() + 30);
                 }
             } else {
-                // 런닝/트래킹일 때
-                if (oldLevel > 0) {
-                    newDdayDate.setDate(today.getDate() + 15);
+                // 런닝 또는 트레킹일 때
+                if (currentMemberLevel > 0) {
+                    calcDate.setDate(today.getDate() + 15);
                 } else {
-                    newDdayDate.setDate(today.getDate() + 30);
+                    calcDate.setDate(today.getDate() + 30);
                 }
             }
 
-            // 상한선 체크
-            const absoluteMax = new Date();
-            absoluteMax.setDate(today.getDate() + 122);
-            if (newDdayDate > absoluteMax) newDdayDate = absoluteMax;
+            // 3. 122일 상한선 강제 적용
+            const limitDate = new Date();
+            limitDate.setDate(today.getDate() + 122);
+            if (calcDate > limitDate) calcDate = limitDate;
 
-            const finalDday = Timestamp.fromDate(newDdayDate);
-
-            // 3. 회원 문서 업데이트 정보 구성
+            // 4. 업데이트할 데이터 보관함(객체) 만들기
             const updateData = {
                 level: newLevel,
                 totalHeight: increment(height),
-                dday: finalDday
+                dday: Timestamp.fromDate(calcDate) // 계산된 날짜 적용
             };
 
+            // 5. 산행일 때만 추가로 업데이트할 내용
             if (isHike) {
                 updateData.lastDate = ts;
                 updateData.bonusDays = 0;
             }
 
-            // 4. 실제 DB 저장
+            // 6. 진짜로 DB에 저장
             await updateDoc(doc(db, "sanwoori", id), updateData);
         }
-        // for문 끝
+        
+        alert("기록이 성공적으로 저장되었습니다!"); // 성공 메시지 추가
 
             // [B] 우정 포인트 계산 (2인 이상 산행 시)
             if (selectedMemberIds.size >= 2 && isHike) {
