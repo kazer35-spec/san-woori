@@ -3415,33 +3415,40 @@ window.addMultiActivity = async () => {
             const newLevel = oldLevel + effectiveUp;
 
 
-                                                // 1. 현재 값 가져오기
+                                                        // 1. 현재 레벨 및 보너스 수집
+        let currentLevel = Number(member.level) || 0;
+        let currentBonus = Number(member.bonusDays) || 0;
         let base = Number(member.remainingDays) || 0;
-        let bonus = Number(member.bonusDays) || 0;
-        
-        // 2. 런닝/트래킹 시 15일 추가 (신입 Lv.0 제외)
-        let nextBonus = bonus;
-        if ((isRunning || isTracking) && Number(member.level) > 0) {
-            nextBonus = bonus + 15;
-        }
 
-        // 3. [최종 봉쇄] 합계 122 넘으면 강제 고정
-        if (base + nextBonus + 17 > 122) {
-            nextBonus = 122 - base - 17;
-        }
-
-        // 4. 저장 데이터 구성 (increment(15) 절대 금지)
         const updateData = {
             level: newLevel,
-            totalHeight: increment(height),
-            bonusDays: Math.max(0, nextBonus) // '계산된 숫자'를 그대로 덮어씌움
+            totalHeight: increment(height)
         };
 
+        // 2. 런닝/트래킹 시 15일 추가 (신입 Lv.0은 아예 제외)
+        if ((isRunning || isTracking) && currentLevel > 0) {
+            updateData.bonusDays = currentBonus + 15;
+        }
+
+        // 3. [최후의 통첩] 저장 직전, 화면에 표시될 '최종 합계'를 계산
+        // 현재 보너스값이 업데이트되었다면 그 값을 쓰고, 아니면 기존 값을 씁니다.
+        let checkBonus = updateData.bonusDays !== undefined ? updateData.bonusDays : currentBonus;
+        
+        // 합계 = 기본일수 + 보너스 + 유령17일
+        let finalTotal = base + checkBonus + 17;
+
+        if (finalTotal > 122) {
+            // 합계가 122를 넘으면, '현재 기본일수'가 몇이든 상관없이 
+            // 무조건 합계가 122가 되도록 보너스 점수를 역산해서 박아넣습니다.
+            updateData.bonusDays = 122 - base - 17;
+        }
+
+        // 4. 산행 시 날짜 업데이트
         if (isHike) {
             updateData.lastDate = ts;
         }
 
-        // 5. DB 업데이트 (여기서 모든 계산이 끝납니다)
+        // 5. DB 저장 (이 한 줄로 모든 논란을 종결합니다)
         await updateDoc(doc(db, "sanwoori", id), updateData);
 
             // [B] 우정 포인트 계산 (2인 이상 산행 시)
