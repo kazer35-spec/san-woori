@@ -3414,18 +3414,40 @@ window.addMultiActivity = async () => {
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
-                      // [A] 회원 문서 업데이트 부분 (수정 후)
-const updateData = {
-    level: newLevel,
-    totalHeight: increment(height)
-};
+                              // 1. 현재 데이터 수집 (안전하게 숫자로 변환)
+        let baseDays = Number(member.remainingDays) || 0;
+        let currentBonus = Number(member.bonusDays) || 0;
+        let currentTotalHeight = Number(member.totalHeight) || 0;
 
-if (isHike) {
-    updateData.lastDate = ts; // 최근 산행일을 오늘(입력일)로 갱신
-    updateData.bonusDays = 0; // 중요: 산행을 했으므로 임의로 조정한 보너스 날짜를 0으로 리셋!
-}
+        // 2. 기본 업데이트 데이터 구성
+        const updateData = {
+            level: newLevel,
+            totalHeight: currentTotalHeight + Number(height), // increment 안 쓰고 직접 더함
+            bonusDays: currentBonus // 기본은 현재값 유지
+        };
 
-await updateDoc(doc(db, "sanwoori", id), updateData);
+        // 3. 런닝/트래킹 시: 신입(0레벨)이 아닐 때만 15일 추가 로직 가동
+        if ((isRunning || isTracking) && Number(member.level) > 0) {
+            
+            // [관리자님 성공 로직]
+            let totalWithHiddenValue = baseDays + currentBonus + 15 + 17;
+
+            if (totalWithHiddenValue > 122) {
+                // 122 넘으면 강제 고정값 계산
+                updateData.bonusDays = Math.max(0, 122 - baseDays - 17);
+            } else {
+                // 안 넘으면 15일 추가
+                updateData.bonusDays = currentBonus + 15;
+            }
+        }
+
+        // 4. 산행(isHike) 시 날짜 업데이트
+        if (isHike) {
+            updateData.lastDate = ts;
+        }
+
+        // 5. 최종 저장 (이 코드 하나만 남기고 아래쪽 저장 코드는 다 지우세요)
+        await updateDoc(doc(db, "sanwoori", id), updateData);
 
             // [B] 우정 포인트 계산 (2인 이상 산행 시)
             if (selectedMemberIds.size >= 2 && isHike) {
