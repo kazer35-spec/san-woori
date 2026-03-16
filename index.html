@@ -3414,41 +3414,40 @@ window.addMultiActivity = async () => {
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
-                              // 1. 현재 데이터 수집 (안전하게 숫자로 변환)
-        let baseDays = Number(member.remainingDays) || 0;
-        let currentBonus = Number(member.bonusDays) || 0;
-        let currentTotalHeight = Number(member.totalHeight) || 0;
+                           // 1. 현재 데이터 수집
+        let baseDays = member.remainingDays || 0;
+        let currentBonus = member.bonusDays || 0;
 
-        // 2. 기본 업데이트 데이터 구성
+        // 2. 기본 업데이트 데이터 (레벨, 누적 높이)
         const updateData = {
             level: newLevel,
-            totalHeight: currentTotalHeight + Number(height), // increment 안 쓰고 직접 더함
-            bonusDays: currentBonus // 기본은 현재값 유지
+            totalHeight: increment(height)
         };
 
-        // 3. 런닝/트래킹 시: 신입(0레벨)이 아닐 때만 15일 추가 로직 가동
-        if ((isRunning || isTracking) && Number(member.level) > 0) {
+        // 3. 산행(isHike) 시 로직: 날짜 갱신 + 보너스 리셋
+        if (isHike) {
+            updateData.lastDate = ts; 
+            updateData.bonusDays = 0; // 산행하면 보너스 날짜 0으로 초기화
+        } 
+
+        // 4. 런닝/트래킹 시 로직: 15일 추가 (신입 0레벨 제외 + 122일 방어)
+        else if ((isRunning || isTracking) && Number(member.level) > 0) {
             
-            // [관리자님 성공 로직]
+            // 관리자님이 성공하셨던 122일 방어 공식
             let totalWithHiddenValue = baseDays + currentBonus + 15 + 17;
 
             if (totalWithHiddenValue > 122) {
-                // 122 넘으면 강제 고정값 계산
+                // 122일 초과 시 보너스 역산
                 updateData.bonusDays = Math.max(0, 122 - baseDays - 17);
             } else {
-                // 안 넘으면 15일 추가
+                // 여유 있을 시 15일 추가
                 updateData.bonusDays = currentBonus + 15;
             }
         }
 
-        // 4. 산행(isHike) 시 날짜 업데이트
-        if (isHike) {
-            updateData.lastDate = ts;
-        }
-
-        // 5. 최종 저장 (이 코드 하나만 남기고 아래쪽 저장 코드는 다 지우세요)
+        // 5. 최종 DB 업데이트
         await updateDoc(doc(db, "sanwoori", id), updateData);
-
+           
             // [B] 우정 포인트 계산 (2인 이상 산행 시)
             if (selectedMemberIds.size >= 2 && isHike) {
                 const pointToAdd = isRegular ? 10 : (10 * effectiveUp); 
