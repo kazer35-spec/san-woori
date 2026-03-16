@@ -3407,34 +3407,37 @@ window.addMultiActivity = async () => {
     pendingLevelUpCards = [];
 
     try {
-        for(const id of selectedMemberIds){
+                for(const id of selectedMemberIds){
             const member = currentData.find(m => m.id === id);
             if(!member) continue;
 
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
- // [A] 회원 문서 업데이트 데이터 생성
-    const updateData = {
-        level: newLevel,
-        totalHeight: increment(height)
-    };
+            // [핵심 수정] DB에서 현재 회원의 최신 데이터를 먼저 가져옵니다.
+            const memberRef = doc(db, "sanwoori", id);
+            const memberSnap = await getDoc(memberRef);
+            const currentRemainingDays = memberSnap.exists() ? (memberSnap.data().remainingDays || 0) : 0;
 
-    // 핵심: 런닝이나 트래킹 체크 시 날짜 15일 추가 (최대 122일)
-    if (isRunning || isTracking) {
-        // memberData가 아니라 현재 코드의 변수명인 'member'를 사용합니다.
-        const currentDays = member.remainingDays || 0;
-        updateData.remainingDays = Math.min(currentDays + 15, 122);
-    }
+            const updateData = {
+                level: newLevel,
+                totalHeight: increment(height)
+            };
 
-    if (isHike) {
-        updateData.lastDate = ts; 
-        updateData.bonusDays = 0; 
-    }
+            // 런닝 또는 트레킹 체크 시 날짜 15일 추가 (최대 122일)
+            if (isRunning || isTracking) {
+                // 실시간으로 가져온 currentRemainingDays를 사용합니다.
+                updateData.remainingDays = Math.min(currentRemainingDays + 15, 122);
+            }
 
-    // [중요] 실제 데이터베이스(sanwoori 컬렉션)에 반영
-    await updateDoc(doc(db, "sanwoori", id), updateData);
-            
+            if (isHike) {
+                updateData.lastDate = ts;
+                updateData.bonusDays = 0;
+            }
+
+            // 최종 업데이트
+            await updateDoc(memberRef, updateData);
+
             // [B] 우정 포인트 계산 (2인 이상 산행 시)
             if (selectedMemberIds.size >= 2 && isHike) {
                 const pointToAdd = isRegular ? 10 : (10 * effectiveUp); 
