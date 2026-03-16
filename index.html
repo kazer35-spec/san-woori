@@ -3449,16 +3449,19 @@ const finalDday = Timestamp.fromDate(newDdayDate);
                       // [A] 회원 문서 업데이트 부분 (통합본)
             const updateData = {
                 level: newLevel,
-                totalHeight: increment(height),
-                dday: finalDday
+                totalHeight: increment(height), // <-- 여기에 쉼표가 꼭 있어야 합니다!
+                dday: finalDday                 // <-- 위에서 계산한 finalDday 연결
             };
 
+            // 3. 산행일 경우 추가 정보 갱신
             if (isHike) {
-    updateData.lastDate = ts; // 최근 산행일을 오늘(입력일)로 갱신
-    updateData.bonusDays = 0; // 중요: 산행을 했으므로 임의로 조정한 보너스 날짜를 0으로 리셋!
-}
+                updateData.lastDate = ts; // 최근 산행일 갱신
+                updateData.bonusDays = 0; // 보너스 날짜 리셋
+            }
 
-await updateDoc(doc(db, "sanwoori", id), updateData);
+            // 4. 실제 DB 저장 실행
+            await updateDoc(doc(db, "sanwoori", id), updateData);
+        }
         
             // [B] 우정 포인트 계산 (2인 이상 산행 시)
             if (selectedMemberIds.size >= 2 && isHike) {
