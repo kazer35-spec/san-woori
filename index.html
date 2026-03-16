@@ -3414,30 +3414,29 @@ window.addMultiActivity = async () => {
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
-                                   // 1. 현재 데이터 로드
-        let baseDays = Number(member.remainingDays) || 0;
-        let currentBonus = Number(member.bonusDays) || 0;
+                                           // 1. 현재 데이터 숫자로 수집
+        let base = Number(member.remainingDays) || 0;
+        let level = Number(member.level) || 0;
 
         const updateData = {
             level: newLevel,
             totalHeight: increment(height)
         };
 
-        // 2. 기록 종류에 따른 분기
+        // 2. 기록 종류에 따른 분기 (산행과 런닝을 동일한 방식으로 처리)
         if (isHike) {
-            // 산행 시: 무조건 보너스 0 (화면 표시 121일)
-            updateData.lastDate = ts; 
-            updateData.bonusDays = 0; 
+            updateData.lastDate = ts;
+            // [산행] 무조건 합계가 122일이 되도록 보너스 값을 계산해서 박음
+            updateData.bonusDays = 122 - base - 17;
         } 
-        else if ((isRunning || isTracking) && Number(member.level) > 0) {
-            // 런닝/트래킹 시: 신입 제외
-            
-            // 핵심: 현재가 이미 121일(보너스0)이거나 그 이상이라면 
-            // 15일을 더하지 않고 합계가 딱 122가 되는 '보너스 1점'만 강제로 주입
-            if (baseDays + currentBonus + 15 + 17 > 122) {
-                updateData.bonusDays = 122 - baseDays - 17; // 결과는 보통 1이 됩니다.
+        else if ((isRunning || isTracking)) {
+            // [런닝/트래킹]
+            if (level === 0) {
+                // 신입(0레벨): 날짜 추가 없이 무조건 보너스를 13으로 고정 (104+13+17 = 30일)
+                updateData.bonusDays = 13; 
             } else {
-                updateData.bonusDays = currentBonus + 15;
+                // 기존 회원: 산행과 똑같이 무조건 합계가 122일이 되도록 보너스 값을 박음
+                updateData.bonusDays = 122 - base - 17;
             }
         }
 
