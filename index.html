@@ -3388,6 +3388,15 @@ window.addMultiActivity = async () => {
     const up = parseInt(upElement.value);
 
     const isSpecial = isRunning || isTracking; 
+    const isHike = !isSpecial; 
+    const effectiveUp = isHike ? up : 0;
+
+    // [중요 로직] 정기산행 체크 시, up 수치와 상관없이 별(로그)은 1개만 생성
+    // 그 외 일반산행은 선택된 up 수치만큼(혹은 분기1회 옵션만큼) 로그 생성
+    const logLoopCount = isRegular ? 1 : (isSpecial ? 1 : (isQuarterOnlyOne ? 1 : up));
+    
+    const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
+
     // --- 날짜 계산 로직 추가 (여기서부터 복사) ---
 let today = new Date();
 let newDdayDate = new Date(); 
@@ -3419,15 +3428,6 @@ if (newDdayDate > absoluteMax) {
 // 최종 dday 변수 생성
 const finalDday = Timestamp.fromDate(newDdayDate);
 // --- 여기까지 복사 ---
-
-    const isHike = !isSpecial; 
-    const effectiveUp = isHike ? up : 0;
-
-    // [중요 로직] 정기산행 체크 시, up 수치와 상관없이 별(로그)은 1개만 생성
-    // 그 외 일반산행은 선택된 up 수치만큼(혹은 분기1회 옵션만큼) 로그 생성
-    const logLoopCount = isRegular ? 1 : (isSpecial ? 1 : (isQuarterOnlyOne ? 1 : up));
-    
-    const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
 
     // 3. 산 데이터 DB 업데이트
     if(mName && tempCoord) {
