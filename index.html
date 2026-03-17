@@ -3631,12 +3631,14 @@ alert("등록 완료");
 };
 
     window.extractBondingData = async () => {
+    window.extractBondingData = async () => {
     try {
-        if (!confirm("인연의 숲 데이터를 추출할까요?")) return;
+        if (!confirm("모든 멤버의 기록을 분석하여 '날짜 기준' 인연 데이터를 추출할까요?")) return;
         
         const groups = {}; 
         const memberSnap = await getDocs(collection(db, "sanwoori"));
         
+        // 1. 모든 멤버와 그들의 산행 기록 순회
         for (const mDoc of memberSnap.docs) {
             const memberName = mDoc.data().name;
             const logsSnap = await getDocs(collection(db, "sanwoori", mDoc.id, "logs"));
@@ -3644,58 +3646,60 @@ alert("등록 완료");
             logsSnap.docs.forEach(lDoc => {
                 const logData = lDoc.data();
                 
-                // [수정 1] 필드명을 'mountain'으로 변경
-                // [수정 2] 날짜에서 시간 부분을 제외하고 'YYYY-MM-DD'만 가져오기
+                // [체크] 날짜(date)와 산이름(mountain) 데이터가 있는지 확인
                 if (logData.date && logData.mountain) {
-                    const dateOnly = String(logData.date).split('T')[0]; // "2025-12-16"만 남김
-                    const mountainClean = String(logData.mountain).trim();
-                    const key = `${dateOnly}_${mountainClean}`;
+                    // 시간을 제외한 날짜만 추출 (예: "2025-12-16")
+                    const dateOnly = String(logData.date).split('T')[0];
+                    const mountainName = String(logData.mountain).trim();
+                    
+                    // '날짜_산이름'을 하나의 열쇠로 묶음
+                    const key = `${dateOnly}_${mountainName}`;
 
                     if (!groups[key]) groups[key] = [];
-                    groups[key].push({ 
-                        name: memberName,
-                        uid: mDoc.id 
-                    });
+                    
+                    // 해당 날짜/산 그룹에 멤버 이름 추가
+                    groups[key].push(memberName);
                 }
             });
         }
 
+        // 2. 2인 이상인 그룹만 골라내기
         const bondingResults = [];
         for (const key in groups) {
-            // 중복된 이름 제거 (본인이 여러 번 올린 경우 방지)
-            const uniqueNames = [...new Set(groups[key].map(m => m.name))];
+            // 한 명이 같은 날 여러 번 올렸을 경우를 대비해 중복 이름 제거
+            const uniqueMembers = [...new Set(groups[key])];
             
-            if (uniqueNames.length >= 2) {
+            if (uniqueMembers.length >= 2) {
                 const [date, mountain] = key.split('_');
                 bondingResults.push({
                     date: date,
                     mountain: mountain,
-                    members: uniqueNames,
-                    count: uniqueNames.length
+                    members: uniqueMembers,
+                    count: uniqueMembers.length
                 });
             }
         }
 
+        // 3. 결과 처리
         if (bondingResults.length === 0) {
-            alert("일치하는 인연 데이터가 없습니다. (같은 날, 같은 산을 간 2인 이상 멤버 없음)");
+            alert("같은 날, 같은 산을 기록한 2인 이상의 인연 데이터가 없습니다.");
             return;
         }
 
-        // JSON 다운로드
+        // JSON 파일로 저장 및 다운로드
         const blob = new Blob([JSON.stringify(bondingResults, null, 2)], { type: "application/json" });
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
-        a.download = `sanwoori_bonding_${new Date().toISOString().slice(0,10)}.json`;
+        a.download = `sanwoori_bonding_daily_${new Date().toISOString().slice(0,10)}.json`;
         a.click();
         
-        alert(`총 ${bondingResults.length}개의 인연 접점을 찾았습니다!`);
+        alert(`총 ${bondingResults.length}개의 인연 그룹을 찾았습니다! 파일 다운로드를 확인하세요.`);
 
     } catch (error) {
-        console.error("추출 오류:", error);
-        alert("분석 중 오류가 발생했습니다.");
+        console.error("추출 중 오류 발생:", error);
+        alert("데이터 분석 중 오류가 발생했습니다. 콘솔창을 확인해주세요.");
     }
 };
-
 
 window.exportAllData = async () => {
     if (!confirm("데이터베이스의 전체 내용을 백업하시겠습니까?")) return;
