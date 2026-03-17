@@ -2283,6 +2283,9 @@ overflow: hidden;
     <button onclick="exportAllData()" style="width: 100%; py: 15px; background-color: #333; color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer;">
         💾 전체 데이터 원클릭 백업 (JSON 다운로드)
     </button>
+    <button onclick="extractBondingData()" style="margin-top: 10px; background-color: #4A7C59; color: white; padding: 10px; border: none; border-radius: 5px; cursor: pointer;">
+    🌲 인연의 숲 데이터 추출 (동일 산행 매칭)
+    </button>
     <p style="text-align: center; font-size: 11px; color: #888; margin-top: 8px;">
         ※ 클릭 시 전체 멤버와 산행 기록이 파일로 저장됩니다.
     </p>
@@ -3626,6 +3629,67 @@ await addDoc(collection(db, "sanwoori"), { name, level: 0, gender, lastDate: Tim
 alert("등록 완료");
 }
 };
+
+    async function extractBondingData() {
+    try {
+        alert("데이터 분석을 시작합니다. 잠시만 기다려주세요...");
+        
+        // 1. 모든 산행 기록(logs) 가져오기
+        const logRef = collection(db, "logs"); // 실제 컬렉션 이름 확인 필요
+        const querySnapshot = await getDocs(logRef);
+        
+        const groups = {}; // '날짜_산이름'을 키로 사용하는 바구니
+
+        querySnapshot.forEach((doc) => {
+            const data = doc.data();
+            // 날짜(date)와 산 이름(mountainName)이 있는 기록만 대상
+            if (data.date && data.mountainName) {
+                const key = `${data.date}_${data.mountainName}`;
+                if (!groups[key]) groups[key] = [];
+                
+                groups[key].push({
+                    name: data.userName,
+                    uid: data.uid,
+                    date: data.date,
+                    mountain: data.mountainName
+                });
+            }
+        });
+
+        // 2. 2인 이상인 그룹만 필터링하여 '인연 리스트' 생성
+        const bondingResults = [];
+        for (const key in groups) {
+            if (groups[key].length >= 2) {
+                bondingResults.push({
+                    meeting: key,
+                    members: groups[key].map(m => m.name).join(", "),
+                    count: groups[key].length
+                });
+            }
+        }
+
+        if (bondingResults.length === 0) {
+            alert("일치하는 인연 데이터가 없습니다.");
+            return;
+        }
+
+        // 3. 결과 확인 및 파일로 저장 (JSON 형태)
+        console.log("추출된 인연:", bondingResults);
+        const blob = new Blob([JSON.stringify(bondingResults, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `sanwoori_bonding_${new Date().toISOString().slice(0,10)}.json`;
+        a.click();
+        
+        alert(`${bondingResults.length}개의 인연 접점을 찾아 파일로 다운로드했습니다!`);
+
+    } catch (error) {
+        console.error("추출 중 오류 발생:", error);
+        alert("데이터를 가져오는 중 오류가 발생했습니다.");
+    }
+}
+
 window.exportAllData = async () => {
     if (!confirm("데이터베이스의 전체 내용을 백업하시겠습니까?")) return;
 
