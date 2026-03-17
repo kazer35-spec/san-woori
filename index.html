@@ -3644,24 +3644,32 @@ alert("등록 완료");
             logsSnap.docs.forEach(lDoc => {
                 const logData = lDoc.data();
                 
-                // 데이터가 있고, 산행일 때(isRunning/isTracking이 아닐 때) 혹은 모든 기록 대상
                 if (logData.date && logData.mountain) {
-                    
-                    // [핵심] 날짜 문자열에서 'T' 앞부분만 정확히 추출 (예: 2026-03-07)
-                    const pureDate = logData.date.includes('T') ? logData.date.split('T')[0] : logData.date;
-                    const mountainName = logData.mountain.trim();
-                    
-                    // 날짜와 산이름을 합쳐서 팀 식별자 생성 (이게 다르면 다른 팀입니다)
-                    const teamId = `${pureDate}_${mountainName}`;
+                    let pureDate = "";
 
-                    if (!groups[teamId]) {
-                        groups[teamId] = {
-                            date: pureDate,
-                            mountain: mountainName,
-                            members: []
-                        };
+                    // [오류 해결] 날짜 데이터 형식에 따른 안전한 추출
+                    if (typeof logData.date === 'string') {
+                        pureDate = logData.date.split('T')[0];
+                    } else if (logData.date.seconds) {
+                        // Timestamp 객체인 경우 YYYY-MM-DD로 변환
+                        pureDate = new Date(logData.date.seconds * 1000).toISOString().split('T')[0];
                     }
-                    groups[teamId].members.push(memberName);
+
+                    const mountainName = String(logData.mountain).trim();
+
+                    if (pureDate && mountainName) {
+                        // 날짜와 산이름을 합친 고유 키 (이게 다르면 다른 팀)
+                        const teamId = `${pureDate}_${mountainName}`;
+
+                        if (!groups[teamId]) {
+                            groups[teamId] = {
+                                date: pureDate,
+                                mountain: mountainName,
+                                members: []
+                            };
+                        }
+                        groups[teamId].members.push(memberName);
+                    }
                 }
             });
         }
@@ -3669,8 +3677,6 @@ alert("등록 완료");
         const bondingResults = [];
         for (const id in groups) {
             const uniqueNames = [...new Set(groups[id].members)];
-            
-            // 한 팀에 2명 이상일 때만 결과에 추가
             if (uniqueNames.length >= 2) {
                 bondingResults.push({
                     "date": groups[id].date,
@@ -3686,24 +3692,23 @@ alert("등록 완료");
             return;
         }
 
-        // 보기 편하게 날짜순으로 정렬
         bondingResults.sort((a, b) => a.date.localeCompare(b.date));
 
         const blob = new Blob([JSON.stringify(bondingResults, null, 2)], { type: "application/json" });
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
-        a.download = `sanwoori_teams_final.json`;
+        a.download = `sanwoori_bonding_final.json`;
         a.click();
         
-        alert(`총 ${bondingResults.length}개의 팀 분리 완료! 파일을 확인해주세요.`);
+        alert(`분석 완료! 총 ${bondingResults.length}개의 개별 팀을 찾았습니다.`);
 
     } catch (error) {
-        console.error("추출 에러:", error);
-        alert("분석 중 오류가 발생했습니다.");
+        console.error("Critical Error:", error);
+        alert("데이터 형식 변환 중 오류가 발생했습니다. 콘솔을 확인해주세요.");
     }
 };
 
-  
+
 
 window.exportAllData = async () => {
     if (!confirm("데이터베이스의 전체 내용을 백업하시겠습니까?")) return;
