@@ -3633,8 +3633,7 @@ alert("등록 완료");
     window.extractBondingData = async () => {
     try {
         if (!confirm("인연의 숲 데이터를 추출할까요?")) return;
-        console.log("분석 시작...");
-
+        
         const groups = {}; 
         const memberSnap = await getDocs(collection(db, "sanwoori"));
         
@@ -3645,50 +3644,58 @@ alert("등록 완료");
             logsSnap.docs.forEach(lDoc => {
                 const logData = lDoc.data();
                 
-                // [체크!] DB의 실제 필드명이 'date', 'mountainName'이 맞는지 확인 필요
-                // 양 끝 공백을 제거(.trim())하여 매칭 확률을 높입니다.
-                if (logData.date && logData.mountainName) {
-                    const dateClean = String(logData.date).trim();
-                    const mountainClean = String(logData.mountainName).trim();
-                    const key = `${dateClean}_${mountainClean}`;
+                // [수정 1] 필드명을 'mountain'으로 변경
+                // [수정 2] 날짜에서 시간 부분을 제외하고 'YYYY-MM-DD'만 가져오기
+                if (logData.date && logData.mountain) {
+                    const dateOnly = String(logData.date).split('T')[0]; // "2025-12-16"만 남김
+                    const mountainClean = String(logData.mountain).trim();
+                    const key = `${dateOnly}_${mountainClean}`;
 
                     if (!groups[key]) groups[key] = [];
-                    groups[key].push({ name: memberName });
+                    groups[key].push({ 
+                        name: memberName,
+                        uid: mDoc.id 
+                    });
                 }
             });
         }
 
         const bondingResults = [];
         for (const key in groups) {
-            // 2명 이상인 경우만 결과에 포함
-            if (groups[key].length >= 2) {
+            // 중복된 이름 제거 (본인이 여러 번 올린 경우 방지)
+            const uniqueNames = [...new Set(groups[key].map(m => m.name))];
+            
+            if (uniqueNames.length >= 2) {
+                const [date, mountain] = key.split('_');
                 bondingResults.push({
-                    info: key,
-                    members: groups[key].map(m => m.name)
+                    date: date,
+                    mountain: mountain,
+                    members: uniqueNames,
+                    count: uniqueNames.length
                 });
             }
         }
 
         if (bondingResults.length === 0) {
-            // [중요] 데이터가 왜 없는지 파악하기 위해 전체 그룹 개수를 출력해봅니다.
-            console.log("전체 산행 그룹화 현황:", groups);
-            alert("매칭된 데이터가 없습니다. 개발자 도구(F12)의 콘솔창을 확인해주세요.");
+            alert("일치하는 인연 데이터가 없습니다. (같은 날, 같은 산을 간 2인 이상 멤버 없음)");
             return;
         }
 
-        // 다운로드 로직 (기존과 동일)
+        // JSON 다운로드
         const blob = new Blob([JSON.stringify(bondingResults, null, 2)], { type: "application/json" });
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
-        a.download = `bonding_test.json`;
+        a.download = `sanwoori_bonding_${new Date().toISOString().slice(0,10)}.json`;
         a.click();
         
-        alert(`${bondingResults.length}개의 인연을 찾았습니다!`);
+        alert(`총 ${bondingResults.length}개의 인연 접점을 찾았습니다!`);
 
     } catch (error) {
-        console.error("오류 발생:", error);
+        console.error("추출 오류:", error);
+        alert("분석 중 오류가 발생했습니다.");
     }
 };
+
 
 window.exportAllData = async () => {
     if (!confirm("데이터베이스의 전체 내용을 백업하시겠습니까?")) return;
