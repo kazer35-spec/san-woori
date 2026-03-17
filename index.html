@@ -3630,9 +3630,9 @@ alert("등록 완료");
 }
 };
 
-    window.extractBondingData = async () => {
+  window.extractBondingData = async () => {
     try {
-        if (!confirm("날짜와 장소가 일치하는 팀별로 데이터를 추출할까요?")) return;
+        if (!confirm("날짜와 장소가 모두 일치하는 팀별로 분리하여 추출할까요?")) return;
         
         const groups = {}; 
         const memberSnap = await getDocs(collection(db, "sanwoori"));
@@ -3644,30 +3644,34 @@ alert("등록 완료");
             logsSnap.docs.forEach(lDoc => {
                 const logData = lDoc.data();
                 if (logData.date && logData.mountain) {
-                    // [핵심] 날짜와 산이름을 합쳐서 고유한 팀 ID를 만듭니다.
-                    // 예: "2026-03-07_관악산"과 "2026-03-10_관악산"은 서로 다른 방이 됩니다.
-                    const datePart = String(logData.date).split('T')[0];
-                    const mountainPart = String(logData.mountain).trim();
-                    const key = `${datePart} | ${mountainPart}`;
+                    // [핵심] 날짜(T 이전까지)와 산 이름을 합쳐서 '고유 팀 ID' 생성
+                    const dateOnly = String(logData.date).split('T')[0];
+                    const mountainName = String(logData.mountain).trim();
+                    const teamKey = `${dateOnly}_${mountainName}`; // 예: "2026-03-07_관악산"
 
-                    if (!groups[key]) groups[key] = [];
-                    groups[key].push(memberName);
+                    if (!groups[teamKey]) {
+                        groups[teamKey] = {
+                            date: dateOnly,
+                            mountain: mountainName,
+                            members: []
+                        };
+                    }
+                    groups[teamKey].members.push(memberName);
                 }
             });
         }
 
+        // 2인 이상인 팀만 결과 배열에 담기
         const bondingResults = [];
         for (const key in groups) {
-            const uniqueMembers = [...new Set(groups[key])];
+            const uniqueNames = [...new Set(groups[key].members)]; // 본인 중복 제거
             
-            // 2인 이상인 팀만 결과에 넣기
-            if (uniqueMembers.length >= 2) {
-                const [date, mountain] = key.split(' | ');
+            if (uniqueNames.length >= 2) {
                 bondingResults.push({
-                    "산행일": date,
-                    "장소": mountain,
-                    "참여인원": uniqueMembers,
-                    "인원수": uniqueMembers.length
+                    "date": groups[key].date,
+                    "mountain": groups[key].mountain,
+                    "members": uniqueNames,
+                    "count": uniqueNames.length
                 });
             }
         }
@@ -3677,21 +3681,23 @@ alert("등록 완료");
             return;
         }
 
-        // 결과 JSON 파일 생성
+        // 날짜순으로 정렬해서 보기 편하게 만듦
+        bondingResults.sort((a, b) => a.date.localeCompare(b.date));
+
         const blob = new Blob([JSON.stringify(bondingResults, null, 2)], { type: "application/json" });
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
-        a.download = `sanwoori_teams_${new Date().toISOString().slice(0,10)}.json`;
+        a.download = `sanwoori_teams_split.json`;
         a.click();
         
-        alert(`총 ${bondingResults.length}개의 팀을 찾았습니다!`);
+        alert(`총 ${bondingResults.length}개의 개별 산행 팀을 찾았습니다!`);
 
     } catch (error) {
         console.error(error);
-        alert("데이터 분석 중 오류가 발생했습니다.");
+        alert("분석 중 오류가 발생했습니다.");
     }
 };
-
+  
 
 window.exportAllData = async () => {
     if (!confirm("데이터베이스의 전체 내용을 백업하시겠습니까?")) return;
