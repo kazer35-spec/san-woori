@@ -3414,27 +3414,27 @@ window.addMultiActivity = async () => {
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
-                      // [A] 회원 문서 업데이트 데이터 구성
+                      // 1. 업데이트할 기본 데이터 구성
 const updateData = {
     level: newLevel,
     totalHeight: increment(height)
 };
 
-// 1. 산행, 런닝, 트레킹 중 하나라도 해당될 경우 공통 처리
-if (isHike || isRun || isTrek) {
+// 2. 활동 여부 확인 (산행, 런닝, 트레킹 중 하나라도 체크 시)
+if (isHike || isRunning || isTracking) {
     updateData.lastDate = ts; // 최근 활동일을 오늘로 갱신
 
-    // 산행인 경우에만 보너스 날짜 리셋 (기존 로직)
+    // 산행인 경우에만 보너스 날짜 리셋 (기존 규칙 유지)
     if (isHike) {
         updateData.bonusDays = 0;
     }
 
-    // 2. 신입(0레벨)이 아닌 경우에만 남은 날짜(dday) 부여
+    // 3. 신입(0레벨)이 아닌 경우에만 남은 날짜(dday) 15일 추가
     if (oldLevel > 0) {
-        // 기존 dday에 15일을 더함
+        // 기존 남은 날짜에 15일 추가
         let calculatedDday = (member.dday || 0) + 15;
 
-        // 3. 최대 122일을 넘지 않도록 제한
+        // 4. 최대 122일을 넘지 않도록 제한 (122일 컷!)
         if (calculatedDday > 122) {
             calculatedDday = 122;
         }
@@ -3442,6 +3442,10 @@ if (isHike || isRun || isTrek) {
         updateData.dday = calculatedDday;
     }
 }
+
+// 5. 최종 DB 업데이트 실행
+await updateDoc(doc(db, "sanwoori", id), updateData);
+
             // [B] 우정 포인트 계산 (2인 이상 산행 시)
             if (selectedMemberIds.size >= 2 && isHike) {
                 const pointToAdd = isRegular ? 10 : (10 * effectiveUp); 
