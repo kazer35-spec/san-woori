@@ -3723,7 +3723,26 @@ alert("등록 완료");
     }
 };
 
-
+// [추가] 추출된 팀 데이터를 DB에 저장하는 함수
+async function saveBondingToForest(bondingResults) {
+    const forestRef = collection(db, "bondingForest"); // 새로운 컬렉션 생성
+    
+    for (const team of bondingResults) {
+        try {
+            // 각 팀(날짜+산) 정보를 문서 하나로 저장
+            await addDoc(forestRef, {
+                date: team.date,
+                mountain: team.mountain,
+                members: team.members, // [A, B, C] 이름 배열
+                memberCount: team.count,
+                createdAt: serverTimestamp()
+            });
+        } catch (e) {
+            console.error("저장 중 오류:", e);
+        }
+    }
+    alert("인연의 숲 데이터베이스 구축 완료!");
+}
 
 window.exportAllData = async () => {
     if (!confirm("데이터베이스의 전체 내용을 백업하시겠습니까?")) return;
@@ -3765,28 +3784,7 @@ window.exportAllData = async () => {
         alert("백업 중 오류 발생: " + e.message);
     }
 };
-    // [추가] 추출된 팀 데이터를 DB에 저장하는 함수
-async function saveBondingToForest(bondingResults) {
-    const forestRef = collection(db, "bondingForest"); // 새로운 컬렉션 생성
     
-    for (const team of bondingResults) {
-        try {
-            // 각 팀(날짜+산) 정보를 문서 하나로 저장
-            await addDoc(forestRef, {
-                date: team.date,
-                mountain: team.mountain,
-                members: team.members, // [A, B, C] 이름 배열
-                memberCount: team.count,
-                createdAt: serverTimestamp()
-            });
-        } catch (e) {
-            console.error("저장 중 오류:", e);
-        }
-    }
-    alert("인연의 숲 데이터베이스 구축 완료!");
-}
-
-
     window.updateBonusDays = async () => {
 const id = document.getElementById('memberSelectManage').value;
 const bonus = parseInt(document.getElementById('bonusDaysInput').value);
