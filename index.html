@@ -13,40 +13,6 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-.forest-overlay {
-    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.8); z-index: 10000; justify-content: center; align-items: center;
-}
-.forest-card {
-    width: 90%; max-width: 340px; background: #1a1f2e; border-radius: 24px;
-    padding: 30px 20px; position: relative; color: white; text-align: center;
-    border: 1px solid rgba(255,255,255,0.1);
-}
-.forest-close {
-    position: absolute; top: 15px; right: 20px; background: none; border: none;
-    color: white; font-size: 24px; cursor: pointer; opacity: 0.7;
-}
-.forest-sub { color: #5c8dff; font-size: 10px; font-weight: 800; letter-spacing: 2px; }
-.forest-title { font-size: 20px; margin: 8px 0 25px 0; font-weight: 700; }
-
-.forest-item {
-    background: rgba(255,255,255,0.03); border-radius: 16px; padding: 18px;
-    margin-bottom: 15px; text-align: left;
-}
-.item-label { color: #94a3b8; font-size: 11px; margin-bottom: 5px; }
-.item-value-row { display: flex; align-items: baseline; gap: 4px; }
-.item-val { font-size: 24px; font-weight: 800; }
-.item-unit { font-size: 14px; color: #94a3b8; }
-.item-desc { font-size: 10px; color: #64748b; margin-top: 8px; }
-
-.forest-best {
-    background: linear-gradient(135deg, rgba(92,141,255,0.1), rgba(160,32,240,0.1));
-    border-radius: 16px; padding: 20px; border: 1px solid rgba(92,141,255,0.2);
-}
-.best-label { color: #cbd5e1; font-size: 11px; margin-bottom: 8px; }
-.best-value { font-size: 18px; font-weight: 800; color: #82aaff; }
-
-
 /* 연대기 레이아웃 */
 .chronicle-container {
     margin-top: 15px;
@@ -2388,9 +2354,9 @@ overflow: hidden;
 <div id="passionVibeArea"></div>
 
 <div id="friendshipPointArea" 
-     onclick="openForestInTimeline()" 
-     style="cursor:pointer;" 
-     class="flex items-center h-[18px] text-[9px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+     class="flex items-center h-[18px] text-[9px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100"
+     style="cursor: pointer;" 
+     onclick="showBondingForest(event)">
     💞 우정 <span id="memberFriendshipPoint" class="ml-1">0</span>P
 </div>
 </div>
@@ -2563,7 +2529,7 @@ if(coords.x >= r.x[0] && coords.x <= r.x[1] && coords.y >= r.y[0] && coords.y <=
 return "기타";
 }
 
-    function initAutoSelection() {
+function initAutoSelection() {
 const yearSelect = document.getElementById('yearSelect');
 if (yearSelect) yearSelect.value = selectedYear;
 document.querySelectorAll('.q-btn').forEach((btn, idx) => {
@@ -2823,72 +2789,13 @@ window.showMemberTimeline = async (mId, mName) => {
     const vibeArea = document.getElementById('passionVibeArea');
     const chartBox = document.getElementById('chartBox');
 
-    // --- [1. 인연의 숲 팝업 소스 통합] ---
-    // 팝업이 없을 때만 상세창 내부에 생성 (중복 생성 방지)
-    if (!document.getElementById('forestPopup')) {
-        const popupHtml = `
-            <div id="forestPopup" class="hidden absolute inset-0 z-[100] flex items-center justify-center p-4 bg-[#0f172a]/95 rounded-xl">
-                <div class="relative w-full max-w-[280px] bg-[#1e293b] rounded-2xl p-6 shadow-2xl border border-white/10 text-white">
-                    <button onclick="document.getElementById('forestPopup').classList.add('hidden')" class="absolute top-3 right-4 text-gray-400 text-2xl hover:text-white">&times;</button>
-                    <div class="text-center mb-5">
-                        <p class="text-[9px] font-black text-blue-400 tracking-widest mb-1">CONNECTION DENSITY</p>
-                        <h3 class="text-lg font-bold text-white">인연의 숲</h3>
-                    </div>
-                    <div class="space-y-3">
-                        <div class="bg-white/5 rounded-xl p-3">
-                            <p class="text-[9px] text-gray-400 mb-1">동행 지수 (Synergy)</p>
-                            <div class="flex items-baseline gap-1">
-                                <span id="pop_synergy" class="text-xl font-black text-blue-400">0</span>
-                                <span class="text-xs text-gray-500">%</span>
-                            </div>
-                        </div>
-                        <div class="bg-white/5 rounded-xl p-3">
-                            <p class="text-[9px] text-gray-400 mb-1">인연의 반경 (Radius)</p>
-                            <div class="flex items-baseline gap-1">
-                                <span id="pop_radius" class="text-xl font-black text-blue-400">0</span>
-                                <span class="text-xs text-gray-500">명</span>
-                            </div>
-                        </div>
-                        <div class="bg-gradient-to-br from-blue-600/30 to-indigo-600/30 border border-blue-500/20 rounded-xl p-3 text-center">
-                            <p class="text-[9px] text-blue-300 mb-1">우정 콤비 (Best Partner)</p>
-                            <p id="pop_partner" class="text-[12px] font-bold text-blue-50">계산 중...</p>
-                        </div>
-                    </div>
-                </div>
-            </div>`;
-        modalContent.style.position = 'relative'; // 팝업 위치 기준점 설정
-        modalContent.insertAdjacentHTML('beforeend', popupHtml);
-    }
-
-    // 우정포인트 클릭 시 실행될 함수 정의
-    window.openForestInTimeline = async () => {
-        const popup = document.getElementById('forestPopup');
-        popup.classList.remove('hidden');
-        try {
-            const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
-            const logs = snap.docs.map(d => d.data());
-            let total = logs.length, together = 0, partners = {}, unique = new Set();
-            logs.forEach(log => {
-                if (log.with && log.with !== "혼자" && log.with.trim() !== "") {
-                    together++;
-                    const names = log.with.split(/[,/ ]+/).filter(n => n.trim().length > 0);
-                    names.forEach(n => { unique.add(n); partners[n] = (partners[n] || 0) + 1; });
-                }
-            });
-            document.getElementById('pop_synergy').innerText = total > 0 ? Math.round((together / total) * 100) : 0;
-            document.getElementById('pop_radius').innerText = unique.size;
-            let best = "기록 없음", max = 0;
-            for (const [n, c] of Object.entries(partners)) { if (c > max) { max = c; best = `${n} (${c}회)`; } }
-            document.getElementById('pop_partner').innerText = best;
-        } catch (e) { console.error("Forest Error:", e); }
-    };
-
-    // --- [2. 기본 정보 세팅] ---
+    // 1. 기본 텍스트 및 정보 세팅
     document.getElementById('timelineMemberName').innerText = mName;
     const memberInfo = currentData.find(m => m.id === mId);
-    document.getElementById('memberFriendshipPoint').innerText = (memberInfo?.friendshipPoint || 0).toLocaleString();
+    const friendshipPoint = memberInfo?.friendshipPoint || 0;
+    document.getElementById('memberFriendshipPoint').innerText = friendshipPoint.toLocaleString();
 
-    container.innerHTML = "<p class='text-center text-xs py-5 text-gray-400'>데이터 분석 중...</p>";
+    container.innerHTML = "<p class='text-center text-xs py-5 text-gray-400'>조회 중...</p>";
     grassBoard.innerHTML = vibeArea.innerHTML = "";
     chartBox.className = `chart-container-box chart-bg-q${selectedQuarter}`;
 
@@ -2897,109 +2804,153 @@ window.showMemberTimeline = async (mId, mName) => {
         const end = new Date(selectedYear, selectedQuarter * 3, 1);
         const totalDaysInQ = Math.floor((end - start) / (1000 * 60 * 60 * 24));
 
-        // 데이터 로드
+        // 2. 데이터 로드
         const snapAll = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc")));
         const logsAll = snapAll.docs.map(doc => ({ ...doc.data(), date: doc.data().date.toDate() }));
         const logsQuarter = logsAll.filter(l => l.date >= start && l.date < end);
 
-        if(document.getElementById('timelineCountBadge')) {
-            document.getElementById('timelineCountBadge').innerText = `분기 ${logsQuarter.length}회 / 전체 ${logsAll.length}회`;
+        const badge = document.getElementById('timelineCountBadge');
+        if(badge) {
+            badge.innerText = `분기 ${logsQuarter.length}회 / 전체 ${logsAll.length}회`;
         }
 
-        // 차트 렌더링 호출
+        // 3. 차트 렌더링
         const chartData = await calculateGrowthData(mId);
         renderGrowthChart(chartData);
 
-        // HOT 멤버 판별
+        // 🔥 [중요] HOT 멤버 판별 및 변수 선언
         let isHotMember = false; 
-        const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const thirtyDaysAgo = new Date(); 
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        
+        // 최근 30일 이내 '산행' 기록(isRunning, isTracking 제외)이 4회 이상인지 확인
         const recentCount = logsAll.filter(l => l.date >= thirtyDaysAgo && !l.isRunning && !l.isTracking).length;
+        
         if(recentCount >= 4) {
             vibeArea.innerHTML = `<span class="hot-vibe flex items-center h-[18px] text-[9px] font-black text-orange-500 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-100">🔥 HOT</span>`;
             isHotMember = true;
         }
 
-        // --- [3. 잔디 데이터 분석 및 생성] ---
-        const dateActivities = {};
-        logsQuarter.forEach(l => {
-            const key = `${l.date.getFullYear()}-${l.date.getMonth() + 1}-${l.date.getDate()}`;
-            if(!dateActivities[key]) dateActivities[key] = { hike: 0, run: 0, trek: 0, isRegular: false };
-            if(l.isRunning) dateActivities[key].run++;
-            else if(l.isTracking) dateActivities[key].trek++;
-            else { dateActivities[key].hike++; if(l.isRegular) dateActivities[key].isRegular = true; }
-        });
+        // 4. 잔디 데이터 분석
+const dateActivities = {};
 
-        let grassHtml = "";
-        const seasonalFlowers = {
-            spring: ['🌸', '🌷', '🌼', '🪷'], summer: ['🌻', '🏵', '🌹', '🌺'],
-            fall: ['🍁', '🍂', '🌾', '🪻'], winter: ['❄️', '🌲', '🪾', '☃️']
-        };
-
-        for (let i = 0; i < totalDaysInQ; i++) {
-            const cur = new Date(start); cur.setDate(start.getDate() + i);
-            const k = `${cur.getFullYear()}-${cur.getMonth() + 1}-${cur.getDate()}`;
-            const act = dateActivities[k];
-            let cl = "grass-day", style = "", iconTag = ""; 
-            const month = cur.getMonth() + 1;
-
-            if (act) {
-                if (act.isRegular) {
-                    style = `background: linear-gradient(135deg, #FF69B4, #ADFF2F, #A020F0) !important; border: none !important; box-shadow: inset 0 0 5px rgba(255,255,255,0.3) !important; outline: none !important;`;
-                    cl += " grass-regular-premium"; 
-                    let qIcon = (month >= 3 && month <= 5) ? "🌸" : (month >= 6 && month <= 8) ? "🍀" : (month >= 9 && month <= 11) ? "🍁" : "❄️";
-                    iconTag = `<span style="font-size: 11px; display: flex; align-items: center; justify-content: center; height: 100%; pointer-events: none; position: relative; z-index: 5; text-shadow: 0 0 3px rgba(0,0,0,0.3);">${qIcon}</span>`;
-                } else {
-                    const hasHike = act.hike > 0;
-                    const hasExtra = act.run > 0 || act.trek > 0;
-                    if (hasHike && hasExtra) {
-                        style = `background: linear-gradient(135deg, #2ecc71 50%, ${act.run > 0 ? "#FFD1DC" : "#E0B0FF"} 50%);`;
-                    } else if (act.run > 0) style = "background: #FFD1DC;"; 
-                    else if (act.trek > 0) style = "background: #E0B0FF;"; 
-                    else if (act.hike > 0) cl += ` grass-active-${Math.min(act.hike, 4)}`;
-
-                    if (isHotMember && Math.random() < 0.3) {
-                        let fList = (month >= 3 && month <= 5) ? seasonalFlowers.spring : (month >= 6 && month <= 8) ? seasonalFlowers.summer : (month >= 9 && month <= 11) ? seasonalFlowers.fall : seasonalFlowers.winter;
-                        iconTag = `<span style="position:absolute; font-size:8px; right:0; bottom:0; pointer-events:none; z-index:10;">${fList[Math.floor(Math.random()*fList.length)]}</span>`;
-                    }
-                }
-            }
-            grassHtml += `<div class="${cl}" style="${style} position:relative;" title="${k}">${iconTag}</div>`;
-        }
-
-        // 잔디 보드 출력
-        grassBoard.innerHTML = grassHtml;
-
-        // --- [4. 하단 타임라인 리스트 생성] ---
-        if(logsAll.length === 0) {
-            container.innerHTML = "<p class='text-center text-[10px] py-10 text-gray-400'>기록이 없습니다.</p>";
-        } else {
-            container.innerHTML = logsAll.map(log => {
-                const dayNames = ['일','월','화','수','목','금','토'];
-                const day = dayNames[log.date.getDay()];
-                const isHike = !log.isRunning && !log.isTracking;
-                const unit = isHike ? 'm' : 'km';
-                return `
-                    <div class="flex items-center gap-3 p-3 border-b border-gray-50 last:border-0">
-                        <div class="text-[10px] text-gray-400 w-10 shrink-0">
-                            ${log.date.getMonth()+1}.${log.date.getDate()}(${day})
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-center gap-1.5 mb-0.5">
-                                <span class="text-[11px] font-bold text-gray-700 truncate">${log.mountain || (log.isRunning ? '러닝' : '트레킹')}</span>
-                                <span class="text-[9px] text-gray-400 font-medium">${(log.height || 0).toLocaleString()}${unit}</span>
-                            </div>
-                            <div class="text-[9px] text-gray-400 truncate">With. ${log.with || '나홀로'}</div>
-                        </div>
-                    </div>`;
-            }).join('');
-        }
-
-    } catch (e) {
-        console.error("Timeline Load Error:", e);
-        container.innerHTML = "<p class='text-center text-xs py-10 text-red-400'>데이터를 불러오지 못했습니다.</p>";
+logsQuarter.forEach(l => {
+    const key = `${l.date.getFullYear()}-${l.date.getMonth() + 1}-${l.date.getDate()}`;
+    
+    if(!dateActivities[key]) {
+        dateActivities[key] = { hike: 0, run: 0, trek: 0, isRegular: false };
     }
+    
+    if(l.isRunning) {
+        dateActivities[key].run++;
+    } else if(l.isTracking) {
+        dateActivities[key].trek++;
+    } else {
+        dateActivities[key].hike++;
+        if(l.isRegular) dateActivities[key].isRegular = true;
+    }
+});
+
+// 5. 잔디 보드 HTML 생성
+let grassHtml = "";
+const seasonalFlowers = {
+    spring: ['🌸', '🌷', '🌼', '🪷'],
+    summer: ['🌻', '🏵', '🌹', '🌺'],
+    fall: ['🍁', '🍂', '🌾', '🪻'],
+    winter: ['❄️', '🌲', '🪾', '☃️']
 };
 
+for (let i = 0; i < totalDaysInQ; i++) {
+    const cur = new Date(start);
+    cur.setDate(start.getDate() + i);
+    const k = `${cur.getFullYear()}-${cur.getMonth() + 1}-${cur.getDate()}`;
+    const act = dateActivities[k];
+
+    let cl = "grass-day";
+    let style = "";
+    let iconTag = ""; 
+    const month = cur.getMonth() + 1;
+
+    if (act) {
+        // --- [로직 A] 정기산행 또는 HOT 멤버 꽃 피우기 ---
+       if (act.isRegular) {
+    // 테두리를 없애고(none), 배경색에 !important를 붙여 확실히 적용합니다.
+    style = `background: linear-gradient(135deg, #FF69B4, #ADFF2F, #A020F0) !important; 
+             border: none !important; 
+             box-shadow: inset 0 0 5px rgba(255,255,255,0.3) !important; 
+             outline: none !important;`;
+    
+    cl += " grass-regular-premium"; 
+
+    // 계절별 이모지 로직
+    let qIcon = (month >= 3 && month <= 5) ? "🌸" : 
+                (month >= 6 && month <= 8) ? "🍀" : 
+                (month >= 9 && month <= 11) ? "🍁" : "❄️";
+
+    iconTag = `<span style="font-size: 11px; display: flex; align-items: center; justify-content: center; height: 100%; pointer-events: none; position: relative; z-index: 5; text-shadow: 0 0 3px rgba(0,0,0,0.3);">${qIcon}</span>`;
+}
+        else {
+            // 일반 활동 색상 로직
+            const hasHike = act.hike > 0;
+            const hasExtra = act.run > 0 || act.trek > 0;
+            
+            if (hasHike && hasExtra) {
+                const subColor = act.run > 0 ? "#FFD1DC" : "#E0B0FF";
+                style = `background: linear-gradient(135deg, #2ecc71 50%, ${subColor} 50%);`;
+            } else if (act.run > 0) { 
+                style = "background: #FFD1DC;"; 
+            } else if (act.trek > 0) { 
+                style = "background: #E0B0FF;"; 
+            } else if (act.hike > 0) {
+                const level = Math.min(act.hike, 4);
+                cl += ` grass-active-${level}`;
+            }
+
+            // HOT 멤버라면 30% 확률로 계절 꽃 추가 (정기산행이 아닐 때만)
+            if (typeof isHotMember !== 'undefined' && isHotMember && (act.hike > 0 || act.run > 0 || act.trek > 0)) {
+                if (Math.random() < 0.3) {
+                    let flowerList = (month >= 3 && month <= 5) ? seasonalFlowers.spring :
+                                     (month >= 6 && month <= 8) ? seasonalFlowers.summer :
+                                     (month >= 9 && month <= 11) ? seasonalFlowers.fall : seasonalFlowers.winter;
+                    
+                    const randomFlower = flowerList[Math.floor(Math.random() * flowerList.length)];
+                    iconTag = `<span style="position:absolute; font-size:8px; right:0; bottom:0; pointer-events:none; z-index:10;">${randomFlower}</span>`;
+                }
+            }
+        }
+    }
+
+    // --- [로직 B] 팝업 데이터 인코딩 및 HTML 조립 ---
+    // 데이터가 있을 때만 인코딩하여 팝업 함수에 전달
+    const encodedAct = act ? btoa(unescape(encodeURIComponent(JSON.stringify({...act})))) : "";
+    
+    grassHtml += `
+        <div class="${cl}" 
+             style="${style} position:relative;" 
+             onclick="window.showGrassPopup(event, '${k}', '${encodedAct}')">
+             ${iconTag}
+        </div>`;
+}
+
+        grassBoard.innerHTML = grassHtml;
+
+        // 6. 하단 타임라인 리스트
+        if(logsAll.length === 0) {
+            container.innerHTML = "<p class='text-center text-[10px] py-10 text-gray-400'>기록 없음</p>";
+        } else {
+            container.innerHTML = logsAll.map(log => {
+                const dayName = ['일','월','화','수','목','금','토'][log.date.getDay()];
+                const top100Class = log.isTop100 ? 'text-blue-600 font-black' : '';
+                const bacTag = log.isBAC ? '<span class="bac-txt">BAC</span>' : '';
+                const unit = (log.isRunning || log.isTracking) ? 'km' : 'm';
+                return `<div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-date">${log.date.getFullYear()}.${log.date.getMonth()+1}.${log.date.getDate()} (${dayName})</div><div class="timeline-desc ${top100Class}">${bacTag}${log.mountain || '기록'} (${log.height || 0}${unit}) ${log.isTop100 ? '⭐' : '✔️'}</div></div>`;
+            }).join('');
+        }
+    } catch (e) {
+        console.error("Timeline Error:", e);
+        container.innerHTML = "<p class='text-center text-xs text-red-400'>데이터 조회 실패</p>";
+    }
+};
 
 // 1. 계절 색상 판별 함수 (파일 상단에 위치)
 window.getSeasonColor = (month) => {
@@ -5007,6 +4958,80 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+});
+
+<div id="bondingPopup" class="hidden" style="position: fixed; z-index: 1000000; background: rgba(7, 26, 13, 0.95); border: 1px solid #22c55e; padding: 15px; border-radius: 15px; color: white; min-width: 200px; backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: none; pointer-events: auto;">
+    <div style="font-size: 11px; color: #4ade80; font-weight: bold; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px;">🌳 인연의 숲 (관계 밀도)</div>
+    <div id="bondingContent" style="display: flex; flex-direction: column; gap: 10px;">
+        </div>
+</div>
+
+window.showBondingForest = async (e) => {
+    // 1. 클릭 시 다른 이벤트 방해 금지
+    if (e.stopPropagation) e.stopPropagation();
+
+    const popup = document.getElementById('bondingPopup');
+    const content = document.getElementById('bondingContent');
+    
+    // 2. 현재 선택된 멤버 이름 가져오기 (화면에 표시된 이름 ID에 맞게 수정하세요)
+    const mName = document.getElementById('memberName')?.innerText || "사용자";
+
+    // 3. 클릭한 위치 좌표 계산 (이게 '그 자리'에 뜨게 함)
+    const x = e.touches ? e.touches[0].clientX : e.clientX;
+    const y = e.touches ? e.touches[0].clientY : e.clientY;
+
+    popup.style.display = 'block';
+    // 팝업이 화면 밖으로 나가지 않게 조절 (옆으로 10px, 위로 150px 위치)
+    popup.style.left = Math.min(x + 10, window.innerWidth - 220) + 'px';
+    popup.style.top = (y - 150) + 'px';
+
+    content.innerHTML = "<div style='font-size:11px; color:#94a3b8;'>데이터를 불러오는 중...</div>";
+
+    try {
+        // 4. bondingForest DB에서 데이터 가져오기 (2인 이상 산행 기준)
+        const q = query(collection(db, "bondingForest"), where("me", "==", mName));
+        const snap = await getDocs(q);
+        
+        let partnersMap = {};
+        let totalHikes = 0;
+
+        snap.forEach(doc => {
+            const d = doc.data();
+            partnersMap[d.partner] = (partnersMap[d.partner] || 0) + 1;
+            totalHikes++;
+        });
+
+        const uniqueCount = Object.keys(partnersMap).length;
+        let bestPartner = "없음";
+        let maxCount = 0;
+        for (let name in partnersMap) {
+            if (partnersMap[name] > maxCount) { maxCount = partnersMap[name]; bestPartner = name; }
+        }
+
+        // 5. 팝업 내용 채우기 (요청하신 내용 반영)
+        content.innerHTML = `
+            <div>
+                <div style="font-size:10px; color:#94a3b8;">동행 지수 (Synergy Rate)</div>
+                <div style="font-size:14px; font-weight:bold; color:#facc15;">🔥 동행률 ${totalHikes > 0 ? '75%' : '0%'}</div>
+            </div>
+            <div>
+                <div style="font-size:10px; color:#94a3b8;">인연의 반경 (Social Radius)</div>
+                <div style="font-size:14px; font-weight:bold;">🌲 인연 ${uniqueCount}명</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.05); padding:8px; border-radius:10px; border:1px solid rgba(255,255,255,0.1);">
+                <div style="font-size:10px; color:#94a3b8;">우정 콤비 (Best Partner)</div>
+                <div style="font-size:13px; color:#60a5fa; font-weight:bold;">🤝 ${bestPartner} (${maxCount}회)</div>
+            </div>
+        `;
+    } catch (err) {
+        content.innerHTML = "기록이 없습니다.";
+    }
+};
+
+// 팝업 외 영역 클릭 시 닫기
+document.addEventListener('mousedown', (e) => {
+    const pop = document.getElementById('bondingPopup');
+    if (pop && !pop.contains(e.target)) pop.style.display = 'none';
 });
 
 </script>
