@@ -3645,43 +3645,35 @@ alert("등록 완료");
 }
 };
 
-  window.extractBondingData = async () => {
+  // [통합] 인연의 숲 데이터 추출 및 DB 저장 함수
+window.extractBondingData = async () => {
     try {
-        if (!confirm("날짜와 산행지가 모두 일치하는 팀별로 분리하여 추출할까요?")) return;
+        if (!confirm("과거 데이터를 분석하여 '인연의 숲' 데이터베이스를 구축할까요?")) return;
         
         const groups = {}; 
         const memberSnap = await getDocs(collection(db, "sanwoori"));
         
+        // 1. 모든 멤버의 로그를 순회하며 팀 구성
         for (const mDoc of memberSnap.docs) {
             const memberName = mDoc.data().name;
             const logsSnap = await getDocs(collection(db, "sanwoori", mDoc.id, "logs"));
             
             logsSnap.docs.forEach(lDoc => {
                 const logData = lDoc.data();
-                
                 if (logData.date && logData.mountain) {
+                    // 날짜 정제 (문자열 또는 Timestamp 대응)
                     let pureDate = "";
-
-                    // [오류 해결] 날짜 데이터 형식에 따른 안전한 추출
                     if (typeof logData.date === 'string') {
                         pureDate = logData.date.split('T')[0];
                     } else if (logData.date.seconds) {
-                        // Timestamp 객체인 경우 YYYY-MM-DD로 변환
                         pureDate = new Date(logData.date.seconds * 1000).toISOString().split('T')[0];
                     }
 
                     const mountainName = String(logData.mountain).trim();
-
                     if (pureDate && mountainName) {
-                        // 날짜와 산이름을 합친 고유 키 (이게 다르면 다른 팀)
-                        const teamId = `${pureDate}_${mountainName}`;
-
+                        const teamId = `${pureDate}_${mountainName}`; // 날짜+산이 팀의 기준
                         if (!groups[teamId]) {
-                            groups[teamId] = {
-                                date: pureDate,
-                                mountain: mountainName,
-                                members: []
-                            };
+                            groups[teamId] = { date: pureDate, mountain: mountainName, members: [] };
                         }
                         groups[teamId].members.push(memberName);
                     }
@@ -3689,15 +3681,16 @@ alert("등록 완료");
             });
         }
 
+        // 2. 분석된 결과를 배열로 변환 (2인 이상만)
         const bondingResults = [];
         for (const id in groups) {
             const uniqueNames = [...new Set(groups[id].members)];
             if (uniqueNames.length >= 2) {
                 bondingResults.push({
-                    "date": groups[id].date,
-                    "mountain": groups[id].mountain,
-                    "members": uniqueNames,
-                    "count": uniqueNames.length
+                    date: groups[id].date,
+                    mountain: groups[id].mountain,
+                    members: uniqueNames,
+                    count: uniqueNames.length
                 });
             }
         }
@@ -3707,42 +3700,32 @@ alert("등록 완료");
             return;
         }
 
-        bondingResults.sort((a, b) => a.date.localeCompare(b.date));
-
-        const blob = new Blob([JSON.stringify(bondingResults, null, 2)], { type: "application/json" });
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = `sanwoori_bonding_final.json`;
-        a.click();
-        
-        alert(`분석 완료! 총 ${bondingResults.length}개의 개별 팀을 찾았습니다.`);
-
-    } catch (error) {
-        console.error("Critical Error:", error);
-        alert("데이터 형식 변환 중 오류가 발생했습니다. 콘솔을 확인해주세요.");
-    }
-};
-
-// [추가] 추출된 팀 데이터를 DB에 저장하는 함수
-async function saveBondingToForest(bondingResults) {
-    const forestRef = collection(db, "bondingForest"); // 새로운 컬렉션 생성
-    
-    for (const team of bondingResults) {
-        try {
-            // 각 팀(날짜+산) 정보를 문서 하나로 저장
+        // 3. [핵심] 분석 결과 DB(bondingForest)에 즉시 저장
+        const forestRef = collection(db, "bondingForest");
+        for (const team of bondingResults) {
             await addDoc(forestRef, {
                 date: team.date,
                 mountain: team.mountain,
-                members: team.members, // [A, B, C] 이름 배열
+                members: team.members,
                 memberCount: team.count,
                 createdAt: serverTimestamp()
             });
-        } catch (e) {
-            console.error("저장 중 오류:", e);
         }
+
+        // 4. 백업용 JSON 파일 다운로드
+        const blob = new Blob([JSON.stringify(bondingResults, null, 2)], { type: "application/json" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `sanwoori_bonding_forest.json`;
+        a.click();
+        
+        alert(`인연의 숲 DB 구축 완료! (총 ${bondingResults.length}개의 팀 저장됨)`);
+
+    } catch (error) {
+        console.error("Critical Error:", error);
+        alert("분석 또는 저장 중 오류가 발생했습니다. 개발자 도구(Console)를 확인해 주세요.");
     }
-    alert("인연의 숲 데이터베이스 구축 완료!");
-}
+};
 
 window.exportAllData = async () => {
     if (!confirm("데이터베이스의 전체 내용을 백업하시겠습니까?")) return;
