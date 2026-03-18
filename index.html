@@ -3449,13 +3449,28 @@ if (isHike || isRunning || isTracking) {
 // 5. 최종 DB 업데이트 실행
 await updateDoc(doc(db, "sanwoori", id), updateData);
 
-            // [B] 우정 포인트 계산 (2인 이상 산행 시)
-            if (selectedMemberIds.size >= 2 && isHike) {
-                const pointToAdd = isRegular ? 10 : (10 * effectiveUp); 
-                await updateDoc(doc(db, "sanwoori", id), { 
-                    friendshipPoint: increment(pointToAdd) 
-                });
-            }
+            // [B] 인연의 숲 기록 및 우정 포인트 계산 (2인 이상 산행 시)
+if (selectedMemberIds.size >= 2 && isHike) {
+    // 1. 이름 배열 생성
+    const companionNames = Array.from(selectedMemberIds).map(id => memberIdToNameMap[id]);
+
+    // 2. 인연의 숲 DB에 상세 기록 저장 (이 데이터로 나중에 '인연의 숲' 화면을 만듭니다)
+    await addDoc(collection(db, "bondingForest"), {
+        date: dateVal,          // 폼에서 입력받은 날짜
+        mountain: mountainName, // 폼에서 입력받은 산 이름
+        members: companionNames, // 함께한 멤버 이름 리스트
+        memberCount: companionNames.length,
+        isRegular: isRegular,   // 정기산행 여부
+        createdAt: serverTimestamp()
+    });
+
+    // 3. (선택사항) 기존 우정 포인트 점수 누적도 유지하고 싶다면 추가
+    const pointToAdd = isRegular ? 10 : (10 * effectiveUp); 
+    await updateDoc(doc(db, "sanwoori", id), { 
+        friendshipPoint: increment(pointToAdd) 
+    });
+}
+
 
             // [C] 로그 기록 및 별 생성 (정기산행 시 단 1회 실행)
             for(let i = 0; i < logLoopCount; i++) {
@@ -3750,6 +3765,27 @@ window.exportAllData = async () => {
         alert("백업 중 오류 발생: " + e.message);
     }
 };
+    // [추가] 추출된 팀 데이터를 DB에 저장하는 함수
+async function saveBondingToForest(bondingResults) {
+    const forestRef = collection(db, "bondingForest"); // 새로운 컬렉션 생성
+    
+    for (const team of bondingResults) {
+        try {
+            // 각 팀(날짜+산) 정보를 문서 하나로 저장
+            await addDoc(forestRef, {
+                date: team.date,
+                mountain: team.mountain,
+                members: team.members, // [A, B, C] 이름 배열
+                memberCount: team.count,
+                createdAt: serverTimestamp()
+            });
+        } catch (e) {
+            console.error("저장 중 오류:", e);
+        }
+    }
+    alert("인연의 숲 데이터베이스 구축 완료!");
+}
+
 
     window.updateBonusDays = async () => {
 const id = document.getElementById('memberSelectManage').value;
