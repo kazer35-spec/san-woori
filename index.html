@@ -2354,7 +2354,7 @@ overflow: hidden;
 <div id="passionVibeArea"></div>
 
 
-       <div class="flex items-center h-[18px] text-[9px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100"
+       <div class="flex items-center h-[18px] text-[9px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100" 
          style="cursor: pointer;" 
          onclick="showBondingForest(event, '${m.name}')">
         💞 우정 <span class="ml-1">${m.friendshipPoint || 0}</span>P
@@ -4963,13 +4963,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
-window.showBondingForest = async (e, targetName) => {
+
+    window.showBondingForest = async (e, targetName) => {
     if (e.stopPropagation) e.stopPropagation();
 
     const popup = document.getElementById('bondingPopup');
     const content = document.getElementById('bondingContent');
     
-    // 1. 위치: 누른 지점 바로 아래에 고정
+    // 1. 위치: 누른 위치 바로 아래 (사진처럼 상단으로 튀지 않게)
     const x = e.touches ? e.touches[0].clientX : e.clientX;
     const y = e.touches ? e.touches[0].clientY : e.clientY;
 
@@ -4977,12 +4978,13 @@ window.showBondingForest = async (e, targetName) => {
     popup.style.position = 'fixed';
     popup.style.zIndex = '999999';
     popup.style.left = Math.min(x - 50, window.innerWidth - 240) + 'px';
-    popup.style.top = (y + 15) + 'px'; // 누른 곳 15px 아래
+    popup.style.top = (y + 15) + 'px'; 
 
-    content.innerHTML = `<div style='font-size:11px; color:#94a3b8;'>${targetName} 님의 인연 계산 중...</div>`;
+    content.innerHTML = `<div style='font-size:11px; color:#94a3b8;'>${targetName} 데이터 분석 중...</div>`;
 
     try {
-        // 2. Firebase 조회 (보여주신 members 배열 구조 활용)
+        // 2. [사용자님 코드 기반 쿼리] 
+        // 사진 1번의 bondingForest 컬렉션에서 members 배열에 targetName이 포함된 것만 가져옵니다.
         const q = query(collection(db, "bondingForest"), where("members", "array-contains", targetName));
         const snap = await getDocs(q);
         
@@ -4992,18 +4994,21 @@ window.showBondingForest = async (e, targetName) => {
         snap.forEach(doc => {
             const d = doc.data();
             totalCount++;
-            d.members.forEach(p => {
-                if(p !== targetName) { // 본인 제외 동행자 카운트
-                    partnersMap[p] = (partnersMap[p] || 0) + 1;
-                }
-            });
+            // members 배열에서 본인 제외한 파트너들 카운트
+            if (d.members) {
+                d.members.forEach(p => {
+                    if(p !== targetName) {
+                        partnersMap[p] = (partnersMap[p] || 0) + 1;
+                    }
+                });
+            }
         });
 
         const uniqueCount = Object.keys(partnersMap).length;
         let bestP = "없음"; let maxV = 0;
         for (let n in partnersMap) { if (partnersMap[n] > maxV) { maxV = partnersMap[n]; bestP = n; } }
 
-        // 3. 결과 화면 (클릭한 사람의 개별 데이터)
+        // 3. 결과 화면 (사진 3, 4번의 깨진 텍스트를 대체할 정상 UI)
         content.innerHTML = `
             <div style="font-size:12px; color:#4ade80; font-weight:bold; margin-bottom:8px;">🌳 ${targetName} 님의 숲</div>
             <div style="margin-bottom:8px;">
@@ -5020,10 +5025,10 @@ window.showBondingForest = async (e, targetName) => {
             </div>
         `;
     } catch (err) {
+        console.error(err);
         content.innerHTML = "<div style='font-size:11px; color:#ef4444;'>데이터 로드 실패</div>";
     }
 };
-
 
 </script>
 </body>
