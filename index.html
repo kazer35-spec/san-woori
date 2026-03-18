@@ -2388,10 +2388,11 @@ overflow: hidden;
 <div id="passionVibeArea"></div>
 
 <div id="friendshipPointArea" 
-     onclick="showForestModal(currentSelectedMemberId)" 
+     onclick="openForestInTimeline()" 
      style="cursor:pointer;" 
-     class="flex items-center h-[18px] text-[9px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100 hover:bg-blue-100 transition-colors">
+     class="flex items-center h-[18px] text-[9px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
     💞 우정 <span id="memberFriendshipPoint" class="ml-1">0</span>P
+</div>
 </div>
 </div>
 </div>
@@ -2821,6 +2822,67 @@ window.showMemberTimeline = async (mId, mName) => {
     const grassBoard = document.getElementById('grassBoard');
     const vibeArea = document.getElementById('passionVibeArea');
     const chartBox = document.getElementById('chartBox');
+
+    // --- [통합 추가 코드 시작] ---
+    // 1. 상세 창 내부에 인연의 숲 팝업 HTML이 없으면 생성해서 넣어줍니다.
+    if (!document.getElementById('forestPopup')) {
+        const popupHtml = `
+            <div id="forestPopup" class="hidden absolute inset-0 z-[100] flex items-center justify-center p-4 bg-[#0f172a]/95 rounded-xl">
+                <div class="relative w-full max-w-[280px] bg-[#1e293b] rounded-2xl p-6 shadow-2xl border border-white/10 text-white">
+                    <button onclick="document.getElementById('forestPopup').classList.add('hidden')" class="absolute top-3 right-4 text-gray-400 text-2xl hover:text-white">&times;</button>
+                    <div class="text-center mb-5">
+                        <p class="text-[9px] font-black text-blue-400 tracking-widest mb-1">CONNECTION DENSITY</p>
+                        <h3 class="text-lg font-bold">인연의 숲</h3>
+                    </div>
+                    <div class="space-y-3 text-left">
+                        <div class="bg-white/5 rounded-xl p-3">
+                            <p class="text-[9px] text-gray-400 mb-1">동행 지수 (Synergy)</p>
+                            <div class="flex items-baseline gap-1"><span id="pop_synergy" class="text-xl font-black text-blue-400">0</span><span class="text-xs text-gray-500">%</span></div>
+                        </div>
+                        <div class="bg-white/5 rounded-xl p-3">
+                            <p class="text-[9px] text-gray-400 mb-1">인연의 반경 (Radius)</p>
+                            <div class="flex items-baseline gap-1"><span id="pop_radius" class="text-xl font-black text-blue-400">0</span><span class="text-xs text-gray-500">명</span></div>
+                        </div>
+                        <div class="bg-gradient-to-br from-blue-600/40 to-indigo-600/40 border border-blue-500/30 rounded-xl p-3">
+                            <p class="text-[9px] text-blue-300 mb-1">우정 콤비 (Best Partner)</p>
+                            <p id="pop_partner" class="text-[12px] font-bold text-blue-50">계산 중...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        // 타임라인 컨텐츠 영역에 팝업 HTML 삽입 (absolute 기준점이 됨)
+        modalContent.style.position = 'relative'; 
+        modalContent.insertAdjacentHTML('beforeend', popupHtml);
+    }
+
+    // 2. 우정포인트 클릭 시 실행될 팝업 데이터 계산 함수
+    window.openForestInTimeline = async () => {
+        const popup = document.getElementById('forestPopup');
+        popup.classList.remove('hidden'); // 일단 창부터 띄움
+
+        try {
+            // 현재 타임라인의 주인공인 mId의 전체 로그를 다시 조회 (최신 데이터 유지)
+            const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
+            const logs = snap.docs.map(d => d.data());
+            
+            let total = logs.length, together = 0, partners = {}, unique = new Set();
+            logs.forEach(log => {
+                if (log.with && log.with !== "혼자" && log.with.trim() !== "") {
+                    together++;
+                    const names = log.with.split(/[,/ ]+/).filter(n => n.trim().length > 0);
+                    names.forEach(n => { unique.add(n); partners[n] = (partners[n] || 0) + 1; });
+                }
+            });
+
+            document.getElementById('pop_synergy').innerText = total > 0 ? Math.round((together / total) * 100) : 0;
+            document.getElementById('pop_radius').innerText = unique.size;
+            
+            let best = "기록 없음", max = 0;
+            for (const [n, c] of Object.entries(partners)) { if (c > max) { max = c; best = `${n} (${c}회)`; } }
+            document.getElementById('pop_partner').innerText = best;
+        } catch (e) { console.error("인연의 숲 에러:", e); }
+    };
+    // --- [통합 추가 코드 끝] ---
 
     // 1. 기본 텍스트 및 정보 세팅
     document.getElementById('timelineMemberName').innerText = mName;
@@ -3812,61 +3874,7 @@ window.exportAllData = async () => {
     }
 };
 
-    window.showForestModal = async (mId) => {
-    const modal = document.getElementById('forestModal');
-    if (!modal) return;
-
-    try {
-        // 1. 해당 멤버의 모든 산행 로그 가져오기
-        const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
-        const logs = snap.docs.map(d => d.data());
-
-        let totalCount = logs.length;
-        let togetherCount = 0;
-        let partners = {}; // 동행인 카운트용
-        let uniquePartners = new Set(); // 고유 인원수용
-
-        logs.forEach(log => {
-            // 'with' 필드가 있고 내용이 있는 경우 (2인 이상 산행 기준)
-            if (log.with && log.with.trim() !== "" && log.with !== "혼자") {
-                togetherCount++;
-                
-                // 동행인들을 쉼표나 공백으로 분리해서 계산
-                const names = log.with.split(/[,/ ]+/).filter(n => n.length > 0);
-                names.forEach(name => {
-                    uniquePartners.add(name);
-                    partners[name] = (partners[name] || 0) + 1;
-                });
-            }
-        });
-
-        // 2. 데이터 계산
-        const synergy = totalCount > 0 ? Math.round((togetherCount / totalCount) * 100) : 0;
-        const radius = uniquePartners.size;
-
-        // 3. 우정 콤비 찾기
-        let bestPartnerName = "기록 없음";
-        let maxCount = 0;
-        for (const [name, count] of Object.entries(partners)) {
-            if (count > maxCount) {
-                maxCount = count;
-                bestPartnerName = `${name} (${count}회)`;
-            }
-        }
-
-        // 4. UI 반영
-        document.getElementById('forestSynergy').innerText = synergy;
-        document.getElementById('forestRadius').innerText = radius;
-        document.getElementById('forestPartner').innerText = bestPartnerName;
-
-        modal.style.display = 'flex';
-    } catch (e) {
-        console.error("인연의 숲 로딩 에러:", e);
-        alert("데이터를 불러오는데 실패했습니다.");
-    }
-};
-
-window.updateBonusDays = async () => {
+    window.updateBonusDays = async () => {
 const id = document.getElementById('memberSelectManage').value;
 const bonus = parseInt(document.getElementById('bonusDaysInput').value);
 if(id && !isNaN(bonus)) { await updateDoc(doc(db, "sanwoori", id), { bonusDays: increment(bonus) }); alert("적용 완료"); }
@@ -4847,42 +4855,6 @@ style="position:absolute; top:15px; right:15px; color:white; background:none; bo
     
     <p class="ancient-signature">San:woori Management</p>
 
-    </div>
-</div>
-
-<div id="forestModal" class="forest-overlay" onclick="this.style.display='none'">
-    <div class="forest-card" onclick="event.stopPropagation()">
-        <button class="forest-close" onclick="document.getElementById('forestModal').style.display='none'">&times;</button>
-        
-        <div class="forest-header">
-            <span class="forest-sub">CONNECTION DENSITY</span>
-            <h3 class="forest-title">인연의 숲</h3>
-        </div>
-
-        <div class="forest-body">
-            <div class="forest-item">
-                <p class="item-label">동행 지수 (Synergy)</p>
-                <div class="item-value-row">
-                    <span id="forestSynergy" class="item-val">0</span>
-                    <span class="item-unit">%</span>
-                </div>
-                <p class="item-desc">혼자보다 함께일 때 빛나는 정도</p>
-            </div>
-
-            <div class="forest-item">
-                <p class="item-label">인연의 반경 (Radius)</p>
-                <div class="item-value-row">
-                    <span id="forestRadius" class="item-val">0</span>
-                    <span class="item-unit">명</span>
-                </div>
-                <p class="item-desc">직접 연결된 고유 인연수</p>
-            </div>
-
-            <div class="forest-best">
-                <p class="best-label">우정 콤비 (Best Partner)</p>
-                <div id="forestPartner" class="best-value">기록 없음</div>
-            </div>
-        </div>
     </div>
 </div>
 
