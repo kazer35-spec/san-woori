@@ -13,6 +13,40 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+.forest-overlay {
+    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.8); z-index: 10000; justify-content: center; align-items: center;
+}
+.forest-card {
+    width: 90%; max-width: 340px; background: #1a1f2e; border-radius: 24px;
+    padding: 30px 20px; position: relative; color: white; text-align: center;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+.forest-close {
+    position: absolute; top: 15px; right: 20px; background: none; border: none;
+    color: white; font-size: 24px; cursor: pointer; opacity: 0.7;
+}
+.forest-sub { color: #5c8dff; font-size: 10px; font-weight: 800; letter-spacing: 2px; }
+.forest-title { font-size: 20px; margin: 8px 0 25px 0; font-weight: 700; }
+
+.forest-item {
+    background: rgba(255,255,255,0.03); border-radius: 16px; padding: 18px;
+    margin-bottom: 15px; text-align: left;
+}
+.item-label { color: #94a3b8; font-size: 11px; margin-bottom: 5px; }
+.item-value-row { display: flex; align-items: baseline; gap: 4px; }
+.item-val { font-size: 24px; font-weight: 800; }
+.item-unit { font-size: 14px; color: #94a3b8; }
+.item-desc { font-size: 10px; color: #64748b; margin-top: 8px; }
+
+.forest-best {
+    background: linear-gradient(135deg, rgba(92,141,255,0.1), rgba(160,32,240,0.1));
+    border-radius: 16px; padding: 20px; border: 1px solid rgba(92,141,255,0.2);
+}
+.best-label { color: #cbd5e1; font-size: 11px; margin-bottom: 8px; }
+.best-value { font-size: 18px; font-weight: 800; color: #82aaff; }
+
+
 /* 연대기 레이아웃 */
 .chronicle-container {
     margin-top: 15px;
@@ -1254,7 +1288,7 @@ padding: 10px 35px; border: none; border-radius: 2px;
 cursor: pointer; font-weight: bold; font-size: 13px;
 }
 
-/* 기존 JS에서 쓰던 글자 효과 유지 */
+    /* 기존 JS에서 쓰던 글자 효과 유지 */
 .gold-glow { color: #b8860b; font-weight: 800; text-shadow: 0 0 8px rgba(218,165,32,0.3); }
 .fading-10 { opacity: 0.25; filter: blur(0.7px); transition: 0.5s; }
 .fading-20 { opacity: 0.5; transition: 0.5s; }
@@ -2525,7 +2559,7 @@ if(coords.x >= r.x[0] && coords.x <= r.x[1] && coords.y >= r.y[0] && coords.y <=
 return "기타";
 }
 
-function initAutoSelection() {
+    function initAutoSelection() {
 const yearSelect = document.getElementById('yearSelect');
 if (yearSelect) yearSelect.value = selectedYear;
 document.querySelectorAll('.q-btn').forEach((btn, idx) => {
@@ -3456,11 +3490,11 @@ if (selectedMemberIds.size >= 2 && isHike) {
 
     // 2. 인연의 숲 DB에 상세 기록 저장 (이 데이터로 나중에 '인연의 숲' 화면을 만듭니다)
     await addDoc(collection(db, "bondingForest"), {
-        date: dateVal,          // 폼에서 입력받은 날짜
+        date: dateVal, // 폼에서 입력받은 날짜
         mountain: mountainName, // 폼에서 입력받은 산 이름
         members: companionNames, // 함께한 멤버 이름 리스트
         memberCount: companionNames.length,
-        isRegular: isRegular,   // 정기산행 여부
+        isRegular: isRegular, // 정기산행 여부
         createdAt: serverTimestamp()
     });
 
@@ -3774,8 +3808,62 @@ window.exportAllData = async () => {
         alert("백업 중 오류 발생: " + e.message);
     }
 };
-    
-    window.updateBonusDays = async () => {
+
+    window.showForestModal = async (mId) => {
+    const modal = document.getElementById('forestModal');
+    if (!modal) return;
+
+    try {
+        // 1. 해당 멤버의 모든 산행 로그 가져오기
+        const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
+        const logs = snap.docs.map(d => d.data());
+
+        let totalCount = logs.length;
+        let togetherCount = 0;
+        let partners = {}; // 동행인 카운트용
+        let uniquePartners = new Set(); // 고유 인원수용
+
+        logs.forEach(log => {
+            // 'with' 필드가 있고 내용이 있는 경우 (2인 이상 산행 기준)
+            if (log.with && log.with.trim() !== "" && log.with !== "혼자") {
+                togetherCount++;
+                
+                // 동행인들을 쉼표나 공백으로 분리해서 계산
+                const names = log.with.split(/[,/ ]+/).filter(n => n.length > 0);
+                names.forEach(name => {
+                    uniquePartners.add(name);
+                    partners[name] = (partners[name] || 0) + 1;
+                });
+            }
+        });
+
+        // 2. 데이터 계산
+        const synergy = totalCount > 0 ? Math.round((togetherCount / totalCount) * 100) : 0;
+        const radius = uniquePartners.size;
+
+        // 3. 우정 콤비 찾기
+        let bestPartnerName = "기록 없음";
+        let maxCount = 0;
+        for (const [name, count] of Object.entries(partners)) {
+            if (count > maxCount) {
+                maxCount = count;
+                bestPartnerName = `${name} (${count}회)`;
+            }
+        }
+
+        // 4. UI 반영
+        document.getElementById('forestSynergy').innerText = synergy;
+        document.getElementById('forestRadius').innerText = radius;
+        document.getElementById('forestPartner').innerText = bestPartnerName;
+
+        modal.style.display = 'flex';
+    } catch (e) {
+        console.error("인연의 숲 로딩 에러:", e);
+        alert("데이터를 불러오는데 실패했습니다.");
+    }
+};
+
+window.updateBonusDays = async () => {
 const id = document.getElementById('memberSelectManage').value;
 const bonus = parseInt(document.getElementById('bonusDaysInput').value);
 if(id && !isNaN(bonus)) { await updateDoc(doc(db, "sanwoori", id), { bonusDays: increment(bonus) }); alert("적용 완료"); }
@@ -4756,6 +4844,42 @@ style="position:absolute; top:15px; right:15px; color:white; background:none; bo
     
     <p class="ancient-signature">San:woori Management</p>
 
+    </div>
+</div>
+
+<div id="forestModal" class="forest-overlay" onclick="this.style.display='none'">
+    <div class="forest-card" onclick="event.stopPropagation()">
+        <button class="forest-close" onclick="document.getElementById('forestModal').style.display='none'">&times;</button>
+        
+        <div class="forest-header">
+            <span class="forest-sub">CONNECTION DENSITY</span>
+            <h3 class="forest-title">인연의 숲</h3>
+        </div>
+
+        <div class="forest-body">
+            <div class="forest-item">
+                <p class="item-label">동행 지수 (Synergy)</p>
+                <div class="item-value-row">
+                    <span id="forestSynergy" class="item-val">0</span>
+                    <span class="item-unit">%</span>
+                </div>
+                <p class="item-desc">혼자보다 함께일 때 빛나는 정도</p>
+            </div>
+
+            <div class="forest-item">
+                <p class="item-label">인연의 반경 (Radius)</p>
+                <div class="item-value-row">
+                    <span id="forestRadius" class="item-val">0</span>
+                    <span class="item-unit">명</span>
+                </div>
+                <p class="item-desc">직접 연결된 고유 인연수</p>
+            </div>
+
+            <div class="forest-best">
+                <p class="best-label">우정 콤비 (Best Partner)</p>
+                <div id="forestPartner" class="best-value">기록 없음</div>
+            </div>
+        </div>
     </div>
 </div>
 
