@@ -4984,16 +4984,24 @@ window.showBondingForest = async (event, mId) => {
     const popup = document.getElementById('bondingPopup');
     const content = document.getElementById('bondingContent');
     
-    // 클릭한 [우정P] 박스 위치 계산
+    // 1. 위치 계산 (화면 잘림 방지)
     const rect = event.currentTarget.getBoundingClientRect();
-    popup.style.left = `${rect.left}px`;
-    popup.style.top = `${rect.bottom + 5}px`; // 박스 바로 아래 뜨게 설정
+    let left = rect.left;
+    let top = rect.bottom + 8;
+
+    // 화면 오른쪽 끝에 걸릴 경우 왼쪽으로 이동
+    if (left + 210 > window.innerWidth) {
+        left = window.innerWidth - 220;
+    }
+    
+    popup.style.left = `${left}px`;
+    popup.style.top = `${top}px`;
     popup.classList.remove('hidden');
 
-    content.innerHTML = `<div style="font-size:11px; opacity:0.6;">인연의 숲 분석 중...</div>`;
+    content.innerHTML = `<div style="font-size:11px; opacity:0.6;">데이터 분석 중...</div>`;
 
     try {
-        // DB에서 'members' 배열 안에 내 ID(mId)가 포함된 문서만 가져오기
+        // DB 쿼리 실행
         const q = query(collection(db, "bondingForest"), where("members", "array-contains", mId));
         const snap = await getDocs(q);
         
@@ -5005,7 +5013,6 @@ window.showBondingForest = async (event, mId) => {
             const data = doc.data();
             const members = data.members || [];
             const names = data.names || {}; 
-
             members.forEach(pId => {
                 if(pId !== mId) {
                     uniqueFriends.add(pId);
@@ -5022,22 +5029,20 @@ window.showBondingForest = async (event, mId) => {
         }
 
         content.innerHTML = `
-            <div style="font-size:12px; font-weight:bold; margin-bottom:8px; display:flex; align-items:center; gap:5px;">
-               🌲 인연의 숲 <span style="font-size:9px; opacity:0.6; font-weight:normal;">Density Preview</span>
-            </div>
-            <div style="display:flex; flex-direction:column; gap:6px; font-size:11px;">
-                <div style="background:rgba(255,255,255,0.08); padding:7px; border-radius:8px; border:1px solid rgba(255,255,255,0.1);">
-                    <div>🤝 <b>동행 지수:</b> ${totalCount > 0 ? '75%' : '0%'}</div>
-                    <div style="font-size:9px; color:#94a3b8;">(동행 산행 ${totalCount}회)</div>
+            <div style="display:flex; flex-direction:column; gap:5px; font-size:11px;">
+                <div style="background:rgba(255,255,255,0.1); padding:6px; border-radius:8px;">
+                    <b>🤝 동행 지수:</b> ${totalCount > 0 ? '75%' : '0%'} <br>
+                    <span style="font-size:9px; opacity:0.6;">(동행 ${totalCount}회)</span>
                 </div>
-                <div style="padding-left:4px;">🌐 <b>인연의 반경:</b> ${uniqueFriends.size}명</div>
-                <div style="padding-left:4px;">🎖️ <b>우정 콤비:</b> <span style="color:#fbbf24;">${bestPartner}(${maxCount}회)</span></div>
+                <div>🌐 <b>인연의 반경:</b> ${uniqueFriends.size}명</div>
+                <div>🎖️ <b>우정 콤비:</b> <span style="color:#fbbf24;">${bestPartner}(${maxCount}회)</span></div>
             </div>
         `;
     } catch (e) {
-        content.innerHTML = `<div style="font-size:10px; color:#f87171;">데이터를 불러오지 못했습니다.</div>`;
+        content.innerHTML = `<div style="font-size:10px; color:#f87171;">조회 실패</div>`;
     }
 };
+
 
 </script>
 </body>
