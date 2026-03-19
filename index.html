@@ -4966,14 +4966,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
- // 반드시 소문자 window로 시작해야 합니다.
+// 1. 함수 선언 (window 객체에 직접 할당하여 어디서든 호출 가능하게 함)
 window.showBondingForest = async function(e, targetName) {
-    // 1. 이벤트 전파 방지 (부모 요소 클릭 이벤트 간섭 차단)
+    // 이벤트 전파 방지 (터치/클릭 모두 대응)
     if (e && e.stopPropagation) e.stopPropagation();
     
-    // 2. 유효성 검사
+    // 유효성 검사
     if (!targetName || targetName.trim() === "" || targetName.includes('$')) {
-        console.warn("유효하지 않은 이름입니다:", targetName);
+        console.warn("유효하지 않은 이름:", targetName);
         return;
     }
 
@@ -4981,22 +4981,30 @@ window.showBondingForest = async function(e, targetName) {
     const content = document.getElementById('bondingContent');
     
     if (!popup || !content) {
-        console.error("bondingPopup 요소를 찾을 수 없습니다.");
+        console.error("HTML에 bondingPopup 또는 bondingContent가 없습니다.");
         return;
     }
 
-    // 3. 팝업 위치 및 표시
-    const x = e.touches ? e.touches[0].clientX : e.clientX;
-    const y = e.touches ? e.touches[0].clientY : e.clientY;
-    
-    popup.style.display = 'block';
-    popup.style.left = Math.min(x - 50, window.innerWidth - 240) + 'px';
-    popup.style.top = (y + 15) + 'px'; 
+    // 좌표 계산 (모바일 터치와 PC 클릭 동시 지원)
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
 
-    content.innerHTML = '<div style="font-size:11px; color:#94a3b8; text-align:center; padding:10px;">데이터 분석 중...</div>';
+    // 팝업 표시 및 위치 지정
+    popup.style.display = 'block';
+    popup.style.position = 'fixed';
+    popup.style.zIndex = '999999'; // 가장 위로 올림
+    
+    // 화면 밖으로 나가지 않게 조정
+    let leftPos = clientX - 50;
+    if (leftPos + 240 > window.innerWidth) leftPos = window.innerWidth - 250;
+    
+    popup.style.left = leftPos + 'px';
+    popup.style.top = (clientY + 15) + 'px'; 
+
+    content.innerHTML = '<div style="font-size:11px; color:#94a3b8; text-align:center; padding:10px;">인연 분석 중...</div>';
 
     try {
-        // Firebase 쿼리 (db, query, collection 등이 상단에 정의되어 있어야 함)
+        // Firebase 데이터 호출 (db, query, collection, where, getDocs가 상단에 선언되어 있어야 함)
         const q = query(collection(db, "bondingForest"), where("members", "array-contains", targetName));
         const snap = await getDocs(q);
         
@@ -5006,19 +5014,26 @@ window.showBondingForest = async function(e, targetName) {
         snap.forEach((doc) => {
             const d = doc.data();
             totalCount++;
-            d.members.forEach((p) => {
-                if (p !== targetName) partnersMap[p] = (partnersMap[p] || 0) + 1;
-            });
+            if (d.members && Array.isArray(d.members)) {
+                d.members.forEach((p) => {
+                    if (p !== targetName) {
+                        partnersMap[p] = (partnersMap[p] || 0) + 1;
+                    }
+                });
+            }
         });
 
         const uniqueCount = Object.keys(partnersMap).length;
-        let bestP = "없음"; 
+        let bestP = "미확인"; 
         let maxV = 0;
-        for (const n in partnersMap) { 
-            if (partnersMap[n] > maxV) { maxV = partnersMap[n]; bestP = n; } 
+        for (const name in partnersMap) { 
+            if (partnersMap[name] > maxV) { 
+                maxV = partnersMap[name]; 
+                bestP = name; 
+            } 
         }
 
-        // 결과 렌더링
+        // 결과 화면 출력
         content.innerHTML = `
             <div style="margin-bottom:8px;">
                 <div style="font-size:10px; color:#94a3b8;">동행 횟수</div>
@@ -5034,19 +5049,18 @@ window.showBondingForest = async function(e, targetName) {
             </div>`;
             
     } catch (err) {
-        console.error("데이터 로드 에러:", err);
-        content.innerHTML = '<div style="font-size:11px; color:#ef4444; text-align:center;">분석 실패</div>';
+        console.error("인연의 숲 분석 에러:", err);
+        content.innerHTML = '<div style="font-size:11px; color:#ef4444; text-align:center;">데이터를 불러올 수 없습니다.</div>';
     }
 };
 
-// 화면 바깥 클릭 시 닫기 기능 추가
-document.addEventListener('click', (e) => {
+// 팝업 닫기 기능 (바탕 클릭 시)
+document.addEventListener('mousedown', function(e) {
     const popup = document.getElementById('bondingPopup');
     if (popup && popup.style.display === 'block' && !popup.contains(e.target)) {
         popup.style.display = 'none';
     }
 });
-
 
 </script>
 </body>
