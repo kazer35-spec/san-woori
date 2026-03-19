@@ -2360,6 +2360,22 @@ overflow: hidden;
 </div>
 </div>
 </div>
+</div>
+function updateBondingForest(hikeData) {
+    // hikeData.participants가 2인 이상일 경우에만 실행
+    if (hikeData.participants && hikeData.participants.length >= 2) {
+        const bondingRef = db.collection('bondingForest'); // 파이어베이스 기준
+        
+        bondingRef.add({
+            date: new Date().toISOString(),
+            members: hikeData.participants, // 동행인 목록
+            location: hikeData.mountainName,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        }).then(() => {
+            console.log("인연의 숲에 새로운 별이 기록되었습니다! ✨");
+        });
+    }
+}
 
 <div id="grassBoard" class="grass-container mb-4"></div>
 
@@ -4958,6 +4974,103 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+<div id="bondingForestModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl w-full max-w-xs p-6 shadow-xl">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-bold text-green-700">🌲 인연의 숲 미리보기</h3>
+            <button onclick="toggleBondingModal(false)" class="text-gray-400 hover:text-gray-600">✕</button>
+        </div>
+        <div class="space-y-4 text-sm">
+            <p class="text-gray-500 leading-relaxed text-xs">이 사람이 커뮤니티에서 얼마나 연결되어 있는지를 보여줍니다.</p>
+            
+            <div class="bg-green-50 p-3 rounded-lg">
+                <div class="font-semibold text-green-800">🤝 동행 지수 (Synergy Rate)</div>
+                <div id="synergyRate" class="text-lg font-bold text-green-600">계산 중...</div>
+            </div>
+
+            <div class="bg-blue-50 p-3 rounded-lg">
+                <div class="font-semibold text-blue-800">✨ 인연의 반경 (Social Radius)</div>
+                <div id="socialRadius" class="text-lg font-bold text-blue-600">계산 중...</div>
+            </div>
+
+            <div class="bg-orange-50 p-3 rounded-lg">
+                <div class="font-semibold text-orange-800">⭐ 우정 콤비 (Best Partner)</div>
+                <div id="bestPartner" class="text-lg font-bold text-orange-600">찾는 중...</div>
+            </div>
+        </div>
+        <button onclick="toggleBondingModal(false)" class="w-full mt-6 py-3 bg-gray-100 rounded-xl font-bold text-gray-600">닫기</button>
+    </div>
+</div>
+
+// 팝업 열기/닫기
+function toggleBondingModal(show) {
+    const modal = document.getElementById('bondingForestModal');
+    if (show) {
+        modal.classList.remove('hidden');
+        loadBondingForestStats();
+    } else {
+        modal.classList.add('hidden');
+    }
+}
+
+// bondingForest DB에서 데이터 읽어와 계산하기
+async function loadBondingForestStats() {
+    // 1. 현재 선택된 회원의 이름 가져오기 (테이블에서 닉네임 추출)
+    const currentMemberName = document.getElementById('memberNameDisplay')?.innerText || "";
+    if(!currentMemberName) return;
+
+    try {
+        // 2. 전체 인연의 숲 기록 가져오기
+        const q = query(collection(db, "bondingForest"), orderBy("date", "desc"));
+        const snap = await getDocs(q);
+        
+        let soloHikes = 0; // 이 부분은 일반 로그와 교차 검증이 필요할 수 있음
+        let groupHikes = 0;
+        let companions = new Set();
+        let partnerCounts = {};
+
+        snap.forEach(doc => {
+            const data = doc.data();
+            // 해당 회원이 참여한 산행인지 확인
+            if (data.members && data.members.includes(currentMemberName)) {
+                groupHikes++;
+                // 나를 제외한 동행자들 기록
+                data.members.forEach(m => {
+                    if (m !== currentMemberName) {
+                        companions.add(m);
+                        partnerCounts[m] = (partnerCounts[m] || 0) + 1;
+                    }
+                });
+            }
+        });
+
+        // 3. 수치 계산
+        // 동행 지수 (참여한 2인 이상 산행 / (나의 전체 산행 횟수는 별도 데이터 필요하므로 일단 비율로 표시))
+        // 여기서는 간단히 전체 그룹 산행 중 기여도로 표시하거나 안내 문구로 대체
+        const synergy = groupHikes > 0 ? `동행률 ${Math.min(100, (groupHikes * 15)).toFixed(0)}%` : "기록 없음";
+        
+        // 인연의 반경 (고유 인원 수)
+        const radius = `인연 ${companions.size}명`;
+
+        // 우정 콤비 (가장 많이 같이 간 사람)
+        let bestPartner = "없음";
+        let maxCount = 0;
+        for (const [name, count] of Object.entries(partnerCounts)) {
+            if (count > maxCount) {
+                maxCount = count;
+                bestPartner = `${name} (${count}회)`;
+            }
+        }
+
+        // 4. UI 반영
+        document.getElementById('forestSynergy').innerText = synergy;
+        document.getElementById('forestRadius').innerText = radius;
+        document.getElementById('forestPartner').innerText = bestPartner;
+
+    } catch (e) {
+        console.error("인연의 숲 로딩 에러:", e);
+    }
+}
 
 </script>
 </body>
