@@ -1253,7 +1253,6 @@ margin-top: 25px; background: #4a3728; color: #f4e4bc;
 padding: 10px 35px; border: none; border-radius: 2px;
 cursor: pointer; font-weight: bold; font-size: 13px;
 }
-
     /* 기존 JS에서 쓰던 글자 효과 유지 */
 .gold-glow { color: #b8860b; font-weight: 800; text-shadow: 0 0 8px rgba(218,165,32,0.3); }
 .fading-10 { opacity: 0.25; filter: blur(0.7px); transition: 0.5s; }
@@ -2353,13 +2352,9 @@ overflow: hidden;
 <div class="flex items-center gap-1.5">
 <div id="passionVibeArea"></div>
 
-<div id="friendshipPointArea" 
-     onclick="openSocialForest()" 
-     style="cursor:pointer; position:relative; z-index:9999;" 
-     class="flex items-center h-[18px] text-[9px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100 transition-colors hover:bg-blue-200">
-    💞 우정 <span id="memberFriendshipPoint" class="ml-1">0</span>P
+<div id="friendshipPointArea" class="flex items-center h-[18px] text-[9px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+💞 우정 <span id="memberFriendshipPoint" class="ml-1">0</span>P
 </div>
-
 </div>
 </div>
 
@@ -3994,7 +3989,6 @@ console.error("온도 갱신 중 오류 발생:", e);
 }
 
 window.showMemberMountain = async (mId, mName) => {
-    window.currentMemberId = mId; 
 const modal = document.getElementById('mountainViewModal');
 const card = document.getElementById('integratedCard');
 const peakLayer = document.getElementById('peakLayer');
@@ -4153,17 +4147,6 @@ peakLayer.appendChild(peakDiv);
 } catch (e) { 
     console.error("통합 로딩 에러:", e); 
 }
-        // --- [인연의 숲 연결부] ---
-    const friendshipArea = document.getElementById('friendshipPointArea');
-    if (friendshipArea) {
-        // 기존 클릭 이벤트를 제거하고 새로 연결
-        friendshipArea.onclick = (e) => {
-            e.stopPropagation(); // 부모 모달이 닫히는 것 방지
-            window.showSocialForest(mId, mName);
-        };
-        // 클릭 가능하다는 시각적 표시
-        friendshipArea.style.cursor = 'pointer';
-    }
 }; // showMemberMountain 함수 끝
 
 // --- [수정] renderTreeRings 함수 (정기산행 위성 및 다채로운 배경 별 추가) ---
@@ -4971,147 +4954,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
-
-    // [최종] 인연의 숲 실행 및 자동 연결 함수
-window.showSocialForest = async function(mId, mName) {
-    const modal = document.getElementById('socialForestModal');
-    const content = document.getElementById('socialContent');
-    if(!modal || !content) return;
-
-    // 팝업 표시
-    modal.style.display = 'flex';
-    content.innerHTML = `<div style="text-align:center; padding:20px; font-size:11px; color:#94a3b8;">데이터 연결 중...</div>`;
-
-    try {
-        // 1. Firebase 데이터 조회 (ID 기준)
-        const partnersSnap = await getDocs(collection(db, `bondingForest/${mId}/partners`));
-        let partners = [];
-        partnersSnap.forEach(doc => {
-            partners.push({ name: doc.id, count: doc.data().count || 0 });
-        });
-
-        const logsSnap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
-        const totalHikes = logsSnap.size;
-        const togetherHikes = partners.reduce((acc, p) => acc + p.count, 0);
-        const synergyRate = totalHikes > 0 ? Math.round((togetherHikes / totalHikes) * 100) : 0;
-        
-        partners.sort((a, b) => b.count - a.count);
-        const best = partners[0] || { name: "기록 없음", count: 0 };
-
-        // 2. 결과 화면 출력
-        content.innerHTML = `
-            <div style="margin-bottom:15px;">
-                <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:5px;">
-                    <span style="color:#64748b;">동행 지수</span>
-                    <span style="color:#3b82f6; font-weight:bold;">${synergyRate}%</span>
-                </div>
-                <div style="width:100%; height:6px; background:#f1f5f9; border-radius:3px; overflow:hidden;">
-                    <div style="width:${synergyRate}%; height:100%; background:linear-gradient(90deg, #3b82f6, #60a5fa);"></div>
-                </div>
-                <p style="font-size:9px; color:#94a3b8; margin-top:5px; text-align:center;">
-                    "${mName}님은 총 ${totalHikes}회 산행 중<br>${togetherHikes}회를 동료와 함께했습니다."
-                </p>
-            </div>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-                <div style="background:#f8fafc; padding:10px; border-radius:10px; border:1px solid #f1f5f9; text-align:center;">
-                    <span style="font-size:9px; color:#94a3b8; display:block; margin-bottom:2px;">인연의 반경</span>
-                    <div style="font-size:14px; font-weight:bold; color:#1e293b;">${partners.length}명</div>
-                </div>
-                <div style="background:#f8fafc; padding:10px; border-radius:10px; border:1px solid #f1f5f9; text-align:center;">
-                    <span style="font-size:9px; color:#94a3b8; display:block; margin-bottom:2px;">우정 콤비</span>
-                    <div style="font-size:11px; font-weight:bold; color:#3b82f6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${best.name}</div>
-                    <div style="font-size:9px; color:#64748b;">(${best.count}회)</div>
-                </div>
-            </div>`;
-    } catch (e) {
-        console.error(e);
-        content.innerHTML = `<div style="font-size:10px; color:red; text-align:center; padding:20px;">데이터를 불러올 수 없습니다.</div>`;
-    }
-};
-
-// [중요] 기존 멤버 모달이 열릴 때 버튼을 누를 수 있게 강제로 연결해주는 코드
-const observer = new MutationObserver(() => {
-    const friendshipBtn = document.getElementById('friendshipPointArea');
-    if (friendshipBtn && !friendshipBtn.onclick) {
-        friendshipBtn.onclick = () => {
-            const nameEl = document.getElementById('mwMountainName');
-            const mName = nameEl ? nameEl.innerText.replace('님의 산맥', '').trim() : '';
-            // 전역 변수 window.currentMemberId 가 설정되어 있는지 확인
-            if (window.currentMemberId) {
-                window.showSocialForest(window.currentMemberId, mName);
-            }
-        };
-        friendshipBtn.style.cursor = 'pointer';
-    }
-});
-observer.observe(document.body, { childList: true, subtree: true });
-
-
-    <div id="socialForestModal" 
-     style="display: none; position: fixed; inset: 0; z-index: 99999; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);" 
-     onclick="this.style.display='none'">
-    
-    <div style="width: 280px; background: white; border-radius: 20px; padding: 24px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); position: relative;" 
-         onclick="event.stopPropagation()">
-        
-        <div style="margin-bottom: 20px;">
-            <span style="font-size: 9px; font-weight: 900; color: #3b82f6; letter-spacing: 1px; display: block; margin-bottom: 4px;">RELATION DENSITY</span>
-
-
-    // 1. 인연의 숲 실행 함수 (파일 맨 아래에 추가)
-async function openSocialForest() {
-    const mId = window.currentMemberId; 
-    const nameEl = document.getElementById('mwMountainName');
-    if (!mId || !nameEl) return;
-
-    const mName = nameEl.innerText.replace('님의 산맥', '').trim();
-    const modal = document.getElementById('socialForestModal');
-    const content = document.getElementById('socialContent');
-    
-    if(!modal) return;
-
-    modal.style.display = 'flex';
-    content.innerHTML = `<div style="text-align:center; padding:20px; font-size:11px; color:#94a3b8;">데이터 연결 중...</div>`;
-
-    try {
-        const partnersSnap = await getDocs(collection(db, `bondingForest/${mId}/partners`));
-        let partners = [];
-        partnersSnap.forEach(doc => {
-            partners.push({ name: doc.id, count: doc.data().count || 0 });
-        });
-
-        const logsSnap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
-        const totalHikes = logsSnap.size;
-        const togetherHikes = partners.reduce((acc, p) => acc + p.count, 0);
-        const synergyRate = totalHikes > 0 ? Math.round((togetherHikes / totalHikes) * 100) : 0;
-        
-        partners.sort((a, b) => b.count - a.count);
-        const best = partners[0] || { name: "기록 없음", count: 0 };
-
-        content.innerHTML = `
-            <div style="margin-bottom:15px;">
-                <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:5px;">
-                    <span style="color:#64748b;">동행 지수</span>
-                    <span style="color:#3b82f6; font-weight:bold;">${synergyRate}%</span>
-                </div>
-                <div style="width:100%; height:6px; background:#f1f5f9; border-radius:3px; overflow:hidden;">
-                    <div style="width:${synergyRate}%; height:100%; background:#3b82f6;"></div>
-                </div>
-            </div>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-                <div style="background:#f8fafc; padding:10px; border-radius:10px; text-align:center;">
-                    <span style="font-size:9px; color:#94a3b8;">인연의 반경</span>
-                    <div style="font-size:13px; font-weight:bold;">${partners.length}명</div>
-                </div>
-                <div style="background:#f8fafc; padding:10px; border-radius:10px; text-align:center;">
-                    <span style="font-size:9px; color:#94a3b8;">우정 콤비</span>
-                    <div style="font-size:11px; font-weight:bold; color:#3b82f6;">${best.name}</div>
-                </div>
-            </div>`;
-    } catch (e) {
-        content.innerHTML = `<div style="font-size:10px; color:red; text-align:center;">데이터 로드 실패</div>`;
-    }
-}
 
 </script>
 </body>
