@@ -4958,6 +4958,81 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+    // --- [추가] 인연의 숲(Social Forest) 팝업 로직 ---
+window.showSocialForest = async function(mId, mName) {
+    const modal = document.getElementById('socialForestModal');
+    const content = document.getElementById('socialContent');
+    if(!modal || !content) return;
+
+    // 팝업 열기 및 로딩 표시
+    modal.style.display = 'flex';
+    content.innerHTML = `<div style="color:#94a3b8; font-size:11px; text-align:center; padding:20px;">인연의 실을 연결하는 중...</div>`;
+
+    try {
+        // 1. 동행 데이터 가져오기 (bondingForest 내 해당 멤버의 partners 서브컬렉션)
+        const partnersSnap = await getDocs(collection(db, `bondingForest/${mId}/partners`));
+        let partners = [];
+        partnersSnap.forEach(doc => {
+            partners.push({ name: doc.id, count: doc.data().count || 0 });
+        });
+
+        // 2. 전체 산행 기록 가져오기 (동행률 계산용)
+        const logsSnap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
+        const totalHikes = logsSnap.size;
+        
+        // 3. 통계 계산
+        const togetherHikes = partners.reduce((acc, p) => acc + p.count, 0);
+        const synergyRate = totalHikes > 0 ? Math.round((togetherHikes / totalHikes) * 100) : 0;
+        
+        // 베스트 파트너 (가장 많이 같이 간 사람)
+        partners.sort((a, b) => b.count - a.count);
+        const best = partners[0] || { name: "미발견", count: 0 };
+
+        // 4. 결과 화면 렌더링
+        content.innerHTML = `
+            <div style="margin-bottom:20px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <span style="font-size:11px; color:#64748b; font-weight:700;">동행 지수 (Synergy Rate)</span>
+                    <span style="font-size:11px; color:#3b82f6; font-weight:900;">${synergyRate}%</span>
+                </div>
+                <div style="width:100%; height:8px; background:#f1f5f9; border-radius:4px; overflow:hidden;">
+                    <div style="width:${synergyRate}%; height:100%; background:linear-gradient(90deg, #3b82f6, #60a5fa); transition: width 1s ease;"></div>
+                </div>
+                <p style="font-size:10px; color:#94a3b8; margin-top:6px;">"${mName}님은 전체 산행의 ${synergyRate}%를 동료와 함께하셨네요!"</p>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                <div style="background:#f8fafc; padding:12px; border-radius:10px; border:1px solid #f1f5f9;">
+                    <span style="display:block; font-size:9px; color:#94a3b8; margin-bottom:4px;">인연의 반경</span>
+                    <span style="font-size:14px; font-weight:900; color:#1e293b;">${partners.length}명</span>
+                </div>
+                <div style="background:#f8fafc; padding:12px; border-radius:10px; border:1px solid #f1f5f9;">
+                    <span style="display:block; font-size:9px; color:#94a3b8; margin-bottom:4px;">우정 콤비</span>
+                    <span style="font-size:12px; font-weight:900; color:#3b82f6;">${best.name} <span style="font-size:10px; color:#64748b;">(${best.count}회)</span></span>
+                </div>
+            </div>
+        `;
+    } catch (e) {
+        console.error("인연의 숲 로딩 실패:", e);
+        content.innerHTML = `<div style="color:#ef4444; font-size:10px; text-align:center;">데이터를 불러올 수 없습니다.</div>`;
+    }
+};
+
+    <div id="socialForestModal" class="fixed inset-0 z-[10000] hidden items-center justify-center bg-black/60 backdrop-blur-sm" onclick="this.style.display='none'">
+    <div class="w-[280px] bg-white rounded-2xl p-6 shadow-2xl overflow-hidden relative" onclick="event.stopPropagation()">
+        <div style="margin-bottom:15px;">
+            <span style="font-size:9px; font-weight:900; color:#3b82f6; letter-spacing:1px;">RELATION DENSITY</span>
+            <h3 style="font-size:18px; font-weight:900; color:#1e293b; margin:0;">인연의 숲 <span style="font-size:14px;">🌳</span></h3>
+        </div>
+        
+        <div id="socialContent">
+            </div>
+
+        <button onclick="document.getElementById('socialForestModal').style.display='none'" 
+                style="position:absolute; top:15px; right:15px; color:#94a3b8; background:none; border:none; font-size:20px; cursor:pointer;">&times;</button>
+    </div>
+</div>
+
 </script>
 </body>
     </html>
