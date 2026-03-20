@@ -13,25 +13,6 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-    .bonding-popup {
-    position: fixed;
-    z-index: 100000;
-    background: rgba(10, 15, 28, 0.98);
-    border: 1px solid rgba(59, 130, 246, 0.5);
-    border-radius: 12px;
-    padding: 15px;
-    width: 210px;
-    color: white;
-    box-shadow: 0 15px 40px rgba(0,0,0,0.8);
-    backdrop-filter: blur(10px);
-}
-.bonding-header { font-size: 9px; color: #3b82f6; font-weight: 900; letter-spacing: 1px; margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; }
-.bonding-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
-.bonding-label { font-size: 10px; color: #94a3b8; }
-.bonding-value { font-size: 11px; font-weight: bold; }
-.synergy-bar-bg { width: 100%; height: 3px; background: #1e293b; border-radius: 2px; }
-.synergy-bar-fill { height: 100%; background: linear-gradient(90deg, #3b82f6, #60a5fa); border-radius: 2px; }
-
 /* 연대기 레이아웃 */
 .chronicle-container {
     margin-top: 15px;
@@ -1272,6 +1253,7 @@ margin-top: 25px; background: #4a3728; color: #f4e4bc;
 padding: 10px 35px; border: none; border-radius: 2px;
 cursor: pointer; font-weight: bold; font-size: 13px;
 }
+
     /* 기존 JS에서 쓰던 글자 효과 유지 */
 .gold-glow { color: #b8860b; font-weight: 800; text-shadow: 0 0 8px rgba(218,165,32,0.3); }
 .fading-10 { opacity: 0.25; filter: blur(0.7px); transition: 0.5s; }
@@ -2371,12 +2353,9 @@ overflow: hidden;
 <div class="flex items-center gap-1.5">
 <div id="passionVibeArea"></div>
 
-<div id="friendshipPointArea" 
-     onclick="window.showBondingForest(event, lastSelectedMemberId, lastSelectedMemberName)"
-     class="flex items-center h-[18px] text-[9px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100 cursor-pointer hover:bg-blue-100 transition-colors">
-    💞 우정 <span id="memberFriendshipPoint" class="ml-1">0</span>P
+<div id="friendshipPointArea" class="flex items-center h-[18px] text-[9px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+💞 우정 <span id="memberFriendshipPoint" class="ml-1">0</span>P
 </div>
-
 </div>
 </div>
 
@@ -2553,10 +2532,6 @@ document.querySelectorAll('.q-btn').forEach((btn, idx) => {
 btn.classList.toggle('active-q', idx + 1 === selectedQuarter);
 });
 }
-
-    // [추가] 전역 변수 선언: 상세 모달이 열릴 때 선택된 멤버 정보를 기억합니다.
-let lastSelectedMemberId = "";
-let lastSelectedMemberName = "";
 
 const levelThresholds = [
 { lv: 100, name: "🌌 은하수" }, { lv: 90, name: "🌠 별똥별" }, { lv: 80, name: "💫 타원별" },
@@ -4014,18 +3989,7 @@ console.error("온도 갱신 중 오류 발생:", e);
 }
 }
 
-window.showMemberMountain = async (mId, mName, memberInfo) => {
-    try {
-        // [1] 전역 변수 업데이트 및 우정 버튼 즉시 주입
-        lastSelectedMemberId = mId;
-        lastSelectedMemberName = mName;
-
-        const friendshipBtn = document.getElementById('friendshipPointArea');
-        if (friendshipBtn) {
-            friendshipBtn.onclick = (e) => window.showBondingForest(e, mId, mName);
-            const ptEl = document.getElementById('memberFriendshipPoint');
-            if (ptEl) ptEl.innerText = memberInfo?.bondingPoint || 0;
-        }
+window.showMemberMountain = async (mId, mName) => {
 const modal = document.getElementById('mountainViewModal');
 const card = document.getElementById('integratedCard');
 const peakLayer = document.getElementById('peakLayer');
@@ -4990,94 +4954,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-});
-window.showBondingForest = async (event, mId, mName) => {
-    // 클릭 이벤트 전파 방지 (모달이 같이 닫히는 것 방지)
-    if (event.stopPropagation) event.stopPropagation();
-
-    // 1. 기존 팝업 제거
-    let oldPopup = document.getElementById('bondingPopup');
-    if (oldPopup) oldPopup.remove();
-
-    // 2. 새 팝업 생성 및 기본 디자인
-    const popup = document.createElement('div');
-    popup.id = 'bondingPopup';
-    popup.className = 'bonding-popup'; // CSS 스타일은 3단계 참고
-    popup.innerHTML = `<div style="text-align:center; padding:10px; font-size:10px; color:#94a3b8;">인연 분석 중...</div>`;
-    document.body.appendChild(popup);
-
-    // 3. 팝업 위치 결정 (클릭한 우정포인트 위치 바로 위)
-    const rect = event.currentTarget.getBoundingClientRect();
-    popup.style.left = `${Math.min(rect.left, window.innerWidth - 230)}px`;
-    popup.style.top = `${rect.top - 130}px`; // 위쪽으로 띄움
-
-    try {
-        // 4. Firebase bondingForest 데이터 조회
-        const snap = await getDocs(collection(db, "bondingForest"));
-        let totalHikes = 0;
-        let groupHikes = 0;
-        let partners = {}; 
-        let uniquePeers = new Set();
-
-        snap.forEach(doc => {
-            const data = doc.data();
-            const members = data.members || [];
-            if (members.includes(mName)) { // 클릭한 멤버의 이름이 포함된 경우
-                totalHikes++; 
-                if (members.length >= 2) { // 2인 이상 산행
-                    groupHikes++; 
-                    members.forEach(p => {
-                        if (p !== mName) {
-                            partners[p] = (partners[p] || 0) + 1;
-                            uniquePeers.add(p);
-                        }
-                    });
-                }
-            }
-        });
-
-        const synergyRate = totalHikes > 0 ? Math.round((groupHikes / totalHikes) * 100) : 0;
-        const socialRadius = uniquePeers.size;
-        
-        let bestPartner = "없음";
-        let maxCount = 0;
-        for (let p in partners) {
-            if (partners[p] > maxCount) {
-                maxCount = partners[p];
-                bestPartner = p;
-            }
-        }
-
-        // 5. 팝업 내용 업데이트
-        popup.innerHTML = `
-            <div class="bonding-header">인연의 숲 미리보기</div>
-            <div class="bonding-item">
-                <span class="bonding-label">동행 지수 (Synergy)</span>
-                <span class="bonding-value">${synergyRate}%</span>
-            </div>
-            <div class="synergy-bar-bg">
-                <div class="synergy-bar-fill" style="width: ${synergyRate}%"></div>
-            </div>
-            <div class="bonding-item" style="margin-top:12px;">
-                <span class="bonding-label">인연의 반경 (Radius)</span>
-                <span class="bonding-value">${socialRadius}명</span>
-            </div>
-            <div class="bonding-item">
-                <span class="bonding-label">우정 콤비 (Best Partner)</span>
-                <span class="bonding-value" style="color:#60a5fa">${bestPartner} ${maxCount > 0 ? '('+maxCount+'회)' : ''}</span>
-            </div>
-        `;
-
-    } catch (e) {
-        console.error("Bonding Forest 로드 실패:", e);
-        popup.remove();
-    }
-};
-
-// 외부 클릭 시 팝업 닫기
-document.addEventListener('mousedown', (e) => {
-    const bPopup = document.getElementById('bondingPopup');
-    if (bPopup && !bPopup.contains(e.target)) bPopup.remove();
 });
 
 </script>
