@@ -3412,68 +3412,82 @@ window.addMultiActivity = async () => {
 
     pendingLevelUpCards = [];
 
-    try {
+try {
+    // 1. 선택된 모든 멤버에 대해 반복 처리
     for (const id of selectedMemberIds) {
-        // 1. 해당 멤버 데이터 찾기 (안전장치 추가)
+        // [안전장치] 현재 데이터에서 멤버 정보를 가져옵니다.
         const member = currentData ? currentData.find(m => m.id === id) : null;
-        if (!member) continue; // 멤버를 못 찾으면 다음 사람으로 건너뜀
-
-        // 2. 레벨업 계산 로직
-        const oldLevel = member.level || 0;
-        const newLevel = oldLevel + (typeof effectiveUp !== 'undefined' ? effectiveUp : 0);
-
-                      // 1. 업데이트할 기본 데이터 구성
-const updateData = {
-    level: newLevel,
-    totalHeight: increment(height)
-};
-
-// 2. 활동 여부 확인 (산행, 런닝, 트레킹 중 하나라도 체크 시)
-if (isHike || isRunning || isTracking) {
-    updateData.lastDate = ts; // 최근 활동일을 오늘로 갱신
-
-    // 산행인 경우에만 보너스 날짜 리셋 (기존 규칙 유지)
-    if (isHike) {
-        updateData.bonusDays = 0;
-    }
-
-    // 3. 신입(0레벨)이 아닌 경우에만 남은 날짜(dday) 15일 추가
-    if (oldLevel > 0) {
-        // 기존 남은 날짜에 15일 추가
-        let calculatedDday = (member.dday || 0) + 15;
-
-        // 4. 최대 122일을 넘지 않도록 제한 (122일 컷!)
-        if (calculatedDday > 122) {
-            calculatedDday = 122;
+        if (!member) {
+            console.warn(`ID: ${id} 멤버를 찾을 수 없어 건너뜁니다.`);
+            continue;
         }
 
-        updateData.dday = calculatedDday;
+        // --- [A] 기본 변수 설정 ---
+        const oldLevel = member.level || 0;
+        const newLevel = oldLevel + (typeof effectiveUp !== 'undefined' ? effectiveUp : 0);
+        
+        // --- [B] 업데이트할 기본 데이터 구성 ---
+        const updateData = {
+            level: newLevel,
+            totalHeight: increment(height) // 입력받은 산 높이만큼 누적
+        };
+
+        // --- [C] 활동 여부에 따른 날짜(D-day) 처리 ---
+        if (isHike || isRunning || isTracking) {
+            updateData.lastDate = ts; // 최근 활동일 갱신
+
+            if (isHike) {
+                updateData.bonusDays = 0; // 산행 시 보너스 날짜 리셋
+            }
+
+            // 신입(0레벨)이 아닌 경우에만 15일 추가 로직 실행
+            if (oldLevel > 0) {
+                let calculatedDday = (member.dday || 0) + 15;
+                
+                // 최대 122일 컷 제한
+                if (calculatedDday > 122) {
+                    calculatedDday = 122;
+                }
+                updateData.dday = calculatedDday;
+            }
+        }
+
+        // --- [D] 메인 DB(산:우리) 업데이트 실행 ---
+        await updateDoc(doc(db, "sanwoori", id), updateData);
+
+        // --- [E] 인연의 숲 기록 (2인 이상 산행 시) ---
+        if (selectedMemberIds.size >= 2 && isHike) {
+            // 1. 멤버 이름 배열 생성 (ID -> 이름 변환)
+            const companionNames = Array.from(selectedMemberIds).map(mid => memberIdToNameMap[mid] || "알수없음");
+
+            // 2. 인연의 숲 DB(bondingForest)에 상세 기록 저장 (한 번만 저장되도록 로직 확인 필요*)
+            // *참고: 이 for문은 멤버마다 돌기 때문에, '기록' 자체는 한 번만 저장하려면 이 블록을 for문 밖으로 빼거나
+            // 각 멤버별 '참여 기록' 형태로 설계해야 합니다. 여기서는 요청하신 대로 멤버별 루프 내에 배치했습니다.
+            await addDoc(collection(db, "bondingForest"), {
+                date: dateVal,
+                mountain: mountainName,
+                members: companionNames,
+                memberCount: companionNames.length,
+                isRegular: isRegular,
+                userId: id, // 어떤 멤버의 기록인지 식별자 추가
+                createdAt: serverTimestamp()
+            });
+
+            // 3. 우정 포인트 점수 누적
+            const pointToAdd = isRegular ? 10 : (10 * (effectiveUp || 1)); 
+            await updateDoc(doc(db, "sanwoori", id), { 
+                friendshipPoint: increment(pointToAdd) 
+            });
+        }
+
+        console.log(`${member.name || id}님 기록 업데이트 완료 (레벨: ${newLevel})`);
     }
-}
 
-// 5. 최종 DB 업데이트 실행
-await updateDoc(doc(db, "sanwoori", id), updateData);
+    alert("기록이 성공적으로 저장되었습니다!");
 
-            // [B] 인연의 숲 기록 및 우정 포인트 계산 (2인 이상 산행 시)
-if (selectedMemberIds.size >= 2 && isHike) {
-    // 1. 이름 배열 생성
-    const companionNames = Array.from(selectedMemberIds).map(id => memberIdToNameMap[id]);
-
-    // 2. 인연의 숲 DB에 상세 기록 저장 (이 데이터로 나중에 '인연의 숲' 화면을 만듭니다)
-    await addDoc(collection(db, "bondingForest"), {
-        date: dateVal, // 폼에서 입력받은 날짜
-        mountain: mountainName, // 폼에서 입력받은 산 이름
-        members: companionNames, // 함께한 멤버 이름 리스트
-        memberCount: companionNames.length,
-        isRegular: isRegular, // 정기산행 여부
-        createdAt: serverTimestamp()
-    });
-
-    // 3. (선택사항) 기존 우정 포인트 점수 누적도 유지하고 싶다면 추가
-    const pointToAdd = isRegular ? 10 : (10 * effectiveUp); 
-    await updateDoc(doc(db, "sanwoori", id), { 
-        friendshipPoint: increment(pointToAdd) 
-    });
+} catch (e) {
+    console.error("통합 저장 중 오류 발생:", e);
+    alert("저장 중 오류가 발생했습니다. 콘솔 창(F12)을 확인해주세요.");
 }
 
 
