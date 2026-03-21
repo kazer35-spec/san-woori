@@ -1253,6 +1253,7 @@ margin-top: 25px; background: #4a3728; color: #f4e4bc;
 padding: 10px 35px; border: none; border-radius: 2px;
 cursor: pointer; font-weight: bold; font-size: 13px;
 }
+
 /* 기존 JS에서 쓰던 글자 효과 유지 */
 .gold-glow { color: #b8860b; font-weight: 800; text-shadow: 0 0 8px rgba(218,165,32,0.3); }
 .fading-10 { opacity: 0.25; filter: blur(0.7px); transition: 0.5s; }
@@ -1281,7 +1282,7 @@ position: fixed; top: 0; left: 0; width: 100%; height: 100%;
 background: rgba(0,0,0,0.85); display: none; justify-content: center; align-items: center; z-index: 9999;
 }
 
-.fading-scroll {
+    .fading-scroll {
 font-family: 'ChosunGu', 'Nanum Myeongjo', serif;
 background: #f4e4bc;
 background-image: url("https://www.transparenttextures.com/patterns/handmade-paper.png");
@@ -2282,9 +2283,6 @@ overflow: hidden;
     <button onclick="exportAllData()" style="width: 100%; py: 15px; background-color: #333; color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer;">
         💾 전체 데이터 원클릭 백업 (JSON 다운로드)
     </button>
-    <button onclick="extractBondingData()" style="margin-top: 10px; background-color: #4A7C59; color: white; padding: 10px; border: none; border-radius: 5px; cursor: pointer;">
-    🌲 인연의 숲 데이터 추출 (동일 산행 매칭)
-    </button>
     <p style="text-align: center; font-size: 11px; color: #888; margin-top: 8px;">
         ※ 클릭 시 전체 멤버와 산행 기록이 파일로 저장됩니다.
     </p>
@@ -2352,12 +2350,9 @@ overflow: hidden;
 <div class="flex items-center gap-1.5">
 <div id="passionVibeArea"></div>
 
-<div id="friendshipPointArea" 
-     onclick="showBondingPopup(event)" 
-     class="flex items-center h-[18px] text-[9px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100 cursor-pointer hover:bg-blue-100 transition-colors">
-    💞 우정 <span id="memberFriendshipPoint" class="ml-1">0</span>P
+<div id="friendshipPointArea" class="flex items-center h-[18px] text-[9px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+💞 우정 <span id="memberFriendshipPoint" class="ml-1">0</span>P
 </div>
-
 </div>
 </div>
 
@@ -2544,7 +2539,8 @@ const levelThresholds = [
 { lv: 3, name: "🌿 풀잎" }, { lv: 1, name: "🌱 새싹" }, { lv: 0, name: "🫘 신입" }
 ];
 
-const getLevelBadge = (lv) => { for (const t of levelThresholds) { if (lv >= t.lv) return t.name; } return "🫘 신입"; };
+
+    const getLevelBadge = (lv) => { for (const t of levelThresholds) { if (lv >= t.lv) return t.name; } return "🫘 신입"; };
 
 const getLevelStyle = (lv) => {
 if (lv >= 100) return { bg: '#fee2e2', border: '#ef4444', text: '#991b1b', blink: 'level-blink-red' };
@@ -2752,7 +2748,6 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 });
 };
 
-    
 window.toggleHallModal = async (show) => {
 const modal = document.getElementById('hallModal');
 modal.style.display = show ? 'flex' : 'none';
@@ -3386,89 +3381,92 @@ window.addMultiActivity = async () => {
     const region = document.getElementById('adminManualRegionSelect').value;
     const isQuarterOnlyOne = document.getElementById('isQuarterCheck')?.checked || false;
 
-    if (!selectedMemberIds.size || !dateVal) return alert("대상과 날짜 확인");
+    if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜 확인");
 
-    // 2. 레벨업 및 수치 설정
+    // 2. 레벨업 설정
     const upElement = document.querySelector('input[name="upAmount"]:checked');
-    if (!upElement) return alert("레벨업 수치를 선택해주세요.");
+    if(!upElement) return alert("레벨업 수치를 선택해주세요.");
     const up = parseInt(upElement.value);
 
     const isSpecial = isRunning || isTracking; 
     const isHike = !isSpecial; 
     const effectiveUp = isHike ? up : 0;
 
-    // 로그 생성 횟수 결정 (정기산행은 무조건 1개, 그 외 조건 반영)
+    // [중요 로직] 정기산행 체크 시, up 수치와 상관없이 별(로그)은 1개만 생성
+    // 그 외 일반산행은 선택된 up 수치만큼(혹은 분기1회 옵션만큼) 로그 생성
     const logLoopCount = isRegular ? 1 : (isSpecial ? 1 : (isQuarterOnlyOne ? 1 : up));
+    
     const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
 
-    pendingLevelUpCards = []; // 레벨업 카드 초기화
+    // 3. 산 데이터 DB 업데이트
+    if(mName && tempCoord) {
+        await setDoc(doc(db, "mountains", mName), {
+            x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region
+        }, { merge: true });
+    }
+
+    pendingLevelUpCards = [];
 
     try {
-        // 3. 공통 산 데이터 DB 업데이트 (좌표가 있을 때만)
-        if (mName && tempCoord) {
-            await setDoc(doc(db, "mountains", mName), {
-                x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region
-            }, { merge: true });
-        }
-
-        // 4. 선택된 멤버별 반복 처리
-        for (const id of selectedMemberIds) {
-            const member = currentData ? currentData.find(m => m.id === id) : null;
-            if (!member) continue;
+        for(const id of selectedMemberIds){
+            const member = currentData.find(m => m.id === id);
+            if(!member) continue;
 
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
-            // --- [A] 기본 업데이트 데이터 구성 (레벨, 높이) ---
-            const updateData = {
-                level: newLevel,
-                totalHeight: increment(height)
-            };
+                      // 1. 업데이트할 기본 데이터 구성
+const updateData = {
+    level: newLevel,
+    totalHeight: increment(height)
+};
 
-            // --- [B] 활동 여부에 따른 날짜(D-day) 처리 (122일 컷) ---
-            if (isHike || isRunning || isTracking) {
-                updateData.lastDate = ts;
-                if (isHike) updateData.bonusDays = 0;
+// 2. 활동 여부 확인 (산행, 런닝, 트레킹 중 하나라도 체크 시)
+if (isHike || isRunning || isTracking) {
+    updateData.lastDate = ts; // 최근 활동일을 오늘로 갱신
 
-                // 신입(0레벨)이 아닌 경우에만 15일 추가 로직 실행
-                if (oldLevel > 0) {
-                    let calculatedDday = (member.dday || 0) + 15;
-                    if (calculatedDday > 122) calculatedDday = 122;
-                    updateData.dday = calculatedDday;
-                }
-            }
+    // 산행인 경우에만 보너스 날짜 리셋 (기존 규칙 유지)
+    if (isHike) {
+        updateData.bonusDays = 0;
+    }
 
-            // --- [C] 인연의 숲 & 우정 포인트 (2인 이상 산행 시) ---
+    // 3. 신입(0레벨)이 아닌 경우에만 남은 날짜(dday) 15일 추가
+    if (oldLevel > 0) {
+        // 기존 남은 날짜에 15일 추가
+        let calculatedDday = (member.dday || 0) + 15;
+
+        // 4. 최대 122일을 넘지 않도록 제한 (122일 컷!)
+        if (calculatedDday > 122) {
+            calculatedDday = 122;
+        }
+
+        updateData.dday = calculatedDday;
+    }
+}
+
+// 5. 최종 DB 업데이트 실행
+await updateDoc(doc(db, "sanwoori", id), updateData);
+
+            // [B] 우정 포인트 계산 (2인 이상 산행 시)
             if (selectedMemberIds.size >= 2 && isHike) {
-                const companionNames = Array.from(selectedMemberIds).map(mid => memberIdToNameMap[mid] || "알수없음");
-
-                // 인연의 숲 상세 기록 저장
-                await addDoc(collection(db, "bondingForest"), {
-                    date: dateVal,
-                    mountain: mName,
-                    members: companionNames,
-                    memberCount: companionNames.length,
-                    isRegular: isRegular,
-                    userId: id,
-                    createdAt: serverTimestamp()
+                const pointToAdd = isRegular ? 10 : (10 * effectiveUp); 
+                await updateDoc(doc(db, "sanwoori", id), { 
+                    friendshipPoint: increment(pointToAdd) 
                 });
-
-                // 우정 포인트 누적
-                const pointToAdd = isRegular ? 10 : (10 * (effectiveUp || 1));
-                updateData.friendshipPoint = increment(pointToAdd);
             }
 
-            // --- [D] 메인 DB(sanwoori) 데이터 반영 ---
-            await updateDoc(doc(db, "sanwoori", id), updateData);
-
-            // --- [E] 로그 기록 및 별빛 생성 (logLoopCount만큼 반복) ---
-            for (let i = 0; i < logLoopCount; i++) {
-                let assignedStarType = null;
-                if (isRegular) {
-                    const rand = Math.random() * 100;
-                    if (rand <= 3) assignedStarType = "super";
-                    else if (rand <= 10) assignedStarType = "special";
-                    else assignedStarType = "regular_" + (Math.floor(Math.random() * 4) + 1);
+            // [C] 로그 기록 및 별 생성 (정기산행 시 단 1회 실행)
+            for(let i = 0; i < logLoopCount; i++) {
+                let assignedStarType = null; 
+                
+                if (isRegular) { 
+                    const rand = Math.random() * 100; 
+                    if (rand <= 3) assignedStarType = "super"; 
+                    else if (rand <= 10) assignedStarType = "special"; 
+                    else {
+                        const regIdx = Math.floor(Math.random() * 4) + 1;
+                        assignedStarType = "regular_" + regIdx;
+                    }
                 }
 
                 await addDoc(collection(db, `sanwoori/${id}/logs`), {
@@ -3482,39 +3480,30 @@ window.addMultiActivity = async () => {
                     isRunning,
                     isTracking,
                     region,
-                    starType: assignedStarType
+                    starType: assignedStarType // 정기산행 별빛 우선 부여
                 });
             }
 
-            // 레벨업 체크 (카드 큐에 추가)
-            if (isHike && typeof checkLevelUpgrade === 'function') {
-                checkLevelUpgrade(member.name, oldLevel, newLevel);
-            }
-        } // 멤버 루프 끝
-
-        // 5. 알림 및 UI 갱신
-        if (pendingLevelUpCards.length > 0 && typeof showCombinedLevelUpAlert === 'function') {
-            showCombinedLevelUpAlert();
+            if (isHike) checkLevelUpgrade(member.name, oldLevel, newLevel);
         }
+
+        // 4. 알림 및 UI 갱신
+        if (pendingLevelUpCards.length > 0) showCombinedLevelUpAlert();
 
         let finalMsg = isRegular 
             ? `정기산행 저장 완료 (레벨 ${up}↑ / 별 1개 생성 / 우정포인트 반영)`
             : (isHike ? `일반산행 저장 완료 (레벨 ${up}↑ / 기록 ${logLoopCount}회 반영)` : `기록 완료`);
         
         alert(finalMsg);
-
-        // 초기화 및 리로드
         selectedMemberIds.clear();
         tempCoord = null;
-        if (typeof updateAdminMemberLists === 'function') updateAdminMemberLists();
-        if (typeof startRealtimeSync === 'function') startRealtimeSync();
-
+        updateAdminMemberLists();
+        startRealtimeSync(); 
     } catch (error) {
-        console.error("통합 저장 중 오류 발생:", error);
+        console.error("Error:", error);
         alert("저장 실패: " + error.message);
     }
 };
-
 
     window.loadMemberLogs = async () => {
 const id = document.getElementById('memberSelectEdit').value;
@@ -3638,96 +3627,6 @@ await addDoc(collection(db, "sanwoori"), { name, level: 0, gender, lastDate: Tim
 alert("등록 완료");
 }
 };
-
-window.extractBondingData = async () => {
-    try {
-        if (!confirm("데이터 분석 및 '인연의 숲' 저장을 시작할까요?")) return;
-        
-        const groups = {}; 
-        const memberSnap = await getDocs(collection(db, "sanwoori"));
-        
-        // 1. 데이터 분석 및 그룹화
-        for (const mDoc of memberSnap.docs) {
-            const memberName = mDoc.data().name;
-            const logsSnap = await getDocs(collection(db, "sanwoori", mDoc.id, "logs"));
-            
-            logsSnap.docs.forEach(lDoc => {
-                const logData = lDoc.data();
-                
-                // date와 mountain이 둘 다 존재할 때만 처리
-                if (logData && logData.date && logData.mountain) {
-                    let pureDate = "";
-                    if (typeof logData.date === 'string') {
-                        pureDate = logData.date.split('T')[0];
-                    } else if (logData.date.seconds) {
-                        pureDate = new Date(logData.date.seconds * 1000).toISOString().split('T')[0];
-                    }
-
-                    const mountainName = String(logData.mountain).trim();
-                    if (pureDate && mountainName) {
-                        const teamId = `${pureDate}_${mountainName}`;
-                        if (!groups[teamId]) {
-                            groups[teamId] = { date: pureDate, mountain: mountainName, members: [] };
-                        }
-                        groups[teamId].members.push(memberName);
-                    }
-                }
-            });
-        }
-
-        // 2. 2인 이상 팀 필터링
-        const bondingResults = [];
-        for (const id in groups) {
-            const uniqueNames = [...new Set(groups[id].members)];
-            if (uniqueNames.length >= 2) {
-                bondingResults.push({
-                    date: groups[id].date,
-                    mountain: groups[id].mountain,
-                    members: uniqueNames,
-                    count: uniqueNames.length
-                });
-            }
-        }
-
-        if (bondingResults.length === 0) {
-            alert("일치하는 인연 데이터가 없습니다.");
-            return;
-        }
-
-        // 3. [핵심] DB 저장 (가장 안전한 방식)
-        const forestRef = collection(db, "bondingForest");
-        console.log("저장 시작...", bondingResults.length, "건");
-
-        for (const team of bondingResults) {
-            try {
-                await addDoc(forestRef, {
-                    date: team.date,
-                    mountain: team.mountain,
-                    members: team.members,
-                    memberCount: team.count,
-                    createdAt: new Date() // serverTimestamp() 대신 일반 Date 객체 사용 (오류 방지)
-                });
-            } catch (saveError) {
-                console.error("개별 문서 저장 실패:", saveError);
-            }
-        }
-
-        // 4. 결과 파일 다운로드
-        const blob = new Blob([JSON.stringify(bondingResults, null, 2)], { type: "application/json" });
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = `sanwoori_forest_data.json`;
-        a.click();
-        
-        alert(`인연의 숲 DB 구축 완료! 총 ${bondingResults.length}개의 팀이 저장되었습니다.`);
-
-    } catch (error) {
-        console.error("전체 프로세스 오류:", error);
-        alert("분석 중 오류가 발생했습니다. 개발자 도구의 Console 메시지를 확인해 주세요.");
-    }
-};
-
-
 window.exportAllData = async () => {
     if (!confirm("데이터베이스의 전체 내용을 백업하시겠습니까?")) return;
 
@@ -3808,7 +3707,8 @@ window.deleteMember = async () => {
     }
 };
 
-// 레벨 임의 수정 기능
+
+    // 레벨 임의 수정 기능
 window.updateManualLevel = async () => {
     // memberSelectEdit에서 선택된 회원 ID 가져오기
     const id = document.getElementById('memberSelectEdit').value; 
@@ -4752,13 +4652,6 @@ style="position:absolute; top:15px; right:15px; color:white; background:none; bo
 
     </div>
 </div>
-    
-<div id="bondingPopup" style="display: none; position: fixed; z-index: 1000000; background: rgba(7, 10, 20, 0.98); border: 1px solid rgba(59, 130, 246, 0.5); padding: 15px; border-radius: 16px; backdrop-filter: blur(15px); color: white;">
-    <div id="bondingDate" style="font-size: 10px; color: #94a3b8; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px;">BONDING FOREST</div>
-    <div id="bondingContent"></div>
-</div>
-
-</div>
 
 <div id="grassPopup" class="hidden" style="position: absolute; z-index: 9999; background: white; border: 1px solid #e2e8f0; padding: 12px; border-radius: 12px; shadow: 0 10px 15px -3px rgba(0,0,0,0.1); min-width: 140px; pointer-events: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
     <div id="popupDate" style="font-size: 10px; font-weight: bold; color: #94a3b8; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; margin-bottom: 8px;"></div>
@@ -4956,87 +4849,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
-window.showBondingPopup = async (event, mId, mName) => {
-    if (event.stopPropagation) event.stopPropagation();
-
-    const popup = document.getElementById('bondingPopup');
-    const content = document.getElementById('bondingContent');
-    
-    // 팝업 위치 설정 (클릭한 좌표 기준)
-    const clientX = event.touches ? event.touches[0].clientX : event.clientX;
-    const clientY = event.touches ? event.touches[0].clientY : event.clientY;
-    popup.style.left = `${clientX + 10}px`;
-    popup.style.top = `${clientY - 100}px`;
-    popup.style.display = 'block';
-    
-    content.innerHTML = `<div style="font-size:11px; color:gray;">데이터 불러오는 중...</div>`;
-
-    try {
-        // 1. bondingForest 데이터 가져오기 (해당 유저가 포함된 2인 이상 산행)
-        const q = query(collection(db, "bondingForest"), where("participants", "array-contains", mName));
-        const snap = await getDocs(q);
-        
-        let totalTogetherHikes = snap.size; // 함께 간 총 횟수
-        let partners = {}; // 함께 간 사람별 횟수 저장
-        let uniquePartners = new Set(); // 중복 없는 인연 수
-
-        snap.forEach(doc => {
-            const data = doc.data();
-            data.participants.forEach(p => {
-                if (p !== mName) { // 본인 제외
-                    uniquePartners.add(p);
-                    partners[p] = (partners[p] || 0) + 1;
-                }
-            });
-        });
-
-        // 2. 우정 콤비 찾기 (가장 많이 함께한 사람)
-        let bestPartner = "없음";
-        let maxCount = 0;
-        for (const [name, count] of Object.entries(partners)) {
-            if (count > maxCount) {
-                maxCount = count;
-                bestPartner = name;
-            }
-        }
-
-        // 3. 동행 지수 계산 (개인 로그 대비 비율 - 예시로 전체 산행 중 동행 비율 계산)
-        // 실제 운영 데이터 구조에 맞춰 전체 산행 횟수를 가져옵니다.
-        const member = currentData.find(m => m.id === mId);
-        const totalLogs = (member.qCount || 0); // 분기 횟수 기준
-        const synergyRate = totalLogs > 0 ? Math.round((totalTogetherHikes / totalLogs) * 100) : 0;
-
-        // 4. HTML 결과 조립
-        content.innerHTML = `
-            <div style="margin-bottom:5px;"><b style="color:#00f2ff; font-size:13px;">${mName}님의 인연</b></div>
-            <div style="font-size:12px; display:flex; justify-content:space-between;">
-                <span>🤝 동행 지수</span><b style="color:#00ff7f;">${synergyRate}%</b>
-            </div>
-            <div style="font-size:12px; display:flex; justify-content:space-between;">
-                <span>🌐 인연 반경</span><b style="color:#facc15;">${uniquePartners.size}명</b>
-            </div>
-            <div style="font-size:11px; margin-top:5px; padding-top:5px; border-top:1px solid rgba(255,255,255,0.1); color:#ff8c00;">
-                🏆 콤비: ${bestPartner}(${maxCount}회)
-            </div>
-        `;
-
-    } catch (e) {
-        console.error("인연의 숲 에러:", e);
-        content.innerHTML = `<div style="font-size:11px; color:red;">데이터 로드 실패</div>`;
-    }
-};
-
-// 팝업 닫기 로직 (기존 클릭 이벤트에 추가)
-document.addEventListener('mousedown', (e) => {
-    const bPopup = document.getElementById('bondingPopup');
-    if (bPopup && !bPopup.contains(e.target)) {
-        bPopup.style.display = 'none';
-    }
-});
 
 </script>
 </body>
     </html>
-    
     
     
