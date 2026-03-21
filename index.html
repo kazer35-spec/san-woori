@@ -3441,28 +3441,105 @@ if (isHike || isRunning || isTracking) {
         if (calculatedDday > 122) {
             calculatedDday = 122;
         }
+window.addMultiActivity = async () => {
+    // 1. 기본 데이터 수집
+    const dateVal = document.getElementById('activityDate').value;
+    const mountainName = document.getElementById('mountainName').value.trim(); // mName 대신 mountainName으로 사용
+    const height = parseInt(document.getElementById('mountainHeight').value) || 0;
+    const isTop100 = document.getElementById('isTop100Check').checked;
+    const isBAC = document.getElementById('isBACCheck').checked;
+    const isRegular = document.getElementById('isRegularCheck')?.checked || false;
+    const isRunning = document.getElementById('isRunningCheck')?.checked || false;
+    const isTracking = document.getElementById('isTrackingCheck')?.checked || false;
+    const region = document.getElementById('adminManualRegionSelect').value;
+    const isQuarterOnlyOne = document.getElementById('isQuarterCheck')?.checked || false;
 
-        updateData.dday = calculatedDday;
+    if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜 확인");
+
+    // 2. 레벨업 및 에러 방지용 Map 생성
+    const upElement = document.querySelector('input[name="upAmount"]:checked');
+    if(!upElement) return alert("레벨업 수치를 선택해주세요.");
+    const up = parseInt(upElement.value);
+
+    // [중요] memberIdToNameMap 정의 (에러 해결 핵심)
+    const memberIdToNameMap = {};
+    if (typeof currentData !== 'undefined') {
+        currentData.forEach(m => {
+            memberIdToNameMap[m.id] = m.name;
+        });
     }
-}
 
-// 5. 최종 DB 업데이트 실행
-await updateDoc(doc(db, "sanwoori", id), updateData);
+    const isSpecial = isRunning || isTracking; 
+    const isHike = !isSpecial; 
+    const effectiveUp = isHike ? up : 0;
+    const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
 
-            // [B] 인연의 숲 기록 및 우정 포인트 계산 (2인 이상 산행 시)
-if (selectedMemberIds.size >= 2 && isHike) {
-    // 1. 이름 배열 생성
-    const companionNames = Array.from(selectedMemberIds).map(id => memberIdToNameMap[id]);
+    // 3. 산 데이터 DB 업데이트
+    if(mountainName && typeof tempCoord !== 'undefined' && tempCoord) {
+        await setDoc(doc(db, "mountains", mountainName), {
+            x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region
+        }, { merge: true });
+    }
 
-    // 2. 인연의 숲 DB에 상세 기록 저장 (이 데이터로 나중에 '인연의 숲' 화면을 만듭니다)
-    await addDoc(collection(db, "bondingForest"), {
-        date: dateVal, // 폼에서 입력받은 날짜
-        mountain: mountainName, // 폼에서 입력받은 산 이름
-        members: companionNames, // 함께한 멤버 이름 리스트
-        memberCount: companionNames.length,
-        isRegular: isRegular, // 정기산행 여부
-        createdAt: serverTimestamp()
-    });
+    pendingLevelUpCards = [];
+
+    try {
+        // [A] 개별 멤버 활동 기록 및 레벨 업데이트
+        for(const id of selectedMemberIds){
+            const member = currentData.find(m => m.id === id);
+            if(!member) continue;
+
+            const oldLevel = member.level || 0;
+            const newLevel = oldLevel + effectiveUp;
+
+            const updateData = {
+                level: newLevel,
+                totalHeight: increment(height)
+            };
+
+            if (isHike || isRunning || isTracking) {
+                updateData.lastDate = ts;
+                if (isHike) updateData.bonusDays = 0;
+
+                if (oldLevel > 0) {
+                    let calculatedDday = (member.dday || 0) + 15;
+                    if (calculatedDday > 122) calculatedDday = 122;
+                    updateData.dday = calculatedDday;
+                }
+            }
+
+            // 우정 포인트 계산 (개별 멤버에게 지급)
+            if (selectedMemberIds.size >= 2 && isHike) {
+                const pointToAdd = isRegular ? 10 : (10 * effectiveUp);
+                updateData.friendshipPoint = increment(pointToAdd);
+            }
+
+            await updateDoc(doc(db, "sanwoori", id), updateData);
+        }
+
+        // [B] 인연의 숲 공용 기록 저장 (2인 이상 산행 시 1회만 실행)
+        if (selectedMemberIds.size >= 2 && isHike) {
+            const companionNames = Array.from(selectedMemberIds).map(id => memberIdToNameMap[id] || "미등록");
+
+            await addDoc(collection(db, "bondingForest"), {
+                date: dateVal,
+                mountain: mountainName,
+                participants: companionNames, // 팝업창 쿼리와 이름 통일
+                memberCount: companionNames.length,
+                isRegular: isRegular,
+                createdAt: serverTimestamp()
+            });
+            console.log("인연의 숲 기록이 저장되었습니다.");
+        }
+
+        alert("모든 활동 기록 및 인연의 숲 데이터가 저장되었습니다.");
+        if (typeof closeAdminModal === 'function') closeAdminModal();
+
+    } catch (error) {
+        console.error("저장 중 에러 발생:", error);
+        alert("저장 실패: " + error.message);
+    }
+};
 
     // 3. (선택사항) 기존 우정 포인트 점수 누적도 유지하고 싶다면 추가
     const pointToAdd = isRegular ? 10 : (10 * effectiveUp); 
