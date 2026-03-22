@@ -2826,7 +2826,8 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 });
 };
 
- window.showBondingForestModal = async () => {
+ 
+        window.showBondingForestModal = async () => {
     let mName = "";
     // 1. 이름 추출
     const nameTags = Array.from(document.querySelectorAll('h2, .text-blue-600, .font-bold'));
@@ -2836,64 +2837,54 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
     if (!mName) return alert("회원 이름을 찾을 수 없습니다.");
 
     try {
-        // 2. 데이터 가져오기 (전체기록 sanwoori, 동행기록 bondingForest)
-        const [allLogsSnap, bondingSnap] = await Promise.all([
-            getDocs(collection(db, "sanwoori")), 
-            getDocs(collection(db, "bondingForest"))
-        ]);
+        // 2. 전체 산행 기록(sanwoori)만 가져오기
+        const allLogsSnap = await getDocs(collection(db, "sanwoori"));
         
-        // 3. 개인별 전체 산행 횟수 (분모) 계산
-        let myTotalHikes = 0;
-        allLogsSnap.forEach(doc => {
-            const data = doc.data();
-            // DB 필드명이 무엇이든 mName과 일치하는지 확인
-            const isAuthor = [data.author, data.writer, data.name, data.nickname].includes(mName);
-            const isMember = Array.isArray(data.members) && data.members.includes(mName);
-            
-            if (isAuthor || isMember) {
-                myTotalHikes++;
-            }
-        });
-
-        // 4. 동행 산행 데이터 분석 (분자)
-        let myMultiHikes = 0; 
+        let myTotalHikes = 0;   // 내가 참여한 전체 산행
+        let myMultiHikes = 0;   // 그 중 2인 이상 동행한 산행
         let partnersMap = {};
         let uniquePartners = new Set();
 
-        bondingSnap.forEach((doc) => {
-            const members = doc.data().members || [];
-            if (members.includes(mName)) {
-                myMultiHikes++; 
-                members.forEach(p => {
-                    if (p !== mName) {
-                        partnersMap[p] = (partnersMap[p] || 0) + 1;
-                        uniquePartners.add(p);
-                    }
-                });
+        allLogsSnap.forEach(doc => {
+            const data = doc.data();
+            const members = data.members || [];
+            const writer = data.author || data.writer || data.name || "";
+            
+            // 내가 작성했거나 멤버에 포함된 경우 (나의 산행 기록)
+            if (writer === mName || members.includes(mName)) {
+                myTotalHikes++;
+
+                // 참여 인원이 2명 이상인 경우 (동행 기록으로 간주)
+                if (members.length >= 2) {
+                    myMultiHikes++;
+                    // 나를 제외한 파트너들 기록
+                    members.forEach(p => {
+                        if (p !== mName) {
+                            partnersMap[p] = (partnersMap[p] || 0) + 1;
+                            uniquePartners.add(p);
+                        }
+                    });
+                }
             }
         });
 
-        // 데이터 정합성 보정 (동행이 전체보다 많을 수 없음)
-        if (myTotalHikes < myMultiHikes) myTotalHikes = myMultiHikes;
-
-        // 5. 지수 및 우정 포인트 계산
+        // 3. 지수 및 우정 포인트(화면 참조) 계산
         const finalSynergy = myTotalHikes > 0 ? Math.round((myMultiHikes / myTotalHikes) * 100) : 0;
         
-        // [수정] 화면의 #memberFriendshipPoint 요소에서 직접 점수 추출
         const fpElement = document.getElementById('memberFriendshipPoint');
         const displayFP = fpElement ? fpElement.innerText.trim() : "0";
 
         let bestP = "없음"; let bestC = 0;
         Object.entries(partnersMap).forEach(([n, c]) => { if(c > bestC) { bestP = n; bestC = c; } });
 
-        // 6. 모달 출력
+        // 4. 모달 출력
         const modalHTML = `
             <div id="forestModal" class="fixed inset-0 z-[10000] flex items-center justify-center bg-black/85 backdrop-blur-md" onclick="this.remove()">
                 <div class="bg-[#0f172a] border border-emerald-500/30 p-8 rounded-[2.5rem] w-[320px] text-center shadow-2xl" onclick="event.stopPropagation()">
                     <div class="text-emerald-400 text-[10px] font-black mb-6 tracking-[0.4em]">BONDING FOREST</div>
                     <div class="text-6xl mb-6">🌳</div>
                     <h3 class="text-white text-2xl font-bold mb-2">${mName}님의 인연</h3>
-                    <p class="text-[11px] text-slate-500 mb-8 leading-relaxed">개인 활동 대비 동행 기록을 바탕으로 한<br>데이터입니다.</p>
+                    <p class="text-[11px] text-slate-500 mb-8 leading-relaxed">전체 산행 기록 분석을 통한<br>실시간 동행 데이터입니다.</p>
                     
                     <div class="space-y-4 text-left">
                         <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
@@ -2931,6 +2922,7 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
         document.body.insertAdjacentHTML('beforeend', modalHTML);
     } catch (e) { console.error(e); }
 };
+
 
         
  
