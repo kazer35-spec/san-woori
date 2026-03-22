@@ -2826,8 +2826,7 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 });
 };
 
- 
-        window.showBondingForestModal = async () => {
+ window.showBondingForestModal = async () => {
     let mName = "";
     // 1. 이름 추출
     const nameTags = Array.from(document.querySelectorAll('h2, .text-blue-600, .font-bold'));
@@ -2837,27 +2836,26 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
     if (!mName) return alert("회원 이름을 찾을 수 없습니다.");
 
     try {
-        // 2. 전체 산행 기록(sanwoori)만 가져오기
+        // 2. 전체 산행 기록(sanwoori) 데이터만 가져오기
         const allLogsSnap = await getDocs(collection(db, "sanwoori"));
         
-        let myTotalHikes = 0;   // 내가 참여한 전체 산행
-        let myMultiHikes = 0;   // 그 중 2인 이상 동행한 산행
+        let myTotalHikes = 0;   // 내가 참여한 전체 산행 (33회 등)
+        let myMultiHikes = 0;   // 그 중 2인 이상 동행한 산행 (24회 등)
         let partnersMap = {};
         let uniquePartners = new Set();
 
         allLogsSnap.forEach(doc => {
             const data = doc.data();
-            const members = data.members || [];
+            const members = Array.isArray(data.members) ? data.members : [];
             const writer = data.author || data.writer || data.name || "";
             
-            // 내가 작성했거나 멤버에 포함된 경우 (나의 산행 기록)
+            // 내가 기록의 주체이거나 멤버 명단에 있는 경우
             if (writer === mName || members.includes(mName)) {
                 myTotalHikes++;
 
-                // 참여 인원이 2명 이상인 경우 (동행 기록으로 간주)
+                // 실제 동행이 발생한 경우 (본인 포함 2명 이상)
                 if (members.length >= 2) {
                     myMultiHikes++;
-                    // 나를 제외한 파트너들 기록
                     members.forEach(p => {
                         if (p !== mName) {
                             partnersMap[p] = (partnersMap[p] || 0) + 1;
@@ -2868,52 +2866,50 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
             }
         });
 
-        // 3. 지수 및 우정 포인트(화면 참조) 계산
-        const finalSynergy = myTotalHikes > 0 ? Math.round((myMultiHikes / myTotalHikes) * 100) : 0;
-        
+        // 3. 우정 포인트 (화면의 #memberFriendshipPoint 참조)
         const fpElement = document.getElementById('memberFriendshipPoint');
         const displayFP = fpElement ? fpElement.innerText.trim() : "0";
 
+        // 최고의 파트너 추출
         let bestP = "없음"; let bestC = 0;
         Object.entries(partnersMap).forEach(([n, c]) => { if(c > bestC) { bestP = n; bestC = c; } });
 
-        // 4. 모달 출력
+        // 4. 모달 출력 (횟수 중심 디자인)
         const modalHTML = `
             <div id="forestModal" class="fixed inset-0 z-[10000] flex items-center justify-center bg-black/85 backdrop-blur-md" onclick="this.remove()">
                 <div class="bg-[#0f172a] border border-emerald-500/30 p-8 rounded-[2.5rem] w-[320px] text-center shadow-2xl" onclick="event.stopPropagation()">
                     <div class="text-emerald-400 text-[10px] font-black mb-6 tracking-[0.4em]">BONDING FOREST</div>
                     <div class="text-6xl mb-6">🌳</div>
                     <h3 class="text-white text-2xl font-bold mb-2">${mName}님의 인연</h3>
-                    <p class="text-[11px] text-slate-500 mb-8 leading-relaxed">전체 산행 기록 분석을 통한<br>실시간 동행 데이터입니다.</p>
+                    <p class="text-[11px] text-slate-500 mb-8 leading-relaxed"></p>
                     
                     <div class="space-y-4 text-left">
                         <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
-                            <div class="text-[10px] text-emerald-400 font-bold mb-1">🤝 동행 지수 (Synergy Rate)</div>
-                            <div class="flex justify-between items-end">
-                                <div class="text-white text-[14px] font-bold">총 ${myTotalHikes}회 중 ${myMultiHikes}회</div>
-                                <div class="text-emerald-400 text-lg font-black">${finalSynergy}%</div>
-                            </div>
-                            <div class="w-full h-1 bg-white/10 rounded-full mt-2 overflow-hidden">
-                                <div class="h-full bg-emerald-500" style="width: ${finalSynergy}%"></div>
+                            <div class="text-[10px] text-emerald-400 font-bold mb-1">🤝 동행 산행 (Multi-Hike)</div>
+                            <div class="text-white text-[15px] font-bold italic">
+                                ${myTotalHikes}회 중 <span class="text-emerald-400 text-lg underline underline-offset-4">${myMultiHikes}회</span> 동행
                             </div>
                         </div>
+
                         <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
                             <div class="text-[10px] text-blue-400 font-bold mb-1">💫 인연의 반경 (Radius)</div>
-                            <div class="text-white text-[14px] font-bold">총 ${uniquePartners.size}명과 연결됨</div>
+                            <div class="text-white text-[15px] font-bold">총 ${uniquePartners.size}명과 함께함</div>
                         </div>
+
                         <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
                             <div class="text-[10px] text-orange-400 font-bold mb-1">👑 최고의 파트너 (Bestie)</div>
-                            <div class="text-white text-[14px] font-bold">${bestP} <span class="text-emerald-400 font-black">(${bestC}회)</span></div>
+                            <div class="text-white text-[15px] font-bold">${bestP} <span class="text-emerald-400 font-black">(${bestC}회)</span></div>
                         </div>
+
                         <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
                             <div class="text-[10px] text-amber-400 font-bold mb-1">✨ 우정 포인트 (Friendship)</div>
-                            <div class="text-white text-[14px] font-bold">${Number(displayFP).toLocaleString()} <span class="text-[10px] text-slate-400 font-normal">FP</span></div>
+                            <div class="text-white text-[15px] font-bold">${Number(displayFP).toLocaleString()} <span class="text-[10px] text-slate-400 font-normal">FP</span></div>
                         </div>
                     </div>
 
                     <button onclick="document.getElementById('forestModal').remove()" 
                             style="position: relative !important; overflow: hidden !important; isolation: isolate !important;"
-                            class="mt-8 w-full py-4 bg-emerald-500 text-white text-xs font-black rounded-2xl relative overflow-hidden transition-transform active:scale-95">
+                            class="mt-8 w-full py-4 bg-emerald-500 text-white text-xs font-black rounded-2xl relative overflow-hidden transition-transform active:scale-95 shadow-[0_0_20px_rgba(16,185,129,0.3)]">
                         <span style="position: relative; z-index: 10;">숲에서 나가기</span>
                         <div class="shimmer-bar"></div>
                     </button>
@@ -2923,7 +2919,9 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
     } catch (e) { console.error(e); }
 };
 
+        
 
+        
         
  
 
