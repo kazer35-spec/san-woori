@@ -2850,14 +2850,32 @@ window.showBondingForestModal = async () => {
     if (!mName) return alert("회원 이름을 찾을 수 없습니다.");
 
     try {
-        // 2. bondingForest 데이터 가져오기
-        const querySnapshot = await getDocs(collection(db, "bondingForest"));
+        // 2. 전체 기록(sanwoori)과 동행 기록(bondingForest) 동시 로드
+        const [allLogsSnap, bondingSnap] = await Promise.all([
+            getDocs(collection(db, "sanwoori")), 
+            getDocs(collection(db, "bondingForest"))
+        ]);
         
+        // 3. 지도 좌표가 포함된 '나의 전체 산행' 횟수(분모) 계산
+        let myTotalHikes = 0;
+        allLogsSnap.forEach(doc => {
+            const data = doc.data();
+            // 좌표 관련 필드(location, coords, lat 등)가 있는지 확인
+            const hasCoords = data.location || data.coords || data.latitude || data.lat || data.lng;
+            const members = Array.isArray(data.members) ? data.members : [];
+            const isMe = data.author === mName || members.includes(mName);
+            
+            if (hasCoords && isMe) {
+                myTotalHikes++;
+            }
+        });
+
+        // 4. 동행 기록 분석 (분자)
         let myMultiHikes = 0; 
         let partnersMap = {};
         let uniquePartners = new Set();
 
-        querySnapshot.forEach((doc) => {
+        bondingSnap.forEach((doc) => {
             const members = doc.data().members || [];
             if (members.includes(mName)) {
                 myMultiHikes++; 
@@ -2870,14 +2888,17 @@ window.showBondingForestModal = async () => {
             }
         });
 
-        // 3. [수정] 화면의 #memberFriendshipPoint 영역에서 점수 직접 가져오기
+        // 데이터 정합성 보정 (동행이 전체보다 많을 수 없게)
+        if (myTotalHikes < myMultiHikes) myTotalHikes = myMultiHikes;
+
+        // 5. 우정 포인트 및 파트너 추출
         const fpElement = document.getElementById('memberFriendshipPoint');
-        const displayFP = fpElement ? fpElement.innerText.trim() : "0";
+        const displayFP = fpElement ? fpElement.innerText.replace(/[^0-9]/g, '') : "0";
 
         let bestP = "없음"; let bestC = 0;
         Object.entries(partnersMap).forEach(([n, c]) => { if(c > bestC) { bestP = n; bestC = c; } });
 
-        // 4. 모달 출력
+        // 6. 모달 출력
         const modalHTML = `
             <div id="forestModal" class="fixed inset-0 z-[10000] flex items-center justify-center bg-black/85 backdrop-blur-md" onclick="this.remove()">
                 <div class="bg-[#0f172a] border border-emerald-500/30 p-8 rounded-[2.5rem] w-[320px] text-center shadow-2xl" onclick="event.stopPropagation()">
@@ -2889,7 +2910,9 @@ window.showBondingForestModal = async () => {
                     <div class="space-y-4 text-left">
                         <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
                             <div class="text-[10px] text-emerald-400 font-bold mb-1">🤝 동행 산행 (Multi-Hike)</div>
-                            <div class="text-white text-[14px] font-bold">총 ${myMultiHikes}회 <span class="text-[10px] text-slate-400 font-normal">함께했습니다</span></div>
+                            <div class="text-white text-[14px] font-bold">
+                                총 ${myTotalHikes}회 중 <span class="text-emerald-400">${myMultiHikes}회</span> 동행
+                            </div>
                         </div>
                         <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
                             <div class="text-[10px] text-blue-400 font-bold mb-1">💫 인연의 반경 (Radius)</div>
@@ -2907,7 +2930,7 @@ window.showBondingForestModal = async () => {
                     
                     <button onclick="document.getElementById('forestModal').remove()" 
                             style="position: relative !important; overflow: hidden !important; isolation: isolate !important;"
-                            class="forest-exit-btn mt-8 w-full py-4 bg-emerald-500 text-white text-xs font-black rounded-2xl relative overflow-hidden transition-transform active:scale-95">
+                            class="forest-exit-btn mt-8 w-full py-4 bg-emerald-500 text-white text-xs font-black rounded-2xl relative overflow-hidden transition-transform active:scale-95 shadow-[0_0_15px_rgba(16,185,129,0.4)]">
                         <span style="position: relative; z-index: 10;">숲에서 나가기</span>
                         <div class="shimmer-bar"></div>
                     </button>
