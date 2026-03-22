@@ -2826,7 +2826,7 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 });
 };
 
-window.showBondingForestModal = async () => {
+ window.showBondingForestModal = async () => {
     let mName = "";
     const nameTags = Array.from(document.querySelectorAll('h2, .text-blue-600, .font-bold'));
     const foundTag = nameTags.find(el => el.innerText.includes('님') && !el.innerText.includes('산행'));
@@ -2835,23 +2835,23 @@ window.showBondingForestModal = async () => {
     if (!mName) return alert("회원 이름을 찾을 수 없습니다.");
 
     try {
-        // [중요] 전체 기록(hikingLogs)과 동행 기록(bondingForest)을 동시에 가져옵니다.
+        // [수정] 컬렉션 이름을 sanwoori로 변경하여 전체 기록을 가져옵니다.
         const [allLogsSnap, bondingSnap] = await Promise.all([
-            getDocs(collection(db, "hikingLogs")), 
+            getDocs(collection(db, "sanwoori")), 
             getDocs(collection(db, "bondingForest"))
         ]);
         
-        // 1. 개인별 '순수 전체 산행' 횟수 구하기 (분모)
+        // 1. 개인별 전체 산행 횟수 (분모)
         let myTotalHikes = 0;
         allLogsSnap.forEach(doc => {
             const data = doc.data();
-            // 글 작성자이거나 참여자 명단에 이름이 있는 경우 전체 카운트
-            if (data.author === mName || (data.members && data.members.includes(mName))) {
+            // 닉네임 필드명이 'author' 또는 'name' 등일 수 있으니 확인이 필요합니다.
+            if (data.author === mName || data.name === mName || (data.members && data.members.includes(mName))) {
                 myTotalHikes++;
             }
         });
 
-        // 2. '2인 이상 동행' 횟수 및 파트너 분석 (분자)
+        // 2. 동행 산행 횟수 (분자)
         let myMultiHikes = 0; 
         let partnersMap = {};
         let uniquePartners = new Set();
@@ -2869,15 +2869,17 @@ window.showBondingForestModal = async () => {
             }
         });
 
-        // 3. 동행 지수 (%) 계산 (전체 대비 동행 비중)
+        // 데이터 정합성 방어 (동행이 전체보다 많을 수 없음)
+        if (myTotalHikes < myMultiHikes) myTotalHikes = myMultiHikes;
+
+        // 3. 동행 지수 (%) 계산
         const finalSynergy = myTotalHikes > 0 ? Math.round((myMultiHikes / myTotalHikes) * 100) : 0;
 
         let bestP = "없음"; let bestC = 0;
         Object.entries(partnersMap).forEach(([n, c]) => { if(c > bestC) { bestP = n; bestC = c; } });
         
-        // [우정 점수] 기존에 정의된 friendshipPoints 변수를 그대로 가져옵니다.
-        // 만약 전역 변수가 아니라면 해당 점수가 저장된 위치의 변수명을 넣어주세요.
-        const displayFP = typeof friendshipPoints !== 'undefined' ? friendshipPoints : 0;
+        // [우정 점수] 기존 시스템의 점수 변수를 그대로 연결
+        const displayFP = (typeof friendshipPoints !== 'undefined') ? friendshipPoints : 0;
 
         const modalHTML = `
             <div id="forestModal" class="fixed inset-0 z-[10000] flex items-center justify-center bg-black/85 backdrop-blur-md" onclick="this.remove()">
@@ -2923,6 +2925,8 @@ window.showBondingForestModal = async () => {
         document.body.insertAdjacentHTML('beforeend', modalHTML);
     } catch (e) { console.error(e); }
 };
+
+ 
 
     
 window.toggleHallModal = async (show) => {
