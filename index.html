@@ -13,31 +13,45 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-    /* 어떤 스타일보다 우선하도록 강제 설정 */
-.for.forest-shimmer {
-    position: absolute !important;
-    top: 0 !important;
-    left: -150% !important;
-    width: 65% !important;
-    height: 100% !important;
-    background: linear-gradient(
-        90deg,
-        rgba(163, 230, 53, 0) 0%,
-        rgba(163, 230, 53, 0.5) 25%,
-        rgba(255, 255, 255, 0.8) 50%,
-        rgba(163, 230, 53, 0.5) 75%,
-        rgba(163, 230, 53, 0) 100%
-    ) !important;
-    transform: skewX(-20deg) !important;
-    animation: force-forest-shine 3s infinite ease-in-out !important;
-    z-index: 5 !important;
-    pointer-events: none !important;
+    /* 1. 버튼 기본 설정 (절대 필수) */
+.forest-exit-btn {
+    position: relative !important;
+    overflow: hidden !important;
+    isolation: isolate; /* 내부 레이어 분리 */
 }
 
-@keyframes force-forest-shine {
+/* 2. 녹색 빛줄기 본체 */
+.shimmer-bar {
+    position: absolute;
+    top: 0;
+    left: -150%;
+    width: 60%; /* 빛줄기 두께 */
+    height: 100%;
+    /* 요청하신 녹색 광택 효과 (라임/화이트 조합) */
+    background: linear-gradient(
+        90deg,
+        rgba(163, 230, 53, 0) 0%, /* 라임색 투명 */
+        rgba(163, 230, 53, 0.5) 30%, /* 라임색 반투명 */
+        rgba(255, 255, 255, 0.8) 50%, /* 화이트 (가장 밝은 부분) */
+        rgba(163, 230, 53, 0.5) 70%, /* 라임색 반투명 */
+        rgba(163, 230, 53, 0) 100% /* 라임색 투명 */
+    );
+    transform: skewX(-25deg);
+    animation: forest-shine 2.5s infinite; /* 2.5초마다 반짝 */
+    z-index: 5;
+}
+
+/* 3. 애니메이션 로직 */
+@keyframes forest-shine {
     0% { left: -150%; }
-    25% { left: 150%; }
-    100% { left: 150%; }
+    30% { left: 150%; } /* 빠르게 통과 */
+    100% { left: 150%; } /* 대기 시간 */
+}
+
+/* 4. 버튼 글자 보호 */
+.forest-exit-btn span {
+    position: relative;
+    z-index: 10; /* 빛줄기보다 위에 글자가 오도록 */
 }
 
     .bonding-forest-btn {
@@ -2826,9 +2840,9 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 });
 };
 
- window.showBondingForestModal = async () => {
+    window.showBondingForestModal = async () => {
     let mName = "";
-    // 1. 이름 추출
+    // 1. 이름 추출 (기존 방식 유지)
     const nameTags = Array.from(document.querySelectorAll('h2, .text-blue-600, .font-bold'));
     const foundTag = nameTags.find(el => el.innerText.includes('님') && !el.innerText.includes('산행'));
     if (foundTag) mName = foundTag.innerText.split(' ')[0].replace('님', '').trim();
@@ -2836,94 +2850,71 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
     if (!mName) return alert("회원 이름을 찾을 수 없습니다.");
 
     try {
-        // 2. 전체 산행 기록(sanwoori) 데이터만 가져오기
-        const allLogsSnap = await getDocs(collection(db, "sanwoori"));
+        // 2. bondingForest 데이터 가져오기
+        const querySnapshot = await getDocs(collection(db, "bondingForest"));
         
-        let myTotalHikes = 0;   // 내가 참여한 전체 산행 (33회 등)
-        let myMultiHikes = 0;   // 그 중 2인 이상 동행한 산행 (24회 등)
+        let myMultiHikes = 0;   // 2인 이상 산행 중 내가 포함된 횟수 (기준점)
         let partnersMap = {};
         let uniquePartners = new Set();
 
-        allLogsSnap.forEach(doc => {
-            const data = doc.data();
-            const members = Array.isArray(data.members) ? data.members : [];
-            const writer = data.author || data.writer || data.name || "";
-            
-            // 내가 기록의 주체이거나 멤버 명단에 있는 경우
-            if (writer === mName || members.includes(mName)) {
-                myTotalHikes++;
-
-                // 실제 동행이 발생한 경우 (본인 포함 2명 이상)
-                if (members.length >= 2) {
-                    myMultiHikes++;
-                    members.forEach(p => {
-                        if (p !== mName) {
-                            partnersMap[p] = (partnersMap[p] || 0) + 1;
-                            uniquePartners.add(p);
-                        }
-                    });
-                }
+        querySnapshot.forEach((doc) => {
+            const members = doc.data().members || [];
+            // 현재 회원이 이 산행(2인 이상)에 포함되어 있는지 확인
+            if (members.includes(mName)) {
+                myMultiHikes++; // 이게 이제 새로운 '기준 분모'가 됩니다.
+                
+                members.forEach(p => {
+                    if (p !== mName) {
+                        partnersMap[p] = (partnersMap[p] || 0) + 1;
+                        uniquePartners.add(p);
+                    }
+                });
             }
         });
 
-        // 3. 우정 포인트 (화면의 #memberFriendshipPoint 참조)
-        const fpElement = document.getElementById('memberFriendshipPoint');
-        const displayFP = fpElement ? fpElement.innerText.trim() : "0";
+        // 3. 동행 지수 계산
+        // 전체 산행(33회)이 아닌, '2인 이상 산행(myMultiHikes)'을 기준으로 함
+        // 여기서는 동행이 발생한 판수 대비 특정인과의 결속력을 보거나, 
+        // 혹은 전체 산행 대비 동행 비율을 그대로 유지하되 분모를 고정할 수 있습니다.
+        
+        // 사용자님 요청대로 "2인 이상 산행 횟수"를 기준으로 계산:
+        const synergyRate = myMultiHikes > 0 ? 100 : 0; // 2인 이상 산행 데이터가 있다면 기본 100% 시작 또는 커스텀 계산
 
-        // 최고의 파트너 추출
         let bestP = "없음"; let bestC = 0;
         Object.entries(partnersMap).forEach(([n, c]) => { if(c > bestC) { bestP = n; bestC = c; } });
 
-        // 4. 모달 출력 (횟수 중심 디자인)
+        // 4. 모달 출력
         const modalHTML = `
             <div id="forestModal" class="fixed inset-0 z-[10000] flex items-center justify-center bg-black/85 backdrop-blur-md" onclick="this.remove()">
                 <div class="bg-[#0f172a] border border-emerald-500/30 p-8 rounded-[2.5rem] w-[320px] text-center shadow-2xl" onclick="event.stopPropagation()">
                     <div class="text-emerald-400 text-[10px] font-black mb-6 tracking-[0.4em]">BONDING FOREST</div>
                     <div class="text-6xl mb-6">🌳</div>
                     <h3 class="text-white text-2xl font-bold mb-2">${mName}님의 인연</h3>
-                    <p class="text-[11px] text-slate-500 mb-8 leading-relaxed"></p>
+                    <p class="text-[11px] text-slate-500 mb-8 leading-relaxed">2인 이상 동행 기록을 바탕으로 한<br>인연 지수입니다.</p>
                     
                     <div class="space-y-4 text-left">
                         <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
                             <div class="text-[10px] text-emerald-400 font-bold mb-1">🤝 동행 산행 (Multi-Hike)</div>
-                            <div class="text-white text-[15px] font-bold italic">
-                                ${myTotalHikes}회 중 <span class="text-emerald-400 text-lg underline underline-offset-4">${myMultiHikes}회</span> 동행
-                            </div>
+                            <div class="text-white text-[14px] font-bold">총 ${myMultiHikes}회 <span class="text-[10px] text-slate-400 font-normal">함께했습니다</span></div>
                         </div>
-
                         <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
                             <div class="text-[10px] text-blue-400 font-bold mb-1">💫 인연의 반경 (Radius)</div>
-                            <div class="text-white text-[15px] font-bold">총 ${uniquePartners.size}명과 함께함</div>
+                            <div class="text-white text-[14px] font-bold">총 ${uniquePartners.size}명과 연결됨</div>
                         </div>
-
                         <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
                             <div class="text-[10px] text-orange-400 font-bold mb-1">👑 최고의 파트너 (Bestie)</div>
-                            <div class="text-white text-[15px] font-bold">${bestP} <span class="text-emerald-400 font-black">(${bestC}회)</span></div>
-                        </div>
-
-                        <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
-                            <div class="text-[10px] text-amber-400 font-bold mb-1">✨ 우정 포인트 (Friendship)</div>
-                            <div class="text-white text-[15px] font-bold">${Number(displayFP).toLocaleString()} <span class="text-[10px] text-slate-400 font-normal">FP</span></div>
+                            <div class="text-white text-[14px] font-bold">${bestP} <span class="text-emerald-400 font-black">(${bestC}회)</span></div>
                         </div>
                     </div>
-
                     <button onclick="document.getElementById('forestModal').remove()" 
-                            style="position: relative !important; overflow: hidden !important; isolation: isolate !important;"
-                            class="mt-8 w-full py-4 bg-emerald-500 text-white text-xs font-black rounded-2xl relative overflow-hidden transition-transform active:scale-95 shadow-[0_0_20px_rgba(16,185,129,0.3)]">
-                        <span style="position: relative; z-index: 10;">숲에서 나가기</span>
-                        <div class="shimmer-bar"></div>
-                    </button>
-                </div>
-            </div>`;
+            class="forest-exit-btn mt-8 w-full py-4 bg-emerald-500 text-white text-xs font-black rounded-2xl relative overflow-hidden">
+        <span class="relative z-10">숲에서 나가기</span>
+        <div class="shimmer-bar"></div>
+    </button>
+</div>`;
         document.body.insertAdjacentHTML('beforeend', modalHTML);
     } catch (e) { console.error(e); }
 };
-
-        
-
-        
-        
- 
 
     
 window.toggleHallModal = async (show) => {
