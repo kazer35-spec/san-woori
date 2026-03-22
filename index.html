@@ -2835,21 +2835,23 @@ window.showBondingForestModal = async () => {
     if (!mName) return alert("회원 이름을 찾을 수 없습니다.");
 
     try {
+        // [중요] 전체 기록(hikingLogs)과 동행 기록(bondingForest)을 동시에 가져옵니다.
         const [allLogsSnap, bondingSnap] = await Promise.all([
             getDocs(collection(db, "hikingLogs")), 
             getDocs(collection(db, "bondingForest"))
         ]);
         
-        // 1. 개인별 전체 산행 횟수 (정교하게 필터링)
+        // 1. 개인별 '순수 전체 산행' 횟수 구하기 (분모)
         let myTotalHikes = 0;
         allLogsSnap.forEach(doc => {
             const data = doc.data();
-            const participants = data.members || data.participants || []; // 필드명 유연하게 대응
-            if (data.author === mName || (Array.isArray(participants) && participants.includes(mName))) {
+            // 글 작성자이거나 참여자 명단에 이름이 있는 경우 전체 카운트
+            if (data.author === mName || (data.members && data.members.includes(mName))) {
                 myTotalHikes++;
             }
         });
 
+        // 2. '2인 이상 동행' 횟수 및 파트너 분석 (분자)
         let myMultiHikes = 0; 
         let partnersMap = {};
         let uniquePartners = new Set();
@@ -2867,19 +2869,16 @@ window.showBondingForestModal = async () => {
             }
         });
 
-        // 2. 예외 처리: 만약 전체 산행 횟수가 동행 횟수보다 적게 잡히면 보정
-        if (myTotalHikes < myMultiHikes) myTotalHikes = myMultiHikes;
-
-        // 3. 동행 지수 (%) 계산
+        // 3. 동행 지수 (%) 계산 (전체 대비 동행 비중)
         const finalSynergy = myTotalHikes > 0 ? Math.round((myMultiHikes / myTotalHikes) * 100) : 0;
 
         let bestP = "없음"; let bestC = 0;
         Object.entries(partnersMap).forEach(([n, c]) => { if(c > bestC) { bestP = n; bestC = c; } });
         
-        // 우정 포인트 (기존 2,400 FP 유지되도록)
-        const currentFP = typeof friendshipPoints !== 'undefined' ? friendshipPoints : 2400;
+        // [우정 점수] 기존에 정의된 friendshipPoints 변수를 그대로 가져옵니다.
+        // 만약 전역 변수가 아니라면 해당 점수가 저장된 위치의 변수명을 넣어주세요.
+        const displayFP = typeof friendshipPoints !== 'undefined' ? friendshipPoints : 0;
 
-        // 4. 모달 출력
         const modalHTML = `
             <div id="forestModal" class="fixed inset-0 z-[10000] flex items-center justify-center bg-black/85 backdrop-blur-md" onclick="this.remove()">
                 <div class="bg-[#0f172a] border border-emerald-500/30 p-8 rounded-[2.5rem] w-[320px] text-center shadow-2xl" onclick="event.stopPropagation()">
@@ -2909,7 +2908,7 @@ window.showBondingForestModal = async () => {
                         </div>
                         <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
                             <div class="text-[10px] text-amber-400 font-bold mb-1">✨ 우정 포인트 (Friendship)</div>
-                            <div class="text-white text-[14px] font-bold">${currentFP.toLocaleString()} <span class="text-[10px] text-slate-400 font-normal">FP</span></div>
+                            <div class="text-white text-[14px] font-bold">${displayFP.toLocaleString()} <span class="text-[10px] text-slate-400 font-normal">FP</span></div>
                         </div>
                     </div>
 
@@ -2925,7 +2924,6 @@ window.showBondingForestModal = async () => {
     } catch (e) { console.error(e); }
 };
 
-    
     
 window.toggleHallModal = async (show) => {
 const modal = document.getElementById('hallModal');
