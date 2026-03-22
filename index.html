@@ -2774,73 +2774,86 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 };
 
     window.showBondingForestModal = async () => {
-    let mName = "";
-    const nameTags = Array.from(document.querySelectorAll('h2, .text-blue-600, .font-bold'));
-    const foundTag = nameTags.find(el => el.innerText.includes('님') && !el.innerText.includes('산행'));
-    if (foundTag) mName = foundTag.innerText.split(' ')[0].replace('님', '').trim();
+    // 1. 현재 열려있는 팝업창 상단에서 '회원 닉네임' 추출하기
+    // 보통 팝업 상단에 큰 글씨로 "홍길동 님"이라고 적힌 부분을 찾습니다.
+    const nameHeader = document.querySelector('.integrated-member-card h2, .text-blue-600.font-bold'); 
+    
+    if (!nameHeader) {
+        return alert("회원 이름을 인식할 수 없습니다.");
+    }
 
-    if (!mName) return alert("회원 이름을 찾을 수 없습니다.");
+    // "오즈 님" -> "오즈"만 남기기
+    const mName = nameHeader.innerText.replace(' 님', '').trim();
+    
+    // 2. 전체 회원 데이터(currentData)에서 닉네임이 일치하는 ID 찾기
+    const member = currentData.find(m => m.name === mName);
+    
+    if (!member) {
+        return alert(`${mName}님의 데이터를 찾을 수 없습니다.`);
+    }
+
+    const mId = member.id;
 
     try {
-        // [수정] 전체 산행 데이터에서 이 회원의 '진짜' 산행 횟수 가져오기
-        const member = currentData.find(m => m.name === mName);
-        // DB 필드명이 'totalHikes'가 아닐 수 있으니, 실제 숫자가 들어있는 필드로 확인해주세요.
-        const realTotalCount = member?.totalHikes || member?.count || 30; 
+        // 3. 데이터베이스(bondingForest)에서 해당 ID의 인연 데이터 가져오기
+        const forestSnap = await getDoc(doc(db, "bondingForest", mId));
+        const forestData = forestSnap.exists() ? forestSnap.data() : { partners: {}, totalTogether: 0, totalSolo: 0 };
 
-        const querySnapshot = await getDocs(collection(db, "bondingForest"));
-        let togetherCount = 0;
-        let partnersMap = {};
-        let uniquePartners = new Set();
+        const partners = forestData.partners || {};
+        const totalTogether = forestData.totalTogether || 0;
+        const totalSolo = forestData.totalSolo || 0;
+        const totalHikes = totalTogether + totalSolo;
 
-        querySnapshot.forEach((doc) => {
-            const members = doc.data().members || [];
-            if (members.includes(mName)) {
-                togetherCount++;
-                members.forEach(p => {
-                    if (p !== mName) {
-                        partnersMap[p] = (partnersMap[p] || 0) + 1;
-                        uniquePartners.add(p);
-                    }
-                });
+        // 동행 지수 및 인연 반경 계산
+        const synergyRate = totalHikes > 0 ? ((totalTogether / totalHikes) * 100).toFixed(0) : 0;
+        const socialRadius = Object.keys(partners).length;
+
+        // 우정 콤비 찾기
+        let bestName = "없음";
+        let bestCount = 0;
+        Object.entries(partners).forEach(([name, count]) => {
+            if (count > bestCount) {
+                bestName = name;
+                bestCount = count;
             }
         });
 
-        // [수정] 동행률 계산 (분모가 0이 되지 않도록 방어)
-        const synergyRate = realTotalCount > 0 ? ((togetherCount / realTotalCount) * 100).toFixed(0) : 0;
-        
-        let bestP = "없음"; let bestC = 0;
-        Object.entries(partnersMap).forEach(([n, c]) => { if(c > bestC) { bestP = n; bestC = c; } });
-
-        const modalHTML = `
-            <div id="forestModal" class="fixed inset-0 z-[10000] flex items-center justify-center bg-black/85 backdrop-blur-md" onclick="this.remove()">
-                <div class="bg-[#0f172a] border border-emerald-500/30 p-8 rounded-[2.5rem] w-[320px] text-center shadow-2xl" onclick="event.stopPropagation()">
-                    <div class="text-emerald-400 text-[10px] font-black mb-6 tracking-[0.4em]">BONDING FOREST</div>
-                    <div class="text-6xl mb-6">🌳</div>
-                    <h3 class="text-white text-2xl font-bold mb-2">${mName}님의 인연</h3>
-                    <p class="text-[11px] text-slate-500 mb-8">커뮤니티 연결 지수입니다.</p>
-                    <div class="space-y-4 text-left">
-                        <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
-                            <div class="text-[10px] text-emerald-400 font-bold mb-1">동행 지수 (Synergy Rate)</div>
-                            <div class="text-white text-[14px] font-bold">동행률 ${synergyRate}% <span class="text-[10px] text-slate-400 font-normal">(${togetherCount}/${realTotalCount})</span></div>
+        // 4. 인연의 숲 모달 띄우기
+        const forestHTML = `
+            <div id="forestModal" class="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-md" onclick="this.remove()">
+                <div class="bg-[#0f172a] border border-emerald-500/40 p-7 rounded-[2rem] w-[310px] text-center shadow-2xl shadow-emerald-500/10" onclick="event.stopPropagation()">
+                    <div class="text-emerald-400 text-[10px] font-black mb-5 tracking-[0.3em] uppercase">Bonding Forest</div>
+                    <div class="text-5xl mb-5 drop-shadow-glow">🌳</div>
+                    <h3 class="text-white text-xl font-bold mb-1">${mName}님의 인연</h3>
+                    <p class="text-[10px] text-slate-500 mb-7 leading-relaxed">커뮤니티 내의 관계망과<br>동행 시너지를 분석한 결과입니다.</p>
+                    
+                    <div class="space-y-3.5 text-left">
+                        <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.05]">
+                            <div class="text-[10px] text-emerald-400 font-bold mb-1">동행 지수 (Synergy)</div>
+                            <div class="text-white text-[13px] font-bold">동행률 ${synergyRate}% <span class="text-[9px] font-normal text-slate-400 ml-1">혼자보다 같이!</span></div>
                         </div>
-                        <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
-                            <div class="text-[10px] text-blue-400 font-bold mb-1">인연의 반경 (Social Radius)</div>
-                            <div class="text-white text-[14px] font-bold">인연 ${uniquePartners.size}명</div>
+                        <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.05]">
+                            <div class="text-[10px] text-blue-400 font-bold mb-1">인연의 반경 (Radius)</div>
+                            <div class="text-white text-[13px] font-bold">인연 ${socialRadius}명 <span class="text-[9px] font-normal text-slate-400 ml-1">연결된 고유 인원</span></div>
                         </div>
-                        <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
+                        <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.05]">
                             <div class="text-[10px] text-orange-400 font-bold mb-1">우정 콤비 (Best Partner)</div>
-                            <div class="text-white text-[14px] font-bold">${bestP} <span class="text-emerald-400 font-black">(${bestC}회)</span></div>
+                            <div class="text-white text-[13px] font-bold">${bestName} <span class="text-emerald-400 font-black">(${bestCount}회)</span></div>
                         </div>
                     </div>
-                    <button onclick="document.getElementById('forestModal').remove()" class="mt-8 w-full py-4 bg-emerald-500 text-white text-xs font-black rounded-2xl">숲에서 나가기</button>
+                    
+                    <button onclick="document.getElementById('forestModal').remove()" class="mt-8 w-full py-3.5 bg-emerald-500 text-white text-[11px] font-black rounded-xl hover:bg-emerald-400 transition-colors shadow-lg shadow-emerald-500/20">숲에서 나가기</button>
                 </div>
-            </div>`;
-        document.body.insertAdjacentHTML('beforeend', modalHTML);
-    } catch (e) { console.error(e); }
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', forestHTML);
+    } catch (e) {
+        console.error("인연의 숲 에러:", e);
+        alert("데이터 로딩 중 오류가 발생했습니다.");
+    }
 };
 
 
-    
 window.toggleHallModal = async (show) => {
 const modal = document.getElementById('hallModal');
 modal.style.display = show ? 'flex' : 'none';
@@ -3462,7 +3475,7 @@ window.saveCardImage = async () => {
 };
 
 window.addMultiActivity = async () => {
-    // 1. 기본 데이터 수집 (기존과 동일)
+    // 1. 기본 데이터 수집
     const dateVal = document.getElementById('activityDate').value;
     const mName = document.getElementById('mountainName').value.trim();
     const height = parseInt(document.getElementById('mountainHeight').value) || 0;
@@ -3476,6 +3489,7 @@ window.addMultiActivity = async () => {
 
     if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜 확인");
 
+    // 2. 레벨업 설정
     const upElement = document.querySelector('input[name="upAmount"]:checked');
     if(!upElement) return alert("레벨업 수치를 선택해주세요.");
     const up = parseInt(upElement.value);
@@ -3483,20 +3497,23 @@ window.addMultiActivity = async () => {
     const isSpecial = isRunning || isTracking; 
     const isHike = !isSpecial; 
     const effectiveUp = isHike ? up : 0;
+
+    // [중요 로직] 정기산행 체크 시, up 수치와 상관없이 별(로그)은 1개만 생성
+    // 그 외 일반산행은 선택된 up 수치만큼(혹은 분기1회 옵션만큼) 로그 생성
     const logLoopCount = isRegular ? 1 : (isSpecial ? 1 : (isQuarterOnlyOne ? 1 : up));
+    
     const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
 
-    // ✨ [추가] 인연의 숲에 저장할 "이름 리스트" 미리 생성
-    const selectedNames = [];
-    selectedMemberIds.forEach(id => {
-        const m = currentData.find(mem => mem.id === id);
-        if(m) selectedNames.push(m.name);
-    });
+    // 3. 산 데이터 DB 업데이트
+    if(mName && tempCoord) {
+        await setDoc(doc(db, "mountains", mName), {
+            x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region
+        }, { merge: true });
+    }
+
+    pendingLevelUpCards = [];
 
     try {
-        pendingLevelUpCards = [];
-
-        // --- 개별 회원 데이터 업데이트 루프 시작 ---
         for(const id of selectedMemberIds){
             const member = currentData.find(m => m.id === id);
             if(!member) continue;
@@ -3504,60 +3521,88 @@ window.addMultiActivity = async () => {
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
-            // DB 업데이트 데이터 구성 (레벨, 높이, D-Day 등)
-            const updateData = {
-                level: newLevel,
-                totalHeight: increment(height)
-            };
+                      // 1. 업데이트할 기본 데이터 구성
+const updateData = {
+    level: newLevel,
+    totalHeight: increment(height)
+};
 
-            if (isHike || isRunning || isTracking) {
-                updateData.lastDate = ts;
-                if (isHike) updateData.bonusDays = 0;
-                if (oldLevel > 0) {
-                    let calculatedDday = (member.dday || 0) + 15;
-                    if (calculatedDday > 122) calculatedDday = 122;
-                    updateData.dday = calculatedDday;
-                }
-            }
+// 2. 활동 여부 확인 (산행, 런닝, 트레킹 중 하나라도 체크 시)
+if (isHike || isRunning || isTracking) {
+    updateData.lastDate = ts; // 최근 활동일을 오늘로 갱신
 
-            await updateDoc(doc(db, "sanwoori", id), updateData);
+    // 산행인 경우에만 보너스 날짜 리셋 (기존 규칙 유지)
+    if (isHike) {
+        updateData.bonusDays = 0;
+    }
 
-            // 우정 포인트 적립
+    // 3. 신입(0레벨)이 아닌 경우에만 남은 날짜(dday) 15일 추가
+    if (oldLevel > 0) {
+        // 기존 남은 날짜에 15일 추가
+        let calculatedDday = (member.dday || 0) + 15;
+
+        // 4. 최대 122일을 넘지 않도록 제한 (122일 컷!)
+        if (calculatedDday > 122) {
+            calculatedDday = 122;
+        }
+
+        updateData.dday = calculatedDday;
+    }
+}
+
+// 5. 최종 DB 업데이트 실행
+await updateDoc(doc(db, "sanwoori", id), updateData);
+
+            // [B] 우정 포인트 계산 (2인 이상 산행 시)
             if (selectedMemberIds.size >= 2 && isHike) {
                 const pointToAdd = isRegular ? 10 : (10 * effectiveUp); 
-                await updateDoc(doc(db, "sanwoori", id), { friendshipPoint: increment(pointToAdd) });
+                await updateDoc(doc(db, "sanwoori", id), { 
+                    friendshipPoint: increment(pointToAdd) 
+                });
             }
 
-            // 산행 로그(별) 생성
+            // [C] 로그 기록 및 별 생성 (정기산행 시 단 1회 실행)
             for(let i = 0; i < logLoopCount; i++) {
+                let assignedStarType = null; 
+                
+                if (isRegular) { 
+                    const rand = Math.random() * 100; 
+                    if (rand <= 3) assignedStarType = "super"; 
+                    else if (rand <= 10) assignedStarType = "special"; 
+                    else {
+                        const regIdx = Math.floor(Math.random() * 4) + 1;
+                        assignedStarType = "regular_" + regIdx;
+                    }
+                }
+
                 await addDoc(collection(db, `sanwoori/${id}/logs`), {
-                    date: ts, mountain: mName, height, coords: tempCoord,
-                    isTop100, isBAC, isRegular, isRunning, isTracking, region
+                    date: ts,
+                    mountain: mName,
+                    height,
+                    coords: tempCoord,
+                    isTop100,
+                    isBAC,
+                    isRegular,
+                    isRunning,
+                    isTracking,
+                    region,
+                    starType: assignedStarType // 정기산행 별빛 우선 부여
                 });
             }
 
             if (isHike) checkLevelUpgrade(member.name, oldLevel, newLevel);
         }
-        // --- 루프 종료 ---
 
-        // ✨ [인연의 숲 자동 기록] 루프 밖에서 1회만 실행
-        if (selectedNames.length >= 2 && isHike) {
-            try {
-                await addDoc(collection(db, "bondingForest"), {
-                    mountain: mName,
-                    members: selectedNames, // ["오즈", "하트"] 형태
-                    memberCount: selectedNames.length,
-                    date: dateVal,
-                    createdAt: new Date() // serverTimestamp 대신 안전하게 Date 사용
-                });
-                console.log("인연의 숲 데이터 저장 성공!");
-            } catch (fError) {
-                console.error("인연의 숲 저장 중 오류:", fError);
-            }
-        }
+        // 4. 알림 및 UI 갱신
+        if (pendingLevelUpCards.length > 0) showCombinedLevelUpAlert();
 
-        alert(isHike ? "산행 기록 및 인연의 숲 저장 완료!" : "기록 완료");
+        let finalMsg = isRegular 
+            ? `정기산행 저장 완료 (레벨 ${up}↑ / 별 1개 생성 / 우정포인트 반영)`
+            : (isHike ? `일반산행 저장 완료 (레벨 ${up}↑ / 기록 ${logLoopCount}회 반영)` : `기록 완료`);
+        
+        alert(finalMsg);
         selectedMemberIds.clear();
+        tempCoord = null;
         updateAdminMemberLists();
         startRealtimeSync(); 
     } catch (error) {
@@ -3565,9 +3610,6 @@ window.addMultiActivity = async () => {
         alert("저장 실패: " + error.message);
     }
 };
-
-
-            
 
     window.loadMemberLogs = async () => {
 const id = document.getElementById('memberSelectEdit').value;
