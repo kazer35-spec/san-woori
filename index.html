@@ -2774,21 +2774,19 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 };
 
     window.showBondingForestModal = async () => {
-    // 1. 이름 추출 ( "오즈 님"에서 "오즈"만 추출 )
     let mName = "";
     const nameTags = Array.from(document.querySelectorAll('h2, .text-blue-600, .font-bold'));
     const foundTag = nameTags.find(el => el.innerText.includes('님') && !el.innerText.includes('산행'));
     if (foundTag) mName = foundTag.innerText.split(' ')[0].replace('님', '').trim();
 
-    if (!mName || mName === "산행") return alert("회원 이름을 찾을 수 없습니다.");
+    if (!mName) return alert("회원 이름을 찾을 수 없습니다.");
 
     try {
-        // 2. 전체 산행 데이터에서 이 사람의 '총 산행 횟수' 찾기
-        // currentData 배열에서 해당 회원의 누적 횟수를 가져옵니다.
+        // [수정] 전체 산행 데이터에서 이 회원의 '진짜' 산행 횟수 가져오기
         const member = currentData.find(m => m.name === mName);
-        const totalHikes = member?.totalHikes || 0; // 필드명이 다르면 수정 (예: totalCount)
+        // DB 필드명이 'totalHikes'가 아닐 수 있으니, 실제 숫자가 들어있는 필드로 확인해주세요.
+        const realTotalCount = member?.totalHikes || member?.count || 30; 
 
-        // 3. bondingForest 컬렉션 분석
         const querySnapshot = await getDocs(collection(db, "bondingForest"));
         let togetherCount = 0;
         let partnersMap = {};
@@ -2807,25 +2805,23 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
             }
         });
 
-        // 4. 동행 지수 (%) 계산
-        const synergyRate = totalHikes > 0 ? ((togetherCount / totalHikes) * 100).toFixed(0) : 0;
+        // [수정] 동행률 계산 (분모가 0이 되지 않도록 방어)
+        const synergyRate = realTotalCount > 0 ? ((togetherCount / realTotalCount) * 100).toFixed(0) : 0;
         
-        // 5. 우정 콤비 계산
         let bestP = "없음"; let bestC = 0;
         Object.entries(partnersMap).forEach(([n, c]) => { if(c > bestC) { bestP = n; bestC = c; } });
 
-        // 6. 모달 렌더링
         const modalHTML = `
             <div id="forestModal" class="fixed inset-0 z-[10000] flex items-center justify-center bg-black/85 backdrop-blur-md" onclick="this.remove()">
                 <div class="bg-[#0f172a] border border-emerald-500/30 p-8 rounded-[2.5rem] w-[320px] text-center shadow-2xl" onclick="event.stopPropagation()">
                     <div class="text-emerald-400 text-[10px] font-black mb-6 tracking-[0.4em]">BONDING FOREST</div>
                     <div class="text-6xl mb-6">🌳</div>
                     <h3 class="text-white text-2xl font-bold mb-2">${mName}님의 인연</h3>
-                    <p class="text-[11px] text-slate-500 mb-8 leading-relaxed">분기 데이터를 바탕으로 산출된<br>커뮤니티 연결 지수입니다.</p>
+                    <p class="text-[11px] text-slate-500 mb-8">커뮤니티 연결 지수입니다.</p>
                     <div class="space-y-4 text-left">
                         <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
                             <div class="text-[10px] text-emerald-400 font-bold mb-1">동행 지수 (Synergy Rate)</div>
-                            <div class="text-white text-[14px] font-bold">동행률 ${synergyRate}% <span class="text-[10px] text-slate-400 font-normal">(${togetherCount}/${totalHikes})</span></div>
+                            <div class="text-white text-[14px] font-bold">동행률 ${synergyRate}% <span class="text-[10px] text-slate-400 font-normal">(${togetherCount}/${realTotalCount})</span></div>
                         </div>
                         <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
                             <div class="text-[10px] text-blue-400 font-bold mb-1">인연의 반경 (Social Radius)</div>
@@ -2840,8 +2836,9 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
                 </div>
             </div>`;
         document.body.insertAdjacentHTML('beforeend', modalHTML);
-    } catch (e) { console.error(e); alert("데이터 로딩 실패"); }
+    } catch (e) { console.error(e); }
 };
+
 
     
 window.toggleHallModal = async (show) => {
