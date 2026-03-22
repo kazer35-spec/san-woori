@@ -3578,6 +3578,16 @@ await updateDoc(doc(db, "sanwoori", id), updateData);
                     region,
                     starType: assignedStarType // 정기산행 별빛 우선 부여
                 });
+                // ✨ [여기 추가] 2인 이상일 때 인연의 숲 자동 기록
+if (checkedNames && checkedNames.length >= 2) {
+    await addDoc(collection(db, "bondingForest"), {
+        mountain: mName,            // 산 이름
+        members: checkedMembers,    // 함께 간 멤버 리스트 (배열 형태)
+        memberCount: checkedMembers.length,
+        date: ts,                   // 기록 날짜
+        createdAt: serverTimestamp() // 저장 일시
+    });
+    console.log("인연의 숲 기록이 완료되었습니다!");
             }
 
             if (isHike) checkLevelUpgrade(member.name, oldLevel, newLevel);
