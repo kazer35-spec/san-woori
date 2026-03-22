@@ -13,6 +13,27 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+    .bonding-forest-btn {
+  font-size: 9px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 99px;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid #10b981;
+  color: #10b981;
+  transition: all 0.3s;
+}
+
+/* 좌우로 번쩍이는 효과 애니메이션 */
+@keyframes sideGlow {
+  0%, 100% { box-shadow: -2px 0 8px rgba(16, 185, 129, 0.4), 2px 0 2px rgba(16, 185, 129, 0.2); }
+  50% { box-shadow: 2px 0 8px rgba(16, 185, 129, 0.4), -2px 0 2px rgba(16, 185, 129, 0.2); }
+}
+
+.animate-side-glow {
+  animation: sideGlow 2s infinite ease-in-out;
+}
+
 /* 연대기 레이아웃 */
 .chronicle-container {
     margin-top: 15px;
@@ -2364,6 +2385,10 @@ overflow: hidden;
 <div class="chart-legend">
 <div class="legend-item"><span class="dot-bar"></span>횟수</div>
 <div class="legend-item"><span class="dot-line"></span>고도</div>
+</div> <div style="display: flex; justify-content: flex-end; margin-top: 4px;">
+    <button onclick="showBondingForestModal()" class="bonding-forest-btn animate-side-glow">
+        🌳 인연의 숲
+    </button>
 </div>
 </div>
 <div class="chart-guide-txt">💡 그래프를 터치하면 상세 기록 확인 가능</div>
@@ -2746,6 +2771,71 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 </td>
 </tr>`;
 });
+};
+
+    window.showBondingForestModal = async () => {
+    // 1. 현재 선택된 회원의 ID 가져오기 (이미 열려있는 통계창의 기준 ID 사용)
+    const mId = document.getElementById('memberSelectEdit')?.value || ""; 
+    if(!mId) return alert("회원을 먼저 선택해주세요.");
+
+    const member = currentData.find(m => m.id === mId);
+    
+    // 2. 데이터베이스(bondingForest)에서 인연 데이터 가져오기
+    // 2인 이상 산행 시 저장된 데이터를 기반으로 계산합니다.
+    const forestSnap = await getDoc(doc(db, "bondingForest", mId));
+    const forestData = forestSnap.exists() ? forestSnap.data() : { partners: {}, totalTogether: 0, totalSolo: 0 };
+
+    const partners = forestData.partners || {};
+    const totalTogether = forestData.totalTogether || 0;
+    const totalSolo = forestData.totalSolo || 0;
+    const totalHikes = totalTogether + totalSolo;
+
+    // A. 동행 지수 (Synergy Rate)
+    const synergyRate = totalHikes > 0 ? ((totalTogether / totalHikes) * 100).toFixed(0) : 0;
+
+    // B. 인연의 반경 (Social Radius)
+    const socialRadius = Object.keys(partners).length;
+
+    // C. 우정 콤비 (Best Partner)
+    let bestName = "없음";
+    let bestCount = 0;
+    Object.entries(partners).forEach(([name, count]) => {
+        if(count > bestCount) {
+            bestName = name;
+            bestCount = count;
+        }
+    });
+
+    // 3. 알림창(또는 모달) 띄우기 (간단하게 alert 대신 커스텀 UI 사용 권장)
+    // 여기서는 기존 시스템 스타일과 맞춘 전용 팝업을 생성합니다.
+    const forestHTML = `
+        <div id="forestModal" class="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-sm" onclick="this.remove()">
+            <div class="bg-slate-900 border border-emerald-500/30 p-6 rounded-3xl w-[280px] text-center" onclick="event.stopPropagation()">
+                <div class="text-emerald-400 text-xs font-bold mb-4 tracking-widest">BONDING FOREST</div>
+                <div class="text-4xl mb-4">🌳</div>
+                <h3 class="text-white font-bold mb-1">${member.name}님의 인연의 숲</h3>
+                <p class="text-[10px] text-slate-500 mb-6">커뮤니티 연결 밀도 수치</p>
+                
+                <div class="space-y-3 text-left">
+                    <div class="bg-white/5 p-3 rounded-xl border border-white/5">
+                        <div class="text-[10px] text-emerald-400 font-bold mb-1">동행 지수 (Synergy)</div>
+                        <div class="text-white text-sm font-black">동행률 ${synergyRate}% <span class="text-[9px] font-normal text-slate-400 ml-1">시너지가 나는 사람</span></div>
+                    </div>
+                    <div class="bg-white/5 p-3 rounded-xl border border-white/5">
+                        <div class="text-[10px] text-blue-400 font-bold mb-1">인연의 반경 (Radius)</div>
+                        <div class="text-white text-sm font-black">인연 ${socialRadius}명 <span class="text-[9px] font-normal text-slate-400 ml-1">연결된 별의 수</span></div>
+                    </div>
+                    <div class="bg-white/5 p-3 rounded-xl border border-white/5">
+                        <div class="text-[10px] text-orange-400 font-bold mb-1">우정 콤비 (Best Partner)</div>
+                        <div class="text-white text-sm font-black">${bestName}(${bestCount}회) <span class="text-[9px] font-normal text-slate-400 ml-1">환상의 콤비</span></div>
+                    </div>
+                </div>
+                
+                <button onclick="document.getElementById('forestModal').remove()" class="mt-6 w-full py-2 bg-emerald-500 text-white text-xs font-bold rounded-lg">숲에서 나가기</button>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', forestHTML);
 };
 
 window.toggleHallModal = async (show) => {
