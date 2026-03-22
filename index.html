@@ -14,36 +14,35 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
 /* 인연의 숲 전용 반짝임 버튼 - 충돌 방지형 */
-.sparkle-btn {
-    position: relative !important; /* 위치 고정 */
-    overflow: hidden !important; /* 빛줄기가 밖으로 안 나가게 함 */
-    isolation: isolate; /* 쌓임 맥락 생성 (내부 요소가 배경 위로 오게) */
+/* 버튼 내부 반짝임 전용 */
+.forest-exit-btn {
+    isolation: isolate; /* 내부 레이어 독립 */
 }
 
-.sparkle-btn::after {
-    content: '';
+.shimmer-effect {
     position: absolute;
     top: 0;
-    left: -200%; /* 시작 위치를 더 멀리 */
-    width: 100px; /* 빛줄기 두께 */
+    left: -150%;
+    width: 40%;
     height: 100%;
+    /* 아까 요청하신 하늘색(#00F2FF) 계열 광택 */
     background: linear-gradient(
-        120deg, 
-        rgba(255, 255, 255, 0) 0%, 
-        rgba(255, 255, 255, 0.6) 50%, 
-        rgba(255, 255, 255, 0) 100%
+        90deg,
+        transparent,
+        rgba(0, 242, 255, 0.4), 
+        rgba(255, 255, 255, 0.6),
+        rgba(0, 242, 255, 0.4),
+        transparent
     );
     transform: skewX(-25deg);
-    /* 기존 애니메이션과 이름이 겹치지 않게 unique한 이름 사용 */
-    animation: forest-button-sweep 3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-    z-index: 10; /* 버튼 텍스트보다 뒤에 오게 하려면 0, 위에 오게 하려면 높은 값 */
-    pointer-events: none; /* 클릭 방해 금지 */
+    animation: shine 3s infinite;
+    z-index: 1; /* 글자(z-10)보다 아래, 배경보다는 위 */
 }
 
-@keyframes forest-button-sweep {
-    0% { left: -200%; }
-    30% { left: 200%; } /* 빠르게 통과 */
-    100% { left: 200%; } /* 나머지 시간 대기 */
+@keyframes shine {
+    0% { left: -150%; }
+    20% { left: 150%; }
+    100% { left: 150%; }
 }
 
     .bonding-forest-btn {
@@ -2898,8 +2897,12 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
                             <div class="text-white text-[14px] font-bold">${bestP} <span class="text-emerald-400 font-black">(${bestC}회)</span></div>
                         </div>
                     </div>
-                    <button onclick="document.getElementById('forestModal').remove()" class="mt-8 w-full py-4 bg-emerald-500 text-white text-xs font-black rounded-2xl">숲에서 나가기</button>
-                </div>
+                    <button onclick="document.getElementById('forestModal').remove()" 
+        class="forest-exit-btn mt-8 w-full py-4 bg-emerald-500 text-white text-xs font-black rounded-2xl relative overflow-hidden">
+    <span class="relative z-10">숲에서 나가기</span>
+    <div class="shimmer-effect"></div>
+</button>
+
             </div>`;
         document.body.insertAdjacentHTML('beforeend', modalHTML);
     } catch (e) { console.error(e); }
