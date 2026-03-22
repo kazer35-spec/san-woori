@@ -3578,8 +3578,29 @@ await updateDoc(doc(db, "sanwoori", id), updateData);
                     region,
                     starType: assignedStarType // 정기산행 별빛 우선 부여
                 });
-                
-            }
+                // ✨ [수정된 자동 기록 코드]
+try {
+    // 1. 현재 체크된 멤버 리스트를 가져옵니다. 
+    // (보통 사용자님 코드 상단에 선언된 체크된 이름 배열 변수를 넣어야 합니다)
+    const currentSelected = typeof checkedNames !== 'undefined' ? checkedNames : 
+                           (typeof checkedMembers !== 'undefined' ? checkedMembers : []);
+
+    // 2. 2인 이상일 때만 실행 (변수가 존재할 때만)
+    if (currentSelected && currentSelected.length >= 2) {
+        await addDoc(collection(db, "bondingForest"), {
+            mountain: mName,            // 사진 속 mName 변수 사용
+            members: currentSelected,    
+            memberCount: currentSelected.length,
+            date: ts,                   // 사진 속 ts 변수 사용
+            createdAt: new Date()       // serverTimestamp 에러 방지를 위해 Date 사용
+        });
+        console.log("인연의 숲 기록 완료!");
+    }
+} catch (forestError) {
+    // 인연의 숲 기록 중 에러가 나더라도 본래 기능(산행 기록)은 멈추지 않게 합니다.
+    console.error("인연의 숲 기록 실패:", forestError);
+}
+
 
             if (isHike) checkLevelUpgrade(member.name, oldLevel, newLevel);
         }
