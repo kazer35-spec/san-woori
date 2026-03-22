@@ -2774,25 +2774,24 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 };
 
     window.showBondingForestModal = async () => {
-    // [수정] 팝업창 내에서 현재 선택된 회원의 이름을 가져오는 가장 확실한 방법
-    // 1. 통합 카드 내의 h2 태그 혹은 특정 클래스명을 가진 요소를 찾습니다.
+    // [핵심] 현재 열린 팝업에서 "회원 이름"만 정확히 가져오기
     let mName = "";
-    const nameElement = document.querySelector('#mwMemberName') || 
-                        document.querySelector('.integrated-member-card h2') || 
-                        document.querySelector('.text-blue-600.font-bold');
+    
+    // 1. "님" 자가 포함된 요소 중 가장 큰 제목 위주로 탐색
+    const potentialNames = Array.from(document.querySelectorAll('h2, .text-blue-600, .font-bold'));
+    const nameElement = potentialNames.find(el => el.innerText.includes('님') && !el.innerText.includes('산행'));
 
     if (nameElement) {
-        // "오즈 님" 또는 "오즈님의 은하수" 등에서 이름만 추출
-        mName = nameElement.innerText.split(' ')[0].replace('님의', '').replace('님', '').trim();
+        // "오즈 님" -> "오즈"만 추출
+        mName = nameElement.innerText.split(' ')[0].replace('님', '').trim();
     }
 
-    if (!mName) {
-        return alert("회원 이름을 인식할 수 없습니다. 팝업을 다시 열어주세요.");
+    if (!mName || mName === "산행") {
+        return alert("회원 이름을 인식할 수 없습니다. 다시 시도해주세요.");
     }
-
-    console.log("현재 분석 중인 회원:", mName); // 디버깅용
 
     try {
+        // 2. 파이어베이스 bondingForest 컬렉션 전체 스캔
         const querySnapshot = await getDocs(collection(db, "bondingForest"));
         
         let totalTogetherCount = 0;
@@ -2803,11 +2802,12 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
             const data = doc.data();
             const members = data.members || [];
             
-            // 현재 클릭한 사람(mName)이 해당 산행 멤버 리스트에 있는지 확인
+            // 현재 누른 사람(mName)이 멤버 리스트에 있는지 확인
             if (members.includes(mName)) {
                 totalTogetherCount++;
                 
                 members.forEach(partner => {
+                    // 본인을 제외한 동행자 기록
                     if (partner !== mName) {
                         partnersMap[partner] = (partnersMap[partner] || 0) + 1;
                         uniquePartners.add(partner);
@@ -2816,51 +2816,54 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
             }
         });
 
+        // 3. 통계 계산
         const socialRadius = uniquePartners.size;
+        let bestPartnerName = "없음";
+        let bestPartnerCount = 0;
 
-        let bestName = "없음";
-        let bestCount = 0;
         Object.entries(partnersMap).forEach(([name, count]) => {
-            if (count > bestCount) {
-                bestName = name;
-                bestCount = count;
+            if (count > bestPartnerCount) {
+                bestPartnerName = name;
+                bestPartnerCount = count;
             }
         });
 
-        // 결과 모달 생성
+        // 4. 화려한 인연의 숲 모달 띄우기
         const forestHTML = `
-            <div id="forestModal" class="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-md" onclick="this.remove()">
-                <div class="bg-[#0f172a] border border-emerald-500/40 p-7 rounded-[2rem] w-[310px] text-center shadow-2xl" onclick="event.stopPropagation()">
-                    <div class="text-emerald-400 text-[10px] font-black mb-5 tracking-[0.3em] uppercase">Bonding Forest</div>
-                    <div class="text-5xl mb-5">🌳</div>
-                    <h3 class="text-white text-xl font-bold mb-1">${mName}님의 인연</h3>
-                    <p class="text-[10px] text-slate-500 mb-7">함께한 산행 기록을 분석했습니다.</p>
+            <div id="forestModal" class="fixed inset-0 z-[10000] flex items-center justify-center bg-black/85 backdrop-blur-md" onclick="this.remove()">
+                <div class="bg-[#0f172a] border border-emerald-500/30 p-8 rounded-[2.5rem] w-[320px] text-center shadow-2xl" onclick="event.stopPropagation()">
+                    <div class="text-emerald-400 text-[10px] font-black mb-6 tracking-[0.4em] uppercase">Bonding Forest</div>
+                    <div class="text-6xl mb-6 drop-shadow-lg">🌳</div>
+                    <h3 class="text-white text-2xl font-bold mb-2">${mName}님의 인연</h3>
+                    <p class="text-[11px] text-slate-500 mb-8 leading-relaxed">커뮤니티 동행 기록을 분석한<br>관계 밀도 데이터입니다.</p>
                     
-                    <div class="space-y-3.5 text-left">
-                        <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.05]">
-                            <div class="text-[10px] text-emerald-400 font-bold mb-1">동행 기록 (Activity)</div>
-                            <div class="text-white text-[13px] font-bold">총 ${totalTogetherCount}회 동행</div>
+                    <div class="space-y-4 text-left">
+                        <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
+                            <div class="text-[10px] text-emerald-400 font-bold mb-1">동행 기록 (Together)</div>
+                            <div class="text-white text-[14px] font-bold">총 ${totalTogetherCount}회 함께 산행</div>
                         </div>
-                        <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.05]">
+                        <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
                             <div class="text-[10px] text-blue-400 font-bold mb-1">인연의 반경 (Radius)</div>
-                            <div class="text-white text-[13px] font-bold">인연 ${socialRadius}명</div>
+                            <div class="text-white text-[14px] font-bold">인연 ${socialRadius}명 <span class="text-[10px] text-slate-400 font-normal">과 연결됨</span></div>
                         </div>
-                        <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.05]">
+                        <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
                             <div class="text-[10px] text-orange-400 font-bold mb-1">우정 콤비 (Best Partner)</div>
-                            <div class="text-white text-[13px] font-bold">${bestName} <span class="text-emerald-400">(${bestCount}회)</span></div>
+                            <div class="text-white text-[14px] font-bold">${bestPartnerName} <span class="text-emerald-400 font-black">(${bestPartnerCount}회)</span></div>
                         </div>
                     </div>
                     
-                    <button onclick="document.getElementById('forestModal').remove()" class="mt-8 w-full py-3.5 bg-emerald-500 text-white text-[11px] font-black rounded-xl">숲에서 나가기</button>
+                    <button onclick="document.getElementById('forestModal').remove()" class="mt-8 w-full py-4 bg-emerald-500 text-white text-xs font-black rounded-2xl shadow-lg shadow-emerald-500/20 active:scale-95 transition-transform">숲에서 나가기</button>
                 </div>
             </div>
         `;
         document.body.insertAdjacentHTML('beforeend', forestHTML);
+        
     } catch (e) {
         console.error(e);
-        alert("분석 중 오류가 발생했습니다.");
+        alert("데이터 분석 중 오류가 발생했습니다.");
     }
 };
+
 
 window.toggleHallModal = async (show) => {
 const modal = document.getElementById('hallModal');
