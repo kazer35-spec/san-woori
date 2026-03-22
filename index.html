@@ -2842,7 +2842,7 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 
     window.showBondingForestModal = async () => {
     let mName = "";
-    // 1. 이름 추출 (기존 방식 유지)
+    // 1. 이름 추출
     const nameTags = Array.from(document.querySelectorAll('h2, .text-blue-600, .font-bold'));
     const foundTag = nameTags.find(el => el.innerText.includes('님') && !el.innerText.includes('산행'));
     if (foundTag) mName = foundTag.innerText.split(' ')[0].replace('님', '').trim();
@@ -2853,16 +2853,14 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
         // 2. bondingForest 데이터 가져오기
         const querySnapshot = await getDocs(collection(db, "bondingForest"));
         
-        let myMultiHikes = 0;   // 2인 이상 산행 중 내가 포함된 횟수 (기준점)
+        let myMultiHikes = 0; 
         let partnersMap = {};
         let uniquePartners = new Set();
 
         querySnapshot.forEach((doc) => {
             const members = doc.data().members || [];
-            // 현재 회원이 이 산행(2인 이상)에 포함되어 있는지 확인
             if (members.includes(mName)) {
-                myMultiHikes++; // 이게 이제 새로운 '기준 분모'가 됩니다.
-                
+                myMultiHikes++; 
                 members.forEach(p => {
                     if (p !== mName) {
                         partnersMap[p] = (partnersMap[p] || 0) + 1;
@@ -2872,13 +2870,8 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
             }
         });
 
-        // 3. 동행 지수 계산
-        // 전체 산행(33회)이 아닌, '2인 이상 산행(myMultiHikes)'을 기준으로 함
-        // 여기서는 동행이 발생한 판수 대비 특정인과의 결속력을 보거나, 
-        // 혹은 전체 산행 대비 동행 비율을 그대로 유지하되 분모를 고정할 수 있습니다.
-        
-        // 사용자님 요청대로 "2인 이상 산행 횟수"를 기준으로 계산:
-        const synergyRate = myMultiHikes > 0 ? 100 : 0; // 2인 이상 산행 데이터가 있다면 기본 100% 시작 또는 커스텀 계산
+        // 3. 우정 포인트 추출 (기존 변수 참조)
+        const displayFP = typeof friendshipPoints !== 'undefined' ? friendshipPoints : 0;
 
         let bestP = "없음"; let bestC = 0;
         Object.entries(partnersMap).forEach(([n, c]) => { if(c > bestC) { bestP = n; bestC = c; } });
@@ -2890,7 +2883,7 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
                     <div class="text-emerald-400 text-[10px] font-black mb-6 tracking-[0.4em]">BONDING FOREST</div>
                     <div class="text-6xl mb-6">🌳</div>
                     <h3 class="text-white text-2xl font-bold mb-2">${mName}님의 인연</h3>
-                    <p class="text-[11px] text-slate-500 mb-8 leading-relaxed">2인 이상 동행 기록을 바탕으로 한<br>인연 지수입니다.</p>
+                    <p class="text-[11px] text-slate-500 mb-8 leading-relaxed"></p>
                     
                     <div class="space-y-4 text-left">
                         <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
@@ -2905,13 +2898,20 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
                             <div class="text-[10px] text-orange-400 font-bold mb-1">👑 최고의 파트너 (Bestie)</div>
                             <div class="text-white text-[14px] font-bold">${bestP} <span class="text-emerald-400 font-black">(${bestC}회)</span></div>
                         </div>
+                        <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
+                            <div class="text-[10px] text-amber-400 font-bold mb-1">💞 우정 포인트 (Friendship)</div>
+                            <div class="text-white text-[14px] font-bold">${displayFP.toLocaleString()} <span class="text-[10px] text-slate-400 font-normal">FP</span></div>
+                        </div>
                     </div>
+                    
                     <button onclick="document.getElementById('forestModal').remove()" 
-            class="forest-exit-btn mt-8 w-full py-4 bg-emerald-500 text-white text-xs font-black rounded-2xl relative overflow-hidden">
-        <span class="relative z-10">숲에서 나가기</span>
-        <div class="shimmer-bar"></div>
-    </button>
-</div>`;
+                            style="position: relative !important; overflow: hidden !important; isolation: isolate !important;"
+                            class="forest-exit-btn mt-8 w-full py-4 bg-emerald-500 text-white text-xs font-black rounded-2xl relative overflow-hidden transition-transform active:scale-95">
+                        <span style="position: relative; z-index: 10;">숲에서 나가기</span>
+                        <div class="shimmer-bar"></div>
+                    </button>
+                </div>
+            </div>`;
         document.body.insertAdjacentHTML('beforeend', modalHTML);
     } catch (e) { console.error(e); }
 };
