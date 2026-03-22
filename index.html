@@ -3489,7 +3489,7 @@ window.addMultiActivity = async () => {
     const logLoopCount = isRegular ? 1 : (isSpecial ? 1 : (isQuarterOnlyOne ? 1 : up));
     const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
 
-    // [추가] 인연의 숲에 저장할 "이름 리스트" 미리 만들기
+    // ✨ [추가] 인연의 숲에 저장할 "이름 리스트" 미리 생성
     const selectedNames = [];
     selectedMemberIds.forEach(id => {
         const m = currentData.find(mem => mem.id === id);
@@ -3497,16 +3497,9 @@ window.addMultiActivity = async () => {
     });
 
     try {
-        // 3. 산 데이터 DB 업데이트
-        if(mName && tempCoord) {
-            await setDoc(doc(db, "mountains", mName), {
-                x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region
-            }, { merge: true });
-        }
-
         pendingLevelUpCards = [];
 
-        // --- 멤버별 루프 시작 ---
+        // --- 개별 회원 데이터 업데이트 루프 시작 ---
         for(const id of selectedMemberIds){
             const member = currentData.find(m => m.id === id);
             if(!member) continue;
@@ -3514,6 +3507,7 @@ window.addMultiActivity = async () => {
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
+            // DB 업데이트 데이터 구성 (레벨, 높이, D-Day 등)
             const updateData = {
                 level: newLevel,
                 totalHeight: increment(height)
@@ -3531,54 +3525,42 @@ window.addMultiActivity = async () => {
 
             await updateDoc(doc(db, "sanwoori", id), updateData);
 
+            // 우정 포인트 적립
             if (selectedMemberIds.size >= 2 && isHike) {
                 const pointToAdd = isRegular ? 10 : (10 * effectiveUp); 
                 await updateDoc(doc(db, "sanwoori", id), { friendshipPoint: increment(pointToAdd) });
             }
 
-            // 로그 기록 (개인별)
+            // 산행 로그(별) 생성
             for(let i = 0; i < logLoopCount; i++) {
-                let assignedStarType = null; 
-                if (isRegular) { 
-                    const rand = Math.random() * 100; 
-                    if (rand <= 3) assignedStarType = "super"; 
-                    else if (rand <= 10) assignedStarType = "special"; 
-                    else assignedStarType = "regular_" + (Math.floor(Math.random() * 4) + 1);
-                }
-
                 await addDoc(collection(db, `sanwoori/${id}/logs`), {
                     date: ts, mountain: mName, height, coords: tempCoord,
-                    isTop100, isBAC, isRegular, isRunning, isTracking, region,
-                    starType: assignedStarType 
+                    isTop100, isBAC, isRegular, isRunning, isTracking, region
                 });
             }
 
             if (isHike) checkLevelUpgrade(member.name, oldLevel, newLevel);
         }
-        // --- 멤버별 루프 끝 ---
+        // --- 루프 종료 ---
 
-        // ✨ [인연의 숲 자동 기록] 멤버 루프 밖에서 딱 한 번만 실행!
+        // ✨ [인연의 숲 자동 기록] 루프 밖에서 1회만 실행
         if (selectedNames.length >= 2 && isHike) {
             try {
                 await addDoc(collection(db, "bondingForest"), {
                     mountain: mName,
-                    members: selectedNames, // 위에서 만든 이름 배열 사용
+                    members: selectedNames, // ["오즈", "하트"] 형태
                     memberCount: selectedNames.length,
-                    date: dateVal, // 문자열 날짜
-                    createdAt: serverTimestamp() 
+                    date: dateVal,
+                    createdAt: new Date() // serverTimestamp 대신 안전하게 Date 사용
                 });
-                console.log("인연의 숲 기록 완료!");
+                console.log("인연의 숲 데이터 저장 성공!");
             } catch (fError) {
-                console.error("인연의 숲 저장 에러:", fError);
+                console.error("인연의 숲 저장 중 오류:", fError);
             }
         }
 
-        // 4. 알림 및 UI 갱신
-        if (pendingLevelUpCards.length > 0) showCombinedLevelUpAlert();
-        alert(isRegular ? "정기산행 저장 완료" : (isHike ? "일반산행 저장 완료" : "기록 완료"));
-        
+        alert(isHike ? "산행 기록 및 인연의 숲 저장 완료!" : "기록 완료");
         selectedMemberIds.clear();
-        tempCoord = null;
         updateAdminMemberLists();
         startRealtimeSync(); 
     } catch (error) {
@@ -3587,6 +3569,8 @@ window.addMultiActivity = async () => {
     }
 };
 
+
+            
 
     window.loadMemberLogs = async () => {
 const id = document.getElementById('memberSelectEdit').value;
