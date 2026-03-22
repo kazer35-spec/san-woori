@@ -13,36 +13,45 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-/* 인연의 숲 전용 반짝임 버튼 - 충돌 방지형 */
-/* 버튼 내부 반짝임 전용 */
+    /* 1. 버튼 기본 설정 (절대 필수) */
 .forest-exit-btn {
-    isolation: isolate; /* 내부 레이어 독립 */
+    position: relative !important;
+    overflow: hidden !important;
+    isolation: isolate; /* 내부 레이어 분리 */
 }
 
-.shimmer-effect {
+/* 2. 녹색 빛줄기 본체 */
+.shimmer-bar {
     position: absolute;
     top: 0;
     left: -150%;
-    width: 40%;
+    width: 60%; /* 빛줄기 두께 */
     height: 100%;
-    /* 아까 요청하신 하늘색(#00F2FF) 계열 광택 */
+    /* 요청하신 녹색 광택 효과 (라임/화이트 조합) */
     background: linear-gradient(
         90deg,
-        transparent,
-        rgba(0, 242, 255, 0.4), 
-        rgba(255, 255, 255, 0.6),
-        rgba(0, 242, 255, 0.4),
-        transparent
+        rgba(163, 230, 53, 0) 0%, /* 라임색 투명 */
+        rgba(163, 230, 53, 0.5) 30%, /* 라임색 반투명 */
+        rgba(255, 255, 255, 0.8) 50%, /* 화이트 (가장 밝은 부분) */
+        rgba(163, 230, 53, 0.5) 70%, /* 라임색 반투명 */
+        rgba(163, 230, 53, 0) 100% /* 라임색 투명 */
     );
     transform: skewX(-25deg);
-    animation: shine 3s infinite;
-    z-index: 1; /* 글자(z-10)보다 아래, 배경보다는 위 */
+    animation: forest-shine 2.5s infinite; /* 2.5초마다 반짝 */
+    z-index: 5;
 }
 
-@keyframes shine {
+/* 3. 애니메이션 로직 */
+@keyframes forest-shine {
     0% { left: -150%; }
-    20% { left: 150%; }
-    100% { left: 150%; }
+    30% { left: 150%; } /* 빠르게 통과 */
+    100% { left: 150%; } /* 대기 시간 */
+}
+
+/* 4. 버튼 글자 보호 */
+.forest-exit-btn span {
+    position: relative;
+    z-index: 10; /* 빛줄기보다 위에 글자가 오도록 */
 }
 
     .bonding-forest-btn {
@@ -2898,12 +2907,11 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
                         </div>
                     </div>
                     <button onclick="document.getElementById('forestModal').remove()" 
-        class="forest-exit-btn mt-8 w-full py-4 bg-emerald-500 text-white text-xs font-black rounded-2xl relative overflow-hidden">
-    <span class="relative z-10">숲에서 나가기</span>
-    <div class="shimmer-effect"></div>
-</button>
-
-            </div>`;
+            class="forest-exit-btn mt-8 w-full py-4 bg-emerald-500 text-white text-xs font-black rounded-2xl relative overflow-hidden">
+        <span class="relative z-10">숲에서 나가기</span>
+        <div class="shimmer-bar"></div>
+    </button>
+</div>`;
         document.body.insertAdjacentHTML('beforeend', modalHTML);
     } catch (e) { console.error(e); }
 };
