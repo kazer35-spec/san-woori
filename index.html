@@ -2774,28 +2774,39 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 };
 
     window.showBondingForestModal = async () => {
-    // 1. 이름 인식 (팝업 상단에서 추출)
-    const nameHeader = document.querySelector('.integrated-member-card h2, .text-blue-600.font-bold'); 
-    if (!nameHeader) return alert("회원 이름을 인식할 수 없습니다.");
-    const mName = nameHeader.innerText.replace(' 님', '').trim();
+    // [수정] 팝업창 내에서 현재 선택된 회원의 이름을 가져오는 가장 확실한 방법
+    // 1. 통합 카드 내의 h2 태그 혹은 특정 클래스명을 가진 요소를 찾습니다.
+    let mName = "";
+    const nameElement = document.querySelector('#mwMemberName') || 
+                        document.querySelector('.integrated-member-card h2') || 
+                        document.querySelector('.text-blue-600.font-bold');
+
+    if (nameElement) {
+        // "오즈 님" 또는 "오즈님의 은하수" 등에서 이름만 추출
+        mName = nameElement.innerText.split(' ')[0].replace('님의', '').replace('님', '').trim();
+    }
+
+    if (!mName) {
+        return alert("회원 이름을 인식할 수 없습니다. 팝업을 다시 열어주세요.");
+    }
+
+    console.log("현재 분석 중인 회원:", mName); // 디버깅용
 
     try {
-        // 2. bondingForest 컬렉션의 모든 기록 가져오기
         const querySnapshot = await getDocs(collection(db, "bondingForest"));
         
-        let totalTogetherCount = 0; // 동행 산행 횟수
-        let partnersMap = {}; // 누구와 몇 번 갔는지 저장
-        let uniquePartners = new Set(); // 중복 없는 인연 수
+        let totalTogetherCount = 0;
+        let partnersMap = {};
+        let uniquePartners = new Set();
 
         querySnapshot.forEach((doc) => {
             const data = doc.data();
             const members = data.members || [];
             
-            // 이 산행 기록에 현재 회원이 포함되어 있는지 확인
+            // 현재 클릭한 사람(mName)이 해당 산행 멤버 리스트에 있는지 확인
             if (members.includes(mName)) {
                 totalTogetherCount++;
                 
-                // 함께 간 다른 멤버들 기록
                 members.forEach(partner => {
                     if (partner !== mName) {
                         partnersMap[partner] = (partnersMap[partner] || 0) + 1;
@@ -2805,13 +2816,8 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
             }
         });
 
-        // 3. 수치 계산
-        // 동행 지수: (현재 산행 기록은 모두 동행 기록이므로 일단 100% 기준으로 표시하거나, 
-        // 만약 전체 산행 횟수 데이터가 있다면 그걸 활용해야 합니다. 여기서는 동행 기록 기반으로 계산합니다.)
-        const synergyRate = totalTogetherCount > 0 ? 100 : 0; // 기록이 있다면 100%
         const socialRadius = uniquePartners.size;
 
-        // 우정 콤비 찾기
         let bestName = "없음";
         let bestCount = 0;
         Object.entries(partnersMap).forEach(([name, count]) => {
@@ -2821,41 +2827,40 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
             }
         });
 
-        // 4. 모달 UI 렌더링 (이전과 동일)
+        // 결과 모달 생성
         const forestHTML = `
             <div id="forestModal" class="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-md" onclick="this.remove()">
-                <div class="bg-[#0f172a] border border-emerald-500/40 p-7 rounded-[2rem] w-[310px] text-center shadow-2xl shadow-emerald-500/10" onclick="event.stopPropagation()">
+                <div class="bg-[#0f172a] border border-emerald-500/40 p-7 rounded-[2rem] w-[310px] text-center shadow-2xl" onclick="event.stopPropagation()">
                     <div class="text-emerald-400 text-[10px] font-black mb-5 tracking-[0.3em] uppercase">Bonding Forest</div>
-                    <div class="text-5xl mb-5 drop-shadow-glow">🌳</div>
+                    <div class="text-5xl mb-5">🌳</div>
                     <h3 class="text-white text-xl font-bold mb-1">${mName}님의 인연</h3>
-                    <p class="text-[10px] text-slate-500 mb-7 leading-relaxed">데이터베이스 내 ${totalTogetherCount}개의<br>동행 기록을 분석한 결과입니다.</p>
+                    <p class="text-[10px] text-slate-500 mb-7">함께한 산행 기록을 분석했습니다.</p>
                     
                     <div class="space-y-3.5 text-left">
                         <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.05]">
                             <div class="text-[10px] text-emerald-400 font-bold mb-1">동행 기록 (Activity)</div>
-                            <div class="text-white text-[13px] font-bold">총 ${totalTogetherCount}회 동행 <span class="text-[9px] font-normal text-slate-400 ml-1">함께한 발자취</span></div>
+                            <div class="text-white text-[13px] font-bold">총 ${totalTogetherCount}회 동행</div>
                         </div>
                         <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.05]">
                             <div class="text-[10px] text-blue-400 font-bold mb-1">인연의 반경 (Radius)</div>
-                            <div class="text-white text-[13px] font-bold">인연 ${socialRadius}명 <span class="text-[9px] font-normal text-slate-400 ml-1">연결된 고유 인원</span></div>
+                            <div class="text-white text-[13px] font-bold">인연 ${socialRadius}명</div>
                         </div>
                         <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.05]">
                             <div class="text-[10px] text-orange-400 font-bold mb-1">우정 콤비 (Best Partner)</div>
-                            <div class="text-white text-[13px] font-bold">${bestName} <span class="text-emerald-400 font-black">(${bestCount}회)</span></div>
+                            <div class="text-white text-[13px] font-bold">${bestName} <span class="text-emerald-400">(${bestCount}회)</span></div>
                         </div>
                     </div>
                     
-                    <button onclick="document.getElementById('forestModal').remove()" class="mt-8 w-full py-3.5 bg-emerald-500 text-white text-[11px] font-black rounded-xl shadow-lg shadow-emerald-500/20">숲에서 나가기</button>
+                    <button onclick="document.getElementById('forestModal').remove()" class="mt-8 w-full py-3.5 bg-emerald-500 text-white text-[11px] font-black rounded-xl">숲에서 나가기</button>
                 </div>
             </div>
         `;
         document.body.insertAdjacentHTML('beforeend', forestHTML);
     } catch (e) {
-        console.error("인연의 숲 분석 에러:", e);
-        alert("기록을 분석하는 중 오류가 발생했습니다.");
+        console.error(e);
+        alert("분석 중 오류가 발생했습니다.");
     }
 };
-
 
 window.toggleHallModal = async (show) => {
 const modal = document.getElementById('hallModal');
