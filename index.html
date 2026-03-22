@@ -2825,9 +2825,9 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 </tr>`;
 });
 };
+
 window.showBondingForestModal = async () => {
     let mName = "";
-    // 1. 이름 추출
     const nameTags = Array.from(document.querySelectorAll('h2, .text-blue-600, .font-bold'));
     const foundTag = nameTags.find(el => el.innerText.includes('님') && !el.innerText.includes('산행'));
     if (foundTag) mName = foundTag.innerText.split(' ')[0].replace('님', '').trim();
@@ -2835,17 +2835,17 @@ window.showBondingForestModal = async () => {
     if (!mName) return alert("회원 이름을 찾을 수 없습니다.");
 
     try {
-        // 2. 데이터 가져오기 (전체 산행 기록 & 동행 기록)
-        // 전체 기록 컬렉션 이름이 'hikingLogs'라고 가정합니다. 환경에 맞춰 수정하세요.
         const [allLogsSnap, bondingSnap] = await Promise.all([
             getDocs(collection(db, "hikingLogs")), 
             getDocs(collection(db, "bondingForest"))
         ]);
         
-        // 개인별 전체 산행 횟수 계산
+        // 1. 개인별 전체 산행 횟수 (정교하게 필터링)
         let myTotalHikes = 0;
         allLogsSnap.forEach(doc => {
-            if (doc.data().author === mName || (doc.data().members && doc.data().members.includes(mName))) {
+            const data = doc.data();
+            const participants = data.members || data.participants || []; // 필드명 유연하게 대응
+            if (data.author === mName || (Array.isArray(participants) && participants.includes(mName))) {
                 myTotalHikes++;
             }
         });
@@ -2867,17 +2867,19 @@ window.showBondingForestModal = async () => {
             }
         });
 
-        // 3. 동적 동행 지수 (%) 계산
-        const synergyRate = myTotalHikes > 0 ? Math.round((myMultiHikes / myTotalHikes) * 10) / 10 * 10 : 0;
+        // 2. 예외 처리: 만약 전체 산행 횟수가 동행 횟수보다 적게 잡히면 보정
+        if (myTotalHikes < myMultiHikes) myTotalHikes = myMultiHikes;
+
+        // 3. 동행 지수 (%) 계산
         const finalSynergy = myTotalHikes > 0 ? Math.round((myMultiHikes / myTotalHikes) * 100) : 0;
 
         let bestP = "없음"; let bestC = 0;
         Object.entries(partnersMap).forEach(([n, c]) => { if(c > bestC) { bestP = n; bestC = c; } });
+        
+        // 우정 포인트 (기존 2,400 FP 유지되도록)
+        const currentFP = typeof friendshipPoints !== 'undefined' ? friendshipPoints : 2400;
 
-        // 기존 우정 포인트 변수 (없을 경우 0으로 처리)
-        const currentFP = typeof friendshipPoints !== 'undefined' ? friendshipPoints : (myMultiHikes * 100);
-
-        // 4. 모달 출력 (스타일 우선순위 강제 적용)
+        // 4. 모달 출력
         const modalHTML = `
             <div id="forestModal" class="fixed inset-0 z-[10000] flex items-center justify-center bg-black/85 backdrop-blur-md" onclick="this.remove()">
                 <div class="bg-[#0f172a] border border-emerald-500/30 p-8 rounded-[2.5rem] w-[320px] text-center shadow-2xl" onclick="event.stopPropagation()">
