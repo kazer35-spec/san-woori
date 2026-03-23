@@ -13,19 +13,6 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-    .style-card {
-    background: rgba(15, 23, 42, 0.9);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    border-radius: 2rem;
-    padding: 2rem;
-    text-align: center;
-}
-.gauge-bar { height: 8px; border-radius: 4px; transition: width 1s; }
-.rock-color { background: #94a3b8; } /* 회색 */
-.forest-color { background: #22c55e; } /* 초록 */
-.stream-color { background: #3b82f6; } /* 파랑 */
-
     /* 80% 이상일 때 게이지에 흐르는 반짝임 효과 */
 @keyframes gauge-shimmer {
     0% { background-position: -200% 0; }
@@ -2272,41 +2259,22 @@ overflow: hidden;
 </label>
 </div>
 </div>
-<input type="text" id="mountainName" 
-       onblur="autoFindCoords(); autoFindMountainStats();" 
-       placeholder="등산한 산 이름 (예: 관악산)" 
-       class="mb-2 h-9 text-xs w-full border rounded-md px-2">
-
-<div class="flex gap-2 mb-3">
-    <div class="flex-1">
-        <label class="text-[9px] text-slate-400 block mb-1">🪨 바위</label>
-        <input type="number" id="compRock" placeholder="%" class="w-full h-8 text-xs border rounded-md px-2 bg-slate-50">
-    </div>
-    <div class="flex-1">
-        <label class="text-[9px] text-slate-400 block mb-1">🌿 숲</label>
-        <input type="number" id="compForest" placeholder="%" class="w-full h-8 text-xs border rounded-md px-2 bg-slate-50">
-    </div>
-    <div class="flex-1">
-        <label class="text-[9px] text-slate-400 block mb-1">🌊 계곡</label>
-        <input type="number" id="compStream" placeholder="%" class="w-full h-8 text-xs border rounded-md px-2 bg-slate-50">
-    </div>
-</div>
-
 <div class="flex items-center justify-between mt-2 py-1.5 border-t border-gray-100 overflow-x-auto">
-    <label class="text-[10px] flex items-center gap-1 shrink-0 cursor-pointer whitespace-nowrap">
-        <input type="checkbox" id="isRegularCheck" class="w-3.5 h-3.5"> 정기🚩
-    </label>
-    <label class="text-[10px] flex items-center gap-1 shrink-0 cursor-pointer whitespace-nowrap">
-        <input type="checkbox" id="isRunningCheck" class="w-3.5 h-3.5"> 런닝🏃
-    </label>
-    <label class="text-[10px] flex items-center gap-1 shrink-0 cursor-pointer whitespace-nowrap">
-        <input type="checkbox" id="isTrackingCheck" class="w-3.5 h-3.5"> 트래킹👟
-    </label>
-    <label class="text-[10px] flex items-center gap-1 shrink-0 cursor-pointer whitespace-nowrap">
-        <input type="checkbox" id="isQuarterCheck" class="w-3.5 h-3.5"> 분기1회☝️
-    </label>
+<label class="text-[10px] flex items-center gap-1 shrink-0 cursor-pointer whitespace-nowrap">
+<input type="checkbox" id="isRegularCheck" class="w-3.5 h-3.5"> 정기🚩
+</label>
+<label class="text-[10px] flex items-center gap-1 shrink-0 cursor-pointer whitespace-nowrap">
+<input type="checkbox" id="isRunningCheck" class="w-3.5 h-3.5"> 런닝🏃
+</label>
+<label class="text-[10px] flex items-center gap-1 shrink-0 cursor-pointer whitespace-nowrap">
+<input type="checkbox" id="isTrackingCheck" class="w-3.5 h-3.5"> 트래킹👟
+</label>
+<label class="text-[10px] flex items-center gap-1 shrink-0 cursor-pointer whitespace-nowrap">
+<input type="checkbox" id="isQuarterCheck" class="w-3.5 h-3.5"> 분기1회☝️
+</label>
 </div>
-    
+<input type="text" id="mountainName" onblur="autoFindCoords()" placeholder="등산한 산 이름 (예: 관악산)" class="mb-2 h-9 text-xs">
+
 <div class="flex gap-2 mb-2">
 <select id="adminManualRegionSelect" class="region-select-mini flex-1 rounded-lg border">
 <option value="기타">📍 수동 지역 선택 (선택 안함)</option>
@@ -2504,10 +2472,9 @@ overflow: hidden;
                 </div>
             </div>
 
-            <button onclick="showMountainStyleModal()" class="mt-2 py-3 bg-slate-800 text-white rounded-2xl border border-slate-700 text-sm font-bold">
-        ⛰️ 나의 산 스타일
-    </button>
-        </div>
+            <button onclick="showBondingForestModal()" class="bonding-forest-btn animate-side-glow">
+                🌳 인연의 숲
+            </button>
         </div>
     </div>
 
@@ -2891,74 +2858,6 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 </td>
 </tr>`;
 });
-};
-
-    window.showMountainStyleModal = async () => {
-    // 1. 현재 사용자 이름 가져오기 (기존 로직 활용)
-    const mName = /* 사용자 이름 추출 로직 */;
-    
-    // 2. 사용자가 다녀온 산 리스트 가져오기 (sanwoori 또는 bondingForest 데이터)
-    // 3. 각 산의 성분(r, f, s)을 mountains 컬렉션에서 참조하여 합산
-    
-    let totalR = 0, totalF = 0, totalS = 0, count = 0;
-    
-    // (예시 데이터 계산 로직)
-    // visitedMountains.forEach(m => {
-    //    totalR += m.rock; totalF += m.forest; totalS += m.stream; count++;
-    // });
-    
-    const avgR = Math.round(totalR / count) || 0;
-    const avgF = Math.round(totalF / count) || 0;
-    const avgS = Math.round(totalS / count) || 0;
-
-    // 칭호 결정 로직
-    let title = "";
-    let mainType = Math.max(avgR, avgF, avgS);
-    if (mainType === avgR) title = "강인한 바위 거인";
-    else if (mainType === avgF) title = "신비로운 숲의 파수꾼";
-    else title = "푸른 물결의 인도자";
-
-    const styleModalHTML = `
-        <div id="styleModal" class="fixed inset-0 z-[10001] flex items-center justify-center bg-black/90" onclick="this.remove()">
-            <div class="style-card w-[340px]" onclick="event.stopPropagation()">
-                <div class="text-[10px] text-slate-400 mb-2 tracking-widest uppercase">Type: R-${avgR} / F-${avgF} / S-${avgS}</div>
-                <div class="text-5xl mb-4">⛰️</div>
-                <h2 class="text-white text-2xl font-bold mb-6">${title}</h2>
-                
-                <div class="space-y-5 text-left">
-                    <div>
-                        <div class="flex justify-between text-[11px] mb-1">
-                            <span class="text-slate-400">바위 성분 (Rock)</span>
-                            <span class="text-white">${avgR}%</span>
-                        </div>
-                        <div class="w-full bg-white/10 rounded-full h-1.5">
-                            <div class="rock-color h-full rounded-full" style="width: ${avgR}%"></div>
-                        </div>
-                    </div>
-                    <div>
-                        <div class="flex justify-between text-[11px] mb-1">
-                            <span class="text-slate-400">숲 성분 (Forest)</span>
-                            <span class="text-white">${avgF}%</span>
-                        </div>
-                        <div class="w-full bg-white/10 rounded-full h-1.5">
-                            <div class="forest-color h-full rounded-full" style="width: ${avgF}%"></div>
-                        </div>
-                    </div>
-                    <div>
-                        <div class="flex justify-between text-[11px] mb-1">
-                            <span class="text-slate-400">계곡 성분 (Stream)</span>
-                            <span class="text-white">${avgS}%</span>
-                        </div>
-                        <div class="w-full bg-white/10 rounded-full h-1.5">
-                            <div class="stream-color h-full rounded-full" style="width: ${avgS}%"></div>
-                        </div>
-                    </div>
-                </div>
-                <button onclick="document.getElementById('styleModal').remove()" class="mt-8 w-full py-3 bg-white/5 text-white rounded-xl border border-white/10">닫기</button>
-            </div>
-        </div>
-    `;
-    document.body.insertAdjacentHTML('beforeend', styleModalHTML);
 };
 
    window.showBondingForestModal = async () => {
@@ -3482,131 +3381,84 @@ marker.style.left = d.x + "%"; marker.style.top = d.y + "%"; marker.classList.re
 }
 };
 
-// 1. 산 정보 및 성분 일괄 수정 함수
 window.globalSyncMountainInfo = async () => {
-    const mName = document.getElementById('mountainName').value.trim();
-    const height = parseInt(document.getElementById('mountainHeight').value) || 0;
-    
-    // [추가] 성분 데이터 읽기 (입력창 ID: compRock, compForest, compStream)
-    const rock = parseInt(document.getElementById('compRock').value) || 0;
-    const forest = parseInt(document.getElementById('compForest').value) || 0;
-    const stream = parseInt(document.getElementById('compStream').value) || 0;
-
-    const isTop100 = document.getElementById('isTop100Check').checked;
-    const isBAC = document.getElementById('isBACCheck').checked;
-    const isRegular = document.getElementById('isRegularCheck').checked;
-    const isRunning = document.getElementById('isRunningCheck').checked;
-    const isTracking = document.getElementById('isTrackingCheck').checked;
-    const region = document.getElementById('adminManualRegionSelect').value;
-
-    if(!mName || !tempCoord) return alert("산 이름과 좌표 필수");
-    
-    // 성분 합계 체크 (사용자 편의)
-    if (rock + forest + stream !== 100) {
-        if(!confirm("성분 합계가 100%가 아닙니다. 그대로 진행할까요?")) return;
-    }
-
-    if(!confirm(`[${mName}] 정보 및 성분 비율을 일괄 수정하시겠습니까?`)) return;
-
-    try {
-        // A. mountains 컬렉션 업데이트 (성분 포함)
-        await setDoc(doc(db, "mountains", mName), { 
-            x: tempCoord.x, 
-            y: tempCoord.y, 
-            height, 
-            isTop100, 
-            isBAC, 
-            region,
-            rock,    // 바위 %
-            forest,  // 숲 %
-            stream   // 계곡 %
-        }, { merge: true });
-
-        // B. 모든 멤버의 로그(logs)에 해당 산 정보 동기화
-        const membersSnap = await getDocs(collection(db, "sanwoori"));
-        for (const mDoc of membersSnap.docs) {
-            const logsSnap = await getDocs(query(collection(db, `sanwoori/${mDoc.id}/logs`), where("mountain", "==", mName)));
-            if (!logsSnap.empty) {
-                const batch = writeBatch(db);
-                logsSnap.forEach(ldoc => batch.update(ldoc.ref, { 
-                    height, 
-                    coords: tempCoord, 
-                    isTop100, 
-                    isBAC, 
-                    region,
-                    rock,   // 로그에도 성분 저장 (분석 속도 향상)
-                    forest,
-                    stream
-                }));
-                await batch.commit();
-            }
-        }
-        alert("산 정보 및 스타일 성분 수정 완료"); 
-        startRealtimeSync();
-    } catch (e) { alert(e.message); }
+const mName = document.getElementById('mountainName').value.trim();
+const height = parseInt(document.getElementById('mountainHeight').value) || 0;
+const isTop100 = document.getElementById('isTop100Check').checked;
+const isBAC = document.getElementById('isBACCheck').checked;
+const isRegular = document.getElementById('isRegularCheck').checked;
+const isRunning = document.getElementById('isRunningCheck').checked;
+const isTracking = document.getElementById('isTrackingCheck').checked;
+const region = document.getElementById('adminManualRegionSelect').value;
+if(!mName || !tempCoord) return alert("산 이름과 좌표 필수");
+if(!confirm(`[${mName}] 정보를 일괄 수정하시겠습니까?`)) return;
+try {
+await setDoc(doc(db, "mountains", mName), { x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region }, { merge: true });
+const membersSnap = await getDocs(collection(db, "sanwoori"));
+for (const mDoc of membersSnap.docs) {
+const logsSnap = await getDocs(query(collection(db, `sanwoori/${mDoc.id}/logs`), where("mountain", "==", mName)));
+if (!logsSnap.empty) {
+const batch = writeBatch(db);
+logsSnap.forEach(ldoc => batch.update(ldoc.ref, { height, coords: tempCoord, isTop100, isBAC, region }));
+await batch.commit();
+}
+}
+alert("수정 완료"); startRealtimeSync();
+} catch (e) { alert(e.message); }
 };
 
-// 2. 알뜰 모드 데이터 로드 (성분 합산 로직 추가)
+let unsubscribe = null;
+// [수정된 알뜰 모드 코드]
 async function startRealtimeSync() {
-    console.log("알뜰 모드로 데이터 및 산 스타일 분석 시작...");
+    console.log("알뜰 모드로 데이터 불러오기 시작...");
     
+    // 1. 전체 멤버 명단을 딱 한 번만 가져옵니다.
     const snapshot = await getDocs(collection(db, "sanwoori"));
+    
+    // 2. 현재 선택된 분기의 시작/끝 날짜 계산
     const start = Timestamp.fromDate(new Date(selectedYear, (selectedQuarter - 1) * 3, 1));
     const end = Timestamp.fromDate(new Date(selectedYear, selectedQuarter * 3, 1));
 
+    // 3. 각 멤버별로 '이번 분기 기록만' 골라서 가져오기 (비용 절약 핵심!)
     const results = await Promise.all(snapshot.docs.map(async (docSnap) => {
         const m = { id: docSnap.id, ...docSnap.data() };
         
-        // 이번 분기 기록
+        // 중요: 모든 로그가 아니라 날짜 조건(where)을 걸어 필요한 만큼만 읽습니다.
         const qLogsQuery = query(
             collection(db, `sanwoori/${m.id}/logs`),
             where("date", ">=", start),
             where("date", "<", end)
         );
         const qSnap = await getDocs(qLogsQuery);
-        m.qCount = qSnap.docs.filter(l => !l.data().isRunning && !l.data().isTracking).length;
-
-        // 전체 기록 및 성분(Style) 분석
-        const allLogsSnap = await getDocs(collection(db, `sanwoori/${m.id}/logs`));
         
-        let totalR = 0, totalF = 0, totalS = 0, validLogCount = 0;
-        let hSum = 0;
-
-        allLogsSnap.forEach(l => {
+        // 런닝, 트레킹 제외한 분기 횟수 계산
+        m.qCount = qSnap.docs.filter(l => {
             const d = l.data();
-            hSum += (d.height || 0);
-            
-            // 런닝/트레킹 제외하고 좌표(산행)가 있는 기록의 성분 합산
-            if(!d.isRunning && !d.isTracking && (d.rock !== undefined)) {
-                totalR += (d.rock || 0);
-                totalF += (d.forest || 0);
-                totalS += (d.stream || 0);
-                validLogCount++;
-            }
-        });
+            return !d.isRunning && !d.isTracking;
+        }).length;
 
-        m.totalHeight = hSum;
-        
-        // [개인별 평균 성분 계산]
-        m.avgStyle = {
-            rock: validLogCount > 0 ? Math.round(totalR / validLogCount) : 0,
-            forest: validLogCount > 0 ? Math.round(totalF / validLogCount) : 0,
-            stream: validLogCount > 0 ? Math.round(totalS / validLogCount) : 0
-        };
+        // 전체 고도는 멤버 정보에 이미 저장된 값을 사용 (없으면 0)
+        const allLogsSnap = await getDocs(collection(db, `sanwoori/${m.id}/logs`));
+m.totalHeight = allLogsSnap.docs.reduce((acc, l) => acc + (l.data().height || 0), 0);
 
         return m;
     }));
 
+    // 4. 화면 업데이트
     currentData = results;
     updateAdminMemberLists();
     renderStatusTable();
-    updateVibeTemp();
+updateVibeTemp();
 
-    const root = document.documentElement;
+const root = document.documentElement;
+    // window.getSeasonColor 함수를 호출해 현재 계절 색상을 가져옵니다.
     const sColor = window.getSeasonColor(new Date().getMonth() + 1);
+    
+    // CSS 변수(--season-theme-color)에 해당 색상을 할당합니다.
     root.style.setProperty('--season-theme-color', sColor);
-    console.log("🌸🌿 데이터 로드 및 테마 적용 완료");
-}
+    
+    console.log("🌸🌿 계절 테마 적용 완료:", sColor);
+} 
 
 let pendingLevelUpCards = [];
 
