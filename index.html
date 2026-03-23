@@ -13,7 +13,6 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-
     /* 80% 이상일 때 게이지에 흐르는 반짝임 효과 */
 @keyframes gauge-shimmer {
     0% { background-position: -200% 0; }
@@ -1316,6 +1315,7 @@ width: 220px;
 z-index: 0;
 pointer-events: none;
 }
+
 .scroll-header { position: relative; z-index: 2; margin-bottom: 25px; }
 .scroll-title-sub { font-size: 11px; letter-spacing: 5px; color: #8b4513; opacity: 0.6; font-weight: 800; }
 .scroll-title-main { font-size: 22px; font-weight: 900; color: #3e2723; margin-top: 5px; }
@@ -2469,40 +2469,20 @@ class="w-full bg-transparent text-white text-sm outline-none text-right border-n
 
 <div id="grassBoard" class="grass-container mb-4"></div>
 
-<div id="chartBox" class="chart-container-box" style="margin-top: 15px;">
-<div class="chart-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2px;">
-
-<div style="display: flex; flex-direction: column; gap: 2px;">
-<div class="chart-title-sub" style="font-size: 10px; font-weight: bold; color: #334155; display: flex; align-items: center; gap: 4px;">
-📊 분기 성장 추이
-</div>
-<div class="chart-guide-txt" style="font-size: 8px; color: #38BDF8; letter-spacing: -0.5px;">
-💡 그래프 및 인연의숲 터치 기록 확인 가능
+<div id="chartBox" class="chart-container-box">
+<div class="chart-header">
+<div class="chart-title-sub">📊 분기 성장 추이</div>
+<div class="chart-legend">
+<div class="legend-item"><span class="dot-bar"></span>횟수</div>
+<div class="legend-item"><span class="dot-line"></span>고도</div>
 </div>
 </div>
-
-<div style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
-<div class="chart-legend" style="display: flex; gap: 8px; font-size: 9px; color: #64748b; font-weight: bold;">
-<div class="legend-item" style="display: flex; align-items: center; gap: 3px;">
-<span class="dot-bar" style="width: 7px; height: 7px; background: #3b82f6; border-radius: 1px; display: inline-block;"></span> 횟수
-</div>
-<div class="legend-item" style="display: flex; align-items: center; gap: 3px;">
-<span class="dot-line" style="width: 7px; height: 7px; background: #ef4444; border-radius: 50%; display: inline-block;"></span> 고도
-</div>
-</div>
-
-    <button onclick="openMountainComponentModal()" class="bonding-forest-btn animate-side-glow">
-⛰️ 개인 산 성분
-    </button>
-</div>
-</div>
-
-<div style="height: 120px; width: 100%; margin-top: 8px;">
+<div class="chart-guide-txt">💡 그래프를 터치하면 상세 기록 확인 가능</div>
+<div style="height: 120px;">
 <canvas id="growthChart"></canvas>
 </div>
 </div>
-
-
+    
 <button onclick="toggleLogPopup(true)" class="btn-open-log">
 <span>📜 최근 운동 일지 자세히 보기</span>
 <span class="text-sky-300">▶</span>
@@ -2592,8 +2572,7 @@ class="w-full bg-transparent text-white text-sm outline-none text-right border-n
 </div>
 </div>
 
-
-    <script type="module">
+<script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc, increment, query, orderBy, Timestamp, where, getDocs, getDoc, setDoc, limit, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
@@ -2880,39 +2859,6 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 </tr>`;
 });
 };
-
-        // 모달 열기 함수
-function openMountainComponentModal() {
-    console.log("모달 열기 시도!"); // 브라우저 F12 콘솔에서 확인용
-    
-    // 1. 모달 보이기
-    const modal = document.getElementById('mountainComponentModal');
-    if(modal) {
-        modal.style.display = 'flex';
-    } else {
-        alert("모달 HTML 코드가 없습니다!");
-        return;
-    }
-
-    // 2. 데이터 가져와서 뿌려주기 (이전 단계에서 만든 데이터 로직 적용)
-    // 예시 데이터 (실제로는 Firebase에서 가져온 값을 넣으세요)
-    const r = 82; const f = 12; const s = 6;
-    
-    document.getElementById('rockBar').style.width = r + '%';
-    document.getElementById('rockPct').innerText = r + '%';
-    document.getElementById('forestBar').style.width = f + '%';
-    document.getElementById('forestPct').innerText = f + '%';
-    document.getElementById('streamBar').style.width = s + '%';
-    document.getElementById('streamPct').innerText = s + '%';
-    
-    document.getElementById('compTitle').innerText = "강인한 바위 거인";
-    document.getElementById('compSubtitle').innerText = `TYPE: R-${r} / F-${f} / S-${s}`;
-}
-
-// 모달 닫기 함수
-function closeMountainModal() {
-    document.getElementById('mountainComponentModal').style.display = 'none';
-}
 
    window.showBondingForestModal = async () => {
     let mName = "";
@@ -5154,38 +5100,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-    <div id="mountainComponentModal" class="modal-overlay" style="display:none;">
-    <div class="modal-content">
-        <div class="modal-header">
-            <img src="산이미지경로.png" id="modalMountainImg" style="width:80px;">
-            <h2 id="compTitle">분석 중...</h2>
-            <p id="compSubtitle">TYPE: R-00 / F-00 / S-00</p>
-        </div>
-        
-        <div class="stats-container">
-            <div class="stat-row">
-                <span>바위 성분 (Rock) <b id="rockPct">0%</b></span>
-                <div class="progress-bg"><div id="rockBar" class="progress-fill rock"></div></div>
-            </div>
-            <div class="stat-row">
-                <span>숲 성분 (Forest) <b id="forestPct">0%</b></span>
-                <div class="progress-bg"><div id="forestBar" class="progress-fill forest"></div></div>
-            </div>
-            <div class="stat-row">
-                <span>계곡 성분 (Stream) <b id="streamPct">0%</b></span>
-                <div class="progress-bg"><div id="streamBar" class="progress-fill stream"></div></div>
-            </div>
-        </div>
-
-        <button class="close-btn" onclick="closeMountainModal()">닫기</button>
-    </div>
-</div>
-
 </script>
 </body>
     </html>
     
     
-    
-        
     
