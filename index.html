@@ -2490,19 +2490,10 @@ class="w-full bg-transparent text-white text-sm outline-none text-right border-n
 <span class="dot-line" style="width: 7px; height: 7px; background: #ef4444; border-radius: 50%; display: inline-block;"></span> 고도
 </div>
 </div>
- <button onclick="showMyMountainType()" 
-            class="admin-btn-style" 
-            style="display: flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 8px; background: #ffffff; border: 1px solid #e2e8f0; cursor: pointer; shadow: sm;">
-        <span style="font-size: 12px;">⛰️</span>
-        <span style="font-size: 10px; font-weight: bold; color: #334155; white-space: nowrap;">개인 산 성분</span>
-    </button>
-</div>
+
 <button onclick="showBondingForestModal()" class="bonding-forest-btn animate-side-glow">
 🌳 인연의 숲
 </button>
-</div>
-</div>
-
 </div>
 </div>
 
@@ -3532,81 +3523,6 @@ async function startRealtimeSync() {
 }
 
 let pendingLevelUpCards = [];
-
-    // 모달 닫기
-window.closeMountainModal = () => {
-    document.getElementById('mountainTypeModal').classList.add('hidden');
-};
-
-// 개인 산 성분 분석 및 창 띄우기
-window.showMyMountainType = async (memberId) => {
-    // memberId가 없으면 현재 관리자가 보고 있는 멤버 ID 사용 (구조에 맞게 조정 필요)
-    const targetId = memberId || selectedMemberId; 
-    if(!targetId) return alert("멤버를 먼저 선택해주세요.");
-
-    document.getElementById('mountainTypeModal').classList.remove('hidden');
-
-    try {
-        // 해당 멤버의 모든 로그 가져오기
-        const logsSnap = await getDocs(collection(db, `sanwoori/${targetId}/logs`));
-        let totalR = 0, totalF = 0, totalV = 0, count = 0;
-
-        logsSnap.forEach(ldoc => {
-            const d = ldoc.data();
-            // 런닝/트래킹 제외하고 등산 데이터만 합산 (원하실 경우 조건 제거 가능)
-            if(!d.isRunning && !d.isTracking) {
-                totalR += (d.pRock || 0);
-                totalF += (d.pForest || 0);
-                totalV += (d.pValley || 0);
-                count++;
-            }
-        });
-
-        if(count === 0) {
-            alert("산행 기록이 없어 분석할 수 없습니다.");
-            closeMountainModal();
-            return;
-        }
-
-        // 평균 퍼센트 계산
-        const sum = totalR + totalF + totalV;
-        const avgR = Math.round((totalR / sum) * 100);
-        const avgF = Math.round((totalF / sum) * 100);
-        const avgV = 100 - (avgR + avgF); // 합계를 100으로 맞춤
-
-        // UI 업데이트
-        document.getElementById('txtRock').innerText = `${avgR}%`;
-        document.getElementById('txtForest').innerText = `${avgF}%`;
-        document.getElementById('txtValley').innerText = `${avgV}%`;
-        document.getElementById('barRock').style.width = `${avgR}%`;
-        document.getElementById('barForest').style.width = `${avgF}%`;
-        document.getElementById('barValley').style.width = `${avgV}%`;
-        document.getElementById('typeCode').innerText = `TYPE: R-${avgR.toString().padStart(2,'0')} / F-${avgF.toString().padStart(2,'0')} / S-${avgV.toString().padStart(2,'0')}`;
-
-        // 성분에 따른 칭호 설정
-        let title = "";
-        let icon = "";
-        const maxVal = Math.max(avgR, avgF, avgV);
-
-        if(maxVal === avgR) {
-            title = "강인한 바위 거인";
-            icon = "⛰️";
-        } else if(maxVal === avgF) {
-            title = "신비로운 숲의 파수꾼";
-            icon = "🌿";
-        } else {
-            title = "푸른 물결의 인도자";
-            icon = "🌊";
-        }
-
-        document.getElementById('typeTitle').innerText = title;
-        document.getElementById('typeIcon').innerText = icon;
-
-    } catch (e) {
-        console.error(e);
-        alert("데이터 분석 중 오류가 발생했습니다.");
-    }
-};
 
         
 
@@ -5203,51 +5119,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
-
-
-<div id="mountainTypeModal" class="fixed inset-0 bg-black/80 hidden z-[9999] flex items-center justify-center p-4">
-    <div class="bg-[#1a1f26] rounded-3xl w-full max-w-sm p-8 border border-gray-800 text-center relative shadow-2xl">
-        <button onclick="closeMountainModal()" class="absolute top-4 right-4 text-gray-500">✕</button>
-        
-        <div id="typeIcon" class="mb-4 text-6xl">⛰️</div>
-        <h2 id="typeTitle" class="text-xl font-bold text-white mb-1">데이터 분석 중...</h2>
-        <p id="typeCode" class="text-[10px] text-gray-500 tracking-widest uppercase mb-6">TYPE: R-00 / F-00 / S-00</p>
-
-        <div class="space-y-4 text-left">
-            <div>
-                <div class="flex justify-between text-[10px] mb-1">
-                    <span class="text-gray-400">바위 성분 (Rock)</span>
-                    <span id="txtRock" class="text-white">0%</span>
-                </div>
-                <div class="h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                    <div id="barRock" class="h-full bg-gray-500 transition-all duration-1000" style="width: 0%"></div>
-                </div>
-            </div>
-            <div>
-                <div class="flex justify-between text-[10px] mb-1">
-                    <span class="text-gray-400">숲 성분 (Forest)</span>
-                    <span id="txtForest" class="text-white">0%</span>
-                </div>
-                <div class="h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                    <div id="barForest" class="h-full bg-emerald-500 transition-all duration-1000" style="width: 0%"></div>
-                </div>
-            </div>
-            <div>
-                <div class="flex justify-between text-[10px] mb-1">
-                    <span class="text-gray-400">계곡 성분 (Stream)</span>
-                    <span id="txtValley" class="text-white">0%</span>
-                </div>
-                <div class="h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                    <div id="barValley" class="h-full bg-blue-500 transition-all duration-1000" style="width: 0%"></div>
-                </div>
-            </div>
-        </div>
-
-        <button onclick="closeMountainModal()" class="mt-8 px-6 py-2 rounded-full border border-gray-700 text-gray-400 text-xs hover:bg-gray-800 transition-colors">
-            확인
-        </button>
-    </div>
-</div>
 
 </script>
 </body>
