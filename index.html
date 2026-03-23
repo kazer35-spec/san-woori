@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>산:우리 - 통합 정보 시스템</title>
+<title>산:우리 - 미니홈</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -12,6 +12,18 @@
 body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: #333; }
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
+
+    /* 80% 이상일 때 게이지에 흐르는 반짝임 효과 */
+@keyframes gauge-shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+.gauge-glow {
+    background: linear-gradient(90deg, #10b981, #34d399, #6ee7b7, #34d399, #10b981);
+    background-size: 200% 100%;
+    animation: gauge-shimmer 2s infinite linear;
+    box-shadow: 0 0 15px rgba(16, 185, 129, 0.6);
+}
 
     /* 1. 버튼 기본 설정 (절대 필수) */
 .forest-exit-btn {
@@ -2856,7 +2868,7 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 
     if (!mName) return alert("회원 이름을 찾을 수 없습니다.");
 
-    // 1. 요청하신 초기 산행 데이터 명단
+    // 1. 초기 산행 데이터 (주신 명단 그대로 적용)
     const initialHikes = {
         "오즈": 32, "지니": 22, "나스": 17, "해수": 15, "하트": 12, "아랑": 17, "쿠키": 8, "용삼": 14, 
         "식이": 6, "몰랑": 8, "길치": 7, "등초": 6, "구름": 5, "튜브": 4, "햄찌": 5, "켄신": 3, 
@@ -2865,37 +2877,29 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
         "람쥐": 1, "몽꽁": 1, "란이": 2, "얌얌": 0, "수리": 1, "희야": 0, "성민": 0
     };
 
-    const STORAGE_KEY = `forest_v2_${mName}`;
+    const STORAGE_KEY = `forest_v3_${mName}`;
     
     try {
-        // 2. 저장된 증분 데이터 로드
         let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { 
-            processedIds: [],
-            extraHikes: 0, // 초기값 이후 추가된 산행 수
-            partnersMap: {},
-            uniquePartners: [] 
+            processedIds: [], extraHikes: 0, partnersMap: {}, uniquePartners: [] 
         };
 
-        // 3. 신규 기록 확인 (증분 체크)
         const [allLogsSnap, bondingSnap] = await Promise.all([
             getDocs(collection(db, "sanwoori")), 
             getDocs(collection(db, "bondingForest"))
         ]);
         
-        // A. 전체 산행 기록 업데이트 (초기값 + 새 기록)
+        // 데이터 증분 업데이트
         allLogsSnap.forEach(doc => {
             if (cached.processedIds.includes(doc.id)) return;
             const data = doc.data();
             const hasCoords = data.latitude || data.location || data.coords || data.lat || data.x || data.y;
-            const members = Array.isArray(data.members) ? data.members : [];
-            
-            if (hasCoords && (data.author === mName || members.includes(mName))) {
+            if (hasCoords && (data.author === mName || (data.members && data.members.includes(mName)))) {
                 cached.extraHikes++;
                 cached.processedIds.push(doc.id);
             }
         });
 
-        // B. 인연의 반경/파트너 업데이트
         bondingSnap.forEach(doc => {
             if (cached.processedIds.includes(doc.id)) return;
             const members = doc.data().members || [];
@@ -2912,37 +2916,47 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 
         localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
 
-        // 4. 최종 수치 계산
-        const baseHikes = initialHikes[mName] || 0; // 명단에 없으면 0부터 시작
-        const finalTotalHikes = baseHikes + cached.extraHikes; // 초기값 + 신규 추가분
-        
+        const baseHikes = initialHikes[mName] || 0;
+        const finalTotalHikes = baseHikes + cached.extraHikes;
         const fpElement = document.getElementById('memberFriendshipPoint');
         const currentFP = fpElement ? parseInt(fpElement.innerText.replace(/[^0-9]/g, '')) : 0;
-        const myMultiHikes = Math.floor(currentFP / 10); // 10점당 1회
+        const myMultiHikes = Math.floor(currentFP / 10); 
 
         const finalSynergy = finalTotalHikes > 0 ? Math.min(100, Math.round((myMultiHikes / finalTotalHikes) * 100)) : 0;
-        
+
+        // --- [핵심] 퍼센트별 색상 및 효과 설정 ---
+        let gaugeColor = "#ef4444"; // 40미만: Red
+        let glowClass = "";
+        if (finalSynergy >= 80) {
+            gaugeColor = "#10b981"; // 80이상: Emerald
+            glowClass = "gauge-glow"; // 반짝임 애니메이션 클래스
+        } else if (finalSynergy >= 70) {
+            gaugeColor = "#22c55e"; // 70이상: Green
+        } else if (finalSynergy >= 40) {
+            gaugeColor = "#f59e0b"; // 40이상: Amber
+        }
+
         let bestP = "없음"; let bestC = 0;
         Object.entries(cached.partnersMap).forEach(([n, c]) => { if(c > bestC) { bestP = n; bestC = c; } });
 
-        // 5. 모달 UI (생략 없이 전체 유지)
         const modalHTML = `
             <div id="forestModal" class="fixed inset-0 z-[10000] flex items-center justify-center bg-black/85 backdrop-blur-md" onclick="this.remove()">
                 <div class="bg-[#0f172a] border border-emerald-500/30 p-8 rounded-[2.5rem] w-[320px] text-center shadow-2xl" onclick="event.stopPropagation()">
                     <div class="text-emerald-400 text-[10px] font-black mb-6 tracking-[0.4em]">BONDING FOREST</div>
-                    <div class="text-6xl mb-6"></div>
+                    <div class="text-6xl mb-6">🌳</div>
                     <h3 class="text-white text-2xl font-bold mb-2">${mName}님의 인연</h3>
-                    <p class="text-[11px] text-slate-500 mb-8 leading-relaxed">우정포인트 정기 산행시 이용가능</p>
+                    <p class="text-[11px] text-slate-500 mb-8 leading-relaxed">데이터 분석을 통한 실시간 지수입니다.</p>
                     
                     <div class="space-y-4 text-left">
                         <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
-                            <div class="text-[10px] text-emerald-400 font-bold mb-1">🤝 동행 지수 (Synergy Rate)</div>
+                            <div class="text-[10px] font-bold mb-1" style="color: ${gaugeColor}">🤝 동행 지수 (Synergy Rate)</div>
                             <div class="flex justify-between items-end">
                                 <div class="text-white text-[14px] font-bold">총 ${finalTotalHikes}회 중 ${myMultiHikes}회</div>
-                                <div class="text-emerald-400 text-lg font-black">${finalSynergy}%</div>
+                                <div class="text-lg font-black" style="color: ${gaugeColor}">${finalSynergy}%</div>
                             </div>
-                            <div class="w-full h-1 bg-white/10 rounded-full mt-2 overflow-hidden">
-                                <div class="h-full bg-emerald-500 transition-all duration-700" style="width: ${finalSynergy}%"></div>
+                            <div class="w-full h-2 bg-white/10 rounded-full mt-2 overflow-hidden">
+                                <div class="h-full transition-all duration-1000 ${glowClass}" 
+                                     style="width: ${finalSynergy}%; background-color: ${gaugeColor}"></div>
                             </div>
                         </div>
                         <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
@@ -2959,7 +2973,7 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
                         </div>
                     </div>
                     <button onclick="document.getElementById('forestModal').remove()" 
-                            class="mt-8 w-full py-4 bg-emerald-500 text-white text-xs font-black rounded-2xl active:scale-95 shadow-[0_0_15px_rgba(16,185,129,0.4)]">
+                            class="mt-8 w-full py-4 bg-emerald-500 text-white text-xs font-black rounded-2xl transition-transform active:scale-95">
                         숲에서 나가기
                     </button>
                 </div>
@@ -2969,7 +2983,6 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 };
 
    
-
     
 window.toggleHallModal = async (show) => {
 const modal = document.getElementById('hallModal');
