@@ -13,6 +13,35 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+    /* 개인 산 성분 모달 스타일 */
+.style-modal {
+    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(7, 10, 20, 0.95); z-index: 10000; justify-content: center; align-items: center;
+    backdrop-filter: blur(10px);
+}
+.style-card {
+    background: #1a1f2c; width: 90%; max-width: 360px; border-radius: 24px;
+    padding: 30px 20px; border: 1px solid rgba(255,255,255,0.1); position: relative;
+    text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+}
+.style-icon-box {
+    width: 100px; height: 100px; margin: 0 auto 20px;
+    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+    display: flex; justify-content: center; align-items: center; font-size: 50px;
+}
+.style-title { font-size: 20px; font-weight: 900; color: #fff; margin-bottom: 5px; }
+.style-type-code { font-family: 'Courier New', monospace; font-size: 12px; color: #94a3b8; letter-spacing: 2px; margin-bottom: 25px; }
+
+.gauge-container { margin-bottom: 15px; text-align: left; }
+.gauge-label-row { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 6px; font-weight: bold; }
+.gauge-bg { width: 100%; height: 6px; background: rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden; }
+.gauge-fill { height: 100%; border-radius: 10px; transition: width 1s cubic-bezier(0.22, 1, 0.36, 1); }
+
+/* 유형별 컬러 */
+.color-rock { color: #94a3b8; } .bg-rock { background: #94a3b8; box-shadow: 0 0 10px #94a3b8; }
+.color-forest { color: #4ade80; } .bg-forest { background: #4ade80; box-shadow: 0 0 10px #4ade80; }
+.color-stream { color: #3b82f6; } .bg-stream { background: #3b82f6; box-shadow: 0 0 10px #3b82f6; }
+
     /* 80% 이상일 때 게이지에 흐르는 반짝임 효과 */
 @keyframes gauge-shimmer {
     0% { background-position: -200% 0; }
@@ -2491,8 +2520,8 @@ class="w-full bg-transparent text-white text-sm outline-none text-right border-n
 </div>
 </div>
 
-<button onclick="showBondingForestModal()" class="bonding-forest-btn animate-side-glow">
-🌳 인연의 숲
+<button onclick="showMountainStyle(currentUserId, currentUserName)" class="style-btn">
+    🏔️ 개인 산 성분 분석
 </button>
 </div>
 </div>
@@ -2878,6 +2907,63 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 </td>
 </tr>`;
 });
+};
+
+    window.showMountainStyle = async (mId, mName) => {
+    const modal = document.getElementById('mountainStyleModal');
+    modal.style.display = 'flex';
+    
+    try {
+        const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
+        let rockCount = 0, forestCount = 0, streamCount = 0;
+        const totalLogs = snap.docs.length;
+
+        if (totalLogs === 0) {
+            alert("산행 기록이 없어 분석할 수 없습니다.");
+            modal.style.display = 'none';
+            return;
+        }
+
+        // 1. 산 데이터 기반 성분 분석 (마운틴 컬렉션 연동 가정)
+        // 실제 운영 환경에서는 산 이름에 매칭된 유형 정보를 DB에서 가져와야 함
+        snap.forEach(doc => {
+            const log = doc.data();
+            // 산의 특성(rock/forest/stream)이 로그에 저장되어 있거나 산 이름으로 매칭
+            if (log.type === 'rock') rockCount++;
+            else if (log.type === 'stream') streamCount++;
+            else forestCount++; // 기본은 숲
+        });
+
+        const rP = Math.round((rockCount / totalLogs) * 100);
+        const fP = Math.round((forestCount / totalLogs) * 100);
+        const sP = 100 - (rP + fP); // 나머지는 계곡
+
+        // 2. 타이틀 결정
+        let title = "신비로운 숲의 파수꾼";
+        let icon = "⛰️";
+        const maxVal = Math.max(rP, fP, sP);
+        
+        if (maxVal === rP) { title = "강인한 바위 거인"; icon = "🗿"; }
+        else if (maxVal === sP) { title = "푸른 물결의 인도자"; icon = "🌊"; }
+
+        // 3. UI 업데이트
+        document.getElementById('styleTitle').innerText = title;
+        document.getElementById('styleCode').innerText = `TYPE: R-${rP} / F-${fP} / S-${sP}`;
+        document.getElementById('styleIcon').innerText = icon;
+        
+        // 게이지 애니메이션
+        setTimeout(() => {
+            document.getElementById('rockGauge').style.width = rP + '%';
+            document.getElementById('forestGauge').style.width = fP + '%';
+            document.getElementById('streamGauge').style.width = sP + '%';
+            document.getElementById('rockText').innerText = rP + '%';
+            document.getElementById('forestText').innerText = fP + '%';
+            document.getElementById('streamText').innerText = sP + '%';
+        }, 100);
+
+    } catch (e) {
+        console.error("스타일 분석 에러:", e);
+    }
 };
 
    window.showBondingForestModal = async () => {
@@ -5120,6 +5206,42 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+    <div id="mountainStyleModal" class="style-modal" onclick="this.style.display='none'">
+    <div class="style-card" onclick="event.stopPropagation()">
+        <div id="styleIcon" class="style-icon-box">⛰️</div>
+        <h2 id="styleTitle" class="style-title">분석 중...</h2>
+        <div id="styleCode" class="style-type-code">TYPE: -- / -- / --</div>
+
+        <div class="gauge-container">
+            <div class="gauge-label-row color-rock">
+                <span>바위 성분 (Rock)</span>
+                <span id="rockText">0%</span>
+            </div>
+            <div class="gauge-bg"><div id="rockGauge" class="gauge-fill bg-rock" style="width:0%"></div></div>
+        </div>
+
+        <div class="gauge-container">
+            <div class="gauge-label-row color-forest">
+                <span>숲 성분 (Forest)</span>
+                <span id="forestText">0%</span>
+            </div>
+            <div class="gauge-bg"><div id="forestGauge" class="gauge-fill bg-forest" style="width:0%"></div></div>
+        </div>
+
+        <div class="gauge-container">
+            <div class="gauge-label-row color-stream">
+                <span>계곡 성분 (Stream)</span>
+                <span id="streamText">0%</span>
+            </div>
+            <div class="gauge-bg"><div id="streamGauge" class="gauge-fill bg-stream" style="width:0%"></div></div>
+        </div>
+
+        <button onclick="document.getElementById('mountainStyleModal').style.display='none'" 
+                style="margin-top:20px; background:none; border:none; color:#555; font-size:12px; cursor:pointer;">
+            닫기
+        </button>
+    </div>
+</div>
 </script>
 </body>
     </html>
