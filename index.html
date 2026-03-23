@@ -13,6 +13,42 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+    /* 성분 분석 버튼 스타일 */
+.type-analysis-btn {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: #94a3b8;
+    font-size: 11px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+.type-analysis-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
+
+/* 모달 레이아웃 */
+.type-modal-overlay {
+    display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+    background:rgba(7, 10, 20, 0.95); backdrop-filter:blur(15px); z-index:99999;
+    justify-content:center; align-items:center;
+}
+.type-modal-content {
+    width:85%; max-width:340px; background:#161b22; border-radius:24px;
+    padding:35px 20px; border:1px solid rgba(255,255,255,0.08); position:relative;
+}
+.type-visual { position:relative; width:80px; height:80px; margin:0 auto 15px; display:flex; justify-content:center; align-items:center; }
+.type-emoji { font-size:45px; z-index:2; filter: drop-shadow(0 0 15px rgba(255,255,255,0.3)); }
+.type-glow { position:absolute; width:100%; height:100%; border-radius:50%; filter:blur(20px); }
+
+.type-main-title { color:white; text-align:center; font-size:20px; font-weight:900; margin:0; letter-spacing:-0.5px; }
+.type-sub-code { color:#64748b; text-align:center; font-size:11px; margin-top:5px; margin-bottom:25px; font-family:monospace; }
+
+.re-calc-btn {
+    width:100%; margin-top:25px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05);
+    color:#4a5568; padding:10px; border-radius:12px; font-size:12px; cursor:pointer;
+}
+.close-type-btn { position:absolute; top:15px; right:20px; color:rgba(255,255,255,0.3); font-size:28px; background:none; border:none; }
+
     /* 80% 이상일 때 게이지에 흐르는 반짝임 효과 */
 @keyframes gauge-shimmer {
     0% { background-position: -200% 0; }
@@ -2470,17 +2506,23 @@ class="w-full bg-transparent text-white text-sm outline-none text-right border-n
 <div id="grassBoard" class="grass-container mb-4"></div>
 
 <div id="chartBox" class="chart-container-box">
-<div class="chart-header">
-<div class="chart-title-sub">📊 분기 성장 추이</div>
-<div class="chart-legend">
-<div class="legend-item"><span class="dot-bar"></span>횟수</div>
-<div class="legend-item"><span class="dot-line"></span>고도</div>
-</div>
-</div>
-<div class="chart-guide-txt">💡 그래프를 터치하면 상세 기록 확인 가능</div>
-<div style="height: 120px;">
-<canvas id="growthChart"></canvas>
-</div>
+    <div class="chart-header">
+        <div class="chart-title-sub">📊 분기 성장 추이</div>
+        <div class="chart-legend">
+            <div class="legend-item"><span class="dot-bar"></span>횟수</div>
+            <div class="legend-item"><span class="dot-line"></span>고도</div>
+        </div>
+    </div>
+    <div class="chart-guide-txt">💡 그래프를 터치하면 상세 기록 확인 가능</div>
+    <div style="height: 120px;">
+        <canvas id="growthChart"></canvas>
+    </div>
+    
+    <div style="margin-top: 15px; text-align: right;">
+        <button class="type-analysis-btn" onclick="showMountainTypeAnalysis(currentMemberId, currentMemberName)">
+            🏔️ 개인 산 성분
+        </button>
+    </div>
 </div>
     
 <button onclick="toggleLogPopup(true)" class="btn-open-log">
@@ -2859,6 +2901,96 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 </tr>`;
 });
 };
+
+    window.showMountainTypeAnalysis = async (mId, mName) => {
+    const modal = document.getElementById('mountainTypeModal');
+    const content = document.getElementById('typeAnalysisContent');
+    if (!modal || !content) return;
+
+    modal.style.display = 'flex';
+    content.innerHTML = `<div style="color:rgba(255,255,255,0.5); text-align:center; padding:50px 0;">데이터를 분석 중입니다...</div>`;
+
+    try {
+        // 1. 산 정보(DB)와 사용자 로그 동시 로드
+        const [mtSnap, logSnap] = await Promise.all([
+            getDocs(collection(db, "mountains")),
+            getDocs(collection(db, `sanwoori/${mId}/logs`))
+        ]);
+
+        const mtInfo = {};
+        mtSnap.forEach(doc => { mtInfo[doc.id] = doc.data(); });
+
+        let rSum = 0, fSum = 0, sSum = 0, totalCount = 0;
+
+        // 2. 로그를 돌며 해당 산의 성분(Rock, Forest, Stream) 합산
+        logSnap.forEach(doc => {
+            const log = doc.data();
+            const info = mtInfo[log.mountain]; 
+            if (info) {
+                rSum += (info.rock || 0);
+                fSum += (info.forest || 0);
+                sSum += (info.stream || 0);
+                totalCount++;
+            }
+        });
+
+        if (totalCount === 0) {
+            content.innerHTML = `<div style="color:white; text-align:center; padding:40px 0;">분석할 산행 기록이 없습니다.</div>`;
+            return;
+        }
+
+        // 3. 퍼센트 계산 및 타이틀 선정
+        const total = rSum + fSum + sSum;
+        const pR = Math.round((rSum / total) * 100);
+        const pF = Math.round((fSum / total) * 100);
+        const pS = 100 - (pR + pF); // 합계 보정
+
+        let title = "신비로운 탐험가";
+        let typeCode = `R-${pR} / F-${pF} / S-${pS}`;
+        let themeColor = "#94a3b8";
+
+        if (pR >= pF && pR >= pS) { title = "강인한 바위 거인"; themeColor = "#94a3b8"; }
+        else if (pF >= pR && pF >= pS) { title = "신비로운 숲의 파수꾼"; themeColor = "#22c55e"; }
+        else { title = "푸른 물결의 인도자"; themeColor = "#3b82f6"; }
+
+        // 4. UI 렌더링
+        content.innerHTML = `
+            <div class="analysis-inner">
+                <div class="type-visual">
+                    <div class="type-glow" style="background: ${themeColor}44;"></div>
+                    <div class="type-emoji">${pR >= pF && pR >= pS ? '⛰️' : (pF >= pR && pF >= pS ? '🌳' : '🌊')}</div>
+                </div>
+                <h2 class="type-main-title">${title}</h2>
+                <div class="type-sub-code">TYPE: ${typeCode}</div>
+
+                <div class="type-bars">
+                    ${renderTypeBar("바위 성분 (Rock)", pR, "#94a3b8")}
+                    ${renderTypeBar("숲 성분 (Forest)", pF, "#22c55e")}
+                    ${renderTypeBar("계곡 성분 (Stream)", pS, "#3b82f6")}
+                </div>
+
+                <button class="re-calc-btn" onclick="showMountainTypeAnalysis('${mId}', '${mName}')">데이터 재분석</button>
+            </div>
+        `;
+    } catch (e) {
+        console.error("분석 에러:", e);
+        content.innerHTML = "데이터 로드 중 오류가 발생했습니다.";
+    }
+};
+
+function renderTypeBar(label, val, color) {
+    return `
+        <div style="margin-bottom:12px;">
+            <div style="display:flex; justify-content:space-between; font-size:11px; color:#fff; margin-bottom:4px; opacity:0.8;">
+                <span>${label}</span><span>${val}%</span>
+            </div>
+            <div style="height:6px; background:rgba(255,255,255,0.05); border-radius:10px; overflow:hidden;">
+                <div style="width:${val}%; height:100%; background:${color}; box-shadow:0 0 8px ${color}; transition:width 1s;"></div>
+            </div>
+        </div>
+    `;
+}
+
 
    window.showBondingForestModal = async () => {
     let mName = "";
@@ -5099,6 +5231,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+    <div id="mountainTypeModal" class="type-modal-overlay" onclick="this.style.display='none'">
+    <div class="type-modal-content" onclick="event.stopPropagation()">
+        <div id="typeAnalysisContent">
+            </div>
+        <button class="close-type-btn" onclick="document.getElementById('mountainTypeModal').style.display='none'">&times;</button>
+    </div>
+</div>
 
 </script>
 </body>
