@@ -2848,7 +2848,7 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 });
 };
 
-  window.showBondingForestModal = async () => {
+   window.showBondingForestModal = async () => {
     let mName = "";
     const nameTags = Array.from(document.querySelectorAll('h2, .text-blue-600, .font-bold'));
     const foundTag = nameTags.find(el => el.innerText.includes('님') && !el.innerText.includes('산행'));
@@ -2856,36 +2856,46 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 
     if (!mName) return alert("회원 이름을 찾을 수 없습니다.");
 
-    const STORAGE_KEY = `forest_cache_${mName}`;
+    // 1. 요청하신 초기 산행 데이터 명단
+    const initialHikes = {
+        "오즈": 32, "지니": 22, "나스": 17, "해수": 15, "하트": 12, "아랑": 17, "쿠키": 8, "용삼": 14, 
+        "식이": 6, "몰랑": 8, "길치": 7, "등초": 6, "구름": 5, "튜브": 4, "햄찌": 5, "켄신": 3, 
+        "애플": 4, "민이": 3, "운해": 3, "윤윤": 2, "무니": 3, "태리": 2, "이구": 2, "영규": 2, 
+        "후후": 6, "피치": 2, "호프": 2, "멸치": 1, "섭섭": 1, "뚜벅": 3, "송돌": 2, "여록": 1, 
+        "람쥐": 1, "몽꽁": 1, "란이": 2, "얌얌": 0, "수리": 1, "희야": 0, "성민": 0
+    };
+
+    const STORAGE_KEY = `forest_v2_${mName}`;
     
     try {
-        // 1. 기존 저장 데이터 로드 (전체 횟수, 처리된 ID, 파트너 맵, 고유 파트너)
+        // 2. 저장된 증분 데이터 로드
         let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { 
-            totalHikes: 0, 
             processedIds: [],
+            extraHikes: 0, // 초기값 이후 추가된 산행 수
             partnersMap: {},
             uniquePartners: [] 
         };
 
-        // 2. 신규 데이터 가져오기 (전체기록 & 동행기록)
+        // 3. 신규 기록 확인 (증분 체크)
         const [allLogsSnap, bondingSnap] = await Promise.all([
             getDocs(collection(db, "sanwoori")), 
             getDocs(collection(db, "bondingForest"))
         ]);
         
-        // A. 전체 산행 횟수 증분 업데이트 (지도 좌표 기준)
+        // A. 전체 산행 기록 업데이트 (초기값 + 새 기록)
         allLogsSnap.forEach(doc => {
             if (cached.processedIds.includes(doc.id)) return;
             const data = doc.data();
             const hasCoords = data.latitude || data.location || data.coords || data.lat || data.x || data.y;
             const members = Array.isArray(data.members) ? data.members : [];
+            
             if (hasCoords && (data.author === mName || members.includes(mName))) {
-                cached.totalHikes++;
+                cached.extraHikes++;
                 cached.processedIds.push(doc.id);
             }
         });
 
-        // B. 파트너 데이터 증분 업데이트
+        // B. 인연의 반경/파트너 업데이트
         bondingSnap.forEach(doc => {
             if (cached.processedIds.includes(doc.id)) return;
             const members = doc.data().members || [];
@@ -2900,38 +2910,39 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
             }
         });
 
-        // 데이터 저장
         localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
 
-        // 3. 우정 점수 기반 동행 횟수 (10점당 1회)
+        // 4. 최종 수치 계산
+        const baseHikes = initialHikes[mName] || 0; // 명단에 없으면 0부터 시작
+        const finalTotalHikes = baseHikes + cached.extraHikes; // 초기값 + 신규 추가분
+        
         const fpElement = document.getElementById('memberFriendshipPoint');
         const currentFP = fpElement ? parseInt(fpElement.innerText.replace(/[^0-9]/g, '')) : 0;
-        const myMultiHikes = Math.floor(currentFP / 10); 
+        const myMultiHikes = Math.floor(currentFP / 10); // 10점당 1회
 
-        // 4. 최고의 파트너 추출
+        const finalSynergy = finalTotalHikes > 0 ? Math.min(100, Math.round((myMultiHikes / finalTotalHikes) * 100)) : 0;
+        
         let bestP = "없음"; let bestC = 0;
         Object.entries(cached.partnersMap).forEach(([n, c]) => { if(c > bestC) { bestP = n; bestC = c; } });
 
-        const finalSynergy = cached.totalHikes > 0 ? Math.min(100, Math.round((myMultiHikes / cached.totalHikes) * 100)) : 0;
-
-        // 5. 모달 출력 (UI 구성)
+        // 5. 모달 UI (생략 없이 전체 유지)
         const modalHTML = `
             <div id="forestModal" class="fixed inset-0 z-[10000] flex items-center justify-center bg-black/85 backdrop-blur-md" onclick="this.remove()">
                 <div class="bg-[#0f172a] border border-emerald-500/30 p-8 rounded-[2.5rem] w-[320px] text-center shadow-2xl" onclick="event.stopPropagation()">
                     <div class="text-emerald-400 text-[10px] font-black mb-6 tracking-[0.4em]">BONDING FOREST</div>
                     <div class="text-6xl mb-6">🌳</div>
                     <h3 class="text-white text-2xl font-bold mb-2">${mName}님의 인연</h3>
-                    <p class="text-[11px] text-slate-500 mb-8 leading-relaxed">지도 좌표가 기록된 활동을 분석한 데이터입니다.</p>
+                    <p class="text-[11px] text-slate-500 mb-8 leading-relaxed">기준 데이터(${baseHikes}회) 이후 추가된<br>기록을 포함한 실시간 결과입니다.</p>
                     
                     <div class="space-y-4 text-left">
                         <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
                             <div class="text-[10px] text-emerald-400 font-bold mb-1">🤝 동행 지수 (Synergy Rate)</div>
                             <div class="flex justify-between items-end">
-                                <div class="text-white text-[14px] font-bold">총 ${cached.totalHikes}회 중 ${myMultiHikes}회</div>
+                                <div class="text-white text-[14px] font-bold">총 ${finalTotalHikes}회 중 ${myMultiHikes}회</div>
                                 <div class="text-emerald-400 text-lg font-black">${finalSynergy}%</div>
                             </div>
                             <div class="w-full h-1 bg-white/10 rounded-full mt-2 overflow-hidden">
-                                <div class="h-full bg-emerald-500" style="width: ${finalSynergy}%"></div>
+                                <div class="h-full bg-emerald-500 transition-all duration-700" style="width: ${finalSynergy}%"></div>
                             </div>
                         </div>
                         <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
@@ -2947,9 +2958,8 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
                             <div class="text-white text-[14px] font-bold">${currentFP.toLocaleString()} <span class="text-[10px] text-slate-400 font-normal">FP</span></div>
                         </div>
                     </div>
-
                     <button onclick="document.getElementById('forestModal').remove()" 
-                            class="mt-8 w-full py-4 bg-emerald-500 text-white text-xs font-black rounded-2xl transition-transform active:scale-95 shadow-[0_0_15px_rgba(16,185,129,0.4)]">
+                            class="mt-8 w-full py-4 bg-emerald-500 text-white text-xs font-black rounded-2xl active:scale-95 shadow-[0_0_15px_rgba(16,185,129,0.4)]">
                         숲에서 나가기
                     </button>
                 </div>
@@ -2957,6 +2967,8 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
         document.body.insertAdjacentHTML('beforeend', modalHTML);
     } catch (e) { console.error(e); }
 };
+
+   
 
     
 window.toggleHallModal = async (show) => {
