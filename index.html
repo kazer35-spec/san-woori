@@ -3435,54 +3435,87 @@ Window.analyzeMemberStyle = async (mId) => {
     return { title, r, f, s };
 };
 
-// 1. 산 정보 일괄 수정 (관리자용)
 Window.globalSyncMountainInfo = async () => {
-    const mName = document.getElementById('mountainName').value.trim();
-    const height = parseInt(document.getElementById('mountainHeight').value) || 0;
+    // 1. 입력값 가져오기
+    const mName = document.getElementById('mountainName')?.value.trim();
+    const height = parseInt(document.getElementById('mountainHeight')?.value) || 0;
     
-    // [추가] 성분 데이터 추출 (UI에서 입력받은 값)
-    const rock = parseInt(document.getElementById('rockPct').value) || 0;
-    const forest = parseInt(document.getElementById('forestPct').value) || 0;
-    const stream = parseInt(document.getElementById('streamPct').value) || 0;
+    // 성분 데이터 (input ID가 맞는지 꼭 확인하세요!)
+    const rInput = document.getElementById('rockPct');
+    const fInput = document.getElementById('forestPct');
+    const sInput = document.getElementById('streamPct');
 
-    const isTop100 = document.getElementById('isTop100Check').checked;
-    const isBAC = document.getElementById('isBACCheck').checked;
-    const isRegular = document.getElementById('isRegularCheck').checked;
-    const isRunning = document.getElementById('isRunningCheck').checked;
-    const isTracking = document.getElementById('isTrackingCheck').checked;
-    const region = document.getElementById('adminManualRegionSelect').value;
+    // 값이 없으면 0으로 처리
+    const rock = parseInt(rInput?.value) || 0;
+    const forest = parseInt(fInput?.value) || 0;
+    const stream = parseInt(sInput?.value) || 0;
 
-    if(!mName || !tempCoord) return alert("산 이름과 좌표 필수");
-    // [검증] 성분 합계 체크
-    if(rock + forest + stream !== 100) return alert("바위+숲+계곡 성분의 합이 100%가 되어야 합니다!");
+    const isTop100 = document.getElementById('isTop100Check')?.checked || false;
+    const isBAC = document.getElementById('isBACCheck')?.checked || false;
+    const region = document.getElementById('adminManualRegionSelect')?.value || "";
+
+    // 2. 필수값 및 성분 합계 검증 (이 부분이 틀리면 실행 안됨)
+    if(!mName) return alert("산 이름을 입력해주세요.");
+    if(!tempCoord) return alert("지도에서 위치를 선택하여 좌표(tempCoord)를 지정해주세요.");
     
-    if(!confirm(`[${mName}] 정보를 일괄 수정하시겠습니까? (성분 데이터 포함)`)) return;
+    // 성분 합계가 100이 아니면 경고 후 중단
+    if(rock + forest + stream !== 100) {
+        return alert(`바위(${rock}%) + 숲(${forest}%) + 계곡(${stream}%) = ${rock+forest+stream}%\n합계가 반드시 100%가 되어야 수정이 가능합니다!`);
+    }
+
+    if(!confirm(`[${mName}] 정보를 일괄 수정하시겠습니까?\n(모든 멤버의 과거 기록도 함께 변경됩니다.)`)) return;
 
     try {
-        // A. 산 마스터 정보 업데이트 (성분 포함)
+        console.log("데이터 업데이트 시작...", { mName, rock, forest, stream });
+
+        // 3. 마스터 산 정보 저장
         await setDoc(doc(db, "mountains", mName), { 
-            x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region,
-            rock, forest, stream 
+            x: tempCoord.x, 
+            y: tempCoord.y, 
+            height, 
+            isTop100, 
+            isBAC, 
+            region,
+            rock, 
+            forest, 
+            stream 
         }, { merge: true });
 
-        // B. 전 멤버 로그 전수 검사 및 업데이트 (성분 데이터 전파)
+        // 4. 멤버별 로그 동기화 (전체 멤버 순회)
         const membersSnap = await getDocs(collection(db, "sanwoori"));
-        for (const mDoc of membersSnap.docs) {
-            const logsSnap = await getDocs(query(collection(db, `sanwoori/${mDoc.id}/logs`), where("mountain", "==", mName)));
+        
+        // 병렬 처리를 위한 프로미스 배열
+        const updatePromises = membersSnap.docs.map(async (mDoc) => {
+            const logsQuery = query(collection(db, `sanwoori/${mDoc.id}/logs`), where("mountain", "==", mName));
+            const logsSnap = await getDocs(logsQuery);
+            
             if (!logsSnap.empty) {
                 const batch = writeBatch(db);
                 logsSnap.forEach(ldoc => {
                     batch.update(ldoc.ref, { 
-                        height, coords: tempCoord, isTop100, isBAC, region,
-                        rock, forest, stream // 모든 과거 로그에 성분 주입
+                        height, 
+                        coords: tempCoord, 
+                        isTop100, 
+                        isBAC, 
+                        region,
+                        rock, 
+                        forest, 
+                        stream 
                     });
                 });
-                await batch.commit();
+                return batch.commit();
             }
-        }
-        alert("수정 완료! 모든 데이터가 동기화되었습니다."); 
-        startRealtimeSync(); // 수정 후 화면 즉시 갱신
-    } catch (e) { alert(e.message); }
+        });
+
+        await Promise.all(updatePromises);
+        
+        alert("🎉 일괄 수정 성공! 모든 데이터가 동기화되었습니다."); 
+        if(typeof startRealtimeSync === 'function') startRealtimeSync();
+        
+    } catch (e) { 
+        console.error("수정 오류 발생:", e);
+        alert("오류 발생: " + e.message); 
+    }
 };
 
 // 2. 알뜰 모드 실시간 동기화 (데이터 로드 및 분석)
