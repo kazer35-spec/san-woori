@@ -2881,34 +2881,38 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 });
 };
 
-        window.openMountainComponentModal = async () => {
-    // 1. 현재 선택된 회원의 데이터를 가져옵니다 (이미 currentData에 있다면 거기서 사용)
-    const member = currentData.find(m => m.id === selectedMemberId); 
-    const stats = member.mountainStats || { rock: 0, forest: 0, stream: 0 };
+        // 모달 열기 함수
+function openMountainComponentModal() {
+    console.log("모달 열기 시도!"); // 브라우저 F12 콘솔에서 확인용
     
-    const total = stats.rock + stats.forest + stats.stream;
+    // 1. 모달 보이기
+    const modal = document.getElementById('mountainComponentModal');
+    if(modal) {
+        modal.style.display = 'flex';
+    } else {
+        alert("모달 HTML 코드가 없습니다!");
+        return;
+    }
+
+    // 2. 데이터 가져와서 뿌려주기 (이전 단계에서 만든 데이터 로직 적용)
+    // 예시 데이터 (실제로는 Firebase에서 가져온 값을 넣으세요)
+    const r = 82; const f = 12; const s = 6;
     
-    // 0 나누기 방지
-    const getPct = (val) => total === 0 ? 0 : Math.round((val / total) * 100);
+    document.getElementById('rockBar').style.width = r + '%';
+    document.getElementById('rockPct').innerText = r + '%';
+    document.getElementById('forestBar').style.width = f + '%';
+    document.getElementById('forestPct').innerText = f + '%';
+    document.getElementById('streamBar').style.width = s + '%';
+    document.getElementById('streamPct').innerText = s + '%';
     
-    const rPct = getPct(stats.rock);
-    const fPct = getPct(stats.forest);
-    const sPct = getPct(stats.stream);
+    document.getElementById('compTitle').innerText = "강인한 바위 거인";
+    document.getElementById('compSubtitle').innerText = `TYPE: R-${r} / F-${f} / S-${s}`;
+}
 
-    // 2. 가장 높은 수치에 따라 타이틀 결정
-    let mainTitle = "강인한 바위 거인";
-    if (fPct > rPct && fPct > sPct) mainTitle = "신비로운 숲의 파수꾼";
-    if (sPct > rPct && sPct > fPct) mainTitle = "푸른 물결의 인도자";
-
-    // 3. UI 업데이트 (이미지상의 프로그레스 바와 텍스트 반영)
-    document.getElementById('compTitle').innerText = mainTitle;
-    document.getElementById('rockBar').style.width = rPct + "%";
-    document.getElementById('rockPct').innerText = rPct + "%";
-    // ... 숲과 계곡도 동일하게 작성 ...
-
-    // 4. 모달 열기
-    document.getElementById('mountainComponentModal').style.display = 'flex';
-};
+// 모달 닫기 함수
+function closeMountainModal() {
+    document.getElementById('mountainComponentModal').style.display = 'none';
+}
 
    window.showBondingForestModal = async () => {
     let mName = "";
