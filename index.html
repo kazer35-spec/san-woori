@@ -13,43 +13,6 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-    /* 버튼 컨테이너가 flex라면 자동 정렬됩니다 */
-.action-btn-row {
-    display: flex;
-    gap: 10px;
-    margin-top: 15px;
-    justify-content: center;
-}
-
-.action-btn-neon {
-    flex: 1; /* 인연의 숲 버튼과 1:1 비율로 크기 동일화 */
-    max-width: 160px;
-    height: 42px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.action-btn-neon:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: #00f2ff; /* 네온 포인트 컬러 */
-    box-shadow: 0 0 10px rgba(0, 242, 255, 0.3);
-}
-
-.action-btn-neon .icon { font-size: 14px; }
-.action-btn-neon .txt { 
-    color: #e2e8f0; 
-    font-size: 12px; 
-    font-weight: 600; 
-    letter-spacing: -0.5px;
-}
-
     /* 80% 이상일 때 게이지에 흐르는 반짝임 효과 */
 @keyframes gauge-shimmer {
     0% { background-position: -200% 0; }
@@ -1353,7 +1316,7 @@ z-index: 0;
 pointer-events: none;
 }
 
-    .scroll-header { position: relative; z-index: 2; margin-bottom: 25px; }
+.scroll-header { position: relative; z-index: 2; margin-bottom: 25px; }
 .scroll-title-sub { font-size: 11px; letter-spacing: 5px; color: #8b4513; opacity: 0.6; font-weight: 800; }
 .scroll-title-main { font-size: 22px; font-weight: 900; color: #3e2723; margin-top: 5px; }
 
@@ -2506,43 +2469,20 @@ class="w-full bg-transparent text-white text-sm outline-none text-right border-n
 
 <div id="grassBoard" class="grass-container mb-4"></div>
 
-<div id="chartBox" class="chart-container-box" style="margin-top: 15px;">
-<div class="chart-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2px;">
-
-<div style="display: flex; flex-direction: column; gap: 2px;">
-<div class="chart-title-sub" style="font-size: 10px; font-weight: bold; color: #334155; display: flex; align-items: center; gap: 4px;">
-📊 분기 성장 추이
-</div>
-<div class="chart-guide-txt" style="font-size: 8px; color: #38BDF8; letter-spacing: -0.5px;">
-💡 그래프 및 인연의숲 터치 기록 확인 가능
+<div id="chartBox" class="chart-container-box">
+<div class="chart-header">
+<div class="chart-title-sub">📊 분기 성장 추이</div>
+<div class="chart-legend">
+<div class="legend-item"><span class="dot-bar"></span>횟수</div>
+<div class="legend-item"><span class="dot-line"></span>고도</div>
 </div>
 </div>
-
-<div style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
-<div class="chart-legend" style="display: flex; gap: 8px; font-size: 9px; color: #64748b; font-weight: bold;">
-<div class="legend-item" style="display: flex; align-items: center; gap: 3px;">
-<span class="dot-bar" style="width: 7px; height: 7px; background: #3b82f6; border-radius: 1px; display: inline-block;"></span> 횟수
-</div>
-<div class="legend-item" style="display: flex; align-items: center; gap: 3px;">
-<span class="dot-line" style="width: 7px; height: 7px; background: #ef4444; border-radius: 50%; display: inline-block;"></span> 고도
-</div>
-</div>
-
-<button class="action-btn-neon flex-1" onclick="fetchUserMountainElements()">
-    <span class="icon">⛰️</span>
-    <span class="txt">개인 산 성분</span>
-</button>
-
-</div>
-</div>
-</div>
-
-<div style="height: 120px; width: 100%; margin-top: 8px;">
+<div class="chart-guide-txt">💡 그래프를 터치하면 상세 기록 확인 가능</div>
+<div style="height: 120px;">
 <canvas id="growthChart"></canvas>
 </div>
 </div>
-
-
+    
 <button onclick="toggleLogPopup(true)" class="btn-open-log">
 <span>📜 최근 운동 일지 자세히 보기</span>
 <span class="text-sky-300">▶</span>
@@ -2632,8 +2572,7 @@ class="w-full bg-transparent text-white text-sm outline-none text-right border-n
 </div>
 </div>
 
-
-    <script type="module">
+<script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc, increment, query, orderBy, Timestamp, where, getDocs, getDoc, setDoc, limit, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
@@ -2920,71 +2859,6 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 </tr>`;
 });
 };
-
-        window.fetchUserMountainElements = async () => {
-    // 1. 선택된 회원 ID 가져오기
-    const selectedId = document.getElementById('memberSelectEdit').value;
-    if (!selectedId) return alert("회원을 먼저 선택해주세요! 🧐");
-
-    try {
-        // 2. 해당 회원의 산행 로그 가져오기
-        const logSnap = await getDocs(collection(db, `sanwoori/${selectedId}/logs`));
-        if (logSnap.empty) return alert("이 회원은 아직 산행 기록이 없네요! 🏔️");
-
-        let rSum = 0, fSum = 0, sSum = 0, validCount = 0;
-
-        // 3. 로그별로 mountains 데이터 매칭 (병렬 처리)
-        const promises = logSnap.docs.map(async (lDoc) => {
-            const mName = lDoc.data().mountain;
-            if (!mName) return;
-
-            const mDoc = await getDoc(doc(db, "mountains", mName));
-            if (mDoc.exists()) {
-                const d = mDoc.data();
-                rSum += Number(d.rock || 0);
-                fSum += Number(d.forest || 0);
-                sSum += Number(d.stream || 0);
-                validCount++;
-            }
-        });
-
-        await Promise.all(promises);
-
-        if (validCount === 0) return alert("등록된 산 정보가 부족하여 분석할 수 없습니다.");
-
-        // 4. 백분율 계산
-        const total = rSum + fSum + sSum;
-        const pR = Math.round((rSum / total) * 100);
-        const pF = Math.round((fSum / total) * 100);
-        const pS = 100 - pR - pF;
-
-        // 5. 유형 결정
-        let finalTitle = "신비로운 숲의 파수꾼";
-        const maxVal = Math.max(pR, pF, pS);
-        if (maxVal === pR) finalTitle = "강인한 바위 거인";
-        else if (maxVal === pS) finalTitle = "푸른 물결의 인도자";
-
-        // 6. UI 반영 및 모달 열기
-        document.getElementById('elemTitle').innerText = finalTitle;
-        document.getElementById('elemType').innerText = `TYPE: R-${pR} / F-${pF} / S-${pS}`;
-        
-        const updateBar = (id, txtId, val) => {
-            document.getElementById(id).style.width = val + "%";
-            document.getElementById(txtId).innerText = val + "%";
-        };
-        
-        updateBar('barRock', 'txtRock', pR);
-        updateBar('barForest', 'txtForest', pF);
-        updateBar('barStream', 'txtStream', pS);
-
-        document.getElementById('mountainElementModal').style.display = 'flex';
-    } catch (e) {
-        console.error(e);
-        alert("분석 중 오류가 발생했습니다.");
-    }
-};
-
-
 
    window.showBondingForestModal = async () => {
     let mName = "";
@@ -4084,8 +3958,7 @@ window.deleteMember = async () => {
     }
 };
 
-
-        // 레벨 임의 수정 기능
+// 레벨 임의 수정 기능
 window.updateManualLevel = async () => {
     // memberSelectEdit에서 선택된 회원 ID 가져오기
     const id = document.getElementById('memberSelectEdit').value; 
@@ -5226,30 +5099,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
-
-    <div id="mountainElementModal" class="mountain-modal" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.85); align-items:center; justify-content:center; backdrop-filter:blur(5px);" onclick="this.style.display='none'">
-    <div class="element-card" onclick="event.stopPropagation()" style="background:#111827; border:1px solid rgba(255,255,255,0.1); border-radius:24px; padding:30px; width:320px; text-align:center; box-shadow:0 20px 50px rgba(0,0,0,0.5);">
-        <div style="font-size: 50px; margin-bottom: 10px;">🏔️</div>
-        <h3 id="elemTitle" style="color:white; font-size:20px; font-weight:800; margin-bottom:4px;">분석 중...</h3>
-        <p id="elemType" style="color:#64748b; font-family:monospace; font-size:12px; letter-spacing:1px; margin-bottom:25px;">TYPE: -</p>
-        
-        <div style="text-align:left; display:grid; gap:15px;">
-            <div>
-                <div style="display:flex; justify-content:space-between; color:white; font-size:12px; margin-bottom:6px;"><span>바위 성분 (Rock)</span><span id="txtRock">0%</span></div>
-                <div style="background:#1f2937; height:6px; border-radius:3px;"><div id="barRock" style="background:#94a3b8; width:0%; height:100%; border-radius:3px; transition:width 1s ease;"></div></div>
-            </div>
-            <div>
-                <div style="display:flex; justify-content:space-between; color:white; font-size:12px; margin-bottom:6px;"><span>숲 성분 (Forest)</span><span id="txtForest">0%</span></div>
-                <div style="background:#1f2937; height:6px; border-radius:3px;"><div id="barForest" style="background:#22c55e; width:0%; height:100%; border-radius:3px; transition:width 1s ease;"></div></div>
-            </div>
-            <div>
-                <div style="display:flex; justify-content:space-between; color:white; font-size:12px; margin-bottom:6px;"><span>계곡 성분 (Stream)</span><span id="txtStream">0%</span></div>
-                <div style="background:#1f2937; height:6px; border-radius:3px;"><div id="barStream" style="background:#3b82f6; width:0%; height:100%; border-radius:3px; transition:width 1s ease;"></div></div>
-            </div>
-        </div>
-        <button style="margin-top:30px; background:transparent; border:1px solid #334155; color:#64748b; font-size:11px; padding:6px 15px; border-radius:15px; cursor:pointer;" onclick="document.getElementById('mountainElementModal').style.display='none'">닫기</button>
-    </div>
-</div>
 
 </script>
 </body>
