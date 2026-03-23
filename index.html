@@ -2528,9 +2528,11 @@ class="w-full bg-transparent text-white text-sm outline-none text-right border-n
 </div>
 </div>
 
- <button class="action-btn-neon" style="flex: 1;" onclick="fetchUserMountainElements()">
-        <span class="icon">⛰️</span> <span class="txt">개인 산 성분</span>
-    </button>
+<button class="action-btn-neon flex-1" onclick="fetchUserMountainElements()">
+    <span class="icon">⛰️</span>
+    <span class="txt">개인 산 성분</span>
+</button>
+
 </div>
 </div>
 </div>
@@ -2919,54 +2921,50 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 });
 };
 
-        window.showMountainElementCard = async (mId, mName) => {
-    // 로딩 인디케이터 (필요 시 추가)
+        window.fetchUserMountainElements = async () => {
+    // 1. 선택된 회원 ID 가져오기
+    const selectedId = document.getElementById('memberSelectEdit').value;
+    if (!selectedId) return alert("회원을 먼저 선택해주세요! 🧐");
+
     try {
-        const logSnap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
-        const userLogs = logSnap.docs.map(d => d.data());
-        
-        if (userLogs.length === 0) return alert("기록이 있어야 성분 분석이 가능합니다. 🌲");
+        // 2. 해당 회원의 산행 로그 가져오기
+        const logSnap = await getDocs(collection(db, `sanwoori/${selectedId}/logs`));
+        if (logSnap.empty) return alert("이 회원은 아직 산행 기록이 없네요! 🏔️");
 
         let rSum = 0, fSum = 0, sSum = 0, validCount = 0;
 
-        // 모든 산행지 정보를 병렬로 가져오기
-        const mountainPromises = userLogs.map(log => getDoc(doc(db, "mountains", log.mountain)));
-        const mSnaps = await Promise.all(mountainPromises);
+        // 3. 로그별로 mountains 데이터 매칭 (병렬 처리)
+        const promises = logSnap.docs.map(async (lDoc) => {
+            const mName = lDoc.data().mountain;
+            if (!mName) return;
 
-        mSnaps.forEach(snap => {
-            if (snap.exists()) {
-                const d = snap.data();
-                rSum += (d.rock || 0);
-                fSum += (d.forest || 0);
-                sSum += (d.stream || 0);
+            const mDoc = await getDoc(doc(db, "mountains", mName));
+            if (mDoc.exists()) {
+                const d = mDoc.data();
+                rSum += Number(d.rock || 0);
+                fSum += Number(d.forest || 0);
+                sSum += Number(d.stream || 0);
                 validCount++;
             }
         });
 
+        await Promise.all(promises);
+
         if (validCount === 0) return alert("등록된 산 정보가 부족하여 분석할 수 없습니다.");
 
+        // 4. 백분율 계산
         const total = rSum + fSum + sSum;
         const pR = Math.round((rSum / total) * 100);
         const pF = Math.round((fSum / total) * 100);
-        const pS = 100 - pR - pF; // 보정
+        const pS = 100 - pR - pF;
 
-        // 유형 결정 로직
-        let finalTitle = "";
-        let themeColor = "";
-        
+        // 5. 유형 결정
+        let finalTitle = "신비로운 숲의 파수꾼";
         const maxVal = Math.max(pR, pF, pS);
-        if (maxVal === pR) {
-            finalTitle = "강인한 바위 거인";
-            themeColor = "#94a3b8"; 
-        } else if (maxVal === pF) {
-            finalTitle = "신비로운 숲의 파수꾼";
-            themeColor = "#22c55e";
-        } else {
-            finalTitle = "푸른 물결의 인도자";
-            themeColor = "#3b82f6";
-        }
+        if (maxVal === pR) finalTitle = "강인한 바위 거인";
+        else if (maxVal === pS) finalTitle = "푸른 물결의 인도자";
 
-        // 모달 데이터 반영 및 열기
+        // 6. UI 반영 및 모달 열기
         document.getElementById('elemTitle').innerText = finalTitle;
         document.getElementById('elemType').innerText = `TYPE: R-${pR} / F-${pF} / S-${pS}`;
         
@@ -2985,6 +2983,7 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
         alert("분석 중 오류가 발생했습니다.");
     }
 };
+
 
 
    window.showBondingForestModal = async () => {
@@ -5228,34 +5227,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-    <div id="mountainElementModal" class="mountain-modal" style="display:none;" onclick="this.style.display='none'">
-    <div class="element-card" onclick="event.stopPropagation()">
-        <div class="element-icon-area">
-            <div class="mini-mountain"></div>
-        </div>
-
-        <h3 id="elemTitle" class="element-main-title">분석 중...</h3>
-        <p id="elemType" class="element-sub-type">TYPE: R-0 / F-0 / S-0</p>
-
-        <div class="element-stats-container">
-            <div class="stat-row">
-                <div class="stat-label"><span>바위 성분 (Rock)</span><span id="txtRock">0%</span></div>
-                <div class="stat-bar-bg"><div id="barRock" class="stat-bar rock-color"></div></div>
+    <div id="mountainElementModal" class="mountain-modal" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.85); align-items:center; justify-content:center; backdrop-filter:blur(5px);" onclick="this.style.display='none'">
+    <div class="element-card" onclick="event.stopPropagation()" style="background:#111827; border:1px solid rgba(255,255,255,0.1); border-radius:24px; padding:30px; width:320px; text-align:center; box-shadow:0 20px 50px rgba(0,0,0,0.5);">
+        <div style="font-size: 50px; margin-bottom: 10px;">🏔️</div>
+        <h3 id="elemTitle" style="color:white; font-size:20px; font-weight:800; margin-bottom:4px;">분석 중...</h3>
+        <p id="elemType" style="color:#64748b; font-family:monospace; font-size:12px; letter-spacing:1px; margin-bottom:25px;">TYPE: -</p>
+        
+        <div style="text-align:left; display:grid; gap:15px;">
+            <div>
+                <div style="display:flex; justify-content:space-between; color:white; font-size:12px; margin-bottom:6px;"><span>바위 성분 (Rock)</span><span id="txtRock">0%</span></div>
+                <div style="background:#1f2937; height:6px; border-radius:3px;"><div id="barRock" style="background:#94a3b8; width:0%; height:100%; border-radius:3px; transition:width 1s ease;"></div></div>
             </div>
-            <div class="stat-row">
-                <div class="stat-label"><span>숲 성분 (Forest)</span><span id="txtForest">0%</span></div>
-                <div class="stat-bar-bg"><div id="barForest" class="stat-bar forest-color"></div></div>
+            <div>
+                <div style="display:flex; justify-content:space-between; color:white; font-size:12px; margin-bottom:6px;"><span>숲 성분 (Forest)</span><span id="txtForest">0%</span></div>
+                <div style="background:#1f2937; height:6px; border-radius:3px;"><div id="barForest" style="background:#22c55e; width:0%; height:100%; border-radius:3px; transition:width 1s ease;"></div></div>
             </div>
-            <div class="stat-row">
-                <div class="stat-label"><span>계곡 성분 (Stream)</span><span id="txtStream">0%</span></div>
-                <div class="stat-bar-bg"><div id="barStream" class="stat-bar stream-color"></div></div>
+            <div>
+                <div style="display:flex; justify-content:space-between; color:white; font-size:12px; margin-bottom:6px;"><span>계곡 성분 (Stream)</span><span id="txtStream">0%</span></div>
+                <div style="background:#1f2937; height:6px; border-radius:3px;"><div id="barStream" style="background:#3b82f6; width:0%; height:100%; border-radius:3px; transition:width 1s ease;"></div></div>
             </div>
         </div>
-
-        <button class="re-analyze-btn" onclick="location.reload()">데이터 재분석</button>
+        <button style="margin-top:30px; background:transparent; border:1px solid #334155; color:#64748b; font-size:11px; padding:6px 15px; border-radius:15px; cursor:pointer;" onclick="document.getElementById('mountainElementModal').style.display='none'">닫기</button>
     </div>
 </div>
-
 
 </script>
 </body>
