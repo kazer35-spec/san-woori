@@ -2848,80 +2848,77 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 });
 };
 
-window.showBondingForestModal = async () => {
+ window.showBondingForestModal = async () => {
     let mName = "";
-    // 1. 현재 화면의 주인공 이름 추출
     const nameTags = Array.from(document.querySelectorAll('h2, .text-blue-600, .font-bold'));
     const foundTag = nameTags.find(el => el.innerText.includes('님') && !el.innerText.includes('산행'));
     if (foundTag) mName = foundTag.innerText.split(' ')[0].replace('님', '').trim();
 
     if (!mName) return alert("회원 이름을 찾을 수 없습니다.");
 
+    // 로컬 저장소 키 (사용자별 구분)
+    const STORAGE_KEY = `forest_data_${mName}`;
+    
     try {
-        const [allLogsSnap, bondingSnap] = await Promise.all([
-            getDocs(collection(db, "sanwoori")), 
-            getDocs(collection(db, "bondingForest"))
-        ]);
+        // 1. 저장된 이전 데이터 불러오기
+        let savedData = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { 
+            totalHikes: 0, 
+            processedIds: [] 
+        };
+
+        // 2. 전체 기록(sanwoori) 가져오기
+        const allLogsSnap = await getDocs(collection(db, "sanwoori"));
         
-        // 2. 전체 산행 기록 (분모: 지도 좌표가 있고 내가 참여한 기록)
-        let myTotalHikes = 0;
+        let newHikes = 0;
+        let newIds = [];
+
         allLogsSnap.forEach(doc => {
+            const id = doc.id;
+            // 이미 계산된 기록은 건너뜀 (중복 계산 방지)
+            if (savedData.processedIds.includes(id)) return;
+
             const data = doc.data();
             const hasCoords = data.latitude || data.location || data.coords || data.lat || data.x || data.y;
             const members = Array.isArray(data.members) ? data.members : [];
-            // 작성자이거나 멤버 리스트에 포함된 경우
             const isMe = data.author === mName || data.writer === mName || members.includes(mName);
             
             if (hasCoords && isMe) {
-                myTotalHikes++;
+                newHikes++;
+                newIds.push(id);
             }
         });
 
-        // 3. 동행 산행 기록 (분자: bondingForest에 기록된 나의 동행 횟수)
-        let myMultiHikes = 0; 
-        let partnersMap = {};
-        let uniquePartners = new Set();
-
-        bondingSnap.forEach((doc) => {
-            const members = doc.data().members || [];
-            if (members.includes(mName)) {
-                myMultiHikes++; 
-                members.forEach(p => {
-                    if (p !== mName) {
-                        partnersMap[p] = (partnersMap[p] || 0) + 1;
-                        uniquePartners.add(p);
-                    }
-                });
-            }
-        });
-
-        // 4. 데이터 정합성 체크 (동행이 전체보다 많을 수 없음)
-        if (myTotalHikes < myMultiHikes) myTotalHikes = myMultiHikes;
+        // 3. 최신 데이터 업데이트 및 저장
+        const finalTotalHikes = savedData.totalHikes + newHikes;
+        const finalProcessedIds = [...savedData.processedIds, ...newIds];
         
-        // 동행 지수 (%) 계산
-        const finalSynergy = myTotalHikes > 0 ? Math.round((myMultiHikes / myTotalHikes) * 100) : 0;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+            totalHikes: finalTotalHikes,
+            processedIds: finalProcessedIds
+        }));
 
-        // 5. 우정 포인트 (화면의 숫자 참조)
+        // 4. 우정 점수 기반 동행 횟수 계산 (10점당 1회)
         const fpElement = document.getElementById('memberFriendshipPoint');
-        const displayFP = fpElement ? fpElement.innerText.replace(/[^0-9]/g, '') : "0";
+        const currentFP = fpElement ? parseInt(fpElement.innerText.replace(/[^0-9]/g, '')) : 0;
+        const myMultiHikes = Math.floor(currentFP / 10); // 10점당 1회
 
-        let bestP = "없음"; let bestC = 0;
-        Object.entries(partnersMap).forEach(([n, c]) => { if(c > bestC) { bestP = n; bestC = c; } });
+        // 5. 동행 지수 (%) 계산
+        const finalSynergy = finalTotalHikes > 0 ? Math.min(100, Math.round((myMultiHikes / finalTotalHikes) * 100)) : 0;
 
-        // 6. 모달 출력
+        // 6. 모달 출력 (UI 부분)
         const modalHTML = `
             <div id="forestModal" class="fixed inset-0 z-[10000] flex items-center justify-center bg-black/85 backdrop-blur-md" onclick="this.remove()">
                 <div class="bg-[#0f172a] border border-emerald-500/30 p-8 rounded-[2.5rem] w-[320px] text-center shadow-2xl" onclick="event.stopPropagation()">
                     <div class="text-emerald-400 text-[10px] font-black mb-6 tracking-[0.4em]">BONDING FOREST</div>
                     <div class="text-6xl mb-6">🌳</div>
                     <h3 class="text-white text-2xl font-bold mb-2">${mName}님의 인연</h3>
-                    <p class="text-[11px] text-slate-500 mb-8 leading-relaxed">전체 활동 대비 동행 기록을 바탕으로 한<br>데이터입니다.</p>
+                    <p class="text-[11px] text-slate-500 mb-8 leading-relaxed">최적화된 증분 데이터로 계산되었습니다.</p>
                     
                     <div class="space-y-4 text-left">
                         <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
                             <div class="text-[10px] text-emerald-400 font-bold mb-1">🤝 동행 지수 (Synergy Rate)</div>
                             <div class="flex justify-between items-end">
-                                <div class="text-white text-[14px] font-bold">총 ${myTotalHikes}회 중 ${myMultiHikes}회</div>
+                                <div class="text-white text-[14px] font-bold">총 ${finalTotalHikes}회 중 ${myMultiHikes}회</div>
                                 <div class="text-emerald-400 text-lg font-black">${finalSynergy}%</div>
                             </div>
                             <div class="w-full h-1 bg-white/10 rounded-full mt-2 overflow-hidden">
@@ -2929,21 +2926,13 @@ window.showBondingForestModal = async () => {
                             </div>
                         </div>
                         <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
-                            <div class="text-[10px] text-blue-400 font-bold mb-1">💫 인연의 반경 (Radius)</div>
-                            <div class="text-white text-[14px] font-bold">총 ${uniquePartners.size}명과 연결됨</div>
-                        </div>
-                        <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
-                            <div class="text-[10px] text-orange-400 font-bold mb-1">👑 최고의 파트너 (Bestie)</div>
-                            <div class="text-white text-[14px] font-bold">${bestP} <span class="text-emerald-400 font-black">(${bestC}회)</span></div>
-                        </div>
-                        <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
                             <div class="text-[10px] text-amber-400 font-bold mb-1">✨ 우정 포인트 (Friendship)</div>
-                            <div class="text-white text-[14px] font-bold">${Number(displayFP).toLocaleString()} <span class="text-[10px] text-slate-400 font-normal">FP</span></div>
+                            <div class="text-white text-[14px] font-bold">${currentFP.toLocaleString()} <span class="text-[10px] text-slate-400 font-normal">FP</span></div>
                         </div>
                     </div>
 
                     <button onclick="document.getElementById('forestModal').remove()" 
-                            class="mt-8 w-full py-4 bg-emerald-500 text-white text-xs font-black rounded-2xl transition-transform active:scale-95 shadow-[0_0_15px_rgba(16,185,129,0.4)]">
+                            class="mt-8 w-full py-4 bg-emerald-500 text-white text-xs font-black rounded-2xl active:scale-95 shadow-[0_0_15px_rgba(16,185,129,0.4)]">
                         숲에서 나가기
                     </button>
                 </div>
