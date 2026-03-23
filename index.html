@@ -13,48 +13,6 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-/* 1. 버튼을 감싸는 컨테이너 (오른쪽 정렬용) */
-.mountain-btn-container {
-    display: flex;
-    justify-content: flex-end; /* 오른쪽으로 붙이기 */
-    align-items: center;
-    margin-bottom: 5px; /* 그래프와의 간격 */
-    padding-right: 10px;
-}
-
-/* 2. 실제 버튼 스타일 */
-.comp-btn-new {
-    display: inline-flex !important; /* 다른 스타일 무시하고 강제 적용 */
-    align-items: center !important;
-    background: transparent !important; /* 배경 투명 */
-    border: none !important;
-    cursor: pointer;
-    padding: 0;
-    gap: 4px;
-}
-
-/* 3. 버튼 안의 텍스트 */
-.comp-btn-new span {
-    color: #666 !important; /* 이미지와 비슷한 회색 */
-    font-size: 12px !important;
-    font-weight: 500 !important;
-    letter-spacing: -0.5px;
-}
-
-/* 4. 산 아이콘 크기 고정 */
-.mountain-icon {
-    width: 18px !important;
-    height: auto !important;
-    display: block;
-}
-
-/* 마우스 올렸을 때 효과 */
-.comp-btn-new:hover span {
-    color: #333 !important;
-    text-decoration: underline;
-}
-
-
 
     /* 80% 이상일 때 게이지에 흐르는 반짝임 효과 */
 @keyframes gauge-shimmer {
@@ -2921,6 +2879,35 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 </td>
 </tr>`;
 });
+};
+
+        window.openMountainComponentModal = async () => {
+    // 1. 현재 선택된 회원의 데이터를 가져옵니다 (이미 currentData에 있다면 거기서 사용)
+    const member = currentData.find(m => m.id === selectedMemberId); 
+    const stats = member.mountainStats || { rock: 0, forest: 0, stream: 0 };
+    
+    const total = stats.rock + stats.forest + stats.stream;
+    
+    // 0 나누기 방지
+    const getPct = (val) => total === 0 ? 0 : Math.round((val / total) * 100);
+    
+    const rPct = getPct(stats.rock);
+    const fPct = getPct(stats.forest);
+    const sPct = getPct(stats.stream);
+
+    // 2. 가장 높은 수치에 따라 타이틀 결정
+    let mainTitle = "강인한 바위 거인";
+    if (fPct > rPct && fPct > sPct) mainTitle = "신비로운 숲의 파수꾼";
+    if (sPct > rPct && sPct > fPct) mainTitle = "푸른 물결의 인도자";
+
+    // 3. UI 업데이트 (이미지상의 프로그레스 바와 텍스트 반영)
+    document.getElementById('compTitle').innerText = mainTitle;
+    document.getElementById('rockBar').style.width = rPct + "%";
+    document.getElementById('rockPct').innerText = rPct + "%";
+    // ... 숲과 계곡도 동일하게 작성 ...
+
+    // 4. 모달 열기
+    document.getElementById('mountainComponentModal').style.display = 'flex';
 };
 
    window.showBondingForestModal = async () => {
