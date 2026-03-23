@@ -13,6 +13,43 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+    /* 버튼 컨테이너가 flex라면 자동 정렬됩니다 */
+.action-btn-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+    justify-content: center;
+}
+
+.action-btn-neon {
+    flex: 1; /* 인연의 숲 버튼과 1:1 비율로 크기 동일화 */
+    max-width: 160px;
+    height: 42px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.action-btn-neon:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: #00f2ff; /* 네온 포인트 컬러 */
+    box-shadow: 0 0 10px rgba(0, 242, 255, 0.3);
+}
+
+.action-btn-neon .icon { font-size: 14px; }
+.action-btn-neon .txt { 
+    color: #e2e8f0; 
+    font-size: 12px; 
+    font-weight: 600; 
+    letter-spacing: -0.5px;
+}
+
     /* 80% 이상일 때 게이지에 흐르는 반짝임 효과 */
 @keyframes gauge-shimmer {
     0% { background-position: -200% 0; }
@@ -2491,8 +2528,9 @@ class="w-full bg-transparent text-white text-sm outline-none text-right border-n
 </div>
 </div>
 
-<button onclick="showBondingForestModal()" class="bonding-forest-btn animate-side-glow">
-🌳 인연의 숲
+<button class="action-btn-neon" onclick="showMountainElementCard(currentUserId, currentUserName)">
+    <span class="icon">⛰️</span>
+    <span class="txt">개인 산 성분</span>
 </button>
 </div>
 </div>
@@ -2880,6 +2918,74 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 </tr>`;
 });
 };
+
+        window.showMountainElementCard = async (mId, mName) => {
+    // 로딩 인디케이터 (필요 시 추가)
+    try {
+        const logSnap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
+        const userLogs = logSnap.docs.map(d => d.data());
+        
+        if (userLogs.length === 0) return alert("기록이 있어야 성분 분석이 가능합니다. 🌲");
+
+        let rSum = 0, fSum = 0, sSum = 0, validCount = 0;
+
+        // 모든 산행지 정보를 병렬로 가져오기
+        const mountainPromises = userLogs.map(log => getDoc(doc(db, "mountains", log.mountain)));
+        const mSnaps = await Promise.all(mountainPromises);
+
+        mSnaps.forEach(snap => {
+            if (snap.exists()) {
+                const d = snap.data();
+                rSum += (d.rock || 0);
+                fSum += (d.forest || 0);
+                sSum += (d.stream || 0);
+                validCount++;
+            }
+        });
+
+        if (validCount === 0) return alert("등록된 산 정보가 부족하여 분석할 수 없습니다.");
+
+        const total = rSum + fSum + sSum;
+        const pR = Math.round((rSum / total) * 100);
+        const pF = Math.round((fSum / total) * 100);
+        const pS = 100 - pR - pF; // 보정
+
+        // 유형 결정 로직
+        let finalTitle = "";
+        let themeColor = "";
+        
+        const maxVal = Math.max(pR, pF, pS);
+        if (maxVal === pR) {
+            finalTitle = "강인한 바위 거인";
+            themeColor = "#94a3b8"; 
+        } else if (maxVal === pF) {
+            finalTitle = "신비로운 숲의 파수꾼";
+            themeColor = "#22c55e";
+        } else {
+            finalTitle = "푸른 물결의 인도자";
+            themeColor = "#3b82f6";
+        }
+
+        // 모달 데이터 반영 및 열기
+        document.getElementById('elemTitle').innerText = finalTitle;
+        document.getElementById('elemType').innerText = `TYPE: R-${pR} / F-${pF} / S-${pS}`;
+        
+        const updateBar = (id, txtId, val) => {
+            document.getElementById(id).style.width = val + "%";
+            document.getElementById(txtId).innerText = val + "%";
+        };
+        
+        updateBar('barRock', 'txtRock', pR);
+        updateBar('barForest', 'txtForest', pF);
+        updateBar('barStream', 'txtStream', pS);
+
+        document.getElementById('mountainElementModal').style.display = 'flex';
+    } catch (e) {
+        console.error(e);
+        alert("분석 중 오류가 발생했습니다.");
+    }
+};
+
 
    window.showBondingForestModal = async () => {
     let mName = "";
@@ -5121,6 +5227,35 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+    <div id="mountainElementModal" class="mountain-modal" style="display:none;" onclick="this.style.display='none'">
+    <div class="element-card" onclick="event.stopPropagation()">
+        <div class="element-icon-area">
+            <div class="mini-mountain"></div>
+        </div>
+
+        <h3 id="elemTitle" class="element-main-title">분석 중...</h3>
+        <p id="elemType" class="element-sub-type">TYPE: R-0 / F-0 / S-0</p>
+
+        <div class="element-stats-container">
+            <div class="stat-row">
+                <div class="stat-label"><span>바위 성분 (Rock)</span><span id="txtRock">0%</span></div>
+                <div class="stat-bar-bg"><div id="barRock" class="stat-bar rock-color"></div></div>
+            </div>
+            <div class="stat-row">
+                <div class="stat-label"><span>숲 성분 (Forest)</span><span id="txtForest">0%</span></div>
+                <div class="stat-bar-bg"><div id="barForest" class="stat-bar forest-color"></div></div>
+            </div>
+            <div class="stat-row">
+                <div class="stat-label"><span>계곡 성분 (Stream)</span><span id="txtStream">0%</span></div>
+                <div class="stat-bar-bg"><div id="barStream" class="stat-bar stream-color"></div></div>
+            </div>
+        </div>
+
+        <button class="re-analyze-btn" onclick="location.reload()">데이터 재분석</button>
+    </div>
+</div>
+
 
 </script>
 </body>
