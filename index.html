@@ -2850,6 +2850,7 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 
 window.showBondingForestModal = async () => {
     let mName = "";
+    // 1. 현재 화면의 주인공 이름 추출
     const nameTags = Array.from(document.querySelectorAll('h2, .text-blue-600, .font-bold'));
     const foundTag = nameTags.find(el => el.innerText.includes('님') && !el.innerText.includes('산행'));
     if (foundTag) mName = foundTag.innerText.split(' ')[0].replace('님', '').trim();
@@ -2862,13 +2863,13 @@ window.showBondingForestModal = async () => {
             getDocs(collection(db, "bondingForest"))
         ]);
         
-        // 1. 지도 좌표 기반 '전체 산행' 집계
+        // 2. 전체 산행 기록 (분모: 지도 좌표가 있고 내가 참여한 기록)
         let myTotalHikes = 0;
         allLogsSnap.forEach(doc => {
             const data = doc.data();
-            // [수정] 스크린샷의 x, y 혹은 latitude, location 등 좌표 필드가 하나라도 있는지 확인
             const hasCoords = data.latitude || data.location || data.coords || data.lat || data.x || data.y;
             const members = Array.isArray(data.members) ? data.members : [];
+            // 작성자이거나 멤버 리스트에 포함된 경우
             const isMe = data.author === mName || data.writer === mName || members.includes(mName);
             
             if (hasCoords && isMe) {
@@ -2876,7 +2877,7 @@ window.showBondingForestModal = async () => {
             }
         });
 
-        // 2. 동행 기록 분석
+        // 3. 동행 산행 기록 (분자: bondingForest에 기록된 나의 동행 횟수)
         let myMultiHikes = 0; 
         let partnersMap = {};
         let uniquePartners = new Set();
@@ -2894,27 +2895,27 @@ window.showBondingForestModal = async () => {
             }
         });
 
-        // 데이터 보정: 동행 횟수가 전체보다 클 수 없으므로 최소값 유지
+        // 4. 데이터 정합성 체크 (동행이 전체보다 많을 수 없음)
         if (myTotalHikes < myMultiHikes) myTotalHikes = myMultiHikes;
         
         // 동행 지수 (%) 계산
         const finalSynergy = myTotalHikes > 0 ? Math.round((myMultiHikes / myTotalHikes) * 100) : 0;
 
-        // 3. 우정 포인트 및 파트너 데이터 정리
+        // 5. 우정 포인트 (화면의 숫자 참조)
         const fpElement = document.getElementById('memberFriendshipPoint');
         const displayFP = fpElement ? fpElement.innerText.replace(/[^0-9]/g, '') : "0";
 
         let bestP = "없음"; let bestC = 0;
         Object.entries(partnersMap).forEach(([n, c]) => { if(c > bestC) { bestP = n; bestC = c; } });
 
-        // 4. 모달 출력
+        // 6. 모달 출력
         const modalHTML = `
             <div id="forestModal" class="fixed inset-0 z-[10000] flex items-center justify-center bg-black/85 backdrop-blur-md" onclick="this.remove()">
                 <div class="bg-[#0f172a] border border-emerald-500/30 p-8 rounded-[2.5rem] w-[320px] text-center shadow-2xl" onclick="event.stopPropagation()">
                     <div class="text-emerald-400 text-[10px] font-black mb-6 tracking-[0.4em]">BONDING FOREST</div>
-                    <div class="text-6xl mb-6"></div>
+                    <div class="text-6xl mb-6">🌳</div>
                     <h3 class="text-white text-2xl font-bold mb-2">${mName}님의 인연</h3>
-                    <p class="text-[11px] text-slate-500 mb-8 leading-relaxed"></p>
+                    <p class="text-[11px] text-slate-500 mb-8 leading-relaxed">전체 활동 대비 동행 기록을 바탕으로 한<br>데이터입니다.</p>
                     
                     <div class="space-y-4 text-left">
                         <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
@@ -2924,7 +2925,7 @@ window.showBondingForestModal = async () => {
                                 <div class="text-emerald-400 text-lg font-black">${finalSynergy}%</div>
                             </div>
                             <div class="w-full h-1 bg-white/10 rounded-full mt-2 overflow-hidden">
-                                <div class="h-full bg-emerald-500" style="width: ${finalSynergy}%"></div>
+                                <div class="h-full bg-emerald-500 transition-all duration-1000" style="width: ${finalSynergy}%"></div>
                             </div>
                         </div>
                         <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
@@ -2942,18 +2943,14 @@ window.showBondingForestModal = async () => {
                     </div>
 
                     <button onclick="document.getElementById('forestModal').remove()" 
-                            class="mt-8 w-full py-4 bg-emerald-500 text-white text-xs font-black rounded-2xl relative overflow-hidden transition-transform active:scale-95 shadow-[0_0_15px_rgba(16,185,129,0.4)]">
-                        <span class="relative z-10">숲에서 나가기</span>
-                        <div class="shimmer-bar"></div>
+                            class="mt-8 w-full py-4 bg-emerald-500 text-white text-xs font-black rounded-2xl transition-transform active:scale-95 shadow-[0_0_15px_rgba(16,185,129,0.4)]">
+                        숲에서 나가기
                     </button>
                 </div>
             </div>`;
         document.body.insertAdjacentHTML('beforeend', modalHTML);
     } catch (e) { console.error(e); }
 };
-
-        
-
 
     
 window.toggleHallModal = async (show) => {
