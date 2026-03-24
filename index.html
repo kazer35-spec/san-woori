@@ -2928,25 +2928,30 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
         const myMultiHikes = Math.floor(currentFP / 10); 
         const finalSynergy = finalTotalHikes > 0 ? Math.min(100, Math.round((myMultiHikes / finalTotalHikes) * 100)) : 0;
 
-        // --- 퍼센트별 색상 설정 (기존 유지) ---
-        let gaugeColor = "#ef4444"; 
+           // --- [핵심] 퍼센트별 색상 및 효과 설정 ---
+        let gaugeColor = "#ef4444"; // 40미만: Red
         let glowClass = "";
-        if (finalSynergy >= 80) { gaugeColor = "#10b981"; glowClass = "gauge-glow"; }
-        else if (finalSynergy >= 70) { gaugeColor = "#22c55e"; }
-        else if (finalSynergy >= 40) { gaugeColor = "#f59e0b"; }
+        if (finalSynergy >= 80) {
+            gaugeColor = "#10b981"; // 80이상: Emerald
+            glowClass = "gauge-glow"; // 반짝임 애니메이션 클래스
+        } else if (finalSynergy >= 70) {
+            gaugeColor = "#22c55e"; // 70이상: Green
+        } else if (finalSynergy >= 40) {
+            gaugeColor = "#f59e0b"; // 40이상: Amber
+        }
 
-        // 최고의 파트너 찾기
         let bestP = "없음"; let bestC = 0;
         Object.entries(cached.partnersMap).forEach(([n, c]) => { if(c > bestC) { bestP = n; bestC = c; } });
 
-        // --- 모달 HTML 출력 ---
         const modalHTML = `
             <div id="forestModal" class="fixed inset-0 z-[10000] flex items-center justify-center bg-black/85 backdrop-blur-md" onclick="this.remove()">
                 <div class="bg-[#0f172a] border border-emerald-500/30 p-8 rounded-[2.5rem] w-[320px] text-center shadow-2xl" onclick="event.stopPropagation()">
                     <div class="text-emerald-400 text-[10px] font-black mb-6 tracking-[0.4em]">BONDING FOREST</div>
+                    <div class="text-6xl mb-6"></div>
                     <h3 class="text-white text-2xl font-bold mb-2">${mName}님의 인연</h3>
+                    <p class="text-[11px] text-slate-500 mb-8 leading-relaxed"></p>
                     
-                    <div class="space-y-4 text-left mt-6">
+                    <div class="space-y-4 text-left">
                         <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
                             <div class="text-[10px] font-bold mb-1" style="color: ${gaugeColor}">🤝 동행 지수 (Synergy Rate)</div>
                             <div class="flex justify-between items-end">
@@ -2978,10 +2983,10 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
                 </div>
             </div>`;
         document.body.insertAdjacentHTML('beforeend', modalHTML);
-    } catch (e) { console.error("Forest Modal Error:", e); }
+    } catch (e) { console.error(e); }
 };
 
-        
+   
    
     
 window.toggleHallModal = async (show) => {
