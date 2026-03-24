@@ -2860,7 +2860,7 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 });
 };
 
-    Window.showBondingForestModal = async () => {
+   window.showBondingForestModal = async () => {
     let mName = "";
     const nameTags = Array.from(document.querySelectorAll('h2, .text-blue-600, .font-bold'));
     const foundTag = nameTags.find(el => el.innerText.includes('님') && !el.innerText.includes('산행'));
@@ -2868,7 +2868,7 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 
     if (!mName) return alert("회원 이름을 찾을 수 없습니다.");
 
-    // 1. 초기 고정 데이터 (이후 기록은 여기에 합산됨)
+    // 1. 초기 산행 데이터 (주신 명단 그대로 적용)
     const initialHikes = {
         "오즈": 32, "지니": 22, "나스": 17, "해수": 15, "하트": 12, "아랑": 17, "쿠키": 8, "용삼": 14, 
         "식이": 6, "몰랑": 8, "길치": 7, "등초": 6, "구름": 5, "튜브": 4, "햄찌": 5, "켄신": 3, 
@@ -2884,29 +2884,27 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
             processedIds: [], extraHikes: 0, partnersMap: {}, uniquePartners: [] 
         };
 
-        // 알뜰 로직: 산행 기록(bondingForest)만 조회하여 처리 (속도 향상)
-        const bondingSnap = await getDocs(collection(db, "bondingForest"));
+        const [allLogsSnap, bondingSnap] = await Promise.all([
+            getDocs(collection(db, "sanwoori")), 
+            getDocs(collection(db, "bondingForest"))
+        ]);
         
-        bondingSnap.forEach(doc => {
-            // 이미 처리된 ID면 건너뛰기 (증분 업데이트 핵심)
+        // 데이터 증분 업데이트
+        allLogsSnap.forEach(doc => {
             if (cached.processedIds.includes(doc.id)) return;
-
             const data = doc.data();
-            const members = data.members || [];
-            
-            // 🚫 필터링: 트래킹, 러닝, 조깅 등이 포함된 기록은 산행 횟수에서 제외
-            const isSpecialActivity = data.isRunning || data.isTracking || ["러닝", "트래킹"].includes(data.type);
-            if (isSpecialActivity) return;
+            const hasCoords = data.latitude || data.location || data.coords || data.lat || data.x || data.y;
+            if (hasCoords && (data.author === mName || (data.members && data.members.includes(mName)))) {
+                cached.extraHikes++;
+                cached.processedIds.push(doc.id);
+            }
+        });
 
-            // 📍 좌표 체크 (다양한 필드명 대응: latitude, coords, x/y 등)
-            const hasCoords = data.latitude || data.location || data.coords || data.lat || (data.x && data.y);
-
-            // 내 이름이 포함되어 있고 + 좌표가 있는 "진짜 산행"인 경우만!
-            if (members.includes(mName) && hasCoords) {
-                cached.extraHikes++; // 횟수 +1
-                cached.processedIds.push(doc.id); // 처리 완료 목록에 추가
-
-                // 파트너 통계 업데이트
+        bondingSnap.forEach(doc => {
+            if (cached.processedIds.includes(doc.id)) return;
+            const members = doc.data().members || [];
+            if (members.includes(mName)) {
+                cached.processedIds.push(doc.id);
                 members.forEach(p => {
                     if (p !== mName) {
                         cached.partnersMap[p] = (cached.partnersMap[p] || 0) + 1;
@@ -2916,23 +2914,17 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
             }
         });
 
-        // 업데이트된 캐시 저장
         localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
 
-        // 최종 합산 로직
         const baseHikes = initialHikes[mName] || 0;
         const finalTotalHikes = baseHikes + cached.extraHikes;
-
-        // 화면상 우정포인트(FP) 가져오기
         const fpElement = document.getElementById('memberFriendshipPoint');
         const currentFP = fpElement ? parseInt(fpElement.innerText.replace(/[^0-9]/g, '')) : 0;
         const myMultiHikes = Math.floor(currentFP / 10); 
 
-        // 시너지 계산 (0~100%)
         const finalSynergy = finalTotalHikes > 0 ? Math.min(100, Math.round((myMultiHikes / finalTotalHikes) * 100)) : 0;
 
-            
-           // --- [핵심] 퍼센트별 색상 및 효과 설정 ---
+        // --- [핵심] 퍼센트별 색상 및 효과 설정 ---
         let gaugeColor = "#ef4444"; // 40미만: Red
         let glowClass = "";
         if (finalSynergy >= 80) {
@@ -2987,11 +2979,9 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
                 </div>
             </div>`;
         document.body.insertAdjacentHTML('beforeend', modalHTML);
-        console.log(`${mName}님 데이터 집계 완료: 총 ${finalTotalHikes}회 (증분: ${cached.extraHikes})`);
     } catch (e) { console.error(e); }
 };
 
-   
    
     
 window.toggleHallModal = async (show) => {
