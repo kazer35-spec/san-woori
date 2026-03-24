@@ -13,15 +13,6 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-    /* 자막이 위로 올라가는 애니메이션 */
-@keyframes rollUp {
-    0% { top: 100%; }
-    100% { top: -150%; } /* 내용 길이에 따라 조절 */
-}
-.animate-credits {
-    animation: rollUp 15s linear forwards;
-}
-    
     /* 80% 이상일 때 게이지에 흐르는 반짝임 효과 */
 @keyframes gauge-shimmer {
     0% { background-position: -200% 0; }
@@ -1946,13 +1937,6 @@ overflow: hidden;
 </head>
 <body>
 
-    <div id="creditOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:99999; color:#fff; overflow:hidden; font-family: 'serif';">
-    <div id="creditContent" style="position:absolute; width:100%; text-align:center; top:100%;">
-        </div>
-    <button onclick="document.getElementById('creditOverlay').style.display='none'" 
-            style="position:fixed; top:20px; right:20px; background:transparent; color:#555; border:none; font-size:20px; cursor:pointer;">✕</button>
-    </div>
-    
 <div id="levelUpCardModal" class="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-md hidden items-center justify-center p-5">
 <div class="w-full max-w-[400px] text-center">
 <h2 id="modalTitle" class="text-2xl font-black mb-1 text-white">LEVEL UP!</h2>
@@ -2485,33 +2469,16 @@ class="w-full bg-transparent text-white text-sm outline-none text-right border-n
 
 <div id="grassBoard" class="grass-container mb-4"></div>
 
-
-<div style="display: flex; flex-direction: column; gap: 2px;">
-<div class="chart-title-sub" style="font-size: 10px; font-weight: bold; color: #334155; display: flex; align-items: center; gap: 4px;">
-📊 분기 성장 추이
-</div>
-<div class="chart-guide-txt" style="font-size: 8px; color: #38BDF8; letter-spacing: -0.5px;">
-💡 그래프 및 인연의숲 터치 기록 확인 가능
-</div>
-</div>
-
-<div style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
-<div class="chart-legend" style="display: flex; gap: 8px; font-size: 9px; color: #64748b; font-weight: bold;">
-<div class="legend-item" style="display: flex; align-items: center; gap: 3px;">
-<span class="dot-bar" style="width: 7px; height: 7px; background: #3b82f6; border-radius: 1px; display: inline-block;"></span> 횟수
-</div>
-<div class="legend-item" style="display: flex; align-items: center; gap: 3px;">
-<span class="dot-line" style="width: 7px; height: 7px; background: #ef4444; border-radius: 50%; display: inline-block;"></span> 고도
+<div id="chartBox" class="chart-container-box">
+<div class="chart-header">
+<div class="chart-title-sub">📊 분기 성장 추이</div>
+<div class="chart-legend">
+<div class="legend-item"><span class="dot-bar"></span>횟수</div>
+<div class="legend-item"><span class="dot-line"></span>고도</div>
 </div>
 </div>
-
-<button onclick="window plauEndinaCreditC)" class="bonding-forest-btn animate-side-glow">
-🎬 분기 마감
-</button>
-</div>
-</div>
-
-<div style="height: 120px; width: 100%; margin-top: 8px;">
+<div class="chart-guide-txt">💡 그래프를 터치하면 상세 기록 확인 가능</div>
+<div style="height: 120px;">
 <canvas id="growthChart"></canvas>
 </div>
 </div>
@@ -2891,55 +2858,6 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 </td>
 </tr>`;
 });
-};
-
-    window.playEndingCredit = async () => {
-    const targetId = window.currentMemberId;
-    if (!targetId) return alert("멤버를 먼저 선택해주세요.");
-
-    const userRef = doc(db, "sanwoori", targetId);
-    const userSnap = await getDoc(userRef);
-    const u = userSnap.data();
-
-    const overlay = document.getElementById('creditOverlay');
-    const content = document.getElementById('creditContent');
-
-    // 다큐멘터리식 내용 구성
-    content.innerHTML = `
-        <div style="margin-bottom:100px;">
-            <h1 style="font-size:30px; color:#ffd700; margin-bottom:10px;">SAN:WOORI DOCUMENTARY</h1>
-            <p style="font-size:18px; color:#aaa;">2026 1st Quarter Report</p>
-        </div>
-
-        <div style="line-height:3; font-size:20px;">
-            <p style="color:#aaa;">주연 배우</p>
-            <p style="font-size:28px; margin-bottom:50px;">${u.name || '무명 산악인'}</p>
-
-            <p style="color:#aaa;">총 등반 횟수</p>
-            <p style="margin-bottom:50px;">${u.totalCount || 0} 회</p>
-
-            <p style="color:#aaa;">정복한 누적 고도</p>
-            <p style="margin-bottom:50px;">${u.totalHeight || 0} m</p>
-
-            <p style="color:#aaa;">가장 많이 만난 정령</p>
-            <p style="font-size:24px; color:#ffd700;">
-                ${u.totalRock > u.totalForest ? '강인한 바위 거인' : '신비로운 숲의 파수꾼'}
-            </p>
-            
-            <div style="margin-top:150px;">
-                <p style="color:#666;">제작: 산우리 관리 시스템</p>
-                <p style="color:#666;">협찬: 전국의 이름 모를 산들</p>
-                <br><br>
-                <h2 style="color:#ffd700;">THE END</h2>
-            </div>
-        </div>
-    `;
-
-    // 화면 보이기 및 애니메이션 시작
-    overlay.style.display = 'block';
-    content.classList.remove('animate-credits');
-    void content.offsetWidth; // 애니메이션 리셋을 위한 코드
-    content.classList.add('animate-credits');
 };
 
    window.showBondingForestModal = async () => {
