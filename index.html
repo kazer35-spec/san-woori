@@ -3279,9 +3279,36 @@ function renderGrowthChart(data) {
                     bodyFont: { size: 11, weight: '700' },
                     callbacks: {
                         label: function(context) {
-                            const i = context.dataIndex;
-                            return [ ` ⛰️ 누적: ${data.heights[i].toLocaleString()}m`, ` 🏔️ 최고봉: ${data.peaks[i]}`, ` 📈 횟수: ${data.counts[i]}회` ];
-                        }
+    const i = context.dataIndex;
+    
+    // 1. 현재 멤버의 전체 성분 데이터 가져오기 (이미 계산된 변수가 있다고 가정)
+    // 만약 변수명이 다르다면 u.totalRock 등을 확인하세요.
+    const r = u.totalRock || 0;
+    const f = u.totalForest || 0;
+    const v = u.totalValley || 0;
+    const total = r + f + v || 1;
+
+    const pR = Math.round((r / total) * 100);
+    const pF = Math.round((f / total) * 100);
+    const pV = Math.round((v / total) * 100);
+
+    // 2. 수호자 칭호 결정
+    let title = "";
+    if (r >= f && r >= v) title = "🧱 바위의 수호자";
+    else if (f >= r && f >= v) title = "🌿 숲의 파수꾼";
+    else title = "💧 물결의 인도자";
+
+    // 3. 툴팁에 표시될 문구 배열 (한 줄씩 나옵니다)
+    return [
+        `⛰️ 누적: ${data.heights[i].toLocaleString()}m`,
+        `🏔️ 최고봉: ${data.peaks[i]}`,
+        `📈 횟수: ${data.counts[i]}회`,
+        `────────────────`, // 구분선
+        `✨ ${title}`,
+        `🪨바위 ${pR}% | 🌲숲 ${pF}% | 🌊계곡 ${pV}%`
+    ];
+}
+
                     }
                 }
             },
@@ -4134,6 +4161,7 @@ console.error("온도 갱신 중 오류 발생:", e);
 }
 
 window.showMemberMountain = async (mId, mName) => {
+    window.currentMemberId = mId;
 const modal = document.getElementById('mountainViewModal');
 const card = document.getElementById('integratedCard');
 const peakLayer = document.getElementById('peakLayer');
@@ -4143,6 +4171,52 @@ const beam = document.getElementById('lightBeam');
 const peakLabel = document.getElementById('highestPeakLabel');
 const ringMainTitle = document.querySelector('.ring-main-title');
 const mwMountainName = document.getElementById('mwMountainName');
+const u = userSnap.data();
+
+// 1. 성분 데이터 계산
+const r = u.totalRock || 0;
+const f = u.totalForest || 0;
+const v = u.totalValley || 0;
+const total = r + f + v || 1;
+
+const pR = Math.round((r / total) * 100);
+const pF = Math.round((f / total) * 100);
+const pV = Math.round((v / total) * 100);
+
+let gTitle = ""; let gColor = "";
+if (r >= f && r >= v) { gTitle = "🧱 강인한 바위의 수호자"; gColor = "#94a3b8"; }
+else if (f >= r && f >= v) { gTitle = "🌿 신비로운 숲의 파수꾼"; gColor = "#22c55e"; }
+else { gTitle = "💧 푸른 물결의 인도자"; gColor = "#3b82f6"; }
+
+// 2. 화면에 표시할 HTML 만들기
+const statsHtml = `
+    <div style="margin: 15px 0; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 15px; border-left: 4px solid ${gColor};">
+        <div style="font-weight: bold; color: ${gColor}; font-size: 15px; margin-bottom: 12px;">${gTitle}</div>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+            ${createBar("바위", pR, "#94a3b8")}
+            ${createBar("숲", pF, "#22c55e")}
+            ${createBar("계곡", pV, "#3b82f6")}
+        </div>
+    </div>
+`;
+
+// 바(Bar)를 만드는 보조 함수 (가독성을 위해)
+function createBar(label, percent, color) {
+    return `
+        <div>
+            <div style="display: flex; justify-content: space-between; font-size: 11px; color: #aaa; margin-bottom: 4px;">
+                <span>${label}</span><span>${percent}%</span>
+            </div>
+            <div style="width: 100%; height: 6px; background: #222; border-radius: 3px; overflow: hidden;">
+                <div style="width: ${percent}%; height: 100%; background: ${color}; transition: width 1s ease;"></div>
+            </div>
+        </div>
+    `;
+}
+
+// 3. 실제 화면에 넣기 (기존 '최고봉' 라벨 근처나 원하는 곳의 ID를 찾으세요)
+// 예: 최고봉 라벨 아래에 넣고 싶다면
+document.getElementById('highestPeakLabel').insertAdjacentHTML('afterend', statsHtml);
 
 let ringBeam = document.getElementById('ringLightBeam');
 if(!ringBeam) {
