@@ -1937,14 +1937,20 @@ overflow: hidden;
 </head>
 <body>
 
-    <div id="statModal" class="stat-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:10000; align-items:center; justify-content:center;" onclick="this.style.display='none'">
-    <div class="stat-card" style="background:#1a1c23; border:1px solid #3b82f6; border-radius:20px; padding:25px; width:90%; max-width:350px; position:relative;" onclick="event.stopPropagation()">
-        <h3 style="color:#fff; text-align:center; margin-bottom:20px; letter-spacing:2px;">MOUNTAIN ELEMENT</h3>
+    <div id="statModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:100000; align-items:center; justify-content:center;" onclick="this.style.display='none'">
+    <div style="background:#111827; border:2px solid #3b82f6; border-radius:24px; padding:30px; width:85%; max-width:340px; box-shadow: 0 0 20px rgba(59,130,246,0.5);" onclick="event.stopPropagation()">
+        <div style="text-align:center; margin-bottom:25px;">
+            <h3 style="color:#fff; font-size:18px; font-weight:900; letter-spacing:2px; margin:0;">MOUNTAIN STATS</h3>
+            <div style="width:40px; height:2px; background:#3b82f6; margin:10px auto;"></div>
+        </div>
         
-        <div id="statList" style="display:flex; flex-direction:column; gap:20px;">
+        <div id="statList" style="display:flex; flex-direction:column; gap:22px;">
             </div>
         
-        <button onclick="document.getElementById('statModal').style.display='none'" style="margin-top:25px; width:100%; padding:10px; background:#3b82f6; color:white; border:none; border-radius:10px;">닫기</button>
+        <button onclick="document.getElementById('statModal').style.display='none'" 
+                style="margin-top:30px; width:100%; padding:12px; background:linear-gradient(to right, #3b82f6, #2563eb); color:white; border:none; border-radius:12px; font-weight:bold; cursor:pointer;">
+            확인
+        </button>
     </div>
 </div>
 
@@ -2503,7 +2509,7 @@ class="w-full bg-transparent text-white text-sm outline-none text-right border-n
 </div>
 </div>
 
-<button onclick="showMountainStats()" class="bonding-forest-btn animate-side-glow">
+<button onclick="window.showMountainStats()" class="bonding-forest-btn animate-side-glow">
 ⛰️ 산 성분
 </button>
 </div>
@@ -2892,45 +2898,61 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 };
 
 
-    window.showMountainStats = async () => {
-    // 1. 현재 선택된 멤버 데이터 확인 (기존 변수 활용)
-    // mId는 현재 열려있는 모달의 대상 ID입니다.
-    const userRef = doc(db, "sanwoori", mId); 
-    const userSnap = await getDoc(userRef);
-    const u = userSnap.data();
+    // 전역 변수 mId가 정의되어 있어야 합니다. (기존 showMemberMountain 함수에서 설정됨)
+window.showMountainStats = async () => {
+    try {
+        // 1. 현재 선택된 멤버의 ID를 가져옵니다. 
+        // 만약 mId 변수가 없다면 현재 모달에 저장된 데이터를 사용해야 합니다.
+        if (!mId) {
+            alert("멤버 정보를 찾을 수 없습니다.");
+            return;
+        }
 
-    const r = u.totalRock || 0;
-    const f = u.totalForest || 0;
-    const v = u.totalValley || 0;
-    const total = r + f + v || 1; // 0으로 나누기 방지
+        const userRef = doc(db, "sanwoori", mId);
+        const userSnap = await getDoc(userRef);
+        
+        if (!userSnap.exists()) {
+            alert("데이터가 아직 생성되지 않았습니다.");
+            return;
+        }
 
-    // 퍼센트 계산
-    const pR = Math.round((r / total) * 100);
-    const pF = Math.round((f / total) * 100);
-    const pV = Math.round((v / total) * 100);
+        const u = userSnap.data();
+        const r = u.totalRock || 0;
+        const f = u.totalForest || 0;
+        const v = u.totalValley || 0;
+        const total = r + f + v || 1; // 0 나누기 방지
 
-    const list = document.getElementById('statList');
-    
-    // 유형별 칭호 결정
-    const items = [
-        { name: "강인한 바위 거인", val: pR, color: "#94a3b8", icon: "🪨" },
-        { name: "신비로운 숲의 파수꾼", val: pF, color: "#22c55e", icon: "🌲" },
-        { name: "푸른 물결의 인도자", val: pV, color: "#3b82f6", icon: "🌊" }
-    ];
+        // 퍼센트 계산
+        const pR = Math.round((r / total) * 100);
+        const pF = Math.round((f / total) * 100);
+        const pV = Math.round((v / total) * 100);
 
-    list.innerHTML = items.map(i => `
-        <div>
-            <div style="display:flex; justify-content:space-between; color:white; font-size:12px; margin-bottom:5px;">
-                <span>${i.icon} ${i.name}</span>
-                <span>${i.val}%</span>
+        const list = document.getElementById('statList');
+        
+        const items = [
+            { name: "강인한 바위 거인", val: pR, color: "#94a3b8", icon: "🪨" },
+            { name: "신비로운 숲의 파수꾼", val: pF, color: "#22c55e", icon: "🌲" },
+            { name: "푸른 물결의 인도자", val: pV, color: "#3b82f6", icon: "🌊" }
+        ];
+
+        list.innerHTML = items.map(i => `
+            <div>
+                <div style="display:flex; justify-content:space-between; color:white; font-size:12px; margin-bottom:8px;">
+                    <span style="font-weight:bold;">${i.icon} ${i.name}</span>
+                    <span style="color:${i.color}; font-weight:900;">${i.val}%</span>
+                </div>
+                <div style="width:100%; height:10px; background:#1f2937; border-radius:5px; overflow:hidden; border:1px solid rgba(255,255,255,0.05);">
+                    <div style="width:${i.val}%; height:100%; background:${i.color}; box-shadow:0 0 10px ${i.color}aa; transition: width 1.5s cubic-bezier(0.22, 1, 0.36, 1);"></div>
+                </div>
             </div>
-            <div style="width:100%; height:8px; background:#334155; border-radius:4px; overflow:hidden;">
-                <div style="width:${i.val}%; height:100%; background:${i.color}; transition: width 1s ease;"></div>
-            </div>
-        </div>
-    `).join('');
+        `).join('');
 
-    document.getElementById('statModal').style.display = 'flex';
+        // 창 열기
+        document.getElementById('statModal').style.display = 'flex';
+    } catch (e) {
+        console.error("성분 창 열기 에러:", e);
+        alert("데이터를 불러오는 중 오류가 발생했습니다.");
+    }
 };
 
    window.showBondingForestModal = async () => {
