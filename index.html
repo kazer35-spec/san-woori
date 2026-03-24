@@ -2860,15 +2860,15 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 });
 };
 
-   window.showBondingForestModal = async () => {
+   Window.showBondingForestModal = async () => {
     let mName = "";
+    // 1. 이름 찾기 로직 유지
     const nameTags = Array.from(document.querySelectorAll('h2, .text-blue-600, .font-bold'));
     const foundTag = nameTags.find(el => el.innerText.includes('님') && !el.innerText.includes('산행'));
     if (foundTag) mName = foundTag.innerText.split(' ')[0].replace('님', '').trim();
-
     if (!mName) return alert("회원 이름을 찾을 수 없습니다.");
 
-    // 1. 초기 산행 데이터 (주신 명단 그대로 적용)
+    // 초기 산행 데이터 (명단 유지)
     const initialHikes = {
         "오즈": 32, "지니": 22, "나스": 17, "해수": 15, "하트": 12, "아랑": 17, "쿠키": 8, "용삼": 14, 
         "식이": 6, "몰랑": 8, "길치": 7, "등초": 6, "구름": 5, "튜브": 4, "햄찌": 5, "켄신": 3, 
@@ -2884,27 +2884,32 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
             processedIds: [], extraHikes: 0, partnersMap: {}, uniquePartners: [] 
         };
 
-        const [allLogsSnap, bondingSnap] = await Promise.all([
-            getDocs(collection(db, "sanwoori")), 
-            getDocs(collection(db, "bondingForest"))
-        ]);
-        
-        // 데이터 증분 업데이트
-        allLogsSnap.forEach(doc => {
-            if (cached.processedIds.includes(doc.id)) return;
-            const data = doc.data();
-            const hasCoords = data.latitude || data.location || data.coords || data.lat || data.x || data.y;
-            if (hasCoords && (data.author === mName || (data.members && data.members.includes(mName)))) {
-                cached.extraHikes++;
-                cached.processedIds.push(doc.id);
-            }
-        });
+        // ✨ [알뜰 통합] 1. 멤버의 실제 DB 데이터를 먼저 가져옵니다.
+        // currentData 배열에서 해당 이름을 가진 멤버의 ID를 찾습니다.
+        const memberObj = currentData.find(m => m.name === mName);
+        let dbGroupHikes = 0;
+        let currentFP = 0;
 
+        if (memberObj) {
+            const mRef = doc(db, "sanwoori", memberObj.id);
+            const mSnap = await getDoc(mRef);
+            if (mSnap.exists()) {
+                const u = mSnap.data();
+                // 우리가 새로 만든 '알뜰 필드'를 가져옵니다.
+                dbGroupHikes = u.groupHikingCount || 0;
+                currentFP = u.friendshipPoint || 0;
+            }
+        }
+
+        // 2. 인연의 숲 로그(bondingForest) 분석 로직은 '파트너 찾기'를 위해 유지
+        const bondingSnap = await getDocs(collection(db, "bondingForest"));
         bondingSnap.forEach(doc => {
             if (cached.processedIds.includes(doc.id)) return;
-            const members = doc.data().members || [];
+            const data = doc.data();
+            const members = data.members || [];
             if (members.includes(mName)) {
                 cached.processedIds.push(doc.id);
+                // 파트너 맵 업데이트
                 members.forEach(p => {
                     if (p !== mName) {
                         cached.partnersMap[p] = (cached.partnersMap[p] || 0) + 1;
@@ -2916,14 +2921,30 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 
         localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
 
+        // 3. ✨ [최종 횟수 계산 로직 통합]
         const baseHikes = initialHikes[mName] || 0;
-        const finalTotalHikes = baseHikes + cached.extraHikes;
-        const fpElement = document.getElementById('memberFriendshipPoint');
-        const currentFP = fpElement ? parseInt(fpElement.innerText.replace(/[^0-9]/g, '')) : 0;
-        const myMultiHikes = Math.floor(currentFP / 10); 
+        
+        // 최종 횟수는 (수동 초기값 + DB에 기록된 증분 횟수)로 계산합니다.
+        // 만약 dbGroupHikes가 있다면 로그를 일일이 센 cached.extraHikes보다 우선합니다.
+        const finalTotalHikes = baseHikes + dbGroupHikes;
 
+        // 4. 시너지 계산 (우정포인트 기반)
+        const myMultiHikes = Math.floor(currentFP / 10); 
         const finalSynergy = finalTotalHikes > 0 ? Math.min(100, Math.round((myMultiHikes / finalTotalHikes) * 100)) : 0;
 
+        // 5. UI 업데이트 (화면에 결과 뿌리기)
+        const totalDisp = document.getElementById('totalBondingHikes'); // HTML에 맞는 ID로 수정
+        if(totalDisp) totalDisp.innerText = `${finalTotalHikes}회`;
+        
+        // 성공적으로 계산 완료
+        console.log(`${mName}님 인연 데이터 통합 완료: 총 ${finalTotalHikes}회`);
+
+    } catch (error) {
+        console.error("Forest Modal Error:", error);
+    }
+};
+
+   
         // --- [핵심] 퍼센트별 색상 및 효과 설정 ---
         let gaugeColor = "#ef4444"; // 40미만: Red
         let glowClass = "";
@@ -3703,8 +3724,9 @@ window.saveCardImage = async () => {
     }
 };
 
+
 window.addMultiActivity = async () => {
-    // 1. 기본 데이터 수집 (기존과 동일)
+    // 1. 기본 데이터 수집
     const dateVal = document.getElementById('activityDate').value;
     const mName = document.getElementById('mountainName').value.trim();
     const height = parseInt(document.getElementById('mountainHeight').value) || 0;
@@ -3725,10 +3747,12 @@ window.addMultiActivity = async () => {
     const isSpecial = isRunning || isTracking; 
     const isHike = !isSpecial; 
     const effectiveUp = isHike ? up : 0;
+    
+    // 로그 생성 횟수 결정
     const logLoopCount = isRegular ? 1 : (isSpecial ? 1 : (isQuarterOnlyOne ? 1 : up));
     const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
 
-    // ✨ [추가] 인연의 숲에 저장할 "이름 리스트" 미리 생성
+    // 참여 멤버 이름 리스트 생성
     const selectedNames = [];
     selectedMemberIds.forEach(id => {
         const m = currentData.find(mem => mem.id === id);
@@ -3738,7 +3762,7 @@ window.addMultiActivity = async () => {
     try {
         pendingLevelUpCards = [];
 
-        // --- 개별 회원 데이터 업데이트 루프 시작 ---
+        // --- [개별 회원 데이터 업데이트 루프 시작] ---
         for(const id of selectedMemberIds){
             const member = currentData.find(m => m.id === id);
             if(!member) continue;
@@ -3746,15 +3770,17 @@ window.addMultiActivity = async () => {
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
-            // DB 업데이트 데이터 구성 (레벨, 높이, D-Day 등)
+            // 기본 업데이트 객체
             const updateData = {
                 level: newLevel,
                 totalHeight: increment(height)
             };
 
+            // 산행/러닝/트래킹 공통 처리
             if (isHike || isRunning || isTracking) {
                 updateData.lastDate = ts;
                 if (isHike) updateData.bonusDays = 0;
+                
                 if (oldLevel > 0) {
                     let calculatedDday = (member.dday || 0) + 15;
                     if (calculatedDday > 122) calculatedDday = 122;
@@ -3762,52 +3788,65 @@ window.addMultiActivity = async () => {
                 }
             }
 
-            await updateDoc(doc(db, "sanwoori", id), updateData);
-
-            // 우정 포인트 적립
+            // ✨ [인연의 숲 & 우정포인트 로직]
+            // 2인 이상 산행(isHike) 시에만 작동
             if (selectedMemberIds.size >= 2 && isHike) {
-                const pointToAdd = isRegular ? 10 : (10 * effectiveUp); 
-                await updateDoc(doc(db, "sanwoori", id), { friendshipPoint: increment(pointToAdd) });
+                // 1. 포인트 계산 (정기산행 10, 일반산행 10 * 레벨업수치)
+                const pointToAdd = isRegular ? 10 : (10 * up); 
+                updateData.friendshipPoint = increment(pointToAdd);
+                
+                // 2. ⭐ [핵심 수정] 포인트와 무관하게 2인 이상 산행 횟수 +1
+                updateData.groupHikingCount = increment(1); 
             }
+
+            // DB 업데이트 실행
+            await updateDoc(doc(db, "sanwoori", id), updateData);
 
             // 산행 로그(별) 생성
             for(let i = 0; i < logLoopCount; i++) {
                 await addDoc(collection(db, `sanwoori/${id}/logs`), {
-                    date: ts, mountain: mName, height, coords: tempCoord,
+                    date: ts, 
+                    mountain: mName, 
+                    height, 
+                    coords: typeof tempCoord !== 'undefined' ? tempCoord : null,
                     isTop100, isBAC, isRegular, isRunning, isTracking, region
                 });
             }
 
+            // 레벨업 체크 (카드 팝업용)
             if (isHike) checkLevelUpgrade(member.name, oldLevel, newLevel);
         }
-        // --- 루프 종료 ---
+        // --- [루프 종료] ---
 
-        // ✨ [인연의 숲 자동 기록] 루프 밖에서 1회만 실행
+        // ✨ [인연의 숲 전체 기록 테이블 저장] 
         if (selectedNames.length >= 2 && isHike) {
             try {
                 await addDoc(collection(db, "bondingForest"), {
                     mountain: mName,
-                    members: selectedNames, // ["오즈", "하트"] 형태
+                    members: selectedNames,
                     memberCount: selectedNames.length,
                     date: dateVal,
-                    createdAt: new Date() // serverTimestamp 대신 안전하게 Date 사용
+                    createdAt: new Date()
                 });
-                console.log("인연의 숲 데이터 저장 성공!");
             } catch (fError) {
-                console.error("인연의 숲 저장 중 오류:", fError);
+                console.error("bondingForest 저장 실패:", fError);
             }
         }
 
-        alert(isHike ? "산행 기록 및 인연의 숲 저장 완료!" : "기록 완료");
+        alert(isHike ? "산행 기록 및 인연의 숲(횟수 포함) 저장 완료!" : "기록 완료");
+        
+        // UI 초기화
         selectedMemberIds.clear();
-        updateAdminMemberLists();
-        startRealtimeSync(); 
+        if (typeof updateAdminMemberLists === 'function') updateAdminMemberLists();
+        if (typeof startRealtimeSync === 'function') startRealtimeSync(); 
+
     } catch (error) {
         console.error("Error:", error);
         alert("저장 실패: " + error.message);
     }
 };
 
+            
 
             
 
