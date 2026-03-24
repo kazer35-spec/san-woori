@@ -3231,9 +3231,18 @@ async function calculateGrowthData(mId) {
         peaks.push(peakName);
     }
 
-    // 차트 생성 시 필요한 모든 데이터를 객체로 묶어서 반환
-    return { labels, counts, heights, peaks, colors };
-}
+    // 차트 생성에 필요한 데이터를 준비하는 곳에서 성분 배열도 추가
+return { 
+    labels, 
+    counts, 
+    heights, 
+    peaks, 
+    colors,
+    rockPercents: rockDataArray,   // 분기별 바위% 배열 (계산 로직에서 만든 것)
+    forestPercents: forestDataArray, // 분기별 숲% 배열
+    valleyPercents: valleyDataArray  // 분기별 계곡% 배열
+};
+
 
 function renderGrowthChart(data) {
     const ctx = document.getElementById('growthChart').getContext('2d');
@@ -3247,7 +3256,6 @@ function renderGrowthChart(data) {
                 { 
                     label: '산행 횟수', 
                     data: data.counts, 
-                    // ⭐️ 여기가 핵심! 고정 색상 대신 계산된 colors 배열을 넣습니다.
                     backgroundColor: data.colors, 
                     borderRadius: 5, 
                     yAxisID: 'y', 
@@ -3268,19 +3276,35 @@ function renderGrowthChart(data) {
             ]
         },
         options: {
-            // ... (나머지 옵션은 그대로 유지) ...
-            responsive: true, maintainAspectRatio: false,
+            responsive: true, 
+            maintainAspectRatio: false,
             plugins: {
                 legend: { display: false },
                 tooltip: {
                     backgroundColor: 'rgba(30, 41, 59, 0.95)',
-                    padding: 10,
-                    titleFont: { size: 12, weight: '900' },
-                    bodyFont: { size: 11, weight: '700' },
+                    padding: 12,
+                    titleFont: { size: 13, weight: '900' },
+                    bodyFont: { size: 12, weight: '700' },
+                    displayColors: false, // 툴팁 옆에 작은 색상 박스 제거 (깔끔하게)
                     callbacks: {
                         label: function(context) {
                             const i = context.dataIndex;
-                            return [ ` ⛰️ 누적: ${data.heights[i].toLocaleString()}m`, ` 🏔️ 최고봉: ${data.peaks[i]}`, ` 📈 횟수: ${data.counts[i]}회` ];
+                            
+                            // 1. 데이터 객체에서 각 성분 퍼센트 가져오기 (없으면 0 처리)
+                            const rP = data.rockPercents ? data.rockPercents[i] : 0;
+                            const fP = data.forestPercents ? data.forestPercents[i] : 0;
+                            const vP = data.valleyPercents ? data.valleyPercents[i] : 0;
+
+                            // 2. 툴팁에 한 줄씩 표시될 내용들
+                            return [
+                                `⛰️ 누적: ${data.heights[i].toLocaleString()}m`,
+                                `🏔️ 최고봉: ${data.peaks[i]}`,
+                                `📈 횟수: ${data.counts[i]}회`,
+                                `──────────────────`, // 구분선
+                                `🪨 바위: ${rP}%`,
+                                `🌲 숲  : ${fP}%`,
+                                `🌊 계곡: ${vP}%`
+                            ];
                         }
                     }
                 }
@@ -3293,6 +3317,7 @@ function renderGrowthChart(data) {
         }
     });
 }
+
 
     window.toggleMapView = () => {
 const main = document.getElementById('mapViewMain');
