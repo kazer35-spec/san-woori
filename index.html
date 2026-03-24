@@ -1937,23 +1937,6 @@ overflow: hidden;
 </head>
 <body>
 
-    <div id="statModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:100000; align-items:center; justify-content:center;" onclick="this.style.display='none'">
-    <div style="background:#111827; border:2px solid #3b82f6; border-radius:24px; padding:30px; width:85%; max-width:340px; box-shadow: 0 0 20px rgba(59,130,246,0.5);" onclick="event.stopPropagation()">
-        <div style="text-align:center; margin-bottom:25px;">
-            <h3 style="color:#fff; font-size:18px; font-weight:900; letter-spacing:2px; margin:0;">MOUNTAIN STATS</h3>
-            <div style="width:40px; height:2px; background:#3b82f6; margin:10px auto;"></div>
-        </div>
-        
-        <div id="statList" style="display:flex; flex-direction:column; gap:22px;">
-            </div>
-        
-        <button onclick="document.getElementById('statModal').style.display='none'" 
-                style="margin-top:30px; width:100%; padding:12px; background:linear-gradient(to right, #3b82f6, #2563eb); color:white; border:none; border-radius:12px; font-weight:bold; cursor:pointer;">
-            확인
-        </button>
-    </div>
-</div>
-
 <div id="levelUpCardModal" class="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-md hidden items-center justify-center p-5">
 <div class="w-full max-w-[400px] text-center">
 <h2 id="modalTitle" class="text-2xl font-black mb-1 text-white">LEVEL UP!</h2>
@@ -2487,35 +2470,15 @@ class="w-full bg-transparent text-white text-sm outline-none text-right border-n
 <div id="grassBoard" class="grass-container mb-4"></div>
 
 <div id="chartBox" class="chart-container-box">
-<div id="chartBox" class="chart-container-box" style="margin-top: 15px;">
-<div class="chart-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2px;">
-
-<div style="display: flex; flex-direction: column; gap: 2px;">
-<div class="chart-title-sub" style="font-size: 10px; font-weight: bold; color: #334155; display: flex; align-items: center; gap: 4px;">
-📊 분기 성장 추이
-</div>
-<div class="chart-guide-txt" style="font-size: 8px; color: #38BDF8; letter-spacing: -0.5px;">
-💡 그래프 및 인연의숲 터치 기록 확인 가능
+<div class="chart-header">
+<div class="chart-title-sub">📊 분기 성장 추이</div>
+<div class="chart-legend">
+<div class="legend-item"><span class="dot-bar"></span>횟수</div>
+<div class="legend-item"><span class="dot-line"></span>고도</div>
 </div>
 </div>
-
-<div style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
-<div class="chart-legend" style="display: flex; gap: 8px; font-size: 9px; color: #64748b; font-weight: bold;">
-<div class="legend-item" style="display: flex; align-items: center; gap: 3px;">
-<span class="dot-bar" style="width: 7px; height: 7px; background: #3b82f6; border-radius: 1px; display: inline-block;"></span> 횟수
-</div>
-<div class="legend-item" style="display: flex; align-items: center; gap: 3px;">
-<span class="dot-line" style="width: 7px; height: 7px; background: #ef4444; border-radius: 50%; display: inline-block;"></span> 고도
-</div>
-</div>
-
-<button onclick="window.showMountainStats()" class="bonding-forest-btn animate-side-glow">
-⛰️ 산 성분
-</button>
-</div>
-</div>
-
-<div style="height: 120px; width: 100%; margin-top: 8px;">
+<div class="chart-guide-txt">💡 그래프를 터치하면 상세 기록 확인 가능</div>
+<div style="height: 120px;">
 <canvas id="growthChart"></canvas>
 </div>
 </div>
@@ -2895,66 +2858,6 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 </td>
 </tr>`;
 });
-};
-
-
-    window.showMountainStats = async () => {
-    try {
-        // 1. ID가 비어있는지 확인
-        if (!currentMemberId) {
-            alert("멤버 정보가 유실되었습니다. 카드를 닫고 다시 열어주세요.");
-            return;
-        }
-
-        console.log("분석 대상 ID:", currentMemberId); // 개발자 도구 확인용
-
-        // 2. 파이어베이스 데이터 가져오기
-        const userRef = doc(db, "sanwoori", currentMemberId);
-        const userSnap = await getDoc(userRef);
-        
-        if (!userSnap.exists()) {
-            alert("아직 성분 데이터가 생성되지 않았습니다.");
-            return;
-        }
-
-        const u = userSnap.data();
-        const r = u.totalRock || 0;
-        const f = u.totalForest || 0;
-        const v = u.totalValley || 0;
-        const total = r + f + v || 1;
-
-        const pR = Math.round((r / total) * 100);
-        const pF = Math.round((f / total) * 100);
-        const pV = Math.round((v / total) * 100);
-
-        // 3. UI 업데이트
-        const list = document.getElementById('statList');
-        const items = [
-            { name: "강인한 바위 거인", val: pR, color: "#94a3b8", icon: "🪨" },
-            { name: "신비로운 숲의 파수꾼", val: pF, color: "#22c55e", icon: "🌲" },
-            { name: "푸른 물결의 인도자", val: pV, color: "#3b82f6", icon: "🌊" }
-        ];
-
-        list.innerHTML = items.map(i => `
-            <div style="margin-bottom:15px;">
-                <div style="display:flex; justify-content:space-between; color:white; font-size:12px; margin-bottom:5px;">
-                    <span>${i.icon} ${i.name}</span>
-                    <span style="font-weight:bold;">${i.val}%</span>
-                </div>
-                <div style="width:100%; height:8px; background:#334155; border-radius:4px; overflow:hidden;">
-                    <div style="width:${i.val}%; height:100%; background:${i.color};"></div>
-                </div>
-            </div>
-        `).join('');
-
-        // 4. 모달 표시
-        const modal = document.getElementById('statModal');
-        modal.style.display = 'flex';
-
-    } catch (e) {
-        console.error("에러 발생:", e);
-        alert("데이터 로드 중 오류: " + e.message);
-    }
 };
 
    window.showBondingForestModal = async () => {
@@ -4231,7 +4134,6 @@ console.error("온도 갱신 중 오류 발생:", e);
 }
 
 window.showMemberMountain = async (mId, mName) => {
-    window.currentMemberId = mId;
 const modal = document.getElementById('mountainViewModal');
 const card = document.getElementById('integratedCard');
 const peakLayer = document.getElementById('peakLayer');
