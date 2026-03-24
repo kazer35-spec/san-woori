@@ -2888,26 +2888,33 @@ window.showBondingForestModal = async () => {
             getDocs(collection(db, "bondingForest"))
         ]);
         
-        // 데이터 증분 업데이트 (런닝/트레킹 제외 순수 산행 카운트)
+        // [수정] 모든 사용자의 'logs' 서브 컬렉션을 통째로 가져오기 (이게 핵심입니다)
+const [allLogsSnap, bondingSnap] = await Promise.all([
+    getDocs(collectionGroup(db, "logs")), 
+    getDocs(collection(db, "bondingForest"))
+]);
+
+// 데이터 증분 업데이트 부분
 allLogsSnap.forEach(doc => {
-    // 1. 이미 처리된 기록은 건너뜁니다.
+    // 1. 이미 계산한 적 있는 문서면 패스
     if (cached.processedIds.includes(doc.id)) return;
 
     const data = doc.data();
 
-    // 2. 본인 기록 확인 (작성자이거나 참여 멤버 명단에 이름이 있는 경우)
-    const isMyActivity = (data.author === mName || (data.members && data.members.includes(mName)));
+    // 2. 작성자(author) 이름이 본인과 일치하는지 확인 (대소문자/공백 제거 포함)
+    const isAuthor = data.author && data.author.trim() === mName.trim();
+    // 3. 참여자 명단(members)에 본인이 있는지 확인
+    const isMember = data.members && data.members.includes(mName.trim());
 
-    // 3. 활동 유형 필터링 (런닝/트레킹 제외)
-    // run이나 trek 필드가 true이거나 0보다 큰 숫자인 경우 제외합니다.
-    const isRunning = data.run === true || (typeof data.run === 'number' && data.run > 0);
-    const isTrekking = data.trek === true || (typeof data.trek === 'number' && data.trek > 0);
+    // 4. 런닝/트레킹 체크 여부 (필드가 없으면 false로 간주)
+    const isRunning = data.run === true || (Number(data.run) > 0);
+    const isTrekking = data.trek === true || (Number(data.trek) > 0);
 
-    // 4. 순수 산행 조건 충족 시 카운트 (좌표 정보 여부는 서비스 정책에 따라 선택사항으로 둠)
-    if (isMyActivity && !isRunning && !isTrekking) {
+    // [조건 체크] 본인 기록이면서 + 런닝/트레킹이 아닌 '순수 산행'일 때만!
+    if ((isAuthor || isMember) && !isRunning && !isTrekking) {
         cached.extraHikes++;
         cached.processedIds.push(doc.id);
-        console.log(`[산행 추가] ${data.mountain || '기록'}이 전체 횟수에 반영되었습니다.`);
+        console.log(`✅ 신규 산행 발견: ${data.mountain || '기록'} / 누적: ${cached.extraHikes}`);
     }
 });
 
