@@ -2508,7 +2508,7 @@ class="w-full bg-transparent text-white text-sm outline-none text-right border-n
 </div>
 </div>
 
-<button onclick="showMemberComposition(mId)" class="bonding-forest-btn animate-side-glow">
+<button onclick="showMemberComposition('${m.id}', '${m.name}')" class="bonding-forest-btn animate-side-glow">
 ⛰️ 개인 산 성분
 </button>
 </div>
@@ -2895,22 +2895,24 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 </tr>`;
 });
 };
-window.showMemberComposition = async (targetId) => {
+
+window.showMemberComposition = async (targetId, targetName) => {
     if (!targetId) return alert("회원 고유 ID를 찾을 수 없습니다.");
 
     const modal = document.getElementById('compositionModal');
     const list = document.getElementById('compList');
     const title = document.getElementById('compMainTitle');
 
+    // 팝업 열기 및 로딩 표시
     modal.style.display = 'flex';
-    list.innerHTML = `<div style="color:#94a3b8; font-size:12px; text-align:center; padding:20px;">데이터 분석 중...</div>`;
+    list.innerHTML = `<div style="color:#94a3b8; font-size:12px; text-align:center; padding:20px;">${targetName || ''} 데이터 분석 중...</div>`;
 
     try {
-        // [핵심] 고유 ID로 해당 문서 하나만 직접 조회 (가장 저렴하고 빠름)
+        // [효율적!] m.id를 이용해 문서 하나만 직접 가져옴
         const userSnap = await getDoc(doc(db, "sanwoori", targetId));
         
         if (!userSnap.exists()) {
-            list.innerHTML = `<div style="color:#94a3b8; text-align:center; font-size:12px; padding:20px;">성분 데이터가 없습니다.</div>`;
+            list.innerHTML = `<div style="color:#94a3b8; text-align:center; font-size:12px; padding:20px;">기록된 성분 데이터가 없습니다.</div>`;
             return;
         }
 
@@ -2942,9 +2944,7 @@ window.showMemberComposition = async (targetId) => {
             title.innerText = "아직 축적된 에너지가 없습니다.";
         } else {
             const top = config.reduce((prev, curr) => prev.val > curr.val ? prev : curr);
-            // 이름은 DB 문서에 저장된 name 필드를 쓰거나, 기존처럼 화면에서 가져올 수 있습니다.
-            const displayName = userSnap.data().name || "회원"; 
-            title.innerHTML = `${displayName}님은 <span style="color:${top.color}">${top.nickname}</span>`;
+            title.innerHTML = `${targetName || '회원'}님은 <span style="color:${top.color}">${top.nickname}</span>`;
         }
     } catch (e) {
         console.error(e);
