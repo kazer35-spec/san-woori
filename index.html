@@ -2862,7 +2862,7 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 
    Window.showBondingForestModal = async () => {
     let mName = "";
-    // 1. 이름 찾기 로직 유지
+    // 1. 이름 찾기 로직 (유지)
     const nameTags = Array.from(document.querySelectorAll('h2, .text-blue-600, .font-bold'));
     const foundTag = nameTags.find(el => el.innerText.includes('님') && !el.innerText.includes('산행'));
     if (foundTag) mName = foundTag.innerText.split(' ')[0].replace('님', '').trim();
@@ -2880,12 +2880,12 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
     const STORAGE_KEY = `forest_v3_${mName}`;
     
     try {
+        // 로컬 스토리지 캐시 불러오기
         let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { 
             processedIds: [], extraHikes: 0, partnersMap: {}, uniquePartners: [] 
         };
 
-        // ✨ [알뜰 통합] 1. 멤버의 실제 DB 데이터를 먼저 가져옵니다.
-        // currentData 배열에서 해당 이름을 가진 멤버의 ID를 찾습니다.
+        // ✨ [알뜰 통합 1] 현재 멤버의 DB 데이터 실시간 조회
         const memberObj = currentData.find(m => m.name === mName);
         let dbGroupHikes = 0;
         let currentFP = 0;
@@ -2895,13 +2895,12 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
             const mSnap = await getDoc(mRef);
             if (mSnap.exists()) {
                 const u = mSnap.data();
-                // 우리가 새로 만든 '알뜰 필드'를 가져옵니다.
-                dbGroupHikes = u.groupHikingCount || 0;
+                dbGroupHikes = u.groupHikingCount || 0; // 우리가 만든 알뜰 카운트 필드
                 currentFP = u.friendshipPoint || 0;
             }
         }
 
-        // 2. 인연의 숲 로그(bondingForest) 분석 로직은 '파트너 찾기'를 위해 유지
+        // ✨ [알뜰 통합 2] 파트너 정보를 위해 bondingForest만 조회 (allLogs 전체조회 삭제로 비용 절감)
         const bondingSnap = await getDocs(collection(db, "bondingForest"));
         bondingSnap.forEach(doc => {
             if (cached.processedIds.includes(doc.id)) return;
@@ -2909,7 +2908,6 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
             const members = data.members || [];
             if (members.includes(mName)) {
                 cached.processedIds.push(doc.id);
-                // 파트너 맵 업데이트
                 members.forEach(p => {
                     if (p !== mName) {
                         cached.partnersMap[p] = (cached.partnersMap[p] || 0) + 1;
@@ -2921,54 +2919,34 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 
         localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
 
-        // 3. ✨ [최종 횟수 계산 로직 통합]
+        // ✨ [핵심 계산] 최종 산행 횟수 통합
         const baseHikes = initialHikes[mName] || 0;
-        
-        // 최종 횟수는 (수동 초기값 + DB에 기록된 증분 횟수)로 계산합니다.
-        // 만약 dbGroupHikes가 있다면 로그를 일일이 센 cached.extraHikes보다 우선합니다.
+        // 최종 총 횟수 = 수동 명단 + DB 실시간 카운트
         const finalTotalHikes = baseHikes + dbGroupHikes;
-
-        // 4. 시너지 계산 (우정포인트 기반)
+        
+        // 시너지 계산 (포인트 기반 횟수 vs 총 횟수 비교)
         const myMultiHikes = Math.floor(currentFP / 10); 
         const finalSynergy = finalTotalHikes > 0 ? Math.min(100, Math.round((myMultiHikes / finalTotalHikes) * 100)) : 0;
 
-        // 5. UI 업데이트 (화면에 결과 뿌리기)
-        const totalDisp = document.getElementById('totalBondingHikes'); // HTML에 맞는 ID로 수정
-        if(totalDisp) totalDisp.innerText = `${finalTotalHikes}회`;
-        
-        // 성공적으로 계산 완료
-        console.log(`${mName}님 인연 데이터 통합 완료: 총 ${finalTotalHikes}회`);
-
-    } catch (error) {
-        console.error("Forest Modal Error:", error);
-    }
-};
-
-   
-        // --- [핵심] 퍼센트별 색상 및 효과 설정 ---
-        let gaugeColor = "#ef4444"; // 40미만: Red
+        // --- 퍼센트별 색상 설정 (기존 유지) ---
+        let gaugeColor = "#ef4444"; 
         let glowClass = "";
-        if (finalSynergy >= 80) {
-            gaugeColor = "#10b981"; // 80이상: Emerald
-            glowClass = "gauge-glow"; // 반짝임 애니메이션 클래스
-        } else if (finalSynergy >= 70) {
-            gaugeColor = "#22c55e"; // 70이상: Green
-        } else if (finalSynergy >= 40) {
-            gaugeColor = "#f59e0b"; // 40이상: Amber
-        }
+        if (finalSynergy >= 80) { gaugeColor = "#10b981"; glowClass = "gauge-glow"; }
+        else if (finalSynergy >= 70) { gaugeColor = "#22c55e"; }
+        else if (finalSynergy >= 40) { gaugeColor = "#f59e0b"; }
 
+        // 최고의 파트너 찾기
         let bestP = "없음"; let bestC = 0;
         Object.entries(cached.partnersMap).forEach(([n, c]) => { if(c > bestC) { bestP = n; bestC = c; } });
 
+        // --- 모달 HTML 출력 ---
         const modalHTML = `
             <div id="forestModal" class="fixed inset-0 z-[10000] flex items-center justify-center bg-black/85 backdrop-blur-md" onclick="this.remove()">
                 <div class="bg-[#0f172a] border border-emerald-500/30 p-8 rounded-[2.5rem] w-[320px] text-center shadow-2xl" onclick="event.stopPropagation()">
                     <div class="text-emerald-400 text-[10px] font-black mb-6 tracking-[0.4em]">BONDING FOREST</div>
-                    <div class="text-6xl mb-6"></div>
                     <h3 class="text-white text-2xl font-bold mb-2">${mName}님의 인연</h3>
-                    <p class="text-[11px] text-slate-500 mb-8 leading-relaxed"></p>
                     
-                    <div class="space-y-4 text-left">
+                    <div class="space-y-4 text-left mt-6">
                         <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
                             <div class="text-[10px] font-bold mb-1" style="color: ${gaugeColor}">🤝 동행 지수 (Synergy Rate)</div>
                             <div class="flex justify-between items-end">
@@ -3000,9 +2978,10 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
                 </div>
             </div>`;
         document.body.insertAdjacentHTML('beforeend', modalHTML);
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error("Forest Modal Error:", e); }
 };
 
+        
    
     
 window.toggleHallModal = async (show) => {
