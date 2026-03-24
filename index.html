@@ -3084,7 +3084,7 @@ logsQuarter.forEach(l => {
 // 5. 잔디 보드 HTML 생성
 let grassHtml = "";
 const seasonalFlowers = {
-    spring: ['💮', '🌷', '🌼', '🪷'],
+    spring: ['🌸', '🌷', '🌼', '🪷'],
     summer: ['🌻', '🏵', '🌹', '🌺'],
     fall: ['🍁', '🍂', '🌾', '🪻'],
     winter: ['❄️', '🌲', '🪾', '☃️']
@@ -3190,26 +3190,18 @@ window.getSeasonColor = (month) => {
     return "#7dd3fc"; // ❄️ 겨울: 하늘
 };
 
-// 1. 메인 데이터 계산 함수
+// 2. 메인 데이터 계산 함수
 async function calculateGrowthData(mId) {
     const labels = []; const counts = []; const heights = []; const peaks = [];
-    const colors = [];
-    
-    // 성분 데이터를 담을 배열
-    const rockDataArray = [];
-    const forestDataArray = [];
-    const valleyDataArray = [];
-
-    // 현재 선택된 연도와 분기 기준 (변수가 없다면 현재 날짜 기준 등으로 설정 필요)
-    let curYear = typeof selectedYear !== 'undefined' ? selectedYear : new Date().getFullYear();
-    let curQuarter = typeof selectedQuarter !== 'undefined' ? selectedQuarter : Math.floor((new Date().getMonth() + 3) / 3);
+    const colors = []; // 각 막대(분기)의 색상을 저장할 배열
 
     for (let i = 3; i >= 0; i--) {
-        let q = curQuarter - i; 
-        let y = curYear;
+        let q = selectedQuarter - i; let y = selectedYear;
         while (q <= 0) { q += 4; y -= 1; }
         
         labels.push(`${q}Q`);
+
+        // --- [색상 로직 추가] 각 분기의 시작월을 기준으로 색상 결정 ---
         const startMonth = (q - 1) * 3 + 1; 
         colors.push(window.getSeasonColor(startMonth)); 
 
@@ -3225,50 +3217,29 @@ async function calculateGrowthData(mId) {
         counts.push(qSnap.size);
         
         let qH = 0; let maxH = 0; let peakName = "-";
-        let qRockSum = 0; let qForestSum = 0; let qValleySum = 0;
-
         qSnap.forEach(d => {
-            const logData = d.data(); 
-            const h = Number(logData.height) || 0;
+            const data = d.data(); 
+            const h = Number(data.height) || 0;
             qH += h;
             if(h > maxH) { 
                 maxH = h; 
-                peakName = logData.mountain || "기록"; 
+                peakName = data.mountain || "기록"; 
             }
-            // 산행 로그에 저장된 성분 더하기 (없으면 0)
-            qRockSum += (logData.pRock || 0);
-            qForestSum += (logData.pForest || 0);
-            qValleySum += (logData.pValley || 0);
         });
 
         heights.push(qH);
         peaks.push(peakName);
-
-        // 분기별 퍼센트 계산
-        const qTotal = qRockSum + qForestSum + qValleySum || 1;
-        rockDataArray.push(Math.round((qRockSum / qTotal) * 100));
-        forestDataArray.push(Math.round((qForestSum / qTotal) * 100));
-        valleyDataArray.push(Math.round((qValleySum / qTotal) * 100));
     }
 
-    // ✨ 중요: 여기서 함수를 정상적으로 끝내줍니다.
-    return { 
-        labels, counts, heights, peaks, colors,
-        rockPercents: rockDataArray,
-        forestPercents: forestDataArray,
-        valleyPercents: valleyDataArray
-    };
-} // <-- 이 중괄호가 꼭 닫혀야 합니다!
+    // 차트 생성 시 필요한 모든 데이터를 객체로 묶어서 반환
+    return { labels, counts, heights, peaks, colors };
+}
 
-// 2. 차트 렌더링 함수 (통합 버전)
 function renderGrowthChart(data) {
-    const canvas = document.getElementById('growthChart');
-    if (!canvas) return; // 캔버스가 없으면 중단
+    const ctx = document.getElementById('growthChart').getContext('2d');
+    if (growthChartInstance) growthChartInstance.destroy();
     
-    const ctx = canvas.getContext('2d');
-    if (window.growthChartInstance) window.growthChartInstance.destroy();
-    
-    window.growthChartInstance = new Chart(ctx, {
+    growthChartInstance = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: data.labels,
@@ -3276,6 +3247,7 @@ function renderGrowthChart(data) {
                 { 
                     label: '산행 횟수', 
                     data: data.counts, 
+                    // ⭐️ 여기가 핵심! 고정 색상 대신 계산된 colors 배열을 넣습니다.
                     backgroundColor: data.colors, 
                     borderRadius: 5, 
                     yAxisID: 'y', 
@@ -3296,58 +3268,31 @@ function renderGrowthChart(data) {
             ]
         },
         options: {
-            responsive: true, 
-            maintainAspectRatio: false,
+            // ... (나머지 옵션은 그대로 유지) ...
+            responsive: true, maintainAspectRatio: false,
             plugins: {
-    legend: { display: false },
-    tooltip: {
-        backgroundColor: 'rgba(30, 41, 59, 0.95)',
-        padding: 10,
-        titleFont: { size: 12, weight: '900' },
-        bodyFont: { size: 11, weight: '700' },
-        // ⭐️ 1. 색상 박스를 강제로 표시하도록 설정
-        displayColors: true, 
-        boxWidth: 8,
-        boxHeight: 8,
-        boxPadding: 5,
-        callbacks: {
-            // ⭐️ 2. label은 '한 줄'씩만 처리해야 색상 박스가 유지됩니다.
-            // 여러 줄을 넣고 싶다면 아래처럼 구성하세요.
-            label: function(context) {
-                const i = context.dataIndex;
-                // 현재 데이터셋의 레이블(산행 횟수 등)을 가져옵니다.
-                let label = context.dataset.label || '';
-                if (label) {
-                    label += ': ';
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(30, 41, 59, 0.95)',
+                    padding: 10,
+                    titleFont: { size: 12, weight: '900' },
+                    bodyFont: { size: 11, weight: '700' },
+                    callbacks: {
+                        label: function(context) {
+                            const i = context.dataIndex;
+                            return [ ` ⛰️ 누적: ${data.heights[i].toLocaleString()}m`, ` 🏔️ 최고봉: ${data.peaks[i]}`, ` 📈 횟수: ${data.counts[i]}회` ];
+                        }
+                    }
                 }
-                return label + `${data.counts[i]}회`;
             },
-            // ⭐️ 3. 나머지 정보(누적 고도, 성분 등)는 footer나 afterLabel에 넣습니다.
-            afterLabel: function(context) {
-                const i = context.dataIndex;
-                const rP = data.rockPercents ? data.rockPercents[i] : 0;
-                const fP = data.forestPercents ? data.forestPercents[i] : 0;
-                const vP = data.valleyPercents ? data.valleyPercents[i] : 0;
-
-                return [
-                    `⛰️ 누적: ${data.heights[i].toLocaleString()}m`,
-                    `🏔️ 최고봉: ${data.peaks[i]}`,
-                    `──────────────────`,
-                    `🪨 바위 ${data.rockPercents[i]}% | 🌲 숲 ${data.forestPercents[i]}% | 🌊 계곡 ${data.valleyPercents[i]}%`
-                ];
-            }
-        }
-    }
-},
             scales: {
                 x: { grid: { display: false }, ticks: { font: { size: 10, weight: '800' } } },
-                y: { beginAtZero: true, position: 'left' },
+                y: { beginAtZero: true, position: 'left', grid: { color: '#f1f5f9' }, ticks: { font: { size: 8 } } },
                 y1: { beginAtZero: true, position: 'right', display: false }
             }
         }
     });
 }
-
 
     window.toggleMapView = () => {
 const main = document.getElementById('mapViewMain');
@@ -4388,7 +4333,7 @@ window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
     }
 
     // [3] 날짜 및 나이테 개수 계산 (만 개월수 로직 통합)
-    const fixedList = ["오즈","나스","해수","용삼","지니","아랑","민이","몰랑","길치","등초","무니","식이","구름","뚜벅","윤윤","햄찌","이구","후후","튜브","피치","송돌","호프","애플","얌얌","태리","희야","멸치","성민","섭섭","하트"];
+    const fixedList = ["오즈","나스","해수","용삼","지니","아랑","민이","몰랑","길치","등초","무니","식이","구름","뚜벅","윤윤","햄찌","이구","후후","튜브","피치","사랑","송돌","호프","애플","얌얌","태기","희야","멸치","성민","섭섭","하트"];
     
     // 가입일 설정 (고정 리스트는 25년 11월 24일 고정)
     let jDate = fixedList.includes(memberName) 
@@ -4830,12 +4775,12 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
             snap.forEach(doc => {
                 const data = doc.data();
                 const date = data.date ? data.date.toDate().toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' }) : '??.??';
-               let typeIcon = ""; // 기본값은 등산
+               let typeIcon = "🧗‍♂️"; // 기본값은 등산
 
 if (data.run === true || data.run > 0) {
-    typeIcon = ""; // 런닝
+    typeIcon = "🏃"; // 런닝
 } else if (data.trek === true || data.trek > 0) {
-    typeIcon = ""; // 트레킹
+    typeIcon = "👩‍🦯"; // 트레킹
 }
              
                 const textColor = isGold ? "color: #d4af37; font-weight: bold;" : "color: #5a4a3a;";
