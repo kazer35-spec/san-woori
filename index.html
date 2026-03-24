@@ -1937,6 +1937,23 @@ overflow: hidden;
 </head>
 <body>
 
+        <div id="compositionModal" class="mountain-modal" style="display:none;" onclick="this.style.display='none'">
+    <div class="composition-card" onclick="event.stopPropagation()" style="background: rgba(15, 23, 42, 0.95); border-radius: 24px; padding: 25px; width: 300px; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px);">
+        <div style="text-align: center; margin-bottom: 20px;">
+            <span style="font-size: 0.7rem; color: #94a3b8; letter-spacing: 2px;">ELEMENT ANALYSIS</span>
+            <h3 style="color: #fff; margin: 5px 0; font-weight: 800;">나의 산 성분</h3>
+        </div>
+
+        <div id="compList" style="display: flex; flex-direction: column; gap: 18px;">
+            </div>
+
+        <div id="compTitleBox" style="margin-top: 30px; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 15px; text-align: center;">
+            <p id="compMainTitle" style="color: #fff; font-size: 0.95rem; font-weight: 700; margin: 0;"></p>
+        </div>
+    </div>
+        </div>
+
+    
 <div id="levelUpCardModal" class="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-md hidden items-center justify-center p-5">
 <div class="w-full max-w-[400px] text-center">
 <h2 id="modalTitle" class="text-2xl font-black mb-1 text-white">LEVEL UP!</h2>
@@ -2469,16 +2486,35 @@ class="w-full bg-transparent text-white text-sm outline-none text-right border-n
 
 <div id="grassBoard" class="grass-container mb-4"></div>
 
-<div id="chartBox" class="chart-container-box">
-<div class="chart-header">
-<div class="chart-title-sub">📊 분기 성장 추이</div>
-<div class="chart-legend">
-<div class="legend-item"><span class="dot-bar"></span>횟수</div>
-<div class="legend-item"><span class="dot-line"></span>고도</div>
+<div id="chartBox" class="chart-container-box" style="margin-top: 15px;">
+<div class="chart-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2px;">
+
+<div style="display: flex; flex-direction: column; gap: 2px;">
+<div class="chart-title-sub" style="font-size: 10px; font-weight: bold; color: #334155; display: flex; align-items: center; gap: 4px;">
+📊 분기 성장 추이
+</div>
+<div class="chart-guide-txt" style="font-size: 8px; color: #38BDF8; letter-spacing: -0.5px;">
+💡 그래프 및 인연의숲 터치 기록 확인 가능
 </div>
 </div>
-<div class="chart-guide-txt">💡 그래프를 터치하면 상세 기록 확인 가능</div>
-<div style="height: 120px;">
+
+<div style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
+<div class="chart-legend" style="display: flex; gap: 8px; font-size: 9px; color: #64748b; font-weight: bold;">
+<div class="legend-item" style="display: flex; align-items: center; gap: 3px;">
+<span class="dot-bar" style="width: 7px; height: 7px; background: #3b82f6; border-radius: 1px; display: inline-block;"></span> 횟수
+</div>
+<div class="legend-item" style="display: flex; align-items: center; gap: 3px;">
+<span class="dot-line" style="width: 7px; height: 7px; background: #ef4444; border-radius: 50%; display: inline-block;"></span> 고도
+</div>
+</div>
+
+<button onclick="showMemberComposition(currentUserId)" class="bonding-forest-btn animate-side-glow">
+⛰️ 개인 산 성분
+</button>
+</div>
+</div>
+
+<div style="height: 120px; width: 100%; margin-top: 8px;">
 <canvas id="growthChart"></canvas>
 </div>
 </div>
@@ -2858,6 +2894,54 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 </td>
 </tr>`;
 });
+};
+
+    window.showMemberComposition = async (mId) => {
+    const modal = document.getElementById('compositionModal');
+    const list = document.getElementById('compList');
+    const title = document.getElementById('compMainTitle');
+
+    modal.style.display = 'flex';
+    list.innerHTML = `<div style="color:white; font-size:12px; text-align:center;">에너지를 분석 중...</div>`;
+
+    try {
+        const userSnap = await getDoc(doc(db, "sanwoori", mId));
+        const comp = userSnap.data().composition || { rock: 0, forest: 0, valley: 0 };
+        
+        const total = comp.rock + comp.forest + comp.valley;
+        const getPer = (val) => total === 0 ? 0 : Math.round((val / total) * 100);
+
+        const config = [
+            { id: 'rock', label: '바위', nickname: '강인한 바위 거인', color: '#94a3b8', icon: '⛰️' },
+            { id: 'forest', label: '숲', nickname: '신비로운 숲의 파수꾼', color: '#22c55e', icon: '🌳' },
+            { id: 'valley', label: '계곡', nickname: '푸른 물결의 인도자', color: '#3b82f6', icon: '🌊' }
+        ];
+
+        list.innerHTML = config.map(item => {
+            const per = getPer(comp[item.id]);
+            return `
+                <div>
+                    <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom: 6px;">
+                        <span style="color: #cbd5e1; font-size: 11px; font-weight: 600;">${item.icon} ${item.label}</span>
+                        <span style="color: ${item.color}; font-size: 13px; font-weight: 800;">${per}%</span>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.1); height: 6px; border-radius: 3px; overflow: hidden;">
+                        <div style="background: ${item.color}; width: ${per}%; height: 100%; box-shadow: 0 0 10px ${item.color}aa; transition: width 1s ease-out;"></div>
+                    </div>
+                </div>`;
+        }).join('');
+
+        // 가장 높은 수치의 칭호 설정
+        if(total === 0) {
+            title.innerText = "아직 기록된 성분이 없습니다.";
+        } else {
+            const top = config.reduce((prev, curr) => comp[prev.id] > comp[curr.id] ? prev : curr);
+            title.innerHTML = `당신은 <span style="color:${top.color}">${top.nickname}</span>`;
+        }
+    } catch (e) {
+        console.error(e);
+        list.innerHTML = "데이터 로드 실패";
+    }
 };
 
    window.showBondingForestModal = async () => {
@@ -4775,12 +4859,12 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
             snap.forEach(doc => {
                 const data = doc.data();
                 const date = data.date ? data.date.toDate().toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' }) : '??.??';
-               let typeIcon = ""; // 기본값은 등산
+               let typeIcon = "🧗‍♂️"; // 기본값은 등산
 
 if (data.run === true || data.run > 0) {
-    typeIcon = ""; // 런닝
+    typeIcon = "🏃"; // 런닝
 } else if (data.trek === true || data.trek > 0) {
-    typeIcon = ""; // 트레킹
+    typeIcon = "👩‍🦯"; // 트레킹
 }
              
                 const textColor = isGold ? "color: #d4af37; font-weight: bold;" : "color: #5a4a3a;";
@@ -5103,6 +5187,4 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
     </html>
-    
-    
     
