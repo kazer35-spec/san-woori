@@ -2867,45 +2867,38 @@ window.showBondingForestModal = async () => {
 
     if (!mName) return alert("회원 이름을 찾을 수 없습니다.");
 
-    const initialHikes = { /* 기존 데이터 동일 */ };
-    
-    // [수정] 신입 회원의 정확한 집계를 위해 캐시 키 버전을 업데이트 (기존 캐시 무시)
-    const STORAGE_KEY = `forest_v4_pureHike_${mName}`;
+    // 1. 초기 산행 데이터 (주신 명단 그대로 적용)
+    const initialHikes = {
+        "오즈": 32, "지니": 22, "나스": 17, "해수": 15, "하트": 12, "아랑": 17, "쿠키": 8, "용삼": 14, 
+        "식이": 6, "몰랑": 8, "길치": 7, "등초": 6, "구름": 5, "튜브": 4, "햄찌": 5, "켄신": 3, 
+        "애플": 4, "민이": 3, "운해": 3, "윤윤": 2, "무니": 3, "태리": 2, "이구": 2, "영규": 2, 
+        "후후": 6, "피치": 2, "호프": 2, "멸치": 1, "섭섭": 1, "뚜벅": 3, "송돌": 2, "여록": 1, 
+        "람쥐": 1, "몽꽁": 1, "란이": 2, "얌얌": 0, "수리": 1, "희야": 0, "성민": 0
+    };
+
+    const STORAGE_KEY = `forest_v3_${mName}`;
     
     try {
         let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { 
             processedIds: [], extraHikes: 0, partnersMap: {}, uniquePartners: [] 
         };
 
-        // 모든 사용자의 하위 'logs' 컬렉션을 한꺼번에 조회
         const [allLogsSnap, bondingSnap] = await Promise.all([
-            getDocs(collectionGroup(db, "logs")), 
+            getDocs(collection(db, "sanwoori")), 
             getDocs(collection(db, "bondingForest"))
         ]);
         
+        // 데이터 증분 업데이트
         allLogsSnap.forEach(doc => {
-            // 이미 처리된 문서는 패스
             if (cached.processedIds.includes(doc.id)) return;
-
             const data = doc.data();
-            
-            // 1. 본인 기록인지 확인 (작성자이거나 참여 멤버에 포함)
-            const isMyActivity = (data.author === mName || (data.members && data.members.includes(mName)));
-            
-            // 2. [핵심] 런닝/트레킹 제외 필터링
-            // run이나 trek 필드가 존재하고, 그 값이 true이거나 0보다 크면 '산행'이 아님
-            const isRunning = data.run === true || (typeof data.run === 'number' && data.run > 0);
-            const isTrekking = data.trek === true || (typeof data.trek === 'number' && data.trek > 0);
-            
-            // 3. 순수 산행인 경우에만 증분
-            if (isMyActivity && !isRunning && !isTrekking) {
+            const hasCoords = data.latitude || data.location || data.coords || data.lat || data.x || data.y;
+            if (hasCoords && (data.author === mName || (data.members && data.members.includes(mName)))) {
                 cached.extraHikes++;
                 cached.processedIds.push(doc.id);
-                console.log(`[산행 인증] ${data.mountain} 기록이 합산되었습니다.`);
             }
         });
 
-        // 인연의 숲(함께한 동료) 데이터 처리
         bondingSnap.forEach(doc => {
             if (cached.processedIds.includes(doc.id)) return;
             const members = doc.data().members || [];
@@ -2923,14 +2916,14 @@ window.showBondingForestModal = async () => {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
 
         const baseHikes = initialHikes[mName] || 0;
-        const totalHikes = baseHikes + cached.extraHikes;
-        
-        // 결과 출력 (신입이라도 이제 extraHikes가 쌓이므로 0이 되지 않습니다)
-        console.log(`${mName}님의 총 산행 횟수: ${totalHikes} (기존:${baseHikes} + 신규:${cached.extraHikes})`);
+        const finalTotalHikes = baseHikes + cached.extraHikes;
+        const fpElement = document.getElementById('memberFriendshipPoint');
+        const currentFP = fpElement ? parseInt(fpElement.innerText.replace(/[^0-9]/g, '')) : 0;
+        const myMultiHikes = Math.floor(currentFP / 10); 
 
-        // 이후 UI 렌더링 함수 호출 (예: renderForestUI(totalHikes, ...))
-        
-   
+        const finalSynergy = finalTotalHikes > 0 ? Math.min(100, Math.round((myMultiHikes / finalTotalHikes) * 100)) : 0;
+
+    
         // --- [핵심] 퍼센트별 색상 및 효과 설정 ---
         let gaugeColor = "#ef4444"; // 40미만: Red
         let glowClass = "";
