@@ -3299,29 +3299,48 @@ function renderGrowthChart(data) {
             responsive: true, 
             maintainAspectRatio: false,
             plugins: {
-                legend: { display: false },
-                tooltip: {
-    backgroundColor: 'rgba(30, 41, 59, 0.95)',
-    padding: 8,           // 패딩을 12 -> 8로 축소
-    titleFont: { size: 12, weight: '900' },
-    bodyFont: { size: 11, weight: '700' }, // 글자 크기를 살짝 줄임
-    displayColors: false,
-    callbacks: {
-        label: function(context) {
-            const i = context.dataIndex;
-            // 정보를 더 압축해서 표시 (성분을 한 줄에 몰아넣기)
-            return [
-                `⛰️ 누적: ${data.heights[i].toLocaleString()}m`,
-                `🏔️ 최고봉: ${data.peaks[i]}`,
-                `📈 횟수: ${data.counts[i]}회`,
-                `──────────────────`,
-                `🪨 ${data.rockPercents[i]}% | 🌲 ${data.forestPercents[i]}% | 🌊 ${data.valleyPercents[i]}%`
-            ];
+    legend: { display: false },
+    tooltip: {
+        backgroundColor: 'rgba(30, 41, 59, 0.95)',
+        padding: 10,
+        titleFont: { size: 12, weight: '900' },
+        bodyFont: { size: 11, weight: '700' },
+        // ⭐️ 1. 색상 박스를 강제로 표시하도록 설정
+        displayColors: true, 
+        boxWidth: 8,
+        boxHeight: 8,
+        boxPadding: 5,
+        callbacks: {
+            // ⭐️ 2. label은 '한 줄'씩만 처리해야 색상 박스가 유지됩니다.
+            // 여러 줄을 넣고 싶다면 아래처럼 구성하세요.
+            label: function(context) {
+                const i = context.dataIndex;
+                // 현재 데이터셋의 레이블(산행 횟수 등)을 가져옵니다.
+                let label = context.dataset.label || '';
+                if (label) {
+                    label += ': ';
+                }
+                return label + `${data.counts[i]}회`;
+            },
+            // ⭐️ 3. 나머지 정보(누적 고도, 성분 등)는 footer나 afterLabel에 넣습니다.
+            afterLabel: function(context) {
+                const i = context.dataIndex;
+                const rP = data.rockPercents ? data.rockPercents[i] : 0;
+                const fP = data.forestPercents ? data.forestPercents[i] : 0;
+                const vP = data.valleyPercents ? data.valleyPercents[i] : 0;
+
+                return [
+                    `⛰️ 누적: ${data.heights[i].toLocaleString()}m`,
+                    `🏔️ 최고봉: ${data.peaks[i]}`,
+                    `──────────────────`,
+                    `🪨 바위 ${rP}%`,
+                    `🌲 숲 ${fP}%`,
+                    `🌊 계곡 ${vP}%`
+                ];
+            }
         }
     }
-}
-
-            },
+},
             scales: {
                 x: { grid: { display: false }, ticks: { font: { size: 10, weight: '800' } } },
                 y: { beginAtZero: true, position: 'left' },
