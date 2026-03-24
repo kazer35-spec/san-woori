@@ -2893,20 +2893,21 @@ window.showMemberComposition = async (targetId, targetName) => {
     const title = document.getElementById('compMainTitle');
 
     modal.style.display = 'flex';
-    
+
     try {
-        // ✅ [핵심 수정] 이름 뒤의 '님'과 공백을 완전히 제거합니다.
+        // ✅ [진짜 해결책] '님'을 지우고, .trim()으로 앞뒤 모든 공백을 제거합니다.
         const cleanName = targetName.replace('님', '').trim();
         
-        console.log("분석 대상(청소후):", cleanName); // 콘솔에 '지니'라고 뜨는지 확인용
-        
+        // 콘솔에 "분석 대상: [지니]" 라고 대괄호 안에 공백 없이 나오는지 확인해보세요.
+        console.log(`분석 대상: [${cleanName}]`); 
+
         list.innerHTML = `<div style="color:#94a3b8; font-size:12px; text-align:center; padding:20px;">${cleanName}님의 에너지 분석 중...</div>`;
 
-        // ✅ targetName 대신 깨끗해진 cleanName으로 DB 조회
+        // ✅ 공백이 제거된 cleanName으로 DB 조회
         const userSnap = await getDoc(doc(db, "sanwoori", cleanName));
         
         if (!userSnap.exists()) {
-            list.innerHTML = `<div style="color:#94a3b8; text-align:center; font-size:12px; padding:20px;">${cleanName}님의 데이터를 찾을 수 없습니다.</div>`;
+            list.innerHTML = `<div style="color:#94a3b8; text-align:center; font-size:12px; padding:20px;">'${cleanName}' 이름의 데이터를 찾을 수 없습니다.</div>`;
             return;
         }
 
@@ -2935,11 +2936,11 @@ window.showMemberComposition = async (targetId, targetName) => {
         }).join('');
 
         const top = config.reduce((prev, curr) => prev.val > curr.val ? prev : curr);
-        title.innerHTML = total === 0 ? "축적된 에너지가 없습니다." : `${cleanName}님은 <span style="color:${top.color}">${top.nickname}</span>`;
+        title.innerHTML = total === 0 ? "에너지가 아직 부족합니다." : `${cleanName}님은 <span style="color:${top.color}">${top.nickname}</span>`;
 
     } catch (e) {
-        console.error("에러 발생:", e);
-        list.innerHTML = "데이터 로드 실패";
+        console.error("데이터 로드 중 에러:", e);
+        list.innerHTML = "분석에 실패했습니다.";
     }
 };
 
