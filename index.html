@@ -3084,7 +3084,7 @@ logsQuarter.forEach(l => {
 // 5. 잔디 보드 HTML 생성
 let grassHtml = "";
 const seasonalFlowers = {
-    spring: ['🌸', '🌷', '🌼', '🪷'],
+    spring: ['💮', '🌷', '🌼', '🪷'],
     summer: ['🌻', '🏵', '🌹', '🌺'],
     fall: ['🍁', '🍂', '🌾', '🪻'],
     winter: ['❄️', '🌲', '🪾', '☃️']
@@ -3190,18 +3190,26 @@ window.getSeasonColor = (month) => {
     return "#7dd3fc"; // ❄️ 겨울: 하늘
 };
 
-// 2. 메인 데이터 계산 함수
+// 1. 메인 데이터 계산 함수
 async function calculateGrowthData(mId) {
     const labels = []; const counts = []; const heights = []; const peaks = [];
-    const colors = []; // 각 막대(분기)의 색상을 저장할 배열
+    const colors = [];
+    
+    // 성분 데이터를 담을 배열
+    const rockDataArray = [];
+    const forestDataArray = [];
+    const valleyDataArray = [];
+
+    // 현재 선택된 연도와 분기 기준 (변수가 없다면 현재 날짜 기준 등으로 설정 필요)
+    let curYear = typeof selectedYear !== 'undefined' ? selectedYear : new Date().getFullYear();
+    let curQuarter = typeof selectedQuarter !== 'undefined' ? selectedQuarter : Math.floor((new Date().getMonth() + 3) / 3);
 
     for (let i = 3; i >= 0; i--) {
-        let q = selectedQuarter - i; let y = selectedYear;
+        let q = curQuarter - i; 
+        let y = curYear;
         while (q <= 0) { q += 4; y -= 1; }
         
         labels.push(`${q}Q`);
-
-        // --- [색상 로직 추가] 각 분기의 시작월을 기준으로 색상 결정 ---
         const startMonth = (q - 1) * 3 + 1; 
         colors.push(window.getSeasonColor(startMonth)); 
 
@@ -3217,29 +3225,50 @@ async function calculateGrowthData(mId) {
         counts.push(qSnap.size);
         
         let qH = 0; let maxH = 0; let peakName = "-";
+        let qRockSum = 0; let qForestSum = 0; let qValleySum = 0;
+
         qSnap.forEach(d => {
-            const data = d.data(); 
-            const h = Number(data.height) || 0;
+            const logData = d.data(); 
+            const h = Number(logData.height) || 0;
             qH += h;
             if(h > maxH) { 
                 maxH = h; 
-                peakName = data.mountain || "기록"; 
+                peakName = logData.mountain || "기록"; 
             }
+            // 산행 로그에 저장된 성분 더하기 (없으면 0)
+            qRockSum += (logData.pRock || 0);
+            qForestSum += (logData.pForest || 0);
+            qValleySum += (logData.pValley || 0);
         });
 
         heights.push(qH);
         peaks.push(peakName);
+
+        // 분기별 퍼센트 계산
+        const qTotal = qRockSum + qForestSum + qValleySum || 1;
+        rockDataArray.push(Math.round((qRockSum / qTotal) * 100));
+        forestDataArray.push(Math.round((qForestSum / qTotal) * 100));
+        valleyDataArray.push(Math.round((qValleySum / qTotal) * 100));
     }
 
-    // 차트 생성 시 필요한 모든 데이터를 객체로 묶어서 반환
-    return { labels, counts, heights, peaks, colors };
-}
+    // ✨ 중요: 여기서 함수를 정상적으로 끝내줍니다.
+    return { 
+        labels, counts, heights, peaks, colors,
+        rockPercents: rockDataArray,
+        forestPercents: forestDataArray,
+        valleyPercents: valleyDataArray
+    };
+} // <-- 이 중괄호가 꼭 닫혀야 합니다!
 
+// 2. 차트 렌더링 함수 (통합 버전)
 function renderGrowthChart(data) {
-    const ctx = document.getElementById('growthChart').getContext('2d');
-    if (growthChartInstance) growthChartInstance.destroy();
+    const canvas = document.getElementById('growthChart');
+    if (!canvas) return; // 캔버스가 없으면 중단
     
-    growthChartInstance = new Chart(ctx, {
+    const ctx = canvas.getContext('2d');
+    if (window.growthChartInstance) window.growthChartInstance.destroy();
+    
+    window.growthChartInstance = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: data.labels,
@@ -3247,7 +3276,6 @@ function renderGrowthChart(data) {
                 { 
                     label: '산행 횟수', 
                     data: data.counts, 
-                    // ⭐️ 여기가 핵심! 고정 색상 대신 계산된 colors 배열을 넣습니다.
                     backgroundColor: data.colors, 
                     borderRadius: 5, 
                     yAxisID: 'y', 
@@ -3268,31 +3296,58 @@ function renderGrowthChart(data) {
             ]
         },
         options: {
-            // ... (나머지 옵션은 그대로 유지) ...
-            responsive: true, maintainAspectRatio: false,
+            responsive: true, 
+            maintainAspectRatio: false,
             plugins: {
-                legend: { display: false },
-                tooltip: {
-                    backgroundColor: 'rgba(30, 41, 59, 0.95)',
-                    padding: 10,
-                    titleFont: { size: 12, weight: '900' },
-                    bodyFont: { size: 11, weight: '700' },
-                    callbacks: {
-                        label: function(context) {
-                            const i = context.dataIndex;
-                            return [ ` ⛰️ 누적: ${data.heights[i].toLocaleString()}m`, ` 🏔️ 최고봉: ${data.peaks[i]}`, ` 📈 횟수: ${data.counts[i]}회` ];
-                        }
-                    }
+    legend: { display: false },
+    tooltip: {
+        backgroundColor: 'rgba(30, 41, 59, 0.95)',
+        padding: 10,
+        titleFont: { size: 12, weight: '900' },
+        bodyFont: { size: 11, weight: '700' },
+        // ⭐️ 1. 색상 박스를 강제로 표시하도록 설정
+        displayColors: true, 
+        boxWidth: 8,
+        boxHeight: 8,
+        boxPadding: 5,
+        callbacks: {
+            // ⭐️ 2. label은 '한 줄'씩만 처리해야 색상 박스가 유지됩니다.
+            // 여러 줄을 넣고 싶다면 아래처럼 구성하세요.
+            label: function(context) {
+                const i = context.dataIndex;
+                // 현재 데이터셋의 레이블(산행 횟수 등)을 가져옵니다.
+                let label = context.dataset.label || '';
+                if (label) {
+                    label += ': ';
                 }
+                return label + `${data.counts[i]}회`;
             },
+            // ⭐️ 3. 나머지 정보(누적 고도, 성분 등)는 footer나 afterLabel에 넣습니다.
+            afterLabel: function(context) {
+                const i = context.dataIndex;
+                const rP = data.rockPercents ? data.rockPercents[i] : 0;
+                const fP = data.forestPercents ? data.forestPercents[i] : 0;
+                const vP = data.valleyPercents ? data.valleyPercents[i] : 0;
+
+                return [
+                    `⛰️ 누적: ${data.heights[i].toLocaleString()}m`,
+                    `🏔️ 최고봉: ${data.peaks[i]}`,
+                    `──────────────────`,
+                    `🪨 바위 ${data.rockPercents[i]}% | 🌲 숲 ${data.forestPercents[i]}% | 🌊 계곡 ${data.valleyPercents[i]}%`
+                ];
+            }
+        }
+    }
+},
             scales: {
                 x: { grid: { display: false }, ticks: { font: { size: 10, weight: '800' } } },
-                y: { beginAtZero: true, position: 'left', grid: { color: '#f1f5f9' }, ticks: { font: { size: 8 } } },
+                y: { beginAtZero: true, position: 'left' },
                 y1: { beginAtZero: true, position: 'right', display: false }
             }
         }
     });
 }
+
 
     window.toggleMapView = () => {
 const main = document.getElementById('mapViewMain');
@@ -3648,8 +3703,9 @@ window.saveCardImage = async () => {
     }
 };
 
+
 window.addMultiActivity = async () => {
-    // 1. 기본 데이터 수집 (기존과 동일)
+    // 1. 기본 데이터 수집
     const dateVal = document.getElementById('activityDate').value;
     const mName = document.getElementById('mountainName').value.trim();
     const height = parseInt(document.getElementById('mountainHeight').value) || 0;
@@ -3673,17 +3729,24 @@ window.addMultiActivity = async () => {
     const logLoopCount = isRegular ? 1 : (isSpecial ? 1 : (isQuarterOnlyOne ? 1 : up));
     const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
 
-    // ✨ [추가] 인연의 숲에 저장할 "이름 리스트" 미리 생성
+    // [인연의 숲용] 선택된 멤버 이름 미리 수집
     const selectedNames = [];
     selectedMemberIds.forEach(id => {
         const m = currentData.find(mem => mem.id === id);
         if(m) selectedNames.push(m.name);
     });
 
-    try {
-        pendingLevelUpCards = [];
+    // 산 데이터 저장
+    if(mName && tempCoord) {
+        await setDoc(doc(db, "mountains", mName), {
+            x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region
+        }, { merge: true });
+    }
 
-        // --- 개별 회원 데이터 업데이트 루프 시작 ---
+    try {
+        pendingLevelUpCards = []; // 레벨업 카드 저장소 초기화
+
+        // --- 루프 시작 ---
         for(const id of selectedMemberIds){
             const member = currentData.find(m => m.id === id);
             if(!member) continue;
@@ -3691,11 +3754,7 @@ window.addMultiActivity = async () => {
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
-            // DB 업데이트 데이터 구성 (레벨, 높이, D-Day 등)
-            const updateData = {
-                level: newLevel,
-                totalHeight: increment(height)
-            };
+            const updateData = { level: newLevel, totalHeight: increment(height) };
 
             if (isHike || isRunning || isTracking) {
                 updateData.lastDate = ts;
@@ -3706,45 +3765,52 @@ window.addMultiActivity = async () => {
                     updateData.dday = calculatedDday;
                 }
             }
-
             await updateDoc(doc(db, "sanwoori", id), updateData);
 
-            // 우정 포인트 적립
+            // 우정 포인트
             if (selectedMemberIds.size >= 2 && isHike) {
                 const pointToAdd = isRegular ? 10 : (10 * effectiveUp); 
                 await updateDoc(doc(db, "sanwoori", id), { friendshipPoint: increment(pointToAdd) });
             }
 
-            // 산행 로그(별) 생성
+            // 로그 및 별 생성
             for(let i = 0; i < logLoopCount; i++) {
+                let assignedStarType = null;
+                if (isRegular) {
+                    const rand = Math.random() * 100;
+                    if (rand <= 3) assignedStarType = "super";
+                    else if (rand <= 10) assignedStarType = "special";
+                    else assignedStarType = "regular_" + (Math.floor(Math.random() * 4) + 1);
+                }
                 await addDoc(collection(db, `sanwoori/${id}/logs`), {
                     date: ts, mountain: mName, height, coords: tempCoord,
-                    isTop100, isBAC, isRegular, isRunning, isTracking, region
+                    isTop100, isBAC, isRegular, isRunning, isTracking, region,
+                    starType: assignedStarType
                 });
             }
 
+            // 레벨업 체크 (여기서 pendingLevelUpCards에 데이터가 쌓임)
             if (isHike) checkLevelUpgrade(member.name, oldLevel, newLevel);
         }
         // --- 루프 종료 ---
 
-        // ✨ [인연의 숲 자동 기록] 루프 밖에서 1회만 실행
+        // ✨ [추가된 부분] 인연의 숲 기록
         if (selectedNames.length >= 2 && isHike) {
-            try {
-                await addDoc(collection(db, "bondingForest"), {
-                    mountain: mName,
-                    members: selectedNames, // ["오즈", "하트"] 형태
-                    memberCount: selectedNames.length,
-                    date: dateVal,
-                    createdAt: new Date() // serverTimestamp 대신 안전하게 Date 사용
-                });
-                console.log("인연의 숲 데이터 저장 성공!");
-            } catch (fError) {
-                console.error("인연의 숲 저장 중 오류:", fError);
-            }
+            await addDoc(collection(db, "bondingForest"), {
+                mountain: mName,
+                members: selectedNames,
+                memberCount: selectedNames.length,
+                date: dateVal,
+                createdAt: new Date()
+            });
         }
 
-        alert(isHike ? "산행 기록 및 인연의 숲 저장 완료!" : "기록 완료");
+        // ✅ [핵심 수정] 레벨업 카드 노출 함수 호출!!
+        if (pendingLevelUpCards.length > 0) showCombinedLevelUpAlert();
+
+        alert(isHike ? "기록 및 인연의 숲 저장 완료!" : "기록 완료");
         selectedMemberIds.clear();
+        tempCoord = null;
         updateAdminMemberLists();
         startRealtimeSync(); 
     } catch (error) {
@@ -3752,6 +3818,8 @@ window.addMultiActivity = async () => {
         alert("저장 실패: " + error.message);
     }
 };
+
+            
 
 
             
@@ -4333,7 +4401,7 @@ window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
     }
 
     // [3] 날짜 및 나이테 개수 계산 (만 개월수 로직 통합)
-    const fixedList = ["오즈","나스","해수","용삼","지니","아랑","민이","몰랑","길치","등초","무니","식이","구름","뚜벅","윤윤","햄찌","이구","후후","튜브","피치","사랑","송돌","호프","애플","얌얌","태기","희야","멸치","성민","섭섭","하트"];
+    const fixedList = ["오즈","나스","해수","용삼","지니","아랑","민이","몰랑","길치","등초","무니","식이","구름","뚜벅","윤윤","햄찌","이구","후후","튜브","피치","송돌","호프","애플","얌얌","태리","희야","멸치","성민","섭섭","하트"];
     
     // 가입일 설정 (고정 리스트는 25년 11월 24일 고정)
     let jDate = fixedList.includes(memberName) 
@@ -4775,12 +4843,12 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
             snap.forEach(doc => {
                 const data = doc.data();
                 const date = data.date ? data.date.toDate().toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' }) : '??.??';
-               let typeIcon = "🧗‍♂️"; // 기본값은 등산
+               let typeIcon = ""; // 기본값은 등산
 
 if (data.run === true || data.run > 0) {
-    typeIcon = "🏃"; // 런닝
+    typeIcon = ""; // 런닝
 } else if (data.trek === true || data.trek > 0) {
-    typeIcon = "👩‍🦯"; // 트레킹
+    typeIcon = ""; // 트레킹
 }
              
                 const textColor = isGold ? "color: #d4af37; font-weight: bold;" : "color: #5a4a3a;";
