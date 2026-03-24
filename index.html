@@ -2900,41 +2900,34 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 
     window.showMountainStats = async () => {
     try {
-        // 1. 저장된 멤버 ID 확인
-        const targetId = window.currentMemberId; 
-        
-        if (!targetId) {
-            alert("멤버 정보를 다시 불러와주세요.");
+        // 1. ID가 비어있는지 확인
+        if (!currentMemberId) {
+            alert("멤버 정보가 유실되었습니다. 카드를 닫고 다시 열어주세요.");
             return;
         }
 
-        // 2. Firebase에서 해당 유저의 성분 데이터 가져오기
-        const userRef = doc(db, "sanwoori", targetId);
+        console.log("분석 대상 ID:", currentMemberId); // 개발자 도구 확인용
+
+        // 2. 파이어베이스 데이터 가져오기
+        const userRef = doc(db, "sanwoori", currentMemberId);
         const userSnap = await getDoc(userRef);
         
         if (!userSnap.exists()) {
-            alert("아직 성분 데이터가 없습니다. 산행을 기록해 보세요!");
+            alert("아직 성분 데이터가 생성되지 않았습니다.");
             return;
         }
 
         const u = userSnap.data();
-        
-        // 데이터가 없을 경우를 대비해 0으로 초기화
         const r = u.totalRock || 0;
         const f = u.totalForest || 0;
         const v = u.totalValley || 0;
-        const total = r + f + v;
-
-        // 데이터가 아예 없는 유저 처리
-        if (total === 0) {
-            alert("분석할 산행 데이터가 부족합니다.");
-            return;
-        }
+        const total = r + f + v || 1;
 
         const pR = Math.round((r / total) * 100);
         const pF = Math.round((f / total) * 100);
         const pV = Math.round((v / total) * 100);
 
+        // 3. UI 업데이트
         const list = document.getElementById('statList');
         const items = [
             { name: "강인한 바위 거인", val: pR, color: "#94a3b8", icon: "🪨" },
@@ -2943,21 +2936,24 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
         ];
 
         list.innerHTML = items.map(i => `
-            <div>
-                <div style="display:flex; justify-content:space-between; color:white; font-size:12px; margin-bottom:8px;">
-                    <span style="font-weight:bold;">${i.icon} ${i.name}</span>
-                    <span style="color:${i.color}; font-weight:900;">${i.val}%</span>
+            <div style="margin-bottom:15px;">
+                <div style="display:flex; justify-content:space-between; color:white; font-size:12px; margin-bottom:5px;">
+                    <span>${i.icon} ${i.name}</span>
+                    <span style="font-weight:bold;">${i.val}%</span>
                 </div>
-                <div style="width:100%; height:10px; background:#1f2937; border-radius:5px; overflow:hidden;">
-                    <div style="width:${i.val}%; height:100%; background:${i.color}; transition: width 1s ease;"></div>
+                <div style="width:100%; height:8px; background:#334155; border-radius:4px; overflow:hidden;">
+                    <div style="width:${i.val}%; height:100%; background:${i.color};"></div>
                 </div>
             </div>
         `).join('');
 
-        document.getElementById('statModal').style.display = 'flex';
+        // 4. 모달 표시
+        const modal = document.getElementById('statModal');
+        modal.style.display = 'flex';
+
     } catch (e) {
-        console.error("오류 상세:", e);
-        alert("데이터를 불러오는 중 오류가 발생했습니다.");
+        console.error("에러 발생:", e);
+        alert("데이터 로드 중 오류: " + e.message);
     }
 };
 
