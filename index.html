@@ -2888,16 +2888,29 @@ window.showBondingForestModal = async () => {
             getDocs(collection(db, "bondingForest"))
         ]);
         
-        // 데이터 증분 업데이트
-        allLogsSnap.forEach(doc => {
-            if (cached.processedIds.includes(doc.id)) return;
-            const data = doc.data();
-            const hasCoords = data.latitude || data.location || data.coords || data.lat || data.x || data.y;
-            if (hasCoords && (data.author === mName || (data.members && data.members.includes(mName)))) {
-                cached.extraHikes++;
-                cached.processedIds.push(doc.id);
-            }
-        });
+        // 데이터 증분 업데이트 (런닝/트레킹 제외 순수 산행 카운트)
+allLogsSnap.forEach(doc => {
+    // 1. 이미 처리된 기록은 건너뜁니다.
+    if (cached.processedIds.includes(doc.id)) return;
+
+    const data = doc.data();
+
+    // 2. 본인 기록 확인 (작성자이거나 참여 멤버 명단에 이름이 있는 경우)
+    const isMyActivity = (data.author === mName || (data.members && data.members.includes(mName)));
+
+    // 3. 활동 유형 필터링 (런닝/트레킹 제외)
+    // run이나 trek 필드가 true이거나 0보다 큰 숫자인 경우 제외합니다.
+    const isRunning = data.run === true || (typeof data.run === 'number' && data.run > 0);
+    const isTrekking = data.trek === true || (typeof data.trek === 'number' && data.trek > 0);
+
+    // 4. 순수 산행 조건 충족 시 카운트 (좌표 정보 여부는 서비스 정책에 따라 선택사항으로 둠)
+    if (isMyActivity && !isRunning && !isTrekking) {
+        cached.extraHikes++;
+        cached.processedIds.push(doc.id);
+        console.log(`[산행 추가] ${data.mountain || '기록'}이 전체 횟수에 반영되었습니다.`);
+    }
+});
+
 
         bondingSnap.forEach(doc => {
             if (cached.processedIds.includes(doc.id)) return;
