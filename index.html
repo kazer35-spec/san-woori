@@ -2369,6 +2369,10 @@ class="w-full bg-transparent text-white text-sm outline-none text-right border-n
 <input type="number" id="friendshipPointInput" placeholder="우정 포인트 (+/-)" class="flex-1 border rounded-xl px-3 py-2 text-xs">
 <button onclick="updateFriendshipPoint()" class="bg-blue-500 text-white px-4 py-2 rounded-xl text-xs font-black">포인트 적용</button>
 </div>
+    <div class="flex gap-2 mt-2">
+    <input type="number" id="buddyCountInput" placeholder="동행 횟수 직접 입력" class="input-gap flex-1 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white">
+    <button onclick="updateBuddyCountManual()" class="bg-emerald-600 text-white px-3 py-1 rounded text-xs font-bold whitespace-nowrap">동행 수정</button>
+    </div>
 <div class="bg-white p-2 rounded-xl border border-red-100 mb-3">
 <p class="text-[9px] text-gray-500 mb-1">🎁 D-Day 보너스 (양수:연장 / 음수:차감)</p>
 <div class="flex gap-2">
@@ -3857,10 +3861,29 @@ if (selectedMemberIds.size >= 2 && isHike) {
     }
 };
 
-            
+           // 관리자가 동행 횟수를 수동으로 수정하는 함수
+window.updateBuddyCountManual = async () => {
+    const mId = document.getElementById('memberSelectManage').value; // 선택된 멤버 ID
+    const newCount = parseInt(document.getElementById('buddyCountInput').value);
 
+    if (!mId) return alert("대상을 선택해주세요.");
+    if (isNaN(newCount)) return alert("수정할 횟수를 입력해주세요.");
 
-            
+    if (!confirm(`선택한 회원의 동행 횟수를 ${newCount}회로 변경하시겠습니까?`)) return;
+
+    try {
+        await updateDoc(doc(db, "sanwoori", mId), {
+            buddyCount: newCount
+        });
+        alert("동행 횟수가 수정되었습니다!");
+        document.getElementById('buddyCountInput').value = ""; // 입력칸 비우기
+        if (typeof startRealtimeSync === 'function') startRealtimeSync(); // 화면 새로고침
+    } catch (e) {
+        console.error(e);
+        alert("수정 실패: " + e.message);
+    }
+};
+ 
 
     window.loadMemberLogs = async () => {
 const id = document.getElementById('memberSelectEdit').value;
@@ -4121,9 +4144,9 @@ const edit = document.getElementById('memberSelectEdit');
 const manage = document.getElementById('memberSelectManage');
 if(!multi) return; multi.innerHTML = ""; edit.innerHTML = manage.innerHTML = '<option value="">대상 회원 선택</option>';
 alpha.forEach(m => {
-multi.innerHTML += `<div class="member-chip ${selectedMemberIds.has(m.id)?'selected':''} ${m.isHidden?'opacity-50':''}" onclick="toggleSelectMember('${m.id}', this)"><span class="gender-dot ${m.gender==='여'?'dot-pink':'dot-blue'}">●</span>${m.name}</div>`;
-edit.innerHTML += `<option value="${m.id}">${m.name}</option>`;
-manage.innerHTML += `<option value="${m.id}">${m.name}</option>`;
+multi.innerHTML += `<div class="member-chip ${selectedMemberIds.has(m.id)?'selected':''} ${m.isHidden?'opacity-50':''}" onclick="toggleSelectMember('${m.id}', this)"><span class="gender-dot ${m.gender==='여'?'dot-pink':'dot-blue'}">●</span>${m.name}(${m.buddyCount || 0})</div> `;
+edit.innerHTML += `<option value="${m.id}">${m.name} (${m.buddyCount || 0}회)</option> `;
+manage.innerHTML += `<option value="${m.id}">${m.name} (${m.buddyCount || 0}회)</option> `;
 });
 const visibleMembers = currentData.filter(m => !m.isHidden);
 document.getElementById('countTotal').innerText = visibleMembers.length;
