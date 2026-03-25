@@ -3693,8 +3693,9 @@ window.saveCardImage = async () => {
     }
 };
 
+
 window.addMultiActivity = async () => {
-    // 1. 기본 데이터 수집
+    // 1. 기본 데이터 수집 (날짜, 산이름, 체크박스 등)
     const dateVal = document.getElementById('activityDate').value;
     const mName = document.getElementById('mountainName').value.trim();
     const height = parseInt(document.getElementById('mountainHeight').value) || 0;
@@ -3715,29 +3716,27 @@ window.addMultiActivity = async () => {
     const isSpecial = isRunning || isTracking; 
     const isHike = !isSpecial; 
     const effectiveUp = isHike ? up : 0;
-    
-    // 로그 생성 횟수 및 타임스탬프 설정
     const logLoopCount = isRegular ? 1 : (isSpecial ? 1 : (isQuarterOnlyOne ? 1 : up));
     const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
 
-    // 인연의 숲용 참여 멤버 이름 리스트
+    // 인연의 숲용 이름 명단
     const selectedNames = [];
     selectedMemberIds.forEach(id => {
         const m = currentData.find(mem => mem.id === id);
         if(m) selectedNames.push(m.name);
     });
 
-    // [추가] 산 메타 정보 저장 (지도 연동용)
-    if(mName && typeof tempCoord !== 'undefined' && tempCoord) {
+    // 산 메타 정보 저장
+    if(mName && tempCoord) {
         await setDoc(doc(db, "mountains", mName), {
             x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region
         }, { merge: true });
     }
 
     try {
-        pendingLevelUpCards = []; // 레벨업 카드 초기화
+        pendingLevelUpCards = []; 
 
-        // --- [멤버별 데이터 업데이트 루프] ---
+        // --- 멤버별 데이터 업데이트 루프 ---
         for(const id of selectedMemberIds){
             const member = currentData.find(m => m.id === id);
             if(!member) continue;
@@ -3745,97 +3744,66 @@ window.addMultiActivity = async () => {
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
-            // 1. 기본 업데이트 객체 생성
-            const updateData = {
-                level: newLevel,
-                totalHeight: increment(height)
-            };
-
-            // 2. 날짜 및 디데이 로직
+            const updateData = { level: newLevel, totalHeight: increment(height) };
             if (isHike || isRunning || isTracking) {
                 updateData.lastDate = ts;
                 if (isHike) updateData.bonusDays = 0;
-                
                 if (oldLevel > 0) {
-                    let calculatedDday = (member.dday || 0) + 15;
-                    if (calculatedDday > 122) calculatedDday = 122;
+                    let calculatedDday = Math.min(122, (member.dday || 0) + 15);
                     updateData.dday = calculatedDday;
                 }
             }
-
-            // 3. ✨ [인연의 숲 & 우정포인트 핵심 로직]
-            if (isHike) {
-                // DB 실시간 카운트 증가 (2인 이상일 때)
-                if (selectedMemberIds.size >= 2) {
-                    const pointToAdd = isRegular ? 10 : (10 * up); 
-                    updateData.friendshipPoint = increment(pointToAdd);
-                    updateData.groupHikingCount = increment(1); // DB 횟수 필드 +1
-                }
-
-                // 로컬 스토리지 증분 업데이트 (즉시 반영용)
-                const STORAGE_KEY = `forest_v3_${member.name}`; // 기존 키와 맞춤
-                let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { 
-                    processedIds: [], extraHikes: 0, partnersMap: {}, uniquePartners: [] 
-                };
-                
-                const manualId = `manual_${dateVal}_${mName}_${id}`;
-                if (!cached.processedIds.includes(manualId)) {
-                    cached.extraHikes += 1;
-                    cached.processedIds.push(manualId);
-                    
-                    // 동료 정보 업데이트
-                    selectedNames.forEach(partner => {
-                        if (partner !== member.name) {
-                            cached.partnersMap[partner] = (cached.partnersMap[partner] || 0) + 1;
-                            if (!cached.uniquePartners.includes(partner)) cached.uniquePartners.push(partner);
-                        }
-                    });
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
-                }
-            }
-
-            // DB 업데이트 실행
             await updateDoc(doc(db, "sanwoori", id), updateData);
 
-            // 4. 개별 로그(별) 생성 루프
+            // 우정 포인트 (2인 이상 산행 시)
+            if (selectedMemberIds.size >= 2 && isHike) {
+                const pointToAdd = isRegular ? 10 : (10 * effectiveUp); 
+                await updateDoc(doc(db, "sanwoori", id), { friendshipPoint: increment(pointToAdd) });
+            }
+
+            // 개별 로그(별) 생성
             for(let i = 0; i < logLoopCount; i++) {
                 let assignedStarType = null;
-                // 정기산행 시 랜덤 스타 타입 부여
                 if (isRegular) {
                     const rand = Math.random() * 100;
                     if (rand <= 3) assignedStarType = "super";
                     else if (rand <= 10) assignedStarType = "special";
                     else assignedStarType = "regular_" + (Math.floor(Math.random() * 4) + 1);
                 }
-
                 await addDoc(collection(db, `sanwoori/${id}/logs`), {
-                    date: ts, 
-                    mountain: mName, 
-                    height, 
-                    coords: typeof tempCoord !== 'undefined' ? tempCoord : null,
+                    date: ts, mountain: mName, height, coords: tempCoord,
                     isTop100, isBAC, isRegular, isRunning, isTracking, region,
-                    starType: assignedStarType,
-                    author: member.name
+                    starType: assignedStarType, author: member.name // 본인 이름 필드 추가
                 });
             }
 
-            // 5. 레벨업 체크 (팝업 예약)
-            if (isHike && typeof checkLevelUpgrade === 'function') {
-                checkLevelUpgrade(member.name, oldLevel, newLevel);
+            // ✨ [핵심 로직] 레벨업 수치가 올라갈 때 '인연의 숲' 산행 카운트도 즉시 반영
+            if (isHike) {
+                const STORAGE_KEY = `forest_v5_final_${member.name}`;
+                let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { 
+                    processedIds: [], extraHikes: 0, partnersMap: {}, uniquePartners: [] 
+                };
+                
+                // 수동 입력 건에 대한 고유 ID (중복 카운트 방지)
+                const manualId = `manual_${dateVal}_${mName}_${id}`;
+                if (!cached.processedIds.includes(manualId)) {
+                    cached.extraHikes += 1; // 산행이므로 전체 횟수 1 증가
+                    cached.processedIds.push(manualId);
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
+                }
+
+                // 등급 상향 체크 (팝업용)
+                if (typeof checkLevelUpgrade === 'function') {
+                    checkLevelUpgrade(member.name, oldLevel, newLevel);
+                }
             }
         }
-        // --- [루프 종료] ---
 
-        // ✨ [인연의 숲 전체 기록 테이블 저장] 
+        // 인연의 숲(동료 기록) 저장
         if (selectedNames.length >= 2 && isHike) {
             await addDoc(collection(db, "bondingForest"), {
-                mountain: mName,
-                members: selectedNames,
-                memberCount: selectedNames.length,
-                date: dateVal,
-                createdAt: new Date(),
-                // 횟수 집계를 위해 좌표 정보 포함
-                latitude: typeof tempCoord !== 'undefined' ? tempCoord : null 
+                mountain: mName, members: selectedNames,
+                memberCount: selectedNames.length, date: dateVal, createdAt: new Date()
             });
         }
 
@@ -3845,22 +3813,17 @@ window.addMultiActivity = async () => {
         }
 
         alert(isHike ? "산행 기록 및 인연의 숲 저장 완료!" : "기록 완료");
-        
-        // UI 및 변수 초기화
         selectedMemberIds.clear();
-        if (typeof tempCoord !== 'undefined') tempCoord = null;
-        if (typeof updateAdminMemberLists === 'function') updateAdminMemberLists();
-        if (typeof startRealtimeSync === 'function') startRealtimeSync(); 
-
+        tempCoord = null;
+        updateAdminMemberLists();
+        startRealtimeSync(); 
     } catch (error) {
         console.error("Error:", error);
         alert("저장 실패: " + error.message);
     }
 };
 
-
-
-    
+            
 
 
             
