@@ -2910,7 +2910,10 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
         // Friendship Point 수집 (UI 요소에서 가져오기)
         const fpElement = document.getElementById('memberFriendshipPoint');
         const currentFP = fpElement ? parseInt(fpElement.innerText.replace(/[^0-9]/g, '')) : 0;
-        const myMultiHikes = Math.floor(currentFP / 10); 
+        const savedBuddyCount = member.buddyCount || 0; 
+        const legacyHikes = Math.floor(currentFP / 10); 
+        // 만약 buddyCount를 새로 쌓기 시작했다면 그것을 쓰고, 없으면 기존 포인트 방식을 씁니다.
+        const myMultiHikes = Math.max(savedBuddyCount, legacyHikes); 
         const finalSynergy = finalTotalHikes > 0 ? Math.min(100, Math.round((myMultiHikes / finalTotalHikes) * 100)) : 0;
 
     
@@ -3756,25 +3759,24 @@ window.addMultiActivity = async () => {
             }
             await updateDoc(doc(db, "sanwoori", id), updateData);
 
-            // --- 우정 포인트 (2인 이상 산행 시) 통합 로직 ---
+
+            // --- [최종 수정] 우정포인트(재화)와 동행횟수(기록) 분리 로직 ---
 if (selectedMemberIds.size >= 2 && isHike) {
     let pointToAdd;
 
-    // [수정 포인트] 분기 1회 체크(isQuarterOnlyOne)가 되었거나 정기산행(isRegular)인 경우
+    // 1. 우정포인트(나중에 쓸 점수) 계산
     if (isQuarterOnlyOne || isRegular) {
-        // 레벨업 수치(up)가 2업, 3업이더라도 우정 포인트는 1회분인 10점만 지급
-        pointToAdd = 10;
+        pointToAdd = 10; // 분기/정기 산행은 10점 고정
     } else {
-        // 분기 체크가 없는 일반 산행은 선택한 레벨업 수치만큼 곱해서 지급 (기존 방식)
-        pointToAdd = 10 * effectiveUp;
+        pointToAdd = 10 * effectiveUp; // 일반 산행은 레벨업만큼 배수 지급
     }
 
-    // DB 업데이트 실행
+    // 2. DB 업데이트 (포인트는 포인트대로, 횟수는 무조건 +1)
     await updateDoc(doc(db, "sanwoori", id), { 
-        friendshipPoint: increment(pointToAdd) 
+        friendshipPoint: increment(pointToAdd), // 포인트는 쌓였다가 나중에 쓸 수 있음
+        buddyCount: increment(1)               // ⭐ 실제 동행 횟수는 무조건 1회만 상승 (영구 보존)
     });
 }
-
 
             // 개별 로그(별) 생성
             for(let i = 0; i < logLoopCount; i++) {
