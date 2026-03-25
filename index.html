@@ -2915,8 +2915,17 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 
         localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
 
-        const baseHikes = initialHikes[mName] || 0;
-        const finalTotalHikes = baseHikes + cached.extraHikes; // 저장 시점에 이미 올라가 있음!
+        // 1. 기초 산행 데이터 (고정값)
+const baseHikes = initialHikes[mName] || 0;
+
+// 2. 실시간 DB 데이터 가져오기 (가장 중요!)
+// 현재 보고 있는 멤버(mName)의 최신 데이터를 currentData 배열에서 찾습니다.
+const memberInfo = (typeof currentData !== 'undefined') ? currentData.find(m => m.name === mName) : null;
+const realBuddyCount = (memberInfo && memberInfo.buddyCount) ? memberInfo.buddyCount : 0;
+
+// 3. 최종 총 횟수 결정 (기초값 + 실시간 DB값 또는 캐시값 중 큰 것)
+// 이렇게 하면 관리자님이 수정하신 숫자가 즉시 반영됩니다.
+const finalTotalHikes = baseHikes + Math.max(realBuddyCount, cached.extraHikes || 0);
 
         // 1. 우정 포인트(FP) UI에서 가져오기
 const fpElement = document.getElementById('memberFriendshipPoint');
