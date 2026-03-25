@@ -3756,11 +3756,25 @@ window.addMultiActivity = async () => {
             }
             await updateDoc(doc(db, "sanwoori", id), updateData);
 
-            // 우정 포인트 (2인 이상 산행 시)
-            if (selectedMemberIds.size >= 2 && isHike) {
-                const pointToAdd = isRegular ? 10 : (10 * effectiveUp); 
-                await updateDoc(doc(db, "sanwoori", id), { friendshipPoint: increment(pointToAdd) });
-            }
+            // --- 우정 포인트 (2인 이상 산행 시) 통합 로직 ---
+if (selectedMemberIds.size >= 2 && isHike) {
+    let pointToAdd;
+
+    // [수정 포인트] 분기 1회 체크(isQuarterOnlyOne)가 되었거나 정기산행(isRegular)인 경우
+    if (isQuarterOnlyOne || isRegular) {
+        // 레벨업 수치(up)가 2업, 3업이더라도 우정 포인트는 1회분인 10점만 지급
+        pointToAdd = 10;
+    } else {
+        // 분기 체크가 없는 일반 산행은 선택한 레벨업 수치만큼 곱해서 지급 (기존 방식)
+        pointToAdd = 10 * effectiveUp;
+    }
+
+    // DB 업데이트 실행
+    await updateDoc(doc(db, "sanwoori", id), { 
+        friendshipPoint: increment(pointToAdd) 
+    });
+}
+
 
             // 개별 로그(별) 생성
             for(let i = 0; i < logLoopCount; i++) {
