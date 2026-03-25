@@ -2873,30 +2873,42 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 };
 
    window.showBondingForestModal = async () => {
-       
-const fpElement = document.getElementById('memberFriendshipPoint');
-const mName = document.querySelector('.some-name-selector')?.innerText || ""; // 실제 이름 가져오는 코드
-const memberInfo = currentData.find(m => m.name === mName);
-
-       // [강력 추천] 신입 멤버 유령 데이터 차단 로직
-const currentFP = fpElement ? parseInt(fpElement.innerText.replace(/[^0-9]/g, '')) : 0;
-const realBuddyCount = (memberInfo && memberInfo.buddyCount) ? memberInfo.buddyCount : 0;
-
-// ⭐ 핵심: 포인트도 0이고 동행 횟수도 0인 '진짜 신입'이라면?
-if (currentFP === 0 && realBuddyCount === 0) {
-    console.log("신입 멤버 감지: 유령 데이터를 청소합니다.");
-    // 해당 이름으로 저장된 로컬 스토리지를 강제로 비웁니다.
-    localStorage.removeItem(`forest_v5_final_${mName}`);
+    // 1. 필요한 변수들 먼저 선언
+    const fpElement = document.getElementById('memberFriendshipPoint');
+    const currentFP = fpElement ? parseInt(fpElement.innerText.replace(/[^0-9]/g, '')) : 0;
     
-    // 캐시 변수도 초기화해서 화면에 옛날 기록이 안 나오게 막습니다.
-    cached = {
-        processedIds: [],
-        partnersMap: {},
-        uniquePartners: [],
-        extraHikes: 0,
-        lastDocTimestamp: null
-    };
-}
+    // 2. 현재 선택된 멤버 이름 가져오기 (기존 코드의 방식을 그대로 사용)
+    let mName = "";
+    const nameTags = Array.from(document.querySelectorAll('.member-name, .popup-name, #memberNameDisplay')); // 이름이 표시되는 태그들 탐색
+    const foundTag = nameTags.find(el => el.innerText.trim() !== "");
+    if (foundTag) {
+        // "홍길동님" 에서 "님"을 제거하고 순수 이름만 추출
+        mName = foundTag.innerText.split('님')[0].trim();
+    }
+
+    // 3. DB 데이터에서 해당 멤버 찾기
+    const memberInfo = (typeof currentData !== 'undefined') ? currentData.find(m => m.name === mName) : null;
+    const realBuddyCount = (memberInfo && memberInfo.buddyCount) ? memberInfo.buddyCount : 0;
+
+    // 4. [신입 청소 로직] 포인트 0, 동행 0인 경우만 실행
+    if (currentFP === 0 && realBuddyCount === 0) {
+        console.log("신입 멤버 유령 데이터 삭제 중...");
+        localStorage.removeItem(`forest_v5_final_${mName}`);
+        
+        // cached 변수가 정의되어 있는지 확인 후 초기화
+        if (typeof cached !== 'undefined') {
+            cached = {
+                processedIds: [],
+                partnersMap: {},
+                uniquePartners: [],
+                extraHikes: 0,
+                lastDocTimestamp: null
+            };
+        }
+    }
+
+    // --- 이 아래부터는 기존의 let mName = ""; 이후 코드를 그대로 두시면 됩니다 ---
+
 
     let mName = "";
     const nameTags = Array.from(document.querySelectorAll('h2, .text-blue-600, .font-bold'));
