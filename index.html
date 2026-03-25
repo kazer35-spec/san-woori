@@ -2906,15 +2906,32 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 
         const baseHikes = initialHikes[mName] || 0;
         const finalTotalHikes = baseHikes + cached.extraHikes; // 저장 시점에 이미 올라가 있음!
-        
-        // Friendship Point 수집 (UI 요소에서 가져오기)
-        const fpElement = document.getElementById('memberFriendshipPoint');
-        const currentFP = fpElement ? parseInt(fpElement.innerText.replace(/[^0-9]/g, '')) : 0;
-        const savedBuddyCount = member.buddyCount || 0; 
-        const legacyHikes = Math.floor(currentFP / 10); 
-        // 만약 buddyCount를 새로 쌓기 시작했다면 그것을 쓰고, 없으면 기존 포인트 방식을 씁니다.
-        const myMultiHikes = Math.max(savedBuddyCount, legacyHikes); 
-        const finalSynergy = finalTotalHikes > 0 ? Math.min(100, Math.round((myMultiHikes / finalTotalHikes) * 100)) : 0;
+
+        // 1. 우정 포인트(FP) UI에서 가져오기
+const fpElement = document.getElementById('memberFriendshipPoint');
+const currentFP = fpElement ? parseInt(fpElement.innerText.replace(/[^0-9]/g, '')) : 0;
+
+// 2. 동행 횟수(buddyCount) 가져오기 - 'member' 변수가 없을 때를 대비해 아주 안전하게 작성
+// 보통 이 함수 내에서 멤버 데이터는 'mName'을 통해 캐시(cached)나 다른 변수에 들어있을 수 있습니다.
+// 만약 'member' 변수가 에러를 일으킨다면 아래 문장이 방어막 역할을 합니다.
+let savedBuddyCount = 0;
+try {
+    // member 변수가 존재하고 buddyCount가 있다면 그 값을 사용
+    if (typeof member !== 'undefined' && member.buddyCount) {
+        savedBuddyCount = member.buddyCount;
+    }
+} catch (e) {
+    savedBuddyCount = 0; // 에러 나면 그냥 0으로 처리해서 팝업은 뜨게 함
+}
+
+// 3. 기존 포인트 방식(10점당 1회) 계산
+const legacyHikes = Math.floor(currentFP / 10); 
+
+// 4. 최종 동행 횟수 결정 (새 기록이 있으면 그것을, 없으면 기존 포인트 방식을 사용)
+const myMultiHikes = Math.max(savedBuddyCount, legacyHikes); 
+
+// 5. 시너지 지수 계산
+const finalSynergy = finalTotalHikes > 0 ? Math.min(100, Math.round((myMultiHikes / finalTotalHikes) * 100)) : 0;
 
     
         
