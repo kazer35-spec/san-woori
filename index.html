@@ -13,34 +13,16 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-        /* 1. 애니메이션 정의 (위치 고정 및 회전) */
-@keyframes auraRotate {
-    0% { transform: translate(-50%, -50%) rotate(0deg); opacity: 0.6; }
-    50% { transform: translate(-50%, -50%) rotate(180deg); opacity: 1; }
-    100% { transform: translate(-50%, -50%) rotate(360deg); opacity: 0.6; }
+    /* 80% 이상일 때 게이지에 흐르는 반짝임 효과 */
+@keyframes gauge-shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
 }
-
-/* 2. 오라 본체 (클래스 이름 통일) */
-.emerald-glow-aura { 
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    /* 초기 위치값 설정 */
-    transform: translate(-50%, -50%);
-    width: 280px; /* 나이테보다 넉넉한 크기 */
-    height: 280px;
-    border-radius: 50%;
-    border: 4px dashed #00ff88;
-    box-shadow: 0 0 30px #00ff88, inset 0 0 20px #00ff88;
-    z-index: 2000; /* 나이테 섹션 내에서 최상단 */
-    pointer-events: none;
-    display: none; /* 기본은 숨김 */
-}
-
-/* 3. 활성화 상태 (스위치) */
-.emerald-glow-aura.active {
-    display: block !important; 
-    animation: auraRotate 8s linear infinite !important; /* 부드럽게 회전 */
+.gauge-glow {
+    background: linear-gradient(90deg, #10b981, #34d399, #6ee7b7, #34d399, #10b981);
+    background-size: 200% 100%;
+    animation: gauge-shimmer 2s infinite linear;
+    box-shadow: 0 0 15px rgba(16, 185, 129, 0.6);
 }
 
     /* 1. 버튼 기본 설정 (절대 필수) */
@@ -1951,7 +1933,6 @@ overflow: hidden;
 0% { transform: translateY(0) scale(1); opacity: 1; }
 100% { transform: translateY(-30px) scale(0.5); opacity: 0; }
 }
-
 </style>
 </head>
 <body>
@@ -2980,23 +2961,6 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
         const legacyHikesFromFP = Math.floor(currentFP / 10); 
         const myMultiHikes = (memberInfo && memberInfo.buddyCount !== undefined) ? realBuddyCount : 0;
         const finalSynergy = finalTotalHikes > 0 ? Math.min(100, Math.round((myMultiHikes / finalTotalHikes) * 100)) : 0;
-// [144519.jpg] 2990번 줄부터의 코드를 아래로 교체
-const auraElement = document.getElementById('emeraldAura');
-
-if (auraElement) {
-    // 1. 강제로 클래스 초기화 (기존에 붙어있을지 모를 active 제거)
-    auraElement.classList.remove('active');
-    
-    // 2. 브라우저가 변화를 감지할 시간을 아주 잠깐 준 뒤 실행
-    setTimeout(() => {
-        if (typeof finalSynergy !== 'undefined' && finalSynergy >= 80) {
-            auraElement.classList.add('active');
-            // 확인용 메시지 (F12 누르면 보임)
-            console.log("오라가 정상적으로 켜졌습니다! 점수:", finalSynergy);
-        }
-    }, 50); 
-}
-
 
         // --- [핵심] 퍼센트별 색상 및 효과 설정 ---
         let gaugeColor = "#ef4444"; // 40미만: Red
@@ -4494,25 +4458,6 @@ window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
 
     // [1] 초기화: 기존 내용 비우기 및 스타일 적용
     container.innerHTML = "";
-    const auraEl = document.createElement('div');
-auraEl.id = 'emeraldAura';
-auraEl.className = 'emerald-glow-aura';
-container.appendChild(auraEl); 
-
-// 80점 이상인지 확인해서 바로 켜기 (지연 실행으로 순서 문제 해결)
-setTimeout(() => {
-    // 화면에 표시된 시너지 점수를 직접 가져옵니다.
-    const synergyElement = document.getElementById('synergyValue'); 
-    const score = synergyElement ? parseInt(synergyElement.innerText) : 0;
-
-    // [수정 후 - 더 확실한 방법]
-// 80레벨 이상이거나 특정 조건(예: 레벨 기반)일 때 바로 활성화되도록 로직 변경
-if (memberLevel >= 80) { 
-    setTimeout(() => {
-        auraEl.classList.add('active');
-    }, 100); 
-}
-
     if (mainTitle) mainTitle.classList.add('cosmic-neon-text');
     if (mountainName) mountainName.classList.add('cosmic-neon-text');
 
