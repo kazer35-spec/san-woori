@@ -2873,6 +2873,26 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 };
 
    window.showBondingForestModal = async () => {
+       // [강력 추천] 신입 멤버 유령 데이터 차단 로직
+const currentFP = fpElement ? parseInt(fpElement.innerText.replace(/[^0-9]/g, '')) : 0;
+const realBuddyCount = (memberInfo && memberInfo.buddyCount) ? memberInfo.buddyCount : 0;
+
+// ⭐ 핵심: 포인트도 0이고 동행 횟수도 0인 '진짜 신입'이라면?
+if (currentFP === 0 && realBuddyCount === 0) {
+    console.log("신입 멤버 감지: 유령 데이터를 청소합니다.");
+    // 해당 이름으로 저장된 로컬 스토리지를 강제로 비웁니다.
+    localStorage.removeItem(`forest_v5_final_${mName}`);
+    
+    // 캐시 변수도 초기화해서 화면에 옛날 기록이 안 나오게 막습니다.
+    cached = {
+        processedIds: [],
+        partnersMap: {},
+        uniquePartners: [],
+        extraHikes: 0,
+        lastDocTimestamp: null
+    };
+}
+
     let mName = "";
     const nameTags = Array.from(document.querySelectorAll('h2, .text-blue-600, .font-bold'));
     const foundTag = nameTags.find(el => el.innerText.includes('님') && !el.innerText.includes('산행'));
