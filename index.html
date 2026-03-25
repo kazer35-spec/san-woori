@@ -2868,7 +2868,7 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 
     if (!mName) return alert("회원 이름을 찾을 수 없습니다.");
 
-    // 1. 초기 산행 데이터 (주신 명단 그대로 적용)
+    // 1. 초기 산행 데이터 (기존 명단)
     const initialHikes = {
         "오즈": 32, "지니": 22, "나스": 17, "해수": 15, "하트": 12, "아랑": 17, "쿠키": 8, "용삼": 14, 
         "식이": 6, "몰랑": 8, "길치": 7, "등초": 6, "구름": 5, "튜브": 4, "햄찌": 5, "켄신": 3, 
@@ -2877,32 +2877,45 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
         "람쥐": 1, "몽꽁": 1, "란이": 2, "얌얌": 0, "수리": 1, "희야": 0, "성민": 0
     };
 
-    const STORAGE_KEY = `forest_v3_${mName}`;
+    const STORAGE_KEY = `forest_v4_fixed_${mName}`; // 캐시 충돌 방지를 위해 버전 업
     
     try {
         let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { 
             processedIds: [], extraHikes: 0, partnersMap: {}, uniquePartners: [] 
         };
 
+        // [핵심] 사진 속 'logs' 하위 컬렉션을 모두 가져오기 위해 collectionGroup 사용
         const [allLogsSnap, bondingSnap] = await Promise.all([
-            getDocs(collection(db, "sanwoori")), 
+            getDocs(collectionGroup(db, "logs")), 
             getDocs(collection(db, "bondingForest"))
         ]);
         
-        // 데이터 증분 업데이트
+        // 2. 신규 산행 데이터 증분 업데이트 (런닝/트레킹 제외)
         allLogsSnap.forEach(doc => {
             if (cached.processedIds.includes(doc.id)) return;
             const data = doc.data();
-            const hasCoords = data.latitude || data.location || data.coords || data.lat || data.x || data.y;
-            if (hasCoords && (data.author === mName || (data.members && data.members.includes(mName)))) {
+
+            // 본인 확인 (작성자가 본인이거나, 참여자 명단에 이름이 있는 경우)
+            const isMyHike = (data.author === mName || (data.members && data.members.includes(mName)));
+            
+            // 런닝, 트레킹 제외 (순수 산행만)
+            const isPureHike = !data.isRunning && !data.isTracking;
+
+            // 좌표 정보가 있거나 산 이름이 있는 유효한 기록인지 확인
+            const hasData = data.coords || data.latitude || data.mountain;
+
+            if (isMyHike && isPureHike && hasData) {
                 cached.extraHikes++;
                 cached.processedIds.push(doc.id);
             }
         });
 
+        // 3. 인연의 숲(함께한 동료) 업데이트
         bondingSnap.forEach(doc => {
             if (cached.processedIds.includes(doc.id)) return;
-            const members = doc.data().members || [];
+            const data = doc.data();
+            const members = data.members || [];
+            
             if (members.includes(mName)) {
                 cached.processedIds.push(doc.id);
                 members.forEach(p => {
@@ -2915,7 +2928,7 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
         });
 
         localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
-
+        
         const baseHikes = initialHikes[mName] || 0;
         const finalTotalHikes = baseHikes + cached.extraHikes;
         const fpElement = document.getElementById('memberFriendshipPoint');
