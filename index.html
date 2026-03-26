@@ -5350,47 +5350,42 @@ window.toggleNoticeModal = (show) => {
     if(!show) document.getElementById('n_result_box').classList.add('hidden');
 };
 
+ window.makeNoticeText = () => {
+            const mt = document.getElementById('n_mt').value || '미정';
+            
+            // 픽업 옵션 로직
+            const pickupOption = document.querySelector('input[name="n_pickup"]:checked');
+            const isPickupEnabled = pickupOption && pickupOption.id === 'p_ok';
+            const pickupTag = pickupOption ? pickupOption.value : "";
+            
+            const month = document.getElementById('n_month').value || '';
+            const day = document.getElementById('n_day').value || '';
+            const ampm = document.getElementById('n_ampm').value;
+            const hour = document.getElementById('n_hour').value || '';
+            const min = document.getElementById('n_min').value || "00";
+            
+            let timeStr = hour ? `${hour}시 ${min}분` : "";
+            const dateStr = month ? `${month}월 ${day}일 ${ampm} ${timeStr}` : '추후 공지';
+            
+            const meet = document.getElementById('n_meet').value || '추후 공지';
 
-    window.makeNoticeText = () => {
-    const mt = document.getElementById('n_mt').value || '';
-    const pickupOption = document.querySelector('input[name="n_pickup"]:checked');
-    const pickup = pickupOption ? pickupOption.value : "";
-    const month = document.getElementById('n_month').value || '';
-    const day = document.getElementById('n_day').value || '';
-    const ampm = document.getElementById('n_ampm').value;
-    const hour = document.getElementById('n_hour').value || '';
-    const min = document.getElementById('n_min').value;
-    
-    let timeStr = "";
-    if (hour) {
-        timeStr = min ? `${hour}시 ${min}분` : `${hour}시`;
-    }
-    
-    const dateStr = month ? `${month}월 ${day}일 ${ampm} ${timeStr}` : '';
-    const meet = document.getElementById('n_meet').value || '';
+            const hourVal = document.getElementById('n_time_h').value;
+            const minVal = document.getElementById('n_time_m').value;
+            let time = hourVal ? `약 ${hourVal}시간${(minVal && minVal !== "0") ? ` ${minVal}분` : ""}` : "미정";
 
-    // --- 소요시간 로직 수정 삽입 시작 ---
-    const hourVal = document.getElementById('n_time_h').value;
-    const minVal = document.getElementById('n_time_m').value;
-    
-    let time = "";
-    if (hourVal) {
-        // 시간이 입력된 경우 '약 ㅇㅇ시간' 기본 생성
-        time = `약 ${hourVal}시간`;
-        // 분도 입력되었다면 'ㅇㅇ분' 추가
-        if (minVal && minVal !== "0" && minVal !== "") {
-            time += ` ${minVal}분`;
-        }
-    }
-    // --- 소요시간 로직 수정 삽입 끝 ---
+            const course = document.getElementById('n_course').value || '미정';
+            const distVal = document.getElementById('n_dist').value;
+            const dist = distVal ? `${distVal}km` : '미정';
+            const lv = document.getElementById('n_lv').value;
+            const etc = document.getElementById('n_etc').value;
 
-    const course = document.getElementById('n_course').value || '';
-    const distVal = document.getElementById('n_dist').value;
-    const dist = distVal ? `${distVal}km` : '';
-    const lv = document.getElementById('n_lv').value;
-    const etc = document.getElementById('n_etc').value;
+            // 픽업 가능일 때만 추가되는 문구
+            const pickupNotice = isPickupEnabled 
+                ? `\n💢일자, 시간, 장소 조율 가능합니다\n    차량 픽업 관련 문의 서브방에 입장해주세요` 
+                : "";
 
-    const template = `🔴산행지: ${mt} ${pickup}
+            const template = `[산:우리 공지]
+🔴산행지: ${mt} ${pickupTag}
 🟠일시: ${dateStr}
 🟡집결지: ${meet}
 🟢소요시간: ${time}
@@ -5402,15 +5397,14 @@ window.toggleNoticeModal = (show) => {
 💢산행시 일어나는 모든 사건 사고는 본인의 
     책임이므로 안전에 유의하여 산행하세요
 💢우천, 강풍 등 기상 악화 시 안전을 위해서 
-    모임이 취소될 수 있습니다
-💢일자, 시간, 장소 조율 가능합니다
-    차량 픽업 관련 문의 서브방에 입장해주세요`;
+    모임이 취소될 수 있습니다${pickupNotice}`;
 
-    document.getElementById('n_final_text').innerText = template;
-    const resultBox = document.getElementById('n_result_box');
-    resultBox.classList.remove('hidden');
-    resultBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
-};
+            document.getElementById('n_final_text').innerText = template;
+            document.getElementById('n_result_box').classList.remove('hidden');
+            document.getElementById('n_result_box').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        };
+
+    
 
 // [수정된 부분] 모바일에서도 확실히 작동하는 복사 함수
 // 1. 복사 함수
