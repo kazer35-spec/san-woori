@@ -13,6 +13,14 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+  /* 인연의 숲 노드에 마우스 올렸을 때 반짝임 강화 */
+.node:hover {
+    transform: scale(1.5);
+    filter: brightness(1.5);
+    box-shadow: 0 0 15px #fff;
+    transition: all 0.3s ease;
+}
+
   /* 배경 작은 별 (천천히, 다채롭게 반짝임) */
 .bg-star {
   position: absolute;
@@ -3029,6 +3037,29 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
         const myMultiHikes = (memberInfo && memberInfo.buddyCount !== undefined) ? realBuddyCount : 0;
         const finalSynergy = finalTotalHikes > 0 ? Math.min(100, Math.round((myMultiHikes / finalTotalHikes) * 100)) : 0;
 
+      // 인연 목록을 보여주는 전역 함수
+window.showForestMemberList = () => {
+    // 1. 현재 열려있는 모달의 데이터를 안전하게 가져오기 위해 로컬스토리지를 다시 읽습니다.
+    // (이미 함수 내부 변수를 쓰기 어려운 상황을 대비한 안전한 방법입니다)
+    const mName = document.querySelector('#forestModal h3').innerText.replace('님의 인연', '').trim();
+    const STORAGE_KEY = `forest_v5_final_${mName}`;
+    const cached = JSON.parse(localStorage.getItem(STORAGE_KEY));
+
+    if (!cached || !cached.partnersMap || Object.keys(cached.partnersMap).length === 0) {
+        return alert("아직 연결된 인연이 없습니다.");
+    }
+
+    // 2. 파트너 목록을 횟수순(내림차순)으로 정렬해서 예쁘게 만듭니다.
+    const sortedList = Object.entries(cached.partnersMap)
+        .sort((a, b) => b[1] - a[1]) // 많이 간 순서대로
+        .map(([name, count]) => `• ${name} (${count}회)`)
+        .join('\n');
+
+    // 3. 화면에 목록을 띄웁니다.
+    alert(`🌲 [${mName}] 님과 함께한 인연들\n\n${sortedList}`);
+};
+
+
         // --- [핵심] 퍼센트별 색상 및 효과 설정 ---
         let gaugeColor = "#ef4444"; // 40미만: Red
         let glowClass = "";
@@ -3064,10 +3095,12 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
                                      style="width: ${finalSynergy}%; background-color: ${gaugeColor}"></div>
                             </div>
                         </div>
-                        <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
-                            <div class="text-[10px] text-blue-400 font-bold mb-1">💫 인연의 반경 (Radius)</div>
-                            <div class="text-white text-[14px] font-bold">총 ${cached.uniquePartners.length}명과 연결됨</div>
-                        </div>
+                        <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06] cursor-pointer active:scale-95 transition-transform" 
+     onclick="showForestMemberList()">
+    <div class="text-[10px] text-blue-400 font-bold mb-1">💫 인연의 반경 (Radius) - 클릭 시 목록</div>
+    <div class="text-white text-[14px] font-bold">총 ${cached.uniquePartners.length}명과 연결됨</div>
+</div>
+
                         <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
                             <div class="text-[10px] text-orange-400 font-bold mb-1">👑 최고의 파트너 (Bestie)</div>
                             <div class="text-white text-[14px] font-bold">${bestP} <span class="text-emerald-400 font-black">(${bestC}회)</span></div>
