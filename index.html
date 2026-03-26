@@ -5441,27 +5441,32 @@ window.copyNoticeContent = () => {
     document.body.removeChild(textArea);
 }; // <--- 여기서 함수가 끝나야 합니다.
 
-// 2. 모바일/PC 통합 하이픈 로직
+// 3. 모바일/PC 통합 하이픈 로직 (공백 2개 시 " - " 변환)
 document.addEventListener('DOMContentLoaded', () => {
     const courseInput = document.getElementById('n_course');
-
     if (courseInput) {
         courseInput.addEventListener('input', function(e) {
             const input = e.target;
             const val = input.value;
             
-            // 1. 마지막 글자가 공백 2개(" ")로 끝나는지 확인 (시간차 상관없이 즉시 실행)
-            if (val.endsWith(' ')) {
-                // 2. 마지막 공백 2개를 지우고 " - "를 추가
-                // slice(0, -2)를 쓰면 글자를 입력하다가 바로 눌러도 정확히 공백만 깎아냅니다.
-                input.value = val.slice(0, -2) + " - ";
+            // 공백이 2개 연속('  ')으로 들어있는지 확인
+            if (val.includes('  ')) {
+                // 모든 연속 공백을 ' - '로 치환
+                const newValue = val.replace(/  /g, ' - ');
+                input.value = newValue;
                 
-                // 3. 커서를 맨 뒤로 보냄
-                input.selectionStart = input.selectionEnd = input.value.length;
+                // [수정 포인트] 가장 마지막에 추가된 ' - '의 위치를 찾아서 그 뒤로 커서를 보냄
+                const lastHyphenIndex = newValue.lastIndexOf(' - ');
+                if (lastHyphenIndex !== -1) {
+                    // ' - '가 3글자이므로 index + 3 위치로 커서를 이동
+                    const newPos = lastHyphenIndex + 3;
+                    input.setSelectionRange(newPos, newPos);
+                }
             }
         });
     }
 });
+
 
 </script>
 </body>
