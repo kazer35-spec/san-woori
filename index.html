@@ -13,6 +13,27 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+    /* 80% 이상 멤버를 위한 특별 오로라 효과 */
+.aurora-layer {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: linear-gradient(135deg, rgba(0, 255, 127, 0.1) 0%, rgba(160, 32, 240, 0.1) 50%, rgba(0, 255, 255, 0.1) 100%);
+  filter: blur(60px); /* 은은하게 퍼지는 효과 */
+  opacity: 0;
+  transition: opacity 2s ease-in-out;
+  pointer-events: none;
+  z-index: 1;
+  animation: aurora-flow 10s infinite alternate ease-in-out;
+}
+
+/* 오로라가 살랑살랑 움직이는 애니메이션 */
+@keyframes aurora-flow {
+  0% { transform: scale(1) translateY(0) rotate(0deg); }
+  100% { transform: scale(1.2) translateY(-20px) rotate(5deg); }
+}
+
+.aurora-active { opacity: 0.6 !important; } /* 조건 만족 시 서서히 나타남 */
+
     /* 80% 이상일 때 게이지에 흐르는 반짝임 효과 */
 @keyframes gauge-shimmer {
     0% { background-position: -200% 0; }
@@ -4714,6 +4735,24 @@ window.showMilkyWay = async (mId, mName) => {
     modal.style.display = 'flex';
     if (nameLabel) nameLabel.innerText = `${mName}님의 은하수`;
     board.innerHTML = "";
+    const memberInfo = currentData.find(m => m.id === mId);
+    
+    // 144523.jpg 이미지 속 '동행 지수' 계산법 그대로 적용
+    const baseHikes = initialHikes[mName] || 0; 
+    const myMultiHikes = (memberInfo && memberInfo.buddyCount !== undefined) ? memberInfo.buddyCount : 0;
+    
+    // 드디어 찾은 '그 변수'! 80% 이상인지 확인합니다.
+    const finalSynergy = baseHikes > 0 ? Math.min(100, Math.round((myMultiHikes / baseHikes) * 100)) : 0;
+
+    if (finalSynergy >= 80) {
+        // 오로라 레이어 생성
+        const aurora = document.createElement('div');
+        aurora.className = 'aurora-layer'; // CSS에 등록한 그 이름
+        board.appendChild(aurora);
+        
+        // 0.5초 뒤에 스르륵 나타나게 함
+        setTimeout(() => aurora.classList.add('aurora-active'), 500);
+    }
 // 은하수 몽환적인 안개 레이어 추가
 board.insertAdjacentHTML('afterbegin', '<div class="nebula-cloud"></div>');
     try {
