@@ -4709,151 +4709,114 @@ window.showMilkyWay = async (mId, mName) => {
 
     if (!modal || !board) return;
 
-    // --- [1. 가이드 UI 주입] ---
-    if (!document.getElementById('starGuideBtn')) {
-        const guideHTML = `
-            <div class="mw-header-controls" style="position: absolute; top: 60px; right: 20px; z-index: 10010;">
-                <button id="starGuideBtn" onclick="toggleStarGuide(true)" class="star-guide-btn" style="border-color: rgba(255,255,255,0.3); background: rgba(0,0,0,0.4);">
-                    <span class="sparkle-icon">✨</span> 별 가이드
-                </button>
-            </div>
-            <div id="starGuideModal" class="star-guide-overlay" style="display: none; position: absolute; top:0; left:0; width:100%; height:100%; z-index:10020; border-radius:inherit; background: rgba(7, 10, 20, 0.98); backdrop-filter: blur(15px); transition: opacity 0.3s ease;" onclick="toggleStarGuide(false)">
-                <div class="star-guide-content" style="width: 100%; height: 100%; padding: 30px 20px; display: flex; flex-direction: column;" onclick="event.stopPropagation()">
-                    <div class="guide-header" style="text-align: center; margin-bottom: 15px; flex-shrink: 0;">
-                        <h3 style="color: #fff; font-size: 1.2rem; font-weight: 900; letter-spacing: 3px; text-shadow: 0 0 10px rgba(255,255,255,0.3);">STAR GALLERY</h3>
-                        <p style="color: #94a3b8; font-size: 0.75rem; margin-top: 5px;">산우리의 밤하늘을 수놓는 특별한 별빛들</p>
-                    </div>
-                    <div class="guide-grid" id="guideGrid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; flex-grow: 1; align-content: center;">
-                        </div>
-                    <button onclick="toggleStarGuide(false)" class="guide-close-btn" style="position: absolute; top: 15px; right: 20px; background: none; border: none; color: #fff; font-size: 28px; cursor: pointer; opacity: 0.6;">&times;</button>
-                </div>
-            </div>`;
-        modal.insertAdjacentHTML('afterbegin', guideHTML);
-    }
+    // --- [1. 기초 데이터 정의] ---
+    const initialHikes = {
+        "오즈": 32, "지니": 22, "나스": 17, "해수": 15, "하트": 12, "아랑": 17, "쿠키": 8, "용삼": 14, 
+        "식이": 6, "몰랑": 8, "길치": 7, "등초": 6, "구름": 5, "튜브": 4, "햄찌": 5, "켄신": 3, 
+        "애플": 4, "민이": 3, "운해": 3, "윤윤": 2, "무니": 3, "태리": 2, "이구": 2, "영규": 2, 
+        "후후": 6, "피치": 2, "호프": 2, "멸치": 1, "섭섭": 1, "뚜벅": 3, "송돌": 2, "여록": 1, 
+        "람쥐": 1, "몽꽁": 1, "란이": 2, "얌얌": 0, "수리": 1, "희야": 0, "성민": 0
+    };
 
-    // --- [2. 기본 UI 초기화 및 이름 설정] ---
+    // --- [2. UI 초기화] ---
     modal.style.display = 'flex';
     if (nameLabel) nameLabel.innerText = `${mName}님의 은하수`;
-    board.innerHTML = "";
-    const memberInfo = currentData.find(m => m.id === mId);
-    
-    // 144523.jpg 이미지 속 '동행 지수' 계산법 그대로 적용
-    const baseHikes = initialHikes[mName] || 0; 
-    const myMultiHikes = (memberInfo && memberInfo.buddyCount !== undefined) ? memberInfo.buddyCount : 0;
-    
-    // 드디어 찾은 '그 변수'! 80% 이상인지 확인합니다.
-    const finalSynergy = baseHikes > 0 ? Math.min(100, Math.round((myMultiHikes / baseHikes) * 100)) : 0;
+    board.innerHTML = '<div class="nebula-cloud"></div>'; // 안개 레이어 유지
 
-    if (finalSynergy >= 80) {
-        // 오로라 레이어 생성
-        const aurora = document.createElement('div');
-        aurora.className = 'aurora-layer'; // CSS에 등록한 그 이름
-        board.appendChild(aurora);
-        
-        // 0.5초 뒤에 스르륵 나타나게 함
-        setTimeout(() => aurora.classList.add('aurora-active'), 500);
-    }
-// 은하수 몽환적인 안개 레이어 추가
-board.insertAdjacentHTML('afterbegin', '<div class="nebula-cloud"></div>');
     try {
+        // --- [3. 동행지수(오로라) 판별 로직] ---
+        const memberInfo = currentData.find(m => m.id === mId);
+        const baseHikes = initialHikes[mName] || 0;
+        const myMultiHikes = (memberInfo && memberInfo.buddyCount !== undefined) ? memberInfo.buddyCount : 0;
+        
+        // 동행지수 계산 (이미지 속 100% 로직)
+        const finalSynergy = baseHikes > 0 ? Math.min(100, Math.round((myMultiHikes / baseHikes) * 100)) : 0;
+
+        // 80% 이상이면 오로라 생성
+        if (finalSynergy >= 80) {
+            const aurora = document.createElement('div');
+            aurora.className = 'aurora-layer';
+            board.appendChild(aurora);
+            setTimeout(() => aurora.classList.add('aurora-active'), 500);
+        }
+
+        // --- [4. 별자리 데이터 로드 및 그리기] ---
         const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
         const logs = snap.docs
             .map(d => d.data())
             .filter(l => l.coords)
             .sort((a, b) => a.date.toDate() - b.date.toDate());
 
-        const month = new Date().getMonth() + 1;
-        board.classList.remove('nebula-spring-summer', 'nebula-fall-winter');
-        if (month >= 3 && month <= 8) board.classList.add('nebula-spring-summer');
-        else board.classList.add('nebula-fall-winter');
-
         if (logs.length === 0) {
-            board.innerHTML = "<div class='text-white/20 text-xs h-full flex items-center justify-center'>아직 기록된 별이 없습니다.</div>";
+            board.insertAdjacentHTML('beforeend', "<div class='text-white/20 text-xs h-full flex items-center justify-center'>아직 기록된 별이 없습니다.</div>");
             return;
         }
 
         logs.forEach((log, index) => {
-    let starColor = "white", shadowColor = "#FFFFFF", starSize = "w-1.5 h-1.5", customStyle = "", shouldTwinkle = false; 
+            let starColor = "white", shadowColor = "#FFFFFF", starSize = "w-1.5 h-1.5", customStyle = "", shouldTwinkle = false;
 
-    if (log.starType) {
-        shouldTwinkle = true; 
-        if (log.starType === "super") {
-            starSize = "w-2 h-2"; 
-            customStyle = `background: radial-gradient(circle, #FF0000 20%, #FFFF00 100%); box-shadow: 0 0 15px 5px rgba(255, 0, 0, 0.7), 0 0 35px 12px rgba(255, 255, 0, 0.5); filter: brightness(1.5);`;
-        } else if (log.starType === "special") {
-            starSize = "w-2 h-2"; 
-            customStyle = `background: radial-gradient(circle, #A020F0 20%, #00FF7F 100%); box-shadow: 0 0 12px 4px rgba(160, 32, 240, 0.6), 0 0 25px 8px rgba(0, 255, 127, 0.4); filter: brightness(1.3);`;
-        }
-else if (log.starType.startsWith("regular")) {
-    const colors = ["#00FFFF", "#FF8C00", "#D32F2F", "#7C4DFF"]; 
-    const idx = parseInt(log.starType.split('_')[1]) - 1;
-    starColor = colors[idx] || "white";
-    
-    // 광채 효과 유지
-    customStyle = `
-        background-color: ${starColor}; 
-        box-shadow: 0 0 4px 1px ${starColor}, 0 0 8px 2px ${starColor}dd, 0 0 10px 3px ${starColor}88;
-        filter: brightness(1.8);
-    `;
-    
-    // ✨ 정기산행 별도 깜빡이도록 설정
-    shouldTwinkle = true; 
-}
+            // 별 타입별 스타일 설정
+            if (log.starType) {
+                shouldTwinkle = true;
+                if (log.starType === "super") {
+                    starSize = "w-2 h-2";
+                    customStyle = `background: radial-gradient(circle, #FF0000 20%, #FFFF00 100%); box-shadow: 0 0 15px 5px rgba(255, 0, 0, 0.7), 0 0 35px 12px rgba(255, 255, 0, 0.5);`;
+                } else if (log.starType === "special") {
+                    starSize = "w-2 h-2";
+                    customStyle = `background: radial-gradient(circle, #A020F0 20%, #00FF7F 100%); box-shadow: 0 0 12px 4px rgba(160, 32, 240, 0.6), 0 0 25px 8px rgba(0, 255, 127, 0.4);`;
+                } else if (log.starType.startsWith("regular")) {
+                    const colors = ["#00FFFF", "#FF8C00", "#D32F2F", "#7C4DFF"];
+                    const colorIdx = parseInt(log.starType.split('_')[1]) - 1;
+                    starColor = colors[colorIdx] || "white";
+                    customStyle = `background-color: ${starColor}; box-shadow: 0 0 4px 1px ${starColor}, 0 0 8px 2px ${starColor}dd, 0 0 10px 3px ${starColor}88; filter: brightness(1.8);`;
+                }
+            } else if (log.isTop100) {
+                starColor = "#F7E7CE"; shadowColor = "#F7E7CE";
+                customStyle = `background-color: ${starColor}; box-shadow: 0 0 6px ${shadowColor};`;
+            }
 
-   } else if (log.isTop100) {
-        starColor = "#F7E7CE"; shadowColor = "#F7E7CE";
-        customStyle = `background-color: ${starColor}; box-shadow: 0 0 6px ${shadowColor};`;
+            // 별 생성
+            const star = document.createElement('div');
+            star.className = `absolute ${starSize} rounded-full z-10`;
+            star.style.cssText += customStyle || `background-color: ${starColor}; box-shadow: 0 0 6px ${shadowColor}, 0 0 12px ${shadowColor}`;
+            star.style.left = log.coords.x + "%";
+            star.style.top = log.coords.y + "%";
+            star.style.opacity = "0";
+            star.style.transition = "opacity 1s ease";
+            board.appendChild(star);
+
+            // 선 생성
+            let line = null;
+            if (index > 0) {
+                const prev = logs[index - 1];
+                const x1 = prev.coords.x, y1 = prev.coords.y, x2 = log.coords.x, y2 = log.coords.y;
+                const dist = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+                const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+                line = document.createElement('div');
+                line.className = 'absolute bg-blue-400/20 origin-left z-0';
+                line.style.height = '0.5px'; line.style.width = dist + "%";
+                line.style.left = x1 + "%"; line.style.top = y1 + "%";
+                line.style.transform = `rotate(${angle}deg)`;
+                line.style.opacity = "0";
+                line.style.transition = "opacity 1s ease";
+                board.appendChild(line);
+            }
+
+            // 순차 애니메이션 실행
+            setTimeout(() => {
+                star.style.opacity = "1";
+                if (line) line.style.opacity = "1";
+                if (shouldTwinkle) setTimeout(() => star.classList.add('animate-twinkle'), 1000);
+                if (index === logs.length - 1) setTimeout(() => createShootingStar(board, log.coords.x, log.coords.y), 1000);
+            }, index * 150);
+        });
+
+    } catch (e) {
+        console.error("은하수 로딩 에러:", e);
     }
-
-    const star = document.createElement('div');
-    star.className = `absolute ${starSize} rounded-full z-10`; 
-
-    // [수정] 애니메이션 코드(starFloating)를 아예 삭제했습니다.
-    star.style.cssText += customStyle || `background-color: ${starColor}; box-shadow: 0 0 6px ${shadowColor}, 0 0 12px ${shadowColor}`;
-    star.style.left = log.coords.x + "%";
-    star.style.top = log.coords.y + "%";
-    star.style.opacity = "0"; 
-    star.style.transition = "opacity 1s ease"; 
-
-    board.appendChild(star); 
-
-    let line = null;
-    if (index > 0) {
-        const prev = logs[index - 1];
-        const x1 = prev.coords.x, y1 = prev.coords.y, x2 = log.coords.x, y2 = log.coords.y;
-        const dist = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
-        const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
-        line = document.createElement('div');
-        line.className = 'absolute bg-blue-400/20 origin-left z-0';
-        line.style.height = '0.5px'; line.style.width = dist + "%";
-        line.style.left = x1 + "%"; line.style.top = y1 + "%";
-        line.style.transform = `rotate(${angle}deg)`; 
-        line.style.opacity = "0";
-        line.style.transition = "opacity 1s ease";
-        board.appendChild(line);
-    }
-
-    // 순차적으로 뜨게 만드는 타이머
-    setTimeout(() => {
-        star.style.opacity = "1"; // 별이 나타남
-        if (line) line.style.opacity = "1"; // 선이 나타남
-        
-        // 반짝임 효과만 필요한 경우에만 살려둡니다 (제자리에서 반짝)
-     if (shouldTwinkle) {
-    // 슈퍼별, 스페셜별, 정기산행 별(regular) 모두 깜빡임 클래스 추가
-    if (log.starType === "super" || log.starType === "special" || log.starType.startsWith("regular")) {
-        setTimeout(() => star.classList.add('animate-twinkle'), 1000);
-    }
-}
-        
-        if (index === logs.length - 1) {
-            setTimeout(() => createShootingStar(board, log.coords.x, log.coords.y), 1000);
-        }
-    }, index * 150); // index에 따라 순차적으로 실행
-});
-    } catch (e) { console.error("은하수 로딩 에러:", e); }
 };
 
+    
 // --- [가이드 렌더링 함수] ---
 window.toggleStarGuide = (show) => {
     const gModal = document.getElementById('starGuideModal');
