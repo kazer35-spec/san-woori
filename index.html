@@ -13,12 +13,64 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-  /* 인연의 숲 노드에 마우스 올렸을 때 반짝임 강화 */
-.node:hover {
-    transform: scale(1.5);
-    filter: brightness(1.5);
-    box-shadow: 0 0 15px #fff;
-    transition: all 0.3s ease;
+/* 인연 목록 팝업 전용 스타일 */
+.forest-list-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10001; /* 기존 모달보다 위에 뜨게 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    animation: fadeIn 0.3s ease;
+}
+
+.forest-list-content {
+    background: #0f172a;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    border-radius: 2rem;
+    width: 280px;
+    max-height: 400px;
+    padding: 2rem;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.forest-list-header {
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.forest-list-scroll {
+    max-height: 200px;
+    overflow-y: auto;
+    padding-right: 5px;
+}
+
+/* 스크롤바 디자인 */
+.forest-list-scroll::-webkit-scrollbar { width: 4px; }
+.forest-list-scroll::-webkit-scrollbar-thumb { background: #10b981; border-radius: 10px; }
+
+.partner-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.5rem;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    color: white;
+    font-size: 13px;
+}
+
+.partner-count {
+    color: #10b981;
+    font-weight: 800;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
   /* 배경 작은 별 (천천히, 다채롭게 반짝임) */
@@ -3036,11 +3088,8 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
         const legacyHikesFromFP = Math.floor(currentFP / 10); 
         const myMultiHikes = (memberInfo && memberInfo.buddyCount !== undefined) ? realBuddyCount : 0;
         const finalSynergy = finalTotalHikes > 0 ? Math.min(100, Math.round((myMultiHikes / finalTotalHikes) * 100)) : 0;
-
-      // 인연 목록을 보여주는 전역 함수
 window.showForestMemberList = () => {
     // 1. 현재 열려있는 모달의 데이터를 안전하게 가져오기 위해 로컬스토리지를 다시 읽습니다.
-    // (이미 함수 내부 변수를 쓰기 어려운 상황을 대비한 안전한 방법입니다)
     const mName = document.querySelector('#forestModal h3').innerText.replace('님의 인연', '').trim();
     const STORAGE_KEY = `forest_v5_final_${mName}`;
     const cached = JSON.parse(localStorage.getItem(STORAGE_KEY));
@@ -3049,15 +3098,37 @@ window.showForestMemberList = () => {
         return alert("아직 연결된 인연이 없습니다.");
     }
 
-    // 2. 파트너 목록을 횟수순(내림차순)으로 정렬해서 예쁘게 만듭니다.
+    // 2. 파트너 목록을 횟수순(내림차순)으로 정렬합니다.
     const sortedList = Object.entries(cached.partnersMap)
-        .sort((a, b) => b[1] - a[1]) // 많이 간 순서대로
-        .map(([name, count]) => `• ${name} (${count}회)`)
-        .join('\n');
+        .sort((a, b) => b[1] - a[1]); // 많이 간 순서대로
 
-    // 3. 화면에 목록을 띄웁니다.
-    alert(`🌲 [${mName}] 님과 함께한 인연들\n\n${sortedList}`);
+    // 3. 팝업(모달) HTML 구조 생성 및 화면에 주입
+    const popupHTML = `
+        <div id="forestListOverlay" class="fixed inset-0 z-[10001] flex items-center justify-center bg-black/70 backdrop-blur-sm transition-opacity duration-300" onclick="this.remove()">
+            <div class="bg-[#0f172a] border border-emerald-500/30 p-8 rounded-[2rem] w-[280px] text-center shadow-2xl transition-transform duration-300 scale-100" onclick="event.stopPropagation()">
+                <div class="forest-list-header mb-6">
+                    <div class="text-emerald-400 text-[10px] font-black tracking-[0.4em] mb-1">PARTNER LIST</div>
+                    <h4 class="text-white text-lg font-bold">인연의 목록</h4>
+                </div>
+                <div class="forest-list-scroll max-height-[200px] overflow-y-auto pr-2 space-y-2">
+                    ${sortedList.map(([name, count]) => `
+                        <div class="flex justify-between items-center p-3 bg-white/[0.03] rounded-xl border border-white/[0.05] text-white text-[13px]">
+                            <span>${name}</span>
+                            <span class="text-emerald-400 font-extrabold">${count}회</span>
+                        </div>
+                    `).join('')}
+                </div>
+                <button onclick="document.getElementById('forestListOverlay').remove()" 
+                        class="mt-8 w-full py-3 bg-white/5 text-slate-400 text-[11px] font-bold rounded-xl border border-white/10 hover:bg-white/10 transition-all active:scale-95">
+                    닫기
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', popupHTML);
 };
+
 
 
         // --- [핵심] 퍼센트별 색상 및 효과 설정 ---
