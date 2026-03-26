@@ -13,18 +13,26 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-  /* 배경 작은 별 (제자리 반짝임) */
+  /* 배경 작은 별 (천천히, 다채롭게 반짝임) */
 .bg-star {
   position: absolute;
-  background-color: #ffffff;
   border-radius: 50%;
   pointer-events: none;
-  animation: bg-star-twinkle linear infinite;
+  opacity: 0;
+  /* 부드러운 반짝임을 위해 ease-in-out 적용 */
+  animation: bg-star-twinkle-slow ease-in-out infinite;
   z-index: 0;
 }
-@keyframes bg-star-twinkle {
-  0%, 100% { opacity: 0; transform: scale(0.5); }
-  50% { opacity: 0.8; transform: scale(1); }
+
+@keyframes bg-star-twinkle-slow {
+  0%, 100% { 
+    opacity: 0; 
+    transform: scale(0.5); 
+  }
+  50% { 
+    opacity: 0.6; /* 너무 밝지 않게 조절 */
+    transform: scale(1.1); 
+  }
 }
   
 .aurora-layer {
@@ -4761,38 +4769,45 @@ window.showMilkyWay = async (mId, mName) => {
     if (nameLabel) nameLabel.innerText = `${mName}님의 은하수`;
     board.innerHTML = '<div class="nebula-cloud"></div>'; // 안개 레이어 유지
 
-   // [2. 배경 작은 별 50개 생성] - 제자리에서 반짝이는 효과
-    for (let i = 0; i < 50; i++) {
-        const bgStar = document.createElement('div');
-        bgStar.className = 'bg-star';
-        const size = Math.random() * 1.5 + 0.5; // 0.5px ~ 2px 사이
-        bgStar.style.width = `${size}px`;
-        bgStar.style.height = `${size}px`;
-        bgStar.style.left = `${Math.random() * 100}%`;
-        bgStar.style.top = `${Math.random() * 100}%`;
-        // 반짝이는 속도와 타이밍을 다르게 설정
-        bgStar.style.animationDuration = `${Math.random() * 3 + 2}s`;
-        bgStar.style.animationDelay = `${Math.random() * 5}s`;
-        board.appendChild(bgStar);
-    }
-  
-    try {
-        // --- [3. 동행지수(오로라) 판별 로직] ---
-        const memberInfo = currentData.find(m => m.id === mId);
+   try {
+        // [2. 동행지수 계산]
+        const memberInfo = (typeof currentData !== 'undefined') ? currentData.find(m => m.id === mId) : null;
         const baseHikes = initialHikes[mName] || 0;
         const myMultiHikes = (memberInfo && memberInfo.buddyCount !== undefined) ? memberInfo.buddyCount : 0;
-        
-        // 동행지수 계산 (이미지 속 100% 로직)
         const finalSynergy = baseHikes > 0 ? Math.min(100, Math.round((myMultiHikes / baseHikes) * 100)) : 0;
 
-        // 80% 이상이면 오로라 생성
+        // [3. 동행지수 80% 이상일 때만 배경 효과(별+오로라) 실행]
         if (finalSynergy >= 80) {
+            // A. 천천히 다채롭게 빛나는 배경 별 생성
+            const starColors = ["#ffffff", "#fff0f0", "#f0f8ff", "#e6e6fa", "#fffacd"]; // 흰색, 연분홍, 연하늘, 연보라, 연노랑
+            
+            for (let i = 0; i < 60; i++) {
+                const bgStar = document.createElement('div');
+                bgStar.className = 'bg-star';
+                const size = Math.random() * 1.2 + 0.4;
+                
+                bgStar.style.width = `${size}px`;
+                bgStar.style.height = `${size}px`;
+                bgStar.style.left = `${Math.random() * 100}%`;
+                bgStar.style.top = `${Math.random() * 100}%`;
+                
+                // 색상을 랜덤하게 부여
+                bgStar.style.backgroundColor = starColors[Math.floor(Math.random() * starColors.length)];
+                
+                // 애니메이션 속도를 대폭 늦춤 (4s ~ 8s 사이)
+                bgStar.style.animationDuration = `${Math.random() * 4 + 4}s`;
+                bgStar.style.animationDelay = `${Math.random() * 10}s`;
+                
+                board.appendChild(bgStar);
+            }
+
+            // B. 오로라 소환
             const aurora = document.createElement('div');
             aurora.className = 'aurora-layer';
-            board.appendChild(aurora);
-            setTimeout(() => aurora.classList.add('aurora-active'), 500);
+            board.prepend(aurora); 
+            requestAnimationFrame(() => aurora.classList.add('aurora-active'));
         }
-
+     
         // --- [4. 별자리 데이터 로드 및 그리기] ---
         const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
         const logs = snap.docs
