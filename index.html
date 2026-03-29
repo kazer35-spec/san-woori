@@ -3032,7 +3032,7 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 
     if (!mName) return alert("회원 이름을 찾을 수 없습니다.");
 
-    // 2. 초기 데이터 및 DB 정보 가져오기
+    // 2. 초기 데이터 (과거 기록)
     const initialHikes = {
         "오즈": 32, "지니": 22, "나스": 17, "해수": 15, "하트": 12, "아랑": 17, "쿠키": 8, "용삼": 14, 
         "식이": 6, "몰랑": 8, "길치": 7, "등초": 6, "구름": 5, "튜브": 4, "햄찌": 5, "켄신": 3, 
@@ -3045,21 +3045,15 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
     const realBuddyCount = (memberInfo && memberInfo.buddyCount) ? memberInfo.buddyCount : 0;
     const STORAGE_KEY = `forest_v5_final_${mName}`;
 
-    // 3. [신입 청소 로직]
-    if (currentFP === 0 && realBuddyCount === 0) {
-        localStorage.removeItem(STORAGE_KEY);
-    }
-
     try {
-        // [수정 포인트] 4. 실시간 DB 로그 수 조회 (혼자 간 기록 포함 모든 산행)
-        const mId = memberInfo ? memberInfo.id : "";
+        // 3. 실시간 DB 로그 수 조회 (혼자 간 기록 포함)
         let dbLogCount = 0;
-        if (mId) {
-            const logSnap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
-            dbLogCount = logSnap.size; // 실제 DB에 쌓인 총 문서 수 (혼자 간 산행 포함)
+        if (memberInfo && memberInfo.id) {
+            const logSnap = await getDocs(collection(db, `sanwoori/${memberInfo.id}/logs`));
+            dbLogCount = logSnap.size; 
         }
 
-        // 5. 캐시 데이터 로드 및 파트너 계산
+        // 4. 캐시 데이터 로드 및 파트너 계산
         let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { 
             processedIds: [], extraHikes: 0, partnersMap: {}, uniquePartners: [] 
         };
@@ -3079,28 +3073,45 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
                 });
             }
         });
-
         localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
 
-        // 6. 수치 계산 (혼자 간 기록 dbLogCount 합산)
+        // 5. 최종 수치 산출
         const baseHikes = initialHikes[mName] || 0;
-        
-        // [수정 포인트] 최종 총 횟수: 과거데이터 + 관리자 추가분 + 실제 DB 로그 개수
         const finalTotalHikes = baseHikes + (cached.extraHikes || 0) + dbLogCount;
+        const myMultiHikes = realBuddyCount;
+        const finalSynergy = finalTotalHikes > 0 ? Math.min(100, Math.round((myMultiHikes / finalTotalHikes) * 100)) : 0;
 
-        // 7. 시너지 및 동행 지수 계산
-        const myMultiHikes = realBuddyCount; // 분자 (동행 횟수)
-        const finalSynergy = finalTotalHikes > 0 
-            ? Math.min(100, Math.round((myMultiHikes / finalTotalHikes) * 100)) 
-            : 0;
+        // 6. [중요] UI 업데이트 (이 부분이 빠지면 화면에 수치가 안 변합니다)
+        // 텍스트 업데이트 (총 XX회 중 XX회)
+        const synergyText = document.getElementById('synergyTotalText');
+        if (synergyText) synergyText.innerText = `총 ${finalTotalHikes}회 중 ${myMultiHikes}회`;
 
-        // --- 이후 UI 업데이트 로직 (생략) ---
-        console.log(`${mName} 지수: ${finalSynergy}% (총 ${finalTotalHikes}회 중 ${myMultiHikes}회 동행)`);
-        
+        // 퍼센트 업데이트
+        const synergyPercent = document.getElementById('synergyPercentVal');
+        if (synergyPercent) synergyPercent.innerText = `${finalSynergy}%`;
+
+        // 게이지 바 업데이트
+        const gauge = document.getElementById('synergyGaugeBar');
+        if (gauge) gauge.style.width = `${finalSynergy}%`;
+
+        // 베스티 찾기
+        let bestie = "없음";
+        let bestCount = 0;
+        for (const [name, count] of Object.entries(cached.partnersMap)) {
+            if (count > bestCount) { bestCount = count; bestie = name; }
+        }
+        const bestieText = document.getElementById('bestPartnerName');
+        if (bestieText) bestieText.innerHTML = `${bestie} <span class="text-green-400">(${bestCount}회)</span>`;
+
+        // 7. 모달 표시 (모달 ID가 'bondingForestModal'이라고 가정)
+        const modal = document.getElementById('bondingForestModal');
+        if (modal) modal.style.display = 'flex';
+
     } catch (e) {
         console.error("Bonding Forest 로딩 에러:", e);
     }
 };
+
 
 window.showForestMemberList = () => {
     const mName = document.querySelector('#forestModal h3').innerText.replace('님의 인연', '').trim();
