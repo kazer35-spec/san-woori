@@ -3079,34 +3079,26 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
         // 업데이트된 캐시 저장
         localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
 
-                // 6. [통합] 수치 계산 (혼산 + 동행 모두 반영)
         
-        // (A) 기초 데이터 (엑셀 등에서 가져온 초기 횟수)
-        const baseHikes = initialHikes[mName] || 0;
+// 6. [수정] 진짜 전체 산행 횟수 가져오기 (혼산 포함)
+const allHikesSnap = await getDocs(collection(db, "mountainLogs")); // 실제 전체 로그 컬렉션명으로 확인하세요!
+let realTotalCount = 0;
+
+allHikesSnap.forEach(doc => {
+    const data = doc.data();
+    // 해당 회원의 이름이 기록에 포함되어 있다면 (혼산이든 동행이든) 카운트
+    if (data.name === mName || (data.members && data.members.includes(mName))) {
+        realTotalCount++;
+    }
+});
+
+// 최종 총 횟수: 기초 데이터(initialHikes) + DB에서 찾은 실제 기록
+const finalTotalHikes = Math.max(baseHikes, realTotalCount); 
+
+// 7. 시너지 및 동행 지수 계산
+// myMultiHikes는 이미 위에서 bondingForest를 통해 계산된 '동행 횟수'입니다.
+const finalSynergy = finalTotalHikes > 0 ? Math.min(100, Math.round((myMultiHikes / finalTotalHikes) * 100)) : 0;
         
-        // (B) 실시간 DB 기록 계산
-        // memberInfo.totalHikeCount는 혼산 포함 전체 횟수, 
-        // memberInfo.buddyCount는 동행 횟수라고 가정합니다.
-        const dbTotalHikes = (memberInfo && memberInfo.totalHikeCount) ? memberInfo.totalHikeCount : 0;
-        const dbBuddyHikes = (memberInfo && memberInfo.buddyCount) ? memberInfo.buddyCount : 0;
-
-        // [최종 전체 횟수] 초기값 + DB에 기록된 전체 횟수 (혼산 포함)
-        const finalTotalHikes = baseHikes + dbTotalHikes;
-
-        // [최종 동행 횟수] DB에 기록된 동행 횟수
-        const myMultiHikes = dbBuddyHikes;
-
-
-        // 7. [통합] 시너지 및 동행 지수 계산
-        
-        // 동행 지수 = (동행 횟수 / 전체 횟수) * 100
-        const finalSynergy = finalTotalHikes > 0 
-            ? Math.min(100, Math.round((myMultiHikes / finalTotalHikes) * 100)) 
-            : 0;
-
-        // 참고: 우정 포인트로 환산한 예전 기록 방식 (필요시 참고용)
-        const legacyHikesFromFP = Math.floor(currentFP / 100); 
-
 window.showForestMemberList = () => {
     const mName = document.querySelector('#forestModal h3').innerText.replace('님의 인연', '').trim();
     const STORAGE_KEY = `forest_v5_final_${mName}`;
