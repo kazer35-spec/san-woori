@@ -3987,24 +3987,21 @@ window.addMultiActivity = async () => {
             }
             await updateDoc(doc(db, "sanwoori", id), updateData);
 
-                        // --- [수정] 우정포인트(2인 이상)와 산행 횟수(무조건) 분리 로직 ---
+                                    // --- [최종 수정] 총 산행 횟수와 동행(우정) 데이터 분리 ---
             if (isHike) {
-                // 1. 산행 횟수는 혼자든 함께든 무조건 +1 상승
+                // 1. [개인 기록] 총 산행 횟수는 인원수 상관없이 무조건 +1 (totalHikeCount 등으로 관리한다고 가정)
+                // 만약 DB 필드명이 totalHikeCount라면 아래처럼, 혹은 기존 필드에 맞춰 수정하세요.
                 await updateDoc(doc(db, "sanwoori", id), { 
-                    buddyCount: increment(1) 
+                    totalHikeCount: increment(1) // 전체 산행 횟수 (혼자 가도 상승)
                 });
 
-                // 2. 우정포인트는 2인 이상일 때만 추가 업데이트
+                // 2. [동행 기록] 2인 이상일 때만 동행 횟수(buddyCount) 및 포인트 증가
                 if (selectedMemberIds.size >= 2) {
-                    let pointAmount = 0; // 변수명 충돌 방지 및 초기화
-                    if (isQuarterOnlyOne || isRegular) {
-                        pointAmount = 100; 
-                    } else {
-                        pointAmount = 100 * (effectiveUp || 0);
-                    }
-                    
+                    let pointToAdd = (isQuarterOnlyOne || isRegular) ? 100 : (100 * effectiveUp);
+
                     await updateDoc(doc(db, "sanwoori", id), { 
-                        friendshipPoint: increment(pointAmount) 
+                        buddyCount: increment(1),        // ⭐ 동행 횟수는 여기서만 상승!
+                        friendshipPoint: increment(pointToAdd) 
                     });
                 }
             }
