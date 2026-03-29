@@ -3018,12 +3018,11 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 };
 
     window.showBondingForestModal = async () => {
-    // 1. 기본 UI 요소 및 이름 추출 (중복 제거 및 통합)
+    // 1. 기본 UI 요소 및 이름 추출
     const fpElement = document.getElementById('memberFriendshipPoint');
     const currentFP = fpElement ? parseInt(fpElement.innerText.replace(/[^0-9]/g, '')) : 0;
         
     let mName = "";
-    // 기존에 사용하시던 이름 찾기 로직으로 통합
     const nameTags = Array.from(document.querySelectorAll('h2, .text-blue-600, .font-bold, .member-name'));
     const foundTag = nameTags.find(el => el.innerText.includes('님') && !el.innerText.includes('산행'));
     
@@ -3046,21 +3045,26 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
     const realBuddyCount = (memberInfo && memberInfo.buddyCount) ? memberInfo.buddyCount : 0;
     const STORAGE_KEY = `forest_v5_final_${mName}`;
 
-    // 3. [신입 청소 로직] 포인트 0, 동행 0이면 옛날 기억 삭제
+    // 3. [신입 청소 로직]
     if (currentFP === 0 && realBuddyCount === 0) {
         localStorage.removeItem(STORAGE_KEY);
-        console.log(`${mName}님 신입 확인: 유령 데이터를 청소했습니다.`);
     }
 
     try {
-        // 4. 캐시 데이터 로드
+        // [수정 포인트] 4. 실시간 DB 로그 수 조회 (혼자 간 기록 포함 모든 산행)
+        const mId = memberInfo ? memberInfo.id : "";
+        let dbLogCount = 0;
+        if (mId) {
+            const logSnap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
+            dbLogCount = logSnap.size; // 실제 DB에 쌓인 총 문서 수 (혼자 간 산행 포함)
+        }
+
+        // 5. 캐시 데이터 로드 및 파트너 계산
         let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { 
             processedIds: [], extraHikes: 0, partnersMap: {}, uniquePartners: [] 
         };
 
-        // 5. DB에서 인연의 숲 기록 가져와서 파트너 계산
         const bondingSnap = await getDocs(collection(db, "bondingForest"));
-        
         bondingSnap.forEach(doc => {
             if (cached.processedIds.includes(doc.id)) return;
             const data = doc.data();
@@ -3076,18 +3080,27 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
             }
         });
 
-        // 업데이트된 캐시 저장
         localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
 
-        // 6. 수치 계산 (실시간 DB 반영 버전)
+        // 6. 수치 계산 (혼자 간 기록 dbLogCount 합산)
         const baseHikes = initialHikes[mName] || 0;
-        // 최종 총 횟수: 관리자가 수정한 값(realBuddyCount)을 최우선으로 반영
-        const finalTotalHikes = baseHikes + (cached.extraHikes || 0);
+        
+        // [수정 포인트] 최종 총 횟수: 과거데이터 + 관리자 추가분 + 실제 DB 로그 개수
+        const finalTotalHikes = baseHikes + (cached.extraHikes || 0) + dbLogCount;
 
         // 7. 시너지 및 동행 지수 계산
-        const legacyHikesFromFP = Math.floor(currentFP / 10); 
-        const myMultiHikes = (memberInfo && memberInfo.buddyCount !== undefined) ? realBuddyCount : 0;
-        const finalSynergy = finalTotalHikes > 0 ? Math.min(100, Math.round((myMultiHikes / finalTotalHikes) * 100)) : 0;
+        const myMultiHikes = realBuddyCount; // 분자 (동행 횟수)
+        const finalSynergy = finalTotalHikes > 0 
+            ? Math.min(100, Math.round((myMultiHikes / finalTotalHikes) * 100)) 
+            : 0;
+
+        // --- 이후 UI 업데이트 로직 (생략) ---
+        console.log(`${mName} 지수: ${finalSynergy}% (총 ${finalTotalHikes}회 중 ${myMultiHikes}회 동행)`);
+        
+    } catch (e) {
+        console.error("Bonding Forest 로딩 에러:", e);
+    }
+};
 
 window.showForestMemberList = () => {
     const mName = document.querySelector('#forestModal h3').innerText.replace('님의 인연', '').trim();
