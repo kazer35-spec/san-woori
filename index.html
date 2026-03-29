@@ -3926,11 +3926,9 @@ window.saveCardImage = async () => {
 };
 
 
-window.addMultiActivity = async () => {
-    // 1. 기본 데이터 수집
-    const dateElement = document.getElementById('activityDate');
-    let rawDate = dateElement.value; // "2026. 03. 29." 형태
-
+Window.addMultiActivity = async () => {
+    // [1] 기본 데이터 수집 및 유효성 검사
+    const dateInput = document.getElementById('activityDate').value;
     const mName = document.getElementById('mountainName').value.trim();
     const height = parseInt(document.getElementById('mountainHeight').value) || 0;
     const isTop100 = document.getElementById('isTop100Check').checked;
@@ -3941,22 +3939,19 @@ window.addMultiActivity = async () => {
     const region = document.getElementById('adminManualRegionSelect').value;
     const isQuarterOnlyOne = document.getElementById('isQuarterCheck')?.checked || false;
 
-    if(!selectedMemberIds.size || !rawDate) return alert("대상과 날짜 확인");
+    if(!selectedMemberIds.size || !dateInput) return alert("대상과 날짜 확인");
 
     const upElement = document.querySelector('input[name="upAmount"]:checked');
     if(!upElement) return alert("레벨업 수치를 선택해주세요.");
     const up = parseInt(upElement.value);
 
+    // [2] 날짜 형식 정규화 (점(.) 형식을 하이픈(-)으로 변경하여 에러 방지)
+    const dateVal = dateInput.replace(/\./g, '-').replace(/\s/g, '').replace(/-$/, '');
+
     const isSpecial = isRunning || isTracking; 
     const isHike = !isSpecial; 
     const effectiveUp = isHike ? up : 0;
     const logLoopCount = isRegular ? 1 : (isSpecial ? 1 : (isQuarterOnlyOne ? 1 : up));
-
-    // --- [날짜 형식 안전 변환 로직] ---
-    // "2026. 03. 29." -> "2026-03-29" 로 변환하여 split 에러 방지
-    let dateVal = rawDate.replace(/\./g, '-').replace(/\s/g, '');
-    if (dateVal.endsWith('-')) dateVal = dateVal.slice(0, -1);
-    
     const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
 
     const selectedNames = [];
@@ -3965,8 +3960,14 @@ window.addMultiActivity = async () => {
         if(m) selectedNames.push(m.name);
     });
 
+    if(mName && tempCoord) {
+        await setDoc(doc(db, "mountains", mName), {
+            x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region
+        }, { merge: true });
+    }
+
     try {
-        pendingLevelUpCards = []; // 레벨업 카드 초기화
+        pendingLevelUpCards = []; 
 
         for(const id of selectedMemberIds){
             const member = currentData.find(m => m.id === id);
@@ -3975,13 +3976,11 @@ window.addMultiActivity = async () => {
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
-            // 레벨업 대상 저장
             if (effectiveUp > 0) {
                 pendingLevelUpCards.push({ name: member.name, oldLevel, newLevel });
             }
 
             const updateData = { level: newLevel, totalHeight: increment(height) };
-
             if (isHike || isRunning || isTracking) {
                 updateData.lastDate = ts;
                 if (isHike) updateData.bonusDays = 0;
@@ -3989,8 +3988,8 @@ window.addMultiActivity = async () => {
                     updateData.dday = Math.min(122, (member.dday || 0) + 15);
                 }
             }
-
-            // --- ✨ [인연의 숲 & 우정포인트 핵심 로직] ---
+            
+            // ✅ [인연의 숲 & 우정포인트 로직 통합 및 수정]
             if (isHike) {
                 const STORAGE_KEY = `forest_v5_final_${member.name}`;
                 let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { 
@@ -4000,10 +3999,10 @@ window.addMultiActivity = async () => {
                 const logUniqueKey = `manual_${dateVal}_${mName}_${id}`;
                 
                 if (!cached.processedIds.includes(logUniqueKey)) {
-                    // ✅ 혼자 가든 같이 가든 '총 산행 횟수' 무조건 증가
+                    // 1. 혼자 가든 같이 가든 무조건 전체 산행 횟수 증가
                     cached.extraHikes += 1; 
-                    
-                    // 2인 이상 동행 시에만 추가 데이터 처리
+
+                    // 2. 동행자가 있을 때만 파트너 기록 및 우정포인트 DB 반영
                     if (selectedMemberIds.size >= 2) {
                         const others = selectedNames.filter(n => n !== member.name);
                         others.forEach(otherName => {
@@ -4012,9 +4011,10 @@ window.addMultiActivity = async () => {
                                 cached.uniquePartners.push(otherName);
                             }
                         });
-                        // DB 우정포인트 & 동행횟수 필드 업데이트
+                        
+                        // DB 데이터 추가 (동행 횟수 및 우정 포인트)
                         updateData.groupHikingCount = increment(1);
-                        const pointToAdd = isRegular ? 10 : (10 * up); 
+                        const pointToAdd = isRegular ? 10 : (10 * effectiveUp); 
                         updateData.friendshipPoint = increment(pointToAdd);
                     }
 
@@ -4025,7 +4025,7 @@ window.addMultiActivity = async () => {
 
             await updateDoc(doc(db, "sanwoori", id), updateData);
 
-            // 로그 및 별점 생성
+            // [로그 생성 부분 생략 없이 유지]
             for(let i = 0; i < logLoopCount; i++) {
                 let assignedStarType = null;
                 if (isRegular) {
@@ -4035,8 +4035,7 @@ window.addMultiActivity = async () => {
                     else assignedStarType = "regular_" + (Math.floor(Math.random() * 4) + 1);
                 }
                 await addDoc(collection(db, `sanwoori/${id}/logs`), {
-                    date: ts, mountain: mName, height, 
-                    coords: typeof tempCoord !== 'undefined' ? tempCoord : null,
+                    date: ts, mountain: mName, height, coords: tempCoord,
                     isTop100, isBAC, isRegular, isRunning, isTracking, region,
                     starType: assignedStarType, author: member.name
                 });
@@ -4047,7 +4046,6 @@ window.addMultiActivity = async () => {
             }
         }
 
-        // 인연의 숲 공용 DB 저장 (2인 이상일 때만)
         if (selectedNames.length >= 2 && isHike) {
             await addDoc(collection(db, "bondingForest"), {
                 mountain: mName, members: selectedNames,
@@ -4055,18 +4053,15 @@ window.addMultiActivity = async () => {
             });
         }
 
-        // ✨ 레벨업 카드 노출 (통합 알림)
         if (pendingLevelUpCards.length > 0 && typeof showCombinedLevelUpAlert === 'function') {
             showCombinedLevelUpAlert();
         }
 
-        alert(isHike ? "기록 및 인연의 숲 반영 완료!" : "기록 완료");
-        
+        alert(isHike ? "기록 및 인연의 숲 동행 반영 완료!" : "기록 완료");
         selectedMemberIds.clear();
         tempCoord = null;
         if (typeof updateAdminMemberLists === 'function') updateAdminMemberLists();
         if (typeof startRealtimeSync === 'function') startRealtimeSync(); 
-
     } catch (error) {
         console.error("Error:", error);
         alert("저장 실패: " + error.message);
@@ -4074,7 +4069,8 @@ window.addMultiActivity = async () => {
 };
 
 
-            
+        
+
     window.loadMemberLogs = async () => {
 const id = document.getElementById('memberSelectEdit').value;
 const area = document.getElementById('logListArea'); area.innerHTML = ""; if(!id) return;
