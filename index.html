@@ -3926,8 +3926,8 @@ window.saveCardImage = async () => {
 };
 
 
-Window.addMultiActivity = async () => {
-    // 1. 기본 데이터 수집
+window.addMultiActivity = async () => {
+    // 1. 기본 데이터 수집 (날짜, 산이름, 체크박스 등)
     const dateVal = document.getElementById('activityDate').value;
     const mName = document.getElementById('mountainName').value.trim();
     const height = parseInt(document.getElementById('mountainHeight').value) || 0;
@@ -3951,12 +3951,14 @@ Window.addMultiActivity = async () => {
     const logLoopCount = isRegular ? 1 : (isSpecial ? 1 : (isQuarterOnlyOne ? 1 : up));
     const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
 
+    // 인연의 숲용 이름 명단
     const selectedNames = [];
     selectedMemberIds.forEach(id => {
         const m = currentData.find(mem => mem.id === id);
         if(m) selectedNames.push(m.name);
     });
 
+    // 산 메타 정보 저장
     if(mName && tempCoord) {
         await setDoc(doc(db, "mountains", mName), {
             x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region
@@ -3966,6 +3968,7 @@ Window.addMultiActivity = async () => {
     try {
         pendingLevelUpCards = []; 
 
+        // --- 멤버별 데이터 업데이트 루프 ---
         for(const id of selectedMemberIds){
             const member = currentData.find(m => m.id === id);
             if(!member) continue;
@@ -3973,7 +3976,6 @@ Window.addMultiActivity = async () => {
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
-            // 기본 능력치 업데이트
             const updateData = { level: newLevel, totalHeight: increment(height) };
             if (isHike || isRunning || isTracking) {
                 updateData.lastDate = ts;
@@ -3985,41 +3987,30 @@ Window.addMultiActivity = async () => {
             }
             await updateDoc(doc(db, "sanwoori", id), updateData);
 
-            // --- [통합 수정] 포인트 및 횟수 업데이트 (혼자 가도 산행이면 반영) ---
+            // --- [수정] 우정포인트(2인 이상)와 산행 횟수(무조건) 분리 로직 ---
             if (isHike) {
-                let pointToAdd;
-                if (isQuarterOnlyOne || isRegular) {
-                    pointToAdd = 100; 
-                } else {
-                    pointToAdd = 100 * effectiveUp;
-                }
-
-                // 2인 이상일 때만 '우정포인트'라는 명칭이 어울리지만, 
-                // 혼자 가도 '활동 포인트' 개념으로 통합 관리하도록 수정했습니다.
+                // 1. 산행 횟수는 혼자 가든 함께 가든 무조건 +1 상승
                 await updateDoc(doc(db, "sanwoori", id), { 
-                    friendshipPoint: increment(pointToAdd),
-                    buddyCount: increment(1) // 이제 혼자 가도 총 산행 횟수(buddyCount)가 1 상승합니다.
+                    buddyCount: increment(1) 
                 });
 
-                // 인연의 숲(로컬 스토리지 캐시) 즉시 반영
-                const STORAGE_KEY = `forest_v5_final_${member.name}`;
-                let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { 
-                    processedIds: [], extraHikes: 0, partnersMap: {}, uniquePartners: [] 
-                };
-                
-                const manualId = `manual_${dateVal}_${mName}_${id}`;
-                if (!cached.processedIds.includes(manualId)) {
-                    cached.extraHikes += 1; 
-                    cached.processedIds.push(manualId);
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
-                }
-
-                if (typeof checkLevelUpgrade === 'function') {
-                    checkLevelUpgrade(member.name, oldLevel, newLevel);
+                // 2. 우정포인트는 기존처럼 '2인 이상'일 때만 계산해서 지급
+                if (selectedMemberIds.size >= 2) {
+                    let pointToAdd;
+                    if (isQuarterOnlyOne || isRegular) {
+                        pointToAdd = 100; 
+                    } else {
+                        pointToAdd = 100 * effectiveUp;
+                    }
+                    await updateDoc(doc(db, "sanwoori", id), { 
+                        friendshipPoint: increment(pointToAdd) 
+                    });
                 }
             }
 
-            // 개별 로그 생성
+}
+
+            // 개별 로그(별) 생성
             for(let i = 0; i < logLoopCount; i++) {
                 let assignedStarType = null;
                 if (isRegular) {
@@ -4031,13 +4022,33 @@ Window.addMultiActivity = async () => {
                 await addDoc(collection(db, `sanwoori/${id}/logs`), {
                     date: ts, mountain: mName, height, coords: tempCoord,
                     isTop100, isBAC, isRegular, isRunning, isTracking, region,
-                    starType: assignedStarType, author: member.name
+                    starType: assignedStarType, author: member.name // 본인 이름 필드 추가
                 });
+            }
+
+            // ✨ [핵심 로직] 레벨업 수치가 올라갈 때 '인연의 숲' 산행 카운트도 즉시 반영
+            if (isHike) {
+                const STORAGE_KEY = `forest_v5_final_${member.name}`;
+                let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { 
+                    processedIds: [], extraHikes: 0, partnersMap: {}, uniquePartners: [] 
+                };
+                
+                // 수동 입력 건에 대한 고유 ID (중복 카운트 방지)
+                const manualId = `manual_${dateVal}_${mName}_${id}`;
+                if (!cached.processedIds.includes(manualId)) {
+                    cached.extraHikes += 1; // 산행이므로 전체 횟수 1 증가
+                    cached.processedIds.push(manualId);
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
+                }
+
+                // 등급 상향 체크 (팝업용)
+                if (typeof checkLevelUpgrade === 'function') {
+                    checkLevelUpgrade(member.name, oldLevel, newLevel);
+                }
             }
         }
 
-        // --- 인연의 숲 DB 저장 (2인 이상일 때만 동료 기록 생성) ---
-        // 혼자 간 기록은 본인 로그에 남으므로, 공유 게시판 성격인 bondingForest에는 2인 이상만 저장합니다.
+        // 인연의 숲(동료 기록) 저장
         if (selectedNames.length >= 2 && isHike) {
             await addDoc(collection(db, "bondingForest"), {
                 mountain: mName, members: selectedNames,
@@ -4045,11 +4056,12 @@ Window.addMultiActivity = async () => {
             });
         }
 
+        // 레벨업 카드 노출
         if (pendingLevelUpCards.length > 0 && typeof showCombinedLevelUpAlert === 'function') {
             showCombinedLevelUpAlert();
         }
 
-        alert(isHike ? "산행 기록 완료!" : "기록 완료");
+        alert(isHike ? "산행 기록 및 인연의 숲 저장 완료!" : "기록 완료");
         selectedMemberIds.clear();
         tempCoord = null;
         updateAdminMemberLists();
