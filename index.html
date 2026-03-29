@@ -3056,25 +3056,42 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
         // 4. 캐시 데이터 로드
         let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { 
             processedIds: [], extraHikes: 0, partnersMap: {}, uniquePartners: [] 
-        };
-
+            quarterlyMap: { 1: {}, 2: {}, 3: {}, 4: {} }
+            };
+        
         // 5. DB에서 인연의 숲 기록 가져와서 파트너 계산
         const bondingSnap = await getDocs(collection(db, "bondingForest"));
         
         bondingSnap.forEach(doc => {
-            if (cached.processedIds.includes(doc.id)) return;
-            const data = doc.data();
-            const members = data.members || [];
-            if (members.includes(mName)) {
-                cached.processedIds.push(doc.id);
-                members.forEach(p => {
-                    if (p !== mName) {
-                        cached.partnersMap[p] = (cached.partnersMap[p] || 0) + 1;
-                        if (!cached.uniquePartners.includes(p)) cached.uniquePartners.push(p);
-                    }
-                });
+    if (cached.processedIds.includes(doc.id)) return;
+    const data = doc.data();
+    
+    // [추가] 1. 이 기록이 언제 기록된 건지 '분기'를 계산합니다 (1~4분기)
+    const logDate = data.date ? data.date.toDate() : new Date(); // 기록 날짜 추출
+    const quarter = Math.floor(logDate.getMonth() / 3) + 1;      // 분기 계산
+
+    // [추가] 2. 분기별 데이터를 담을 주머니가 없으면 만듭니다
+    if (!cached.quarterlyMap) {
+        cached.quarterlyMap = { 1: {}, 2: {}, 3: {}, 4: {} };
+    }
+
+    const members = data.members || [];
+    if (members.includes(mName)) {
+        cached.processedIds.push(doc.id);
+        members.forEach(p => {
+            if (p !== mName) {
+                // 기존: 전체 기간 합산
+                cached.partnersMap[p] = (cached.partnersMap[p] || 0) + 1;
+                
+                // [추가] 3. 해당 분기에 이 파트너와 몇 번 했는지 기록
+                cached.quarterlyMap[quarter][p] = (cached.quarterlyMap[quarter][p] || 0) + 1;
+
+                if (!cached.uniquePartners.includes(p)) cached.uniquePartners.push(p);
             }
         });
+    }
+});
+
 
         // 업데이트된 캐시 저장
         localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
@@ -3083,6 +3100,24 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
         const baseHikes = initialHikes[mName] || 0;
         // 최종 총 횟수: 관리자가 수정한 값(realBuddyCount)을 최우선으로 반영
         const finalTotalHikes = baseHikes + (cached.extraHikes || 0);
+
+        // [추가] 최고의 파트너 찾기 및 횟수 표시
+const partnerEntries = Object.entries(cached.partnersMap);
+if (partnerEntries.length > 0) {
+    // 가장 많이 산행한 파트너 추출
+    const [bestName, bestCount] = partnerEntries.sort((a, b) => b[1] - a[1])[0];
+    
+    // 최고의 파트너 이름을 표시하는 태그(ID)를 찾아서 내용을 바꿉니다
+    const partnerNameEl = document.getElementById('bestPartnerName'); 
+    if (partnerNameEl) {
+        // 이름 옆에 (횟수) 추가 및 파란색 강조
+        partnerNameEl.innerHTML = `${bestName} <span style="font-size:12px; color:#60a5fa;">(${bestCount}회)</span>`;
+        partnerNameEl.style.cursor = 'pointer'; // 마우스 올리면 손가락 모양으로
+        
+        // 클릭했을 때 분기별 상세 내역 팝업 띄우기
+        partnerNameEl.onclick = () => window.showQuarterlyPartnerDetails(cached.quarterlyMap);
+    }
+}
 
         // 7. 시너지 및 동행 지수 계산
         const legacyHikesFromFP = Math.floor(currentFP / 10); 
@@ -5459,6 +5494,30 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+    window.showQuarterlyPartnerDetails = (qMap) => {
+    let listHtml = "";
+    for (let i = 1; i <= 4; i++) {
+        // 각 분기별로 가장 많이 만난 사람 찾기
+        const partners = qMap[i] || {};
+        const best = Object.entries(partners).sort((a, b) => b[1] - a[1])[0];
+        listHtml += `
+            <div style="display:flex; justify-content:space-between; margin-bottom:8px; padding:5px; border-bottom:1px solid #334155;">
+                <span style="color:#94a3b8;">${i}분기</span>
+                <span>${best ? `<b>${best[0]}</b> (${best[1]}회)` : '-'}</span>
+            </div>`;
+    }
+
+    const modal = document.createElement('div');
+    modal.style.cssText = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:10001; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(5px);";
+    modal.innerHTML = `
+        <div style="background:#1e293b; padding:20px; border-radius:15px; width:260px; color:white; border:1px solid #3b82f6;">
+            <h3 style="margin:0 0 15px 0; text-align:center; font-size:16px;">🏆 분기별 최고의 파트너</h3>
+            ${listHtml}
+            <button onclick="this.parentElement.parentElement.remove()" style="width:100%; margin-top:15px; padding:8px; background:#3b82f6; border:none; border-radius:8px; color:white; cursor:pointer;">닫기</button>
+        </div>`;
+    document.body.appendChild(modal);
+};
 
 
 </script>
