@@ -3079,16 +3079,26 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
         // 업데이트된 캐시 저장
         localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
 
-        // 6. 수치 계산 (실시간 DB 반영 버전)
-        const baseHikes = initialHikes[mName] || 0;
-        // 최종 총 횟수: 관리자가 수정한 값(realBuddyCount)을 최우선으로 반영
-        const finalTotalHikes = baseHikes + (cached.extraHikes || 0);
+        
+// 6. [수정] 진짜 전체 산행 횟수 가져오기 (혼산 포함)
+const allHikesSnap = await getDocs(collection(db, "mountainLogs")); // 실제 전체 로그 컬렉션명으로 확인하세요!
+let realTotalCount = 0;
 
-        // 7. 시너지 및 동행 지수 계산
-        const legacyHikesFromFP = Math.floor(currentFP / 10); 
-        const myMultiHikes = (memberInfo && memberInfo.buddyCount !== undefined) ? realBuddyCount : 0;
-        const finalSynergy = finalTotalHikes > 0 ? Math.min(100, Math.round((myMultiHikes / finalTotalHikes) * 100)) : 0;
+allHikesSnap.forEach(doc => {
+    const data = doc.data();
+    // 해당 회원의 이름이 기록에 포함되어 있다면 (혼산이든 동행이든) 카운트
+    if (data.name === mName || (data.members && data.members.includes(mName))) {
+        realTotalCount++;
+    }
+});
 
+// 최종 총 횟수: 기초 데이터(initialHikes) + DB에서 찾은 실제 기록
+const finalTotalHikes = Math.max(baseHikes, realTotalCount); 
+
+// 7. 시너지 및 동행 지수 계산
+// myMultiHikes는 이미 위에서 bondingForest를 통해 계산된 '동행 횟수'입니다.
+const finalSynergy = finalTotalHikes > 0 ? Math.min(100, Math.round((myMultiHikes / finalTotalHikes) * 100)) : 0;
+        
 window.showForestMemberList = () => {
     const mName = document.querySelector('#forestModal h3').innerText.replace('님의 인연', '').trim();
     const STORAGE_KEY = `forest_v5_final_${mName}`;
