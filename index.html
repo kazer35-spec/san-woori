@@ -3976,7 +3976,14 @@ window.addMultiActivity = async () => {
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
-            const updateData = { level: newLevel, totalHeight: increment(height) };
+                        // 1. 통합 업데이트 객체 생성 (기본값: 레벨, 높이, 전체 횟수)
+            const updateData = { 
+                level: newLevel, 
+                totalHeight: increment(height),
+                count: increment(1) // ⭐ DB 스냅샷 확인 결과: 전체 산행 횟수 필드는 'count'
+            };
+
+            // 2. 활동 유형별(산행/러닝/트래킹) 공통 날짜 및 D-day 로직
             if (isHike || isRunning || isTracking) {
                 updateData.lastDate = ts;
                 if (isHike) updateData.bonusDays = 0;
@@ -3985,26 +3992,17 @@ window.addMultiActivity = async () => {
                     updateData.dday = calculatedDday;
                 }
             }
-            await updateDoc(doc(db, "sanwoori", id), updateData);
 
-                                    // --- [최종 수정] 총 산행 횟수와 동행(우정) 데이터 분리 ---
-            if (isHike) {
-                // 1. [개인 기록] 총 산행 횟수는 인원수 상관없이 무조건 +1 (totalHikeCount 등으로 관리한다고 가정)
-                // 만약 DB 필드명이 totalHikeCount라면 아래처럼, 혹은 기존 필드에 맞춰 수정하세요.
-                await updateDoc(doc(db, "sanwoori", id), { 
-                    totalHikeCount: increment(1) // 전체 산행 횟수 (혼자 가도 상승)
-                });
-
-                // 2. [동행 기록] 2인 이상일 때만 동행 횟수(buddyCount) 및 포인트 증가
-                if (selectedMemberIds.size >= 2) {
-                    let pointToAdd = (isQuarterOnlyOne || isRegular) ? 100 : (100 * effectiveUp);
-
-                    await updateDoc(doc(db, "sanwoori", id), { 
-                        buddyCount: increment(1),        // ⭐ 동행 횟수는 여기서만 상승!
-                        friendshipPoint: increment(pointToAdd) 
-                    });
-                }
+            // 3. [핵심] 동행 기록 분리 (2인 이상 산행일 때만 추가)
+            if (isHike && selectedMemberIds.size >= 2) {
+                let pointToAdd = (isQuarterOnlyOne || isRegular) ? 100 : (100 * effectiveUp);
+                
+                updateData.buddyCount = increment(1);       // ⭐ 동행 횟수: 2인 이상일 때만 포함
+                updateData.friendshipPoint = increment(pointToAdd); // 우정 포인트 추가
             }
+
+            // 4. 단 한 번의 DB 호출로 모든 변경사항 저장 (에러 방지 및 통합)
+            await updateDoc(doc(db, "sanwoori", id), updateData);
 
 
             // 개별 로그(별) 생성
