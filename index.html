@@ -3987,28 +3987,28 @@ window.addMultiActivity = async () => {
             }
             await updateDoc(doc(db, "sanwoori", id), updateData);
 
-            // --- [수정] 우정포인트(2인 이상)와 산행 횟수(무조건) 분리 로직 ---
+                        // --- [수정] 우정포인트(2인 이상)와 산행 횟수(무조건) 분리 로직 ---
             if (isHike) {
-                // 1. 산행 횟수는 혼자 가든 함께 가든 무조건 +1 상승
+                // 1. 산행 횟수는 혼자든 함께든 무조건 +1 상승
                 await updateDoc(doc(db, "sanwoori", id), { 
                     buddyCount: increment(1) 
                 });
 
-                // 2. 우정포인트는 기존처럼 '2인 이상'일 때만 계산해서 지급
+                // 2. 우정포인트는 2인 이상일 때만 추가 업데이트
                 if (selectedMemberIds.size >= 2) {
-                    let pointToAdd;
+                    let pointAmount = 0; // 변수명 충돌 방지 및 초기화
                     if (isQuarterOnlyOne || isRegular) {
-                        pointToAdd = 100; 
+                        pointAmount = 100; 
                     } else {
-                        pointToAdd = 100 * effectiveUp;
+                        pointAmount = 100 * (effectiveUp || 0);
                     }
+                    
                     await updateDoc(doc(db, "sanwoori", id), { 
-                        friendshipPoint: increment(pointToAdd) 
+                        friendshipPoint: increment(pointAmount) 
                     });
                 }
             }
 
-}
 
             // 개별 로그(별) 생성
             for(let i = 0; i < logLoopCount; i++) {
