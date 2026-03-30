@@ -4352,35 +4352,50 @@ window.syncLastDateAfterDelete = async (mId) => {
 
 Window.deleteLog = async (mId, logId, shouldDownLevel) => {
     if(!confirm("기록을 삭제하시겠습니까?")) return;
+
+    // 파이어베이스 명령어 안전하게 가져오기
+    const { doc, updateDoc, deleteDoc, increment } = firebase.firestore;
     
     try {
-        // 1. 이름 찾기 (캐시 삭제를 위해 필요)
-        // 현재 화면에서 해당 회원의 이름을 가져옵니다.
+        // 1. [캐시 삭제] 이름 찾아서 브라우저 기억 지우기
         const memberInfo = (typeof currentData !== 'undefined') ? currentData.find(m => m.id === mId) : null;
         if (memberInfo) {
             const STORAGE_KEY = `forest_v5_final_${memberInfo.name}`;
-            localStorage.removeItem(STORAGE_KEY); // ✨ [핵심] 삭제 즉시 캐시 파기!
-            console.log(`${memberInfo.name}님의 캐시를 갱신했습니다.`);
+            localStorage.removeItem(STORAGE_KEY); 
+            console.log(`${memberInfo.name}님 캐시 삭제 완료`);
         }
 
-        // 2. 로그 삭제 및 수치 차감 (기존 무적 코드 그대로)
+        // 2. 로그(활동 내역) 문서 삭제
         await deleteDoc(doc(db, `sanwoori/${mId}/logs`, logId));
-        const memberRef = doc(db, "sanwoori", mId);
         
-        try { await updateDoc(memberRef, { count: increment(-1) }); } catch(e){}
-        try { await updateDoc(memberRef, { buddyCount: increment(-1) }); } catch(e){}
-        
+        // 3. 수치 차감 데이터 준비 (count와 buddyCount 둘 다 타격)
+        const rollbackData = {
+            count: increment(-1),      // 전체 횟수 차감
+            buddyCount: increment(-1)  // 인연의 숲 횟수 차감
+        };
+
         if(shouldDownLevel) {
-            try { await updateDoc(memberRef, { level: increment(-1) }); } catch(e){}
+            rollbackData.level = increment(-1); // 레벨 차감
         }
 
-        // 3. UI 및 동기화 (새로고침 없이 실시간 반영 유도)
+        // 4. DB 업데이트 (필드가 없어도 에러 안 나게 처리)
+        const memberRef = doc(db, "sanwoori", mId);
+        await updateDoc(memberRef, rollbackData).catch(err => {
+            console.log("일부 필드(buddyCount 등)가 없어 개별 차감을 시도합니다.");
+            // buddyCount가 없는 멤버를 위해 count만이라도 확실히 차감
+            updateDoc(memberRef, { count: increment(-1) });
+        });
+
+        // 5. UI 및 동기화 (기존 성공 로직)
         if (window.syncLastDateAfterDelete) await window.syncLastDateAfterDelete(mId);
         if (typeof loadMemberLogs === 'function') loadMemberLogs(); 
-        
+        if (typeof updateVibeTemp === 'function') updateVibeTemp();
+        if (typeof startRealtimeSync === 'function') startRealtimeSync(); 
+
         alert("삭제 완료! 수치가 실시간으로 갱신되었습니다.");
     } catch (e) {
-        alert("오류 발생: " + e.message);
+        console.error("삭제 오류:", e);
+        alert("삭제 실패: " + e.message);
     }
 };
 
