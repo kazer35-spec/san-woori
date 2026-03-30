@@ -3052,87 +3052,94 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
         console.log(`${mName}님 신입 확인: 유령 데이터를 청소했습니다.`);
     }
 
-    try {
-// --- [4 & 5 통합 수정 버전] ---
+    // --- [4 & 5 통합 수정 버전 시작] ---
+try {
+    // 4. 캐시 데이터 로드 및 구조 초기화
+    let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { 
+        processedIds: [], extraHikes: 0, partnersMap: {}, uniquePartners: [],
+        quarterlyPartners: { q1: {}, q2: {}, q3: {}, q4: {} },
+        myHikes: 0, totalHikes: 0
+    };
 
-// 4. 캐시 데이터 로드 및 구조 초기화
-let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { 
-    processedIds: [], extraHikes: 0, partnersMap: {}, uniquePartners: [],
-    quarterlyPartners: { q1: {}, q2: {}, q3: {}, q4: {} } 
-};
+    // [중요] 기존 캐시에 분기 데이터 구조가 없으면 강제로 생성
+    if (!cached.quarterlyPartners) {
+        cached.quarterlyPartners = { q1: {}, q2: {}, q3: {}, q4: {} };
+    }
 
-// [중요] 만약 기존 캐시에 분기 데이터 바구니가 없으면 강제로 새로 만듭니다.
-if (!cached.quarterlyPartners) {
+    // 5. DB에서 인연의 숲 기록 가져오기 및 실시간 계산
+    const bondingSnap = await getDocs(collection(db, "bondingForest"));
+
+    // [데이터 리셋] 매번 새로 집계하여 삭제된 기록 및 횟수 오류를 실시간 반영
     cached.quarterlyPartners = { q1: {}, q2: {}, q3: {}, q4: {} };
-    cached.processedIds = []; // 분기 계산을 위해 ID 목록을 비워 DB에서 다시 읽게 합니다.
-    console.log("분기별 데이터 구조를 생성했습니다.");
-}
+    cached.partnersMap = {}; 
+    cached.uniquePartners = [];
+    cached.processedIds = [];
+    cached.myHikes = 0; 
 
-   try {     
-// 5. DB에서 인연의 숲 기록 가져오기 및 실시간 계산
-const bondingSnap = await getDocs(collection(db, "bondingForest"));
+    // 날짜가 있는 정상적인 기록만 필터링 (삭제 반영된 실제 개수)
+    const validDocs = bondingSnap.docs.filter(doc => doc.data().date);
+    const finalTotalHikes = validDocs.length; // '총 n회'의 기준
+    cached.totalHikes = finalTotalHikes;
 
-// [중요] 기록 삭제를 반영하기 위해 매번 데이터를 새로 집계합니다.
-cached.quarterlyPartners = { q1: {}, q2: {}, q3: {}, q4: {} };
-cached.partnersMap = {}; 
-cached.uniquePartners = [];
-cached.processedIds = [];
-cached.myHikes = 0; // 내 참여 횟수 초기화
+    const currentYear = new Date().getFullYear();
 
-// DB에 실제 존재하는 '날짜가 있는 기록'의 총 개수 (삭제 반영)
-const validDocs = bondingSnap.docs.filter(doc => doc.data().date);
-const finalTotalHikes = validDocs.length; 
-cached.totalHikes = finalTotalHikes;
-
-const currentYear = new Date().getFullYear();
-
-validDocs.forEach(doc => {
-    const data = doc.data();
-    const members = data.members || [];
-    
-    // 유저 본인이 포함된 산행인지 확인
-    if (members.includes(mName)) {
-        cached.myHikes++; // 내 참여 횟수 증가
-        cached.processedIds.push(doc.id);
+    validDocs.forEach(doc => {
+        const data = doc.data();
+        const members = data.members || [];
         
-        // 날짜 분석 (예: "2026-01-23")
-        const dateStr = data.date || ""; 
-        const dateParts = dateStr.split('-');
-        const year = parseInt(dateParts[0]);
-        const month = parseInt(dateParts[1]);
-        
-        // 1. 역대 파트너 합산 (전체 기간)
-        members.forEach(p => {
-            if (p !== mName) {
-                cached.partnersMap[p] = (cached.partnersMap[p] || 0) + 1;
-                if (!cached.uniquePartners.includes(p)) cached.uniquePartners.push(p);
-            }
-        });
-
-        // 2. 분기별 파트너 합산 (오직 "올해" 기록만)
-        if (year === currentYear) {
-            let qKey = "";
-            if (month >= 1 && month <= 3) qKey = "q1";
-            else if (month >= 4 && month <= 6) qKey = "q2";
-            else if (month >= 7 && month <= 9) qKey = "q3";
-            else if (month >= 10 && month <= 12) qKey = "q4";
-
-            if (qKey) {
+        // 유저 본인이 포함된 기록만 계산
+        if (members.includes(mName)) {
+            cached.myHikes++; // 내 참여 횟수 증가
+            cached.processedIds.push(doc.id);
+            
+            // 날짜 분석 (예: "2026-01-23")
+            const dateStr = data.date || ""; 
+            const dateParts = dateStr.split('-');
+            
+            if (dateParts.length >= 2) {
+                const year = parseInt(dateParts[0]);
+                const month = parseInt(dateParts[1]);
+                
+                // (1) 역대 파트너 합산 (전체 기간)
                 members.forEach(p => {
                     if (p !== mName) {
-                        cached.quarterlyPartners[qKey][p] = (cached.quarterlyPartners[qKey][p] || 0) + 1;
+                        cached.partnersMap[p] = (cached.partnersMap[p] || 0) + 1;
+                        if (!cached.uniquePartners.includes(p)) cached.uniquePartners.push(p);
                     }
                 });
+
+                // (2) 분기별 파트너 합산 (오직 "올해" 기록만)
+                if (year === currentYear) {
+                    let qKey = "";
+                    if (month >= 1 && month <= 3) qKey = "q1";
+                    else if (month >= 4 && month <= 6) qKey = "q2";
+                    else if (month >= 7 && month <= 9) qKey = "q3";
+                    else if (month >= 10 && month <= 12) qKey = "q4";
+
+                    if (qKey) {
+                        members.forEach(p => {
+                            if (p !== mName) {
+                                cached.quarterlyPartners[qKey][p] = (cached.quarterlyPartners[qKey][p] || 0) + 1;
+                            }
+                        });
+                    }
+                }
             }
         }
-    }
-});
+    });
 
-// 시너지(동행지수) 재계산
-const finalSynergy = finalTotalHikes > 0 ? Math.floor((cached.myHikes / finalTotalHikes) * 100) : 0;
+    // 동행 지수(시너지) 재계산 (변수 선언 위치 유지)
+    const finalSynergy = finalTotalHikes > 0 ? Math.floor((cached.myHikes / finalTotalHikes) * 100) : 0;
 
-// 업데이트된 캐시 저장
-localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
+    // 업데이트된 캐시 저장
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
+
+    // --- [이후 코드에서 finalTotalHikes, finalSynergy를 자유롭게 사용 가능] ---
+
+} catch (error) {
+    console.error("인연의 숲 데이터 처리 중 오류 발생:", error);
+}
+// --- [4 & 5 통합 수정 버전 끝] ---
 
         // 6. 수치 계산 (실시간 DB 반영 버전)
         const baseHikes = initialHikes[mName] || 0;
