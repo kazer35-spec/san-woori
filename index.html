@@ -4350,61 +4350,60 @@ window.syncLastDateAfterDelete = async (mId) => {
     }
 };
     
-                 
-Window.deleteLog = async (mId, logId, shouldDownLevel) => {
+               window.deleteLog = async (mId, logId, shouldDownLevel) => {
     if(!confirm("기록을 삭제하시겠습니까?")) return;
     
     try {
-        // 1. 삭제 전 로그 데이터에서 이름(author) 및 동행 여부 가져오기
-        const logSnap = await getDoc(doc(db, `sanwoori/${mId}/logs`, logId));
+        // 1. 데이터 가져오기 (Firebase 함수들이 정의되어 있어야 함)
+        const logRef = doc(db, `sanwoori/${mId}/logs`, logId);
+        const logSnap = await getDoc(logRef);
+        
         if (!logSnap.exists()) return alert("로그를 찾을 수 없습니다.");
         
         const logData = logSnap.data();
-        const mName = logData.author || (currentData.find(m => m.id === mId)?.name) || "";
+        const mName = logData.author || (typeof currentData !== 'undefined' ? currentData.find(m => m.id === mId)?.name : "") || "";
         
-        // ⭐ 동행 여부 판별 (참여자 수가 2명 이상일 때만 동행으로 간주)
-        const isBuddyHike = logData.memberCount >= 2;
+        // ⭐ 동행 여부 판별 (memberCount 필드가 로그에 있어야 함)
+        const isBuddyHike = (logData.memberCount >= 2);
 
         // 2. 파이어베이스 서버에서 기록 삭제
-        await deleteDoc(doc(db, `sanwoori/${mId}/logs`, logId));
+        await deleteDoc(logRef);
         
         // 3. 서버 데이터 차감
         if(shouldDownLevel) {
+            const memberRef = doc(db, "sanwoori", mId);
             const updateFields = { 
                 level: increment(-1),
-                count: increment(-1) // 총 횟수는 혼자든 같이든 무조건 차감
+                count: increment(-1) 
             };
             
-            // ⭐ 동행 산행이었을 때만 buddyCount(동행 횟수) 차감
             if(isBuddyHike) {
                 updateFields.buddyCount = increment(-1);
             }
             
-            await updateDoc(doc(db, "sanwoori", mId), updateFields);
+            await updateDoc(memberRef, updateFields);
         }
 
-        // 4. [핵심] 로컬 캐시 즉시 수정 및 초기화
+        // 4. 로컬 캐시 즉시 수정
         if (mName) {
             const STORAGE_KEY = `forest_v5_final_${mName}`;
-            let cached = JSON.parse(localStorage.getItem(STORAGE_KEY));
+            const cachedData = localStorage.getItem(STORAGE_KEY);
             
-            if (cached) {
-                // ⭐ 동행 산행이었을 때만 인연의 숲 수치(extraHikes) 차감
+            if (cachedData) {
+                let cached = JSON.parse(cachedData);
                 if (isBuddyHike && cached.extraHikes > 0) {
                     cached.extraHikes -= 1;
                 }
-                // 목록 초기화 (DB 동기화용)
                 cached.processedIds = []; 
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
-                console.log(`${mName}님 캐시 갱신 완료`);
             }
         }
 
-        // 5. 화면 동기화
-        await window.syncLastDateAfterDelete(mId);
-        loadMemberLogs(); 
-        updateVibeTemp();
-        startRealtimeSync(); 
+        // 5. 화면 동기화 (기존 함수들 호출)
+        if (window.syncLastDateAfterDelete) await window.syncLastDateAfterDelete(mId);
+        if (typeof loadMemberLogs === 'function') loadMemberLogs(); 
+        if (typeof updateVibeTemp === 'function') updateVibeTemp();
+        if (typeof startRealtimeSync === 'function') startRealtimeSync(); 
         
         alert("삭제 및 데이터 동기화가 완료되었습니다.");
     } catch (e) {
@@ -4412,6 +4411,7 @@ Window.deleteLog = async (mId, logId, shouldDownLevel) => {
         alert("삭제 실패: " + e.message);
     }
 };
+  
 
 
 window.updateMemberName = async () => {
