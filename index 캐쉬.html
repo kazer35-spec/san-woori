@@ -4255,6 +4255,15 @@ window.addMultiActivity = async () => {
         tempCoord = null;
         updateAdminMemberLists();
         startRealtimeSync(); 
+
+        if (isHike && memberCount >= 2) {
+    const STORAGE_KEY = `forest_v5_final_${memberName}`;
+    let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { processedIds: [], extraHikes: 0 };
+    cached.extraHikes += 1;
+    cached.processedIds = []; // ⭐ 목록을 비워야 실시간 반영됨
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
+        }
+        
     } catch (error) {
         console.error("Error:", error);
         alert("저장 실패: " + error.message);
@@ -4350,7 +4359,7 @@ window.syncLastDateAfterDelete = async (mId) => {
     }
 };
     
-   window.deleteLog = async (mId, logId, shouldDownLevel) => {
+    window.deleteLog = async (mId, logId, shouldDownLevel) => {
     if(!confirm("기록을 삭제하시겠습니까?")) return;
     
     try {
@@ -4361,60 +4370,50 @@ window.syncLastDateAfterDelete = async (mId) => {
         const logData = logSnap.data();
         const mName = logData.author || (typeof currentData !== 'undefined' ? currentData.find(m => m.id === mId)?.name : "") || "";
 
-        // 1. 산행/러닝 판별 (사진 보니 isTracking, isRunning 필드 사용 중이시네요)
+        // 1. 산행 여부 및 동행 여부 판별
         const isHike = !logData.isRunning && !logData.isTracking;
-        
-        // 2. 동행 여부 판별 (필드가 없으면 안전하게 true로 설정해서 캐시 갱신 유도)
-        const isBuddyHike = logData.memberCount === undefined ? true : (logData.memberCount >= 2);
+        const isBuddyHike = isHike && (logData.memberCount >= 2);
 
-        // 3. 파이어베이스 서버 삭제
+        // 2. 파이어베이스 서버 삭제
         await deleteDoc(logRef);
         
-        // 4. 서버 수치 차감 (데이터베이스 필드명에 맞춰 수정)
+        // 3. 서버 수치 차감
         if(shouldDownLevel && isHike) {
             const updateFields = { 
                 level: increment(-1),
-                // 만약 총횟수 필드명이 'count'가 맞다면 유지, 아니라면 DB 확인 필요
-                count: increment(-1) 
+                count: increment(-1) // 혼자 산행도 총횟수는 차감
             };
+            if(isBuddyHike) updateFields.buddyCount = increment(-1);
             
-            if(isBuddyHike) {
-                updateFields.buddyCount = increment(-1);
-            }
             await updateDoc(doc(db, "sanwoori", mId), updateFields);
         }
 
-        // 5. [실시간 동기화 핵심] 로컬 캐시 강제 초기화
+        // 4. 🔥 [핵심] 로컬 캐시 실시간 강제 동기화
         if (mName) {
             const STORAGE_KEY = `forest_v5_final_${mName}`;
             const cachedData = localStorage.getItem(STORAGE_KEY);
             
             if (cachedData) {
                 let cached = JSON.parse(cachedData);
+                // 동행 기록 삭제 시에만 캐시 숫자(extraHikes) 차감
+                if (isBuddyHike && cached.extraHikes > 0) cached.extraHikes -= 1;
                 
-                // 캐시 숫자 차감
-                if (isHike && isBuddyHike && cached.extraHikes > 0) {
-                    cached.extraHikes -= 1;
-                }
-                
-                // ⭐ 핵심: 이 목록을 비워야 '인연의 숲' 버튼 눌렀을 때 숫자가 새로고침됩니다.
+                // ⭐ 중요: 목록을 비워야 '인연의 숲' 열 때 DB에서 최신 데이터를 새로 가져옵니다.
                 cached.processedIds = []; 
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
-                console.log(`${mName}님 캐시 즉시 동기화 준비 완료`);
             }
         }
 
-        // 6. 화면 새로고침 없이 즉시 반영
+        // 5. 화면 즉시 반영
         if (typeof loadMemberLogs === 'function') loadMemberLogs(); 
         if (typeof updateVibeTemp === 'function') updateVibeTemp();
-        if (typeof startRealtimeSync === 'function') startRealtimeSync(); 
         
-        alert("삭제 및 실시간 데이터 동기화가 완료되었습니다.");
+        alert("삭제 및 캐시 동기화가 완료되었습니다.");
     } catch (e) {
-        console.error("삭제 중 오류:", e);
         alert("삭제 실패: " + e.message);
     }
 };
+
 
 
 window.updateMemberName = async () => {
