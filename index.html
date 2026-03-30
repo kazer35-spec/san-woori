@@ -4350,28 +4350,49 @@ window.syncLastDateAfterDelete = async (mId) => {
     }
 };
 
-window.deleteLog = async (mId, logId, shouldDownLevel) => {
-    if(!confirm("삭제하시겠습니까?")) return;
+Window.deleteLog = async (mId, logId, shouldDownLevel) => {
+    if(!confirm("기록을 삭제하시겠습니까?")) return;
     
     try {
+        // 1. 로그(별) 문서 삭제
         await deleteDoc(doc(db, `sanwoori/${mId}/logs`, logId));
         
+        // 2. 개별 필드 차감 로직 (하나씩 안전하게 실행)
+        const memberRef = doc(db, "sanwoori", mId);
+
+        // [A] 전체 횟수(count) 차감 시도
+        try {
+            await updateDoc(memberRef, { count: increment(-1) });
+        } catch(e) { console.log("count 필드 없음"); }
+
+        // [B] 인연의 숲(buddyCount) 차감 시도
+        try {
+            await updateDoc(memberRef, { buddyCount: increment(-1) });
+        } catch(e) { console.log("buddyCount 필드 없음"); }
+
+        // [C] 레벨 다운 처리
         if(shouldDownLevel) {
-            await updateDoc(doc(db, "sanwoori", mId), { level: increment(-1) });
+            try {
+                await updateDoc(memberRef, { level: increment(-1) });
+            } catch(e) { console.log("level 필드 없음"); }
         }
 
-        // 삭제 후 남은 기록 중 '진짜 산행' 날짜로 D-Day 복구
-        await window.syncLastDateAfterDelete(mId);
+        // 3. 후속 조치 및 UI 갱신 (기존 성공 로직 그대로)
+        if (window.syncLastDateAfterDelete) {
+            await window.syncLastDateAfterDelete(mId);
+        }
 
-        // UI 갱신
-        loadMemberLogs(); 
-        updateVibeTemp();
-        startRealtimeSync(); 
+        if (typeof loadMemberLogs === 'function') loadMemberLogs(); 
+        if (typeof updateVibeTemp === 'function') updateVibeTemp();
+        if (typeof startRealtimeSync === 'function') startRealtimeSync(); 
+
+        alert("삭제 및 모든 수치 차감이 완료되었습니다.");
     } catch (e) {
-        console.error("삭제 중 오류:", e);
+        console.error("삭제 중 중대 오류:", e);
         alert("삭제 실패: " + e.message);
     }
-}; 
+};
+
 
 window.updateMemberName = async () => {
 const id = document.getElementById('memberSelectEdit').value;
