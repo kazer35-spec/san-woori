@@ -3959,149 +3959,161 @@ window.saveCardImage = async () => {
     }
 };
 
-// [1] 인연의 숲 메인 모달 출력 함수
-Window.showBondingForestModal = async () => {
-    // 1. 기본 UI 요소 및 이름 추출
-    const fpElement = document.getElementById('memberFriendshipPoint');
-    const currentFP = fpElement ? parseInt(fpElement.innerText.replace(/[^0-9]/g, '')) : 0;
-        
-    let mName = "";
-    const nameTags = Array.from(document.querySelectorAll('h2, .text-blue-600, .font-bold, .member-name'));
-    const foundTag = nameTags.find(el => el.innerText.includes('님') && !el.innerText.includes('산행'));
+window.addMultiActivity = async () => {
+    // 1. 기본 데이터 수집
+    const dateVal = document.getElementById('activityDate').value;
+    const mName = document.getElementById('mountainName').value.trim();
+    const height = parseInt(document.getElementById('mountainHeight').value) || 0;
+    const isTop100 = document.getElementById('isTop100Check').checked;
+    const isBAC = document.getElementById('isBACCheck').checked;
+    const isRegular = document.getElementById('isRegularCheck')?.checked || false;
+    const isRunning = document.getElementById('isRunningCheck')?.checked || false;
+    const isTracking = document.getElementById('isTrackingCheck')?.checked || false;
+    const region = document.getElementById('adminManualRegionSelect').value;
+    const isQuarterOnlyOne = document.getElementById('isQuarterCheck')?.checked || false;
+
+    if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜 확인");
+
+    const upElement = document.querySelector('input[name="upAmount"]:checked');
+    if(!upElement) return alert("레벨업 수치를 선택해주세요.");
+    const up = parseInt(upElement.value);
+
+    const isSpecial = isRunning || isTracking; 
+    const isHike = !isSpecial; 
+    const effectiveUp = isHike ? up : 0;
+    const logLoopCount = isRegular ? 1 : (isSpecial ? 1 : (isQuarterOnlyOne ? 1 : up));
     
-    if (foundTag) {
-        mName = foundTag.innerText.split(' ')[0].replace('님', '').trim();
-    }
-    if (!mName) return alert("회원 이름을 찾을 수 없습니다.");
+    // [핵심] 날짜를 기반으로 연도와 분기 계산
+    const activityDate = new Date(dateVal + "T00:00:00");
+    const year = activityDate.getFullYear();
+    const quarter = Math.ceil((activityDate.getMonth() + 1) / 3);
+    const periodKey = `${year}-${quarter}`;
+    const ts = Timestamp.fromDate(activityDate);
 
-    // 2. 초기 데이터 (과거 기록 합산용)
-    const initialHikes = {
-        "오즈": 32, "지니": 23, "나스": 17, "해수": 15, "하트": 12, "아랑": 18, "쿠키": 8, "용삼": 14, 
-        "식이": 6, "몰랑": 9, "길치": 7, "등초": 6, "구름": 5, "튜브": 4, "햄찌": 5, "켄신": 3, 
-        "애플": 4, "민이": 3, "운해": 3, "윤윤": 2, "무니": 3, "태리": 2, "이구": 2, "영규": 2, 
-        "후후": 6, "피치": 2, "호프": 2, "멸치": 1, "섭섭": 1, "뚜벅": 3, "송돌": 2, "여록": 1, 
-        "람쥐": 1, "몽꽁": 1, "란이": 2, "얌얌": 0, "수리": 1, "희야": 0, "성민": 0
-    };
+    const selectedNames = [];
+    selectedMemberIds.forEach(id => {
+        const m = currentData.find(mem => mem.id === id);
+        if(m) selectedNames.push(m.name);
+    });
 
-    const memberInfo = (typeof currentData !== 'undefined') ? currentData.find(m => m.name === mName) : null;
-    const realBuddyCount = (memberInfo && memberInfo.buddyCount) ? memberInfo.buddyCount : 0;
-    const STORAGE_KEY = `forest_v5_final_${mName}`;
-
-    // 3. 신입 청소 로직
-    if (currentFP === 0 && realBuddyCount === 0) {
-        localStorage.removeItem(STORAGE_KEY);
+    if(mName && tempCoord) {
+        await setDoc(doc(db, "mountains", mName), {
+            x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region
+        }, { merge: true });
     }
 
     try {
-        // 4. 캐시 데이터 로드 (분기별 저장을 위해 quarterlyPartners 객체 확보)
-        let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { 
-            processedIds: [], extraHikes: 0, partnersMap: {}, uniquePartners: [], quarterlyPartners: {} 
-        };
+        pendingLevelUpCards = []; 
 
-        // 5. DB에서 인연의 숲 기록 가져와서 파트너 계산
-        const bondingSnap = await getDocs(collection(db, "bondingForest"));
-        
-        bondingSnap.forEach(doc => {
-            if (cached.processedIds.includes(doc.id)) return;
-            const data = doc.data();
-            const members = data.members || [];
-            if (members.includes(mName)) {
-                cached.processedIds.push(doc.id);
-                
-                // 날짜 정보 추출 (필드에 없으면 현재 시간 기준)
-                const dateObj = data.date ? new Date(data.date) : (data.createdAt ? data.createdAt.toDate() : new Date());
-                const y = data.year || dateObj.getFullYear();
-                const q = data.quarter || Math.ceil((dateObj.getMonth() + 1) / 3);
-                const periodKey = `${y}-${q}`;
+        for(const id of selectedMemberIds){
+            const member = currentData.find(m => m.id === id);
+            if(!member) continue;
 
-                if (!cached.quarterlyPartners) cached.quarterlyPartners = {};
-                if (!cached.quarterlyPartners[periodKey]) cached.quarterlyPartners[periodKey] = {};
+            const oldLevel = member.level || 0;
+            const newLevel = oldLevel + effectiveUp;
 
-                members.forEach(p => {
-                    if (p !== mName) {
-                        // 전체 누적 데이터
-                        cached.partnersMap[p] = (cached.partnersMap[p] || 0) + 1;
-                        // 분기별 데이터
-                        cached.quarterlyPartners[periodKey][p] = (cached.quarterlyPartners[periodKey][p] || 0) + 1;
-                        if (!cached.uniquePartners.includes(p)) cached.uniquePartners.push(p);
-                    }
+            const updateData = { 
+                level: newLevel, 
+                totalHeight: increment(height),
+                count: increment(1) 
+            };
+
+            if (isHike || isRunning || isTracking) {
+                updateData.lastDate = ts;
+                if (isHike) updateData.bonusDays = 0;
+                if (oldLevel > 0) {
+                    let calculatedDday = Math.min(122, (member.dday || 0) + 15);
+                    updateData.dday = calculatedDday;
+                }
+            }
+
+            if (isHike && selectedMemberIds.size >= 2) {
+                let pointToAdd = (isQuarterOnlyOne || isRegular) ? 100 : (100 * effectiveUp);
+                updateData.buddyCount = increment(1);       
+                updateData.friendshipPoint = increment(pointToAdd); 
+            }
+
+            await updateDoc(doc(db, "sanwoori", id), updateData);
+
+            for(let i = 0; i < logLoopCount; i++) {
+                let assignedStarType = null;
+                if (isRegular) {
+                    const rand = Math.random() * 100;
+                    if (rand <= 3) assignedStarType = "super";
+                    else if (rand <= 10) assignedStarType = "special";
+                    else assignedStarType = "regular_" + (Math.floor(Math.random() * 4) + 1);
+                }
+                await addDoc(collection(db, `sanwoori/${id}/logs`), {
+                    date: ts, mountain: mName, height, coords: tempCoord,
+                    isTop100, isBAC, isRegular, isRunning, isTracking, region,
+                    starType: assignedStarType, author: member.name 
                 });
             }
-        });
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
 
-        // 6. 수치 계산
-        const baseHikes = initialHikes[mName] || 0;
-        const finalTotalHikes = baseHikes + (cached.extraHikes || 0);
-        const myMultiHikes = (memberInfo && memberInfo.buddyCount !== undefined) ? realBuddyCount : 0;
-        const finalSynergy = finalTotalHikes > 0 ? Math.min(100, Math.round((myMultiHikes / finalTotalHikes) * 100)) : 0;
+            // ✨ [인연의 숲 실시간 로컬 캐시 업데이트]
+            if (isHike) {
+                const STORAGE_KEY = `forest_v5_final_${member.name}`;
+                let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { 
+                    processedIds: [], extraHikes: 0, partnersMap: {}, uniquePartners: [], quarterlyPartners: {} 
+                };
+                
+                const manualId = `manual_${dateVal}_${mName}_${id}`;
+                if (!cached.processedIds.includes(manualId)) {
+                    cached.extraHikes += 1;
+                    cached.processedIds.push(manualId);
 
-        // 7. 퍼센트별 색상 설정
-        let gaugeColor = "#ef4444"; 
-        let glowClass = "";
-        if (finalSynergy >= 80) { gaugeColor = "#10b981"; glowClass = "gauge-glow"; }
-        else if (finalSynergy >= 60) { gaugeColor = "#22c55e"; }
-        else if (finalSynergy >= 40) { gaugeColor = "#f59e0b"; }
+                    // 동행인이 있을 경우 로컬 캐시의 분기별 데이터에도 즉시 반영
+                    if (selectedNames.length >= 2) {
+                        if (!cached.quarterlyPartners) cached.quarterlyPartners = {};
+                        if (!cached.quarterlyPartners[periodKey]) cached.quarterlyPartners[periodKey] = {};
+                        
+                        selectedNames.forEach(p => {
+                            if (p !== member.name) {
+                                cached.partnersMap[p] = (cached.partnersMap[p] || 0) + 1;
+                                cached.quarterlyPartners[periodKey][p] = (cached.quarterlyPartners[periodKey][p] || 0) + 1;
+                                if (!cached.uniquePartners.includes(p)) cached.uniquePartners.push(p);
+                            }
+                        });
+                    }
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
+                }
 
-        // 현재 자동 선택될 분기 키
-        const now = new Date();
-        const currentPeriod = `${now.getFullYear()}-${Math.ceil((now.getMonth() + 1) / 3)}`;
+                if (typeof checkLevelUpgrade === 'function') {
+                    checkLevelUpgrade(member.name, oldLevel, newLevel);
+                }
+            }
+        }
 
-        const modalHTML = `
-            <div id="forestModal" class="fixed inset-0 z-[10000] flex items-center justify-center bg-black/85 backdrop-blur-md" onclick="this.remove()">
-                <div class="bg-[#0f172a] border border-emerald-500/30 p-8 rounded-[2.5rem] w-[320px] text-center shadow-2xl" onclick="event.stopPropagation()">
-                    <div class="text-emerald-400 text-[10px] font-black mb-6 tracking-[0.4em]">BONDING FOREST</div>
-                    <h3 class="text-white text-2xl font-bold mb-2">${mName}님의 인연</h3>
-                    
-                    <div class="space-y-4 text-left mt-6">
-                        <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
-                            <div class="text-[10px] font-bold mb-1" style="color: ${gaugeColor}">🤝 동행 지수 (Synergy Rate)</div>
-                            <div class="flex justify-between items-end">
-                                <div class="text-white text-[14px] font-bold">총 ${finalTotalHikes}회 중 ${myMultiHikes}회</div>
-                                <div class="text-lg font-black" style="color: ${gaugeColor}">${finalSynergy}%</div>
-                            </div>
-                            <div class="w-full h-2 bg-white/10 rounded-full mt-2 overflow-hidden">
-                                <div class="h-full transition-all duration-1000 ${glowClass}" 
-                                     style="width: ${finalSynergy}%; background-color: ${gaugeColor}"></div>
-                            </div>
-                        </div>
+        // [핵심] DB의 bondingForest 컬렉션에 연도와 분기 정보 포함하여 저장
+        if (selectedNames.length >= 2 && isHike) {
+            await addDoc(collection(db, "bondingForest"), {
+                mountain: mName, 
+                members: selectedNames,
+                memberCount: selectedNames.length, 
+                date: dateVal, 
+                year: year,       // 추가
+                quarter: quarter, // 추가
+                createdAt: new Date()
+            });
+        }
 
-                        <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06] cursor-pointer active:scale-95 transition-transform" 
-                             onclick="showForestMemberList()">
-                            <div class="flex justify-between items-center mb-1">
-                                <div class="text-[10px] text-orange-400 font-bold">👑 분기별 파트너 (Bestie)</div>
-                                <select id="periodFilter" class="bg-transparent text-[10px] text-slate-400 border-none outline-none cursor-pointer focus:ring-0" 
-                                        onclick="event.stopPropagation()" onchange="updateBestieInModal('${mName}', this.value)">
-                                    ${generateQuarterOptions(currentPeriod)}
-                                </select>
-                            </div>
-                            <div id="bestieDisplay" class="text-white text-[14px] font-bold">로딩 중...</div>
-                        </div>
+        if (pendingLevelUpCards.length > 0 && typeof showCombinedLevelUpAlert === 'function') {
+            showCombinedLevelUpAlert();
+        }
 
-                        <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
-                            <div class="text-[10px] text-blue-400 font-bold mb-1">💫 인연의 반경 (Radius)</div>
-                            <div class="text-white text-[14px] font-bold">총 ${cached.uniquePartners.length}명과 연결됨</div>
-                        </div>
-
-                        <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
-                            <div class="text-[10px] text-amber-400 font-bold mb-1">💞 우정 포인트 (Friendship)</div>
-                            <div class="text-white text-[14px] font-bold">${currentFP.toLocaleString()} <span class="text-[10px] text-slate-400 font-normal">FP</span></div>
-                        </div>
-                    </div>
-                    <button onclick="document.getElementById('forestModal').remove()" 
-                            class="mt-8 w-full py-4 bg-emerald-500 text-white text-xs font-black rounded-2xl transition-transform active:scale-95">
-                        숲에서 나가기
-                    </button>
-                </div>
-            </div>`;
-        document.body.insertAdjacentHTML('beforeend', modalHTML);
-        
-        // 초기 렌더링 시 현재 분기 최고의 파트너 표시
-        updateBestieInModal(mName, document.getElementById('periodFilter').value);
-
-    } catch (e) { console.error(e); }
+        alert(isHike ? "산행 기록 및 인연의 숲 저장 완료!" : "기록 완료");
+        selectedMemberIds.clear();
+        tempCoord = null;
+        updateAdminMemberLists();
+        startRealtimeSync(); 
+    } catch (error) {
+        console.error("Error:", error);
+        alert("저장 실패: " + error.message);
+    }
 };
 
+        
+        
 // --- [보조 함수 1] 분기별 파트너 텍스트 업데이트 ---
 window.updateBestieInModal = (mName, periodKey) => {
     const cached = JSON.parse(localStorage.getItem(`forest_v5_final_${mName}`));
