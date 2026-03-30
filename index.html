@@ -3035,11 +3035,11 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 
     // 2. 초기 데이터 및 DB 정보 가져오기
     const initialHikes = {
-        "오즈": 33, "지니": 24, "나스": 19, "해수": 15, "하트": 12, "아랑": 19, "쿠키": 8, "용삼": 14, 
-        "식이": 6, "몰랑": 10, "길치": 7, "등초": 7, "구름": 5, "튜브": 4, "햄찌": 5, "로드": 3, 
-        "애플": 5, "민이": 3, "운해": 3, "윤윤": 2, "무니": 3, "태리": 2, "이구": 3, "영규": 2, 
+        "오즈": 32, "지니": 23, "나스": 17, "해수": 15, "하트": 12, "아랑": 18, "쿠키": 8, "용삼": 14, 
+        "식이": 6, "몰랑": 9, "길치": 7, "등초": 6, "구름": 5, "튜브": 4, "햄찌": 2, "로드": 3, 
+        "애플": 4, "민이": 3, "운해": 3, "윤윤": 2, "무니": 3, "태리": 2, "이구": 2, "영규": 2, 
         "후후": 6, "피치": 2, "호프": 2, "멸치": 1, "섭섭": 1, "뚜벅": 3, "송돌": 2, "여록": 1, 
-        "람쥐": 1, "몽꽁": 1, "란이": 2, "얌얌": 0, "수리": 1, "희야": 0, "성민": 0, "운해": 2
+        "람쥐": 1, "몽꽁": 1, "란이": 2, "얌얌": 0, "수리": 1, "희야": 0, "성민": 0
     };
 
     const memberInfo = (typeof currentData !== 'undefined') ? currentData.find(m => m.name === mName) : null;
@@ -4350,54 +4350,28 @@ window.syncLastDateAfterDelete = async (mId) => {
     }
 };
 
-Window.deleteLog = async (mId, logId, shouldDownLevel) => {
+window.deleteLog = async (mId, logId, shouldDownLevel) => {
     if(!confirm("삭제하시겠습니까?")) return;
     
-    // 필요한 명령어들을 안전하게 참조 (DB 연결용)
-    const { doc, updateDoc, deleteDoc, increment } = firebase.firestore;
-
     try {
-        // 1. 실제 로그(활동 내역) 문서 삭제
         await deleteDoc(doc(db, `sanwoori/${mId}/logs`, logId));
         
-        // 2. 수치 차감 데이터 준비
-        const rollbackData = {
-            count: increment(-1) // 전체 산행 횟수 차감
-        };
-
-        // 3. 레벨 다운 처리
         if(shouldDownLevel) {
-            rollbackData.level = increment(-1);
+            await updateDoc(doc(db, "sanwoori", mId), { level: increment(-1) });
         }
 
-        // 4. 인연의 숲(buddyCount) 수치 차감 시도
-        // (필드가 없는 경우를 대비해 안전하게 처리)
-        try {
-            rollbackData.buddyCount = increment(-1);
-        } catch(e) { 
-            console.log("buddyCount 필드가 없어 차감을 건너뜁니다.");
-        }
+        // 삭제 후 남은 기록 중 '진짜 산행' 날짜로 D-Day 복구
+        await window.syncLastDateAfterDelete(mId);
 
-        // 5. DB 업데이트 실행
-        await updateDoc(doc(db, "sanwoori", mId), rollbackData);
-
-        // 6. 후속 조치 (기존 코드 유지)
-        if (window.syncLastDateAfterDelete) {
-            await window.syncLastDateAfterDelete(mId);
-        }
-
-        // UI 갱신 함수들 체크 후 실행
-        if (typeof loadMemberLogs === 'function') loadMemberLogs(); 
-        if (typeof updateVibeTemp === 'function') updateVibeTemp();
-        if (typeof startRealtimeSync === 'function') startRealtimeSync(); 
-
-        alert("삭제되었습니다.");
+        // UI 갱신
+        loadMemberLogs(); 
+        updateVibeTemp();
+        startRealtimeSync(); 
     } catch (e) {
-        console.error("삭제 중 오류 상세:", e);
+        console.error("삭제 중 오류:", e);
         alert("삭제 실패: " + e.message);
     }
-};
-
+}; 
 
 window.updateMemberName = async () => {
 const id = document.getElementById('memberSelectEdit').value;
