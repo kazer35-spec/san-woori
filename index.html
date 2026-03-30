@@ -4357,24 +4357,27 @@ Window.deleteLog = async (mId, logId, shouldDownLevel) => {
         // 1. 로그(별) 문서 삭제
         await deleteDoc(doc(db, `sanwoori/${mId}/logs`, logId));
         
-        // 2. 개별 필드 차감 로직
+        // 2. 개별 필드 차감 로직 (하나씩 안전하게 실행)
         const memberRef = doc(db, "sanwoori", mId);
 
+        // [A] 전체 횟수(count) 차감 시도
         try {
             await updateDoc(memberRef, { count: increment(-1) });
         } catch(e) { console.log("count 필드 없음"); }
 
+        // [B] 인연의 숲(buddyCount) 차감 시도
         try {
             await updateDoc(memberRef, { buddyCount: increment(-1) });
         } catch(e) { console.log("buddyCount 필드 없음"); }
 
+        // [C] 레벨 다운 처리
         if(shouldDownLevel) {
             try {
                 await updateDoc(memberRef, { level: increment(-1) });
             } catch(e) { console.log("level 필드 없음"); }
         }
 
-        // 3. 후속 조치 및 UI 갱신
+        // 3. 후속 조치 및 UI 갱신 (기존 성공 로직 그대로)
         if (window.syncLastDateAfterDelete) {
             await window.syncLastDateAfterDelete(mId);
         }
@@ -4383,18 +4386,12 @@ Window.deleteLog = async (mId, logId, shouldDownLevel) => {
         if (typeof updateVibeTemp === 'function') updateVibeTemp();
         if (typeof startRealtimeSync === 'function') startRealtimeSync(); 
 
-        alert("삭제 완료! 최신 정보를 불러오기 위해 페이지를 새로고침합니다.");
-        
-        // ✨ [캐시 해결] 페이지를 새로고침하여 브라우저가 DB에서 새로 읽어오게 만듭니다.
-        location.reload(); 
-
+        alert("삭제 및 모든 수치 차감이 완료되었습니다.");
     } catch (e) {
         console.error("삭제 중 중대 오류:", e);
         alert("삭제 실패: " + e.message);
     }
 };
-
-        
 
 window.updateMemberName = async () => {
 const id = document.getElementById('memberSelectEdit').value;
