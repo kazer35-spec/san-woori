@@ -3059,22 +3059,44 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
         };
 
         // 5. DB에서 인연의 숲 기록 가져와서 파트너 계산
-        const bondingSnap = await getDocs(collection(db, "bondingForest"));
-        
-        bondingSnap.forEach(doc => {
-            if (cached.processedIds.includes(doc.id)) return;
-            const data = doc.data();
-            const members = data.members || [];
-            if (members.includes(mName)) {
-                cached.processedIds.push(doc.id);
-                members.forEach(p => {
-                    if (p !== mName) {
-                        cached.partnersMap[p] = (cached.partnersMap[p] || 0) + 1;
-                        if (!cached.uniquePartners.includes(p)) cached.uniquePartners.push(p);
-                    }
-                });
+const bondingSnap = await getDocs(collection(db, "bondingForest"));
+
+// 분기별 파트너를 담을 바구니(객체)를 새로 만듭니다.
+cached.quarterlyPartners = { q1: {}, q2: {}, q3: {}, q4: {} };
+
+bondingSnap.forEach(doc => {
+    if (cached.processedIds.includes(doc.id)) return;
+    const data = doc.data();
+    const members = data.members || [];
+    
+    // 사진에 있는 "2026-01-23" 형태의 date 필드 활용
+    const dateStr = data.date || ""; 
+    const month = parseInt(dateStr.split('-')[1]); // 두 번째 숫자인 '월'만 가져옴
+    
+    let qKey = ""; // 분기 키값 결정
+    if (month >= 1 && month <= 3) qKey = "q1";
+    else if (month >= 4 && month <= 6) qKey = "q2";
+    else if (month >= 7 && month <= 9) qKey = "q3";
+    else if (month >= 10 && month <= 12) qKey = "q4";
+
+    if (members.includes(mName)) {
+        cached.processedIds.push(doc.id);
+        members.forEach(p => {
+            if (p !== mName) {
+                // 전체 합산 (기존 기능)
+                cached.partnersMap[p] = (cached.partnersMap[p] || 0) + 1;
+                if (!cached.uniquePartners.includes(p)) cached.uniquePartners.push(p);
+                
+                // 분기별 합산 (신규 기능)
+                if (qKey) {
+                    cached.quarterlyPartners[qKey][p] = (cached.quarterlyPartners[qKey][p] || 0) + 1;
+                }
             }
         });
+    }
+});
+// [교체 끝]
+
 
         // 업데이트된 캐시 저장
         localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
@@ -3156,8 +3178,23 @@ window.showForestMemberList = () => {
             gaugeColor = "#f59e0b"; // 40이상: Amber
         }
 
-        let bestP = "없음"; let bestC = 0;
-        Object.entries(cached.partnersMap).forEach(([n, c]) => { if(c > bestC) { bestP = n; bestC = c; } });
+        // --- 분기별 1등을 찾는 함수 (3181번 라인부터 붙여넣기) ---
+const getBestInQuarter = (qMap) => {
+    let name = "데이터 없음";
+    let count = 0;
+    if (qMap) {
+        Object.entries(qMap).forEach(([n, c]) => {
+            if (c > count) { name = n; count = c; }
+        });
+    }
+    return { name, count };
+};
+
+// 4개 분기 데이터 추출 (이전 단계에서 cached.quarterlyPartners를 만드셨어야 합니다)
+const q1 = getBestInQuarter(cached.quarterlyPartners?.q1);
+const q2 = getBestInQuarter(cached.quarterlyPartners?.q2);
+const q3 = getBestInQuarter(cached.quarterlyPartners?.q3);
+const q4 = getBestInQuarter(cached.quarterlyPartners?.q4);
 
         const modalHTML = `
             <div id="forestModal" class="fixed inset-0 z-[10000] flex items-center justify-center bg-black/85 backdrop-blur-md" onclick="this.remove()">
@@ -3186,9 +3223,27 @@ window.showForestMemberList = () => {
 </div>
 
                         <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
-                            <div class="text-[10px] text-orange-400 font-bold mb-1">👑 최고의 파트너 (Bestie)</div>
-                            <div class="text-white text-[14px] font-bold">${bestP} <span class="text-emerald-400 font-black">(${bestC}회)</span></div>
-                        </div>
+    <div class="text-[10px] text-orange-400 font-bold mb-3">👑 분기별 최고의 파트너 (Quarterly)</div>
+    <div class="grid grid-cols-2 gap-2 text-left">
+        <div class="bg-white/5 p-2 rounded-xl border border-white/5">
+            <span class="text-slate-500 block text-[9px]">1분기</span>
+            <span class="text-white text-[13px] font-bold">${q1.name}</span> <span class="text-emerald-400 text-[10px]">${q1.count}회</span>
+        </div>
+        <div class="bg-white/5 p-2 rounded-xl border border-white/5">
+            <span class="text-slate-500 block text-[9px]">2분기</span>
+            <span class="text-white text-[13px] font-bold">${q2.name}</span> <span class="text-emerald-400 text-[10px]">${q2.count}회</span>
+        </div>
+        <div class="bg-white/5 p-2 rounded-xl border border-white/5">
+            <span class="text-slate-500 block text-[9px]">3분기</span>
+            <span class="text-white text-[13px] font-bold">${q3.name}</span> <span class="text-emerald-400 text-[10px]">${q3.count}회</span>
+        </div>
+        <div class="bg-white/5 p-2 rounded-xl border border-white/5">
+            <span class="text-slate-500 block text-[9px]">4분기</span>
+            <span class="text-white text-[13px] font-bold">${q4.name}</span> <span class="text-emerald-400 text-[10px]">${q4.count}회</span>
+        </div>
+    </div>
+</div>
+
                         <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
                             <div class="text-[10px] text-amber-400 font-bold mb-1">💞 우정 포인트 (Friendship)</div>
                             <div class="text-white text-[14px] font-bold">${currentFP.toLocaleString()} <span class="text-[10px] text-slate-400 font-normal">FP</span></div>
