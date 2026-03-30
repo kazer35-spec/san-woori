@@ -3071,11 +3071,14 @@ if (!cached.quarterlyPartners) {
 // 5. DB에서 인연의 숲 기록 가져오기 및 분기 계산
 const bondingSnap = await getDocs(collection(db, "bondingForest"));
 
-// [중요] 기존 분기 데이터 초기화 (중복 합산 방지)
+// [초기화] 정확한 계산을 위해 기존 데이터를 비우고 다시 훑습니다.
 cached.quarterlyPartners = { q1: {}, q2: {}, q3: {}, q4: {} };
-cached.partnersMap = {}; // 전체 맵도 초기화해서 정확도 높임
+cached.partnersMap = {}; 
 cached.uniquePartners = [];
-cached.processedIds = []; // 모든 문서를 다시 훑도록 초기화
+cached.processedIds = []; 
+
+// 현재 연도 확인 (예: 2026)
+const currentYear = new Date().getFullYear();
 
 bondingSnap.forEach(doc => {
     const data = doc.data();
@@ -3085,34 +3088,41 @@ bondingSnap.forEach(doc => {
     if (members.includes(mName)) {
         cached.processedIds.push(doc.id);
         
-        // 날짜 파싱 (사진상의 "2026-01-23" 형태 대응)
+        // 날짜 분석 (예: "2026-01-23")
         const dateStr = data.date || ""; 
-        const monthMatch = dateStr.match(/-(\d{2})-/); // "-01-" 형태에서 01 추출
-        const month = monthMatch ? parseInt(monthMatch[1]) : (data.createdAt ? new Date(data.createdAt.seconds * 1000).getMonth() + 1 : 0);
+        const dateParts = dateStr.split('-'); // ["2026", "01", "23"]
         
-        // 분기 결정
-        let qKey = "";
-        if (month >= 1 && month <= 3) qKey = "q1";
-        else if (month >= 4 && month <= 6) qKey = "q2";
-        else if (month >= 7 && month <= 9) qKey = "q3";
-        else if (month >= 10 && month <= 12) qKey = "q4";
-
+        const year = parseInt(dateParts[0]);
+        const month = parseInt(dateParts[1]);
+        
+        // 1. 역대 합산 (연도 상관 없이 모든 파트너 기록)
         members.forEach(p => {
             if (p !== mName) {
-                // (1) 전체 합산
                 cached.partnersMap[p] = (cached.partnersMap[p] || 0) + 1;
                 if (!cached.uniquePartners.includes(p)) cached.uniquePartners.push(p);
-                
-                // (2) 분기별 합산 (qKey가 있을 때만)
-                if (qKey) {
-                    cached.quarterlyPartners[qKey][p] = (cached.quarterlyPartners[qKey][p] || 0) + 1;
-                }
             }
         });
+
+        // 2. 분기별 합산 (오직 "올해(currentYear)" 데이터만 분류)
+        if (year === currentYear) {
+            let qKey = "";
+            if (month >= 1 && month <= 3) qKey = "q1";
+            else if (month >= 4 && month <= 6) qKey = "q2";
+            else if (month >= 7 && month <= 9) qKey = "q3";
+            else if (month >= 10 && month <= 12) qKey = "q4";
+
+            if (qKey) {
+                members.forEach(p => {
+                    if (p !== mName) {
+                        cached.quarterlyPartners[qKey][p] = (cached.quarterlyPartners[qKey][p] || 0) + 1;
+                    }
+                });
+            }
+        }
     }
 });
 
-// 업데이트된 전체 캐시 저장
+// 결과 저장
 localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
 
         // 6. 수치 계산 (실시간 DB 반영 버전)
