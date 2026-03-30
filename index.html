@@ -3053,28 +3053,35 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
     }
 
     try {
-        // 4. 캐시 데이터 로드
-        let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { 
-            processedIds: [], extraHikes: 0, partnersMap: {}, uniquePartners: [] 
-        };
+// --- [4 & 5 통합 수정 버전] ---
 
-            
-        // 5. DB에서 인연의 숲 기록 가져와서 파트너 계산
+// 4. 캐시 데이터 로드 및 구조 초기화
+let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { 
+    processedIds: [], extraHikes: 0, partnersMap: {}, uniquePartners: [],
+    quarterlyPartners: { q1: {}, q2: {}, q3: {}, q4: {} } 
+};
+
+// [중요] 만약 기존 캐시에 분기 데이터 바구니가 없으면 강제로 새로 만듭니다.
+if (!cached.quarterlyPartners) {
+    cached.quarterlyPartners = { q1: {}, q2: {}, q3: {}, q4: {} };
+    cached.processedIds = []; // 분기 계산을 위해 ID 목록을 비워 DB에서 다시 읽게 합니다.
+    console.log("분기별 데이터 구조를 생성했습니다.");
+}
+
+// 5. DB에서 인연의 숲 기록 가져오기
 const bondingSnap = await getDocs(collection(db, "bondingForest"));
 
-// 분기별 파트너를 담을 바구니(객체)를 새로 만듭니다.
-cached.quarterlyPartners = { q1: {}, q2: {}, q3: {}, q4: {} };
-
 bondingSnap.forEach(doc => {
+    // 이미 처리된 기록은 건너뜁니다 (단, 위에서 비웠을 경우 전체 다시 계산)
     if (cached.processedIds.includes(doc.id)) return;
+    
     const data = doc.data();
     const members = data.members || [];
-    
-    // 사진에 있는 "2026-01-23" 형태의 date 필드 활용
     const dateStr = data.date || ""; 
-    const month = parseInt(dateStr.split('-')[1]); // 두 번째 숫자인 '월'만 가져옴
     
-    let qKey = ""; // 분기 키값 결정
+    // 월(Month) 추출하여 분기 키(q1~q4) 결정
+    const month = parseInt(dateStr.split('-')[1]);
+    let qKey = "";
     if (month >= 1 && month <= 3) qKey = "q1";
     else if (month >= 4 && month <= 6) qKey = "q2";
     else if (month >= 7 && month <= 9) qKey = "q3";
@@ -3084,11 +3091,11 @@ bondingSnap.forEach(doc => {
         cached.processedIds.push(doc.id);
         members.forEach(p => {
             if (p !== mName) {
-                // 전체 합산 (기존 기능)
+                // (1) 전체 합산 저장
                 cached.partnersMap[p] = (cached.partnersMap[p] || 0) + 1;
                 if (!cached.uniquePartners.includes(p)) cached.uniquePartners.push(p);
                 
-                // 분기별 합산 (신규 기능)
+                // (2) 분기별 합산 저장
                 if (qKey) {
                     cached.quarterlyPartners[qKey][p] = (cached.quarterlyPartners[qKey][p] || 0) + 1;
                 }
@@ -3096,7 +3103,6 @@ bondingSnap.forEach(doc => {
         });
     }
 });
-// [교체 끝]
 
 
         // 업데이트된 캐시 저장
