@@ -4354,35 +4354,24 @@ Window.deleteLog = async (mId, logId, shouldDownLevel) => {
     if(!confirm("삭제하시겠습니까?")) return;
     
     try {
-        // 1. 로그 삭제 (되는 코드 그대로)
         await deleteDoc(doc(db, `sanwoori/${mId}/logs`, logId));
         
-        // 2. 수치 차감 (필드명을 buddyCount가 아닌 count로 수정)
-        // DB에 있는 필드명이 count라고 하셨으니, 이걸 -1 합니다.
-        await updateDoc(doc(db, "sanwoori", mId), { 
-            count: increment(-1) 
-        });
-        
-        // 3. 레벨 다운 처리
         if(shouldDownLevel) {
-            await updateDoc(doc(db, "sanwoori", mId), { 
-                level: increment(-1) 
-            });
+            await updateDoc(doc(db, "sanwoori", mId), { level: increment(-1) });
         }
 
-        // 4. 후속 조치 (되는 코드 그대로)
+        // 삭제 후 남은 기록 중 '진짜 산행' 날짜로 D-Day 복구
         await window.syncLastDateAfterDelete(mId);
+
+        // UI 갱신
         loadMemberLogs(); 
         updateVibeTemp();
         startRealtimeSync(); 
-
-        alert("삭제 완료!");
     } catch (e) {
         console.error("삭제 중 오류:", e);
         alert("삭제 실패: " + e.message);
     }
-};
-
+}; 
 
 
 window.updateMemberName = async () => {
