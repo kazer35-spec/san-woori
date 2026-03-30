@@ -4350,49 +4350,40 @@ window.syncLastDateAfterDelete = async (mId) => {
     }
 };
 
-Window.deleteLog = async (mId, logId, shouldDownLevel, activityData = null) => {
-    if(!confirm("기록을 삭제하시겠습니까?\n(동행 횟수와 레벨이 함께 차감됩니다)")) return;
+Window.deleteLog = async (mId, logId, shouldDownLevel) => {
+    if(!confirm("삭제하시겠습니까?")) return;
     
     try {
-        // 1. 차감할 데이터 설정
-        const rollbackData = {
-            count: increment(-1),      // 전체 횟수 -1
-            buddyCount: increment(-1)  // 동행 지수 -1 (무조건 차감)
-        };
-
-        if (shouldDownLevel) {
-            rollbackData.level = increment(-1);
-        }
-
-        // 2. 우정 포인트 차감 (데이터가 있을 때만)
-        if (activityData) {
-            let upVal = shouldDownLevel ? 1 : 0;
-            let pointToSub = (activityData.isRegular) ? 100 : (100 * upVal);
-            rollbackData.friendshipPoint = increment(-pointToSub);
-        }
-
-        // 3. DB 업데이트 (회원 정보)
-        await updateDoc(doc(db, "sanwoori", mId), rollbackData);
-
-        // 4. 실제 로그(별) 삭제
+        // 1. 실제 기록(별) 삭제
         await deleteDoc(doc(db, `sanwoori/${mId}/logs`, logId));
         
-        // 5. 화면 동기화 (함수가 있을 때만 실행)
-        if (window.syncLastDateAfterDelete) await window.syncLastDateAfterDelete(mId);
-        if (typeof loadMemberLogs === 'function') loadMemberLogs(); 
-        if (typeof updateVibeTemp === 'function') updateVibeTemp();
+        // 2. 수치 차감 설정
+        const updateObj = { 
+            count: increment(-1),      // 전체 횟수 차감
+            buddyCount: increment(-1)  // ✨ [추가] 인연의 숲 동행 횟수 차감
+        };
 
-        alert("삭제 및 수치 차감이 완료되었습니다.");
-        
-        // 6. 페이지 새로고침 (가장 확실한 방법)
-        location.reload(); 
+        if(shouldDownLevel) {
+            updateObj.level = increment(-1); // 레벨 차감
+        }
 
+        // 3. DB에 한 번에 반영
+        await updateDoc(doc(db, "sanwoori", mId), updateObj);
+
+        // 삭제 후 남은 기록 중 '진짜 산행' 날짜로 D-Day 복구
+        await window.syncLastDateAfterDelete(mId);
+
+        // UI 갱신
+        loadMemberLogs(); 
+        updateVibeTemp();
+        startRealtimeSync(); 
+
+        alert("삭제되었습니다.");
     } catch (e) {
-        console.error("삭제 오류:", e);
-        alert("삭제 실패: 데이터 연결 상태를 확인해주세요.");
+        console.error("삭제 중 오류:", e);
+        alert("삭제 실패: " + e.message);
     }
 };
-
 
 
 window.updateMemberName = async () => {
