@@ -3043,13 +3043,7 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
     };
 
     const memberInfo = (typeof currentData !== 'undefined') ? currentData.find(m => m.name === mName) : null;
-    let realBuddyCount = 0;
-if (memberInfo) {
-    // 1순위: buddyCount (동행 전용 필드)
-    // 2순위: count (일반 횟수 필드)
-    // 3순위: 0 (데이터 없음)
-    realBuddyCount = memberInfo.buddyCount !== undefined ? memberInfo.buddyCount : (memberInfo.count || 0);
-    }
+    const realBuddyCount = (memberInfo && memberInfo.buddyCount) ? memberInfo.buddyCount : 0;
     const STORAGE_KEY = `forest_v5_final_${mName}`;
 
     // 3. [신입 청소 로직] 포인트 0, 동행 0이면 옛날 기억 삭제
@@ -4176,35 +4170,34 @@ window.addMultiActivity = async () => {
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
-                  // 1. 통합 업데이트 객체 생성 (기본값: 레벨, 높이, 전체 횟수)
-const updateData = { 
-    level: newLevel, 
-    totalHeight: increment(height),
-    count: increment(1) // 전체 산행 횟수는 무조건 +1
-};
+                        // 1. 통합 업데이트 객체 생성 (기본값: 레벨, 높이, 전체 횟수)
+            const updateData = { 
+                level: newLevel, 
+                totalHeight: increment(height),
+                count: increment(1) // ⭐ DB 스냅샷 확인 결과: 전체 산행 횟수 필드는 'count'
+            };
 
-// 2. 활동 유형별 공통 로직 (기존 그대로 유지)
-if (isHike || isRunning || isTracking) {
-    updateData.lastDate = ts;
-    if (isHike) updateData.bonusDays = 0;
-    if (oldLevel > 0) {
-        let calculatedDday = Math.min(122, (member.dday || 0) + 15);
-        updateData.dday = calculatedDday;
-    }
-}
+            // 2. 활동 유형별(산행/러닝/트래킹) 공통 날짜 및 D-day 로직
+            if (isHike || isRunning || isTracking) {
+                updateData.lastDate = ts;
+                if (isHike) updateData.bonusDays = 0;
+                if (oldLevel > 0) {
+                    let calculatedDday = Math.min(122, (member.dday || 0) + 15);
+                    updateData.dday = calculatedDday;
+                }
+            }
 
-// 3. [핵심] 2인 이상 산행일 때만 '인연의 숲' 데이터 추가
-if (isHike && selectedMemberIds.size >= 2) {
-    let pointToAdd = (isQuarterOnlyOne || isRegular) ? 100 : (100 * effectiveUp);
-    
-    // ★ 여기가 중요! 2인 이상일 때만 이 필드들을 추가합니다.
-    updateData.buddyCount = increment(1);       // 동행 횟수(인연의 숲) +1
-    updateData.friendshipPoint = increment(pointToAdd); // 우정 포인트 추가
-}
+            // 3. [핵심] 동행 기록 분리 (2인 이상 산행일 때만 추가)
+            if (isHike && selectedMemberIds.size >= 2) {
+                let pointToAdd = (isQuarterOnlyOne || isRegular) ? 100 : (100 * effectiveUp);
+                
+                updateData.buddyCount = increment(1);       // ⭐ 동행 횟수: 2인 이상일 때만 포함
+                updateData.friendshipPoint = increment(pointToAdd); // 우정 포인트 추가
+            }
 
-// 4. 단 한 번의 DB 호출로 저장
-await updateDoc(doc(db, "sanwoori", id), updateData);
-      
+            // 4. 단 한 번의 DB 호출로 모든 변경사항 저장 (에러 방지 및 통합)
+            await updateDoc(doc(db, "sanwoori", id), updateData);
+
 
             // 개별 로그(별) 생성
             for(let i = 0; i < logLoopCount; i++) {
@@ -4357,54 +4350,28 @@ window.syncLastDateAfterDelete = async (mId) => {
     }
 };
 
-Window.deleteLog = async (mId, logId, shouldDownLevel, activityData) => {
-    // 1. 삭제 확인 창
-    if(!confirm("기록을 삭제하시겠습니까?\n(삭제 시 인연의 숲 동행 횟수도 함께 차감됩니다)")) return;
+window.deleteLog = async (mId, logId, shouldDownLevel) => {
+    if(!confirm("삭제하시겠습니까?")) return;
     
     try {
-        // 2. 차감할 항목들을 담은 바구니(rollbackData) 생성
-        const rollbackData = {
-            count: increment(-1) // 전체 산행 횟수 -1
-        };
-
-        // 3. 레벨 다운 여부에 따른 처리
-        if(shouldDownLevel) {
-            rollbackData.level = increment(-1); // 레벨 -1
-        }
-
-        // 4. [핵심] 인연의 숲(buddyCount) 및 포인트 차감
-        // activityData가 존재하고, 활동 유형이 산행(isHike)이거나 트래킹 등일 때 실행
-        if (activityData) {
-            // ★ 인연의 숲 총 횟수를 1 차감합니다.
-            rollbackData.buddyCount = increment(-1);
-            
-            // 우정 포인트 차감 (정기산행은 100, 일반은 레벨업 수치만큼)
-            let upVal = shouldDownLevel ? 1 : 0;
-            let pointToSub = (activityData.isRegular) ? 100 : (100 * upVal);
-            rollbackData.friendshipPoint = increment(-pointToSub);
-        }
-
-        // 5. DB 업데이트 (한 번의 명령으로 모든 수치 차감)
-        await updateDoc(doc(db, "sanwoori", mId), rollbackData);
-
-        // 6. 실제 로그(별) 문서 삭제
         await deleteDoc(doc(db, `sanwoori/${mId}/logs`, logId));
         
-        // 7. 후속 조치 (D-Day 복구 및 UI 새로고침)
-        if (window.syncLastDateAfterDelete) {
-            await window.syncLastDateAfterDelete(mId);
+        if(shouldDownLevel) {
+            await updateDoc(doc(db, "sanwoori", mId), { level: increment(-1) });
         }
-        
-        if (typeof loadMemberLogs === 'function') loadMemberLogs(); 
-        if (typeof updateVibeTemp === 'function') updateVibeTemp();
-        if (typeof startRealtimeSync === 'function') startRealtimeSync(); 
 
-        alert("삭제되었습니다. 인연의 숲 수치도 정상적으로 차감되었습니다.");
+        // 삭제 후 남은 기록 중 '진짜 산행' 날짜로 D-Day 복구
+        await window.syncLastDateAfterDelete(mId);
+
+        // UI 갱신
+        loadMemberLogs(); 
+        updateVibeTemp();
+        startRealtimeSync(); 
     } catch (e) {
         console.error("삭제 중 오류:", e);
         alert("삭제 실패: " + e.message);
     }
-};
+}; 
 
 window.updateMemberName = async () => {
 const id = document.getElementById('memberSelectEdit').value;
