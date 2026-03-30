@@ -4350,52 +4350,44 @@ window.syncLastDateAfterDelete = async (mId) => {
     }
 };
     
- Window.deleteLog = async (mId, logId, shouldDownLevel) => {
-    if(!confirm("기록을 삭제하시겠습니까?")) return;
+                 
+Window.deleteLog = async (mId, logId, shouldDownLevel) => {
+    if(!confirm("기록을 삭제하시겠습니까? (인연의 숲 횟수도 함께 차감됩니다)")) return;
     
     try {
-        // 1. 삭제 전 로그 데이터 확보
+        // 1. 삭제 전 로그 데이터에서 이름(author) 가져오기
         const logSnap = await getDoc(doc(db, `sanwoori/${mId}/logs`, logId));
         if (!logSnap.exists()) return alert("로그를 찾을 수 없습니다.");
         
         const logData = logSnap.data();
+        // 로그에 이름이 없으면 currentData에서 mId로 이름을 찾음 (이중 체크)
         const mName = logData.author || (currentData.find(m => m.id === mId)?.name) || "";
-
-        // ⭐ 판별: 산행 기록인가? + 동행자가 있는가?
-        const isHike = !logData.isRunning && !logData.isTracking;
-        const isBuddyHike = isHike && (logData.memberCount >= 2); 
 
         // 2. 파이어베이스 서버에서 기록 삭제
         await deleteDoc(doc(db, `sanwoori/${mId}/logs`, logId));
         
-        // 3. 서버 데이터 차감
-        if(shouldDownLevel && isHike) {
-            const updateFields = { 
+        // 3. 서버 데이터(레벨, 동행 횟수) 차감
+        if(shouldDownLevel) {
+            await updateDoc(doc(db, "sanwoori", mId), { 
                 level: increment(-1),
-                count: increment(-1) // 혼자 가든 같이 가든 '총 횟수'는 무조건 차감
-            };
-            
-            // ⭐ 동행 산행(2인 이상)이었을 때만 '동행 횟수'를 추가로 차감
-            if(isBuddyHike) {
-                updateFields.buddyCount = increment(-1); 
-            }
-            
-            await updateDoc(doc(db, "sanwoori", mId), updateFields);
+                buddyCount: increment(-1) 
+            });
         }
 
         // 4. [핵심] 로컬 캐시 즉시 수정 및 초기화
-        if (mName && isHike) {
+        if (mName) {
             const STORAGE_KEY = `forest_v5_final_${mName}`;
             let cached = JSON.parse(localStorage.getItem(STORAGE_KEY));
             
             if (cached) {
-                // 동행 기록이었을 때만 인연의 숲 수치(extraHikes) 차감
-                if (isBuddyHike && cached.extraHikes > 0) {
+                // 수동 입력분(extraHikes) 차감
+                if (cached.extraHikes > 0) {
                     cached.extraHikes -= 1;
                 }
-                // 목록 초기화로 다음 오픈 시 DB 최신화 유도
+                // 인연의 숲 목록을 DB에서 새로 읽어오도록 ID 목록 비우기
                 cached.processedIds = []; 
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
+                console.log(`${mName}님 캐시 갱신 완료`);
             }
         }
 
@@ -4405,7 +4397,7 @@ window.syncLastDateAfterDelete = async (mId) => {
         updateVibeTemp();
         startRealtimeSync(); 
         
-        alert("기록 삭제 및 데이터 차감이 완료되었습니다.");
+        alert("성공적으로 삭제되었습니다! '인연의 숲'을 열면 수치가 자동 갱신됩니다.");
     } catch (e) {
         console.error("삭제 중 오류:", e);
         alert("삭제 실패: " + e.message);
