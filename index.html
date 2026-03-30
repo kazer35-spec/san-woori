@@ -4351,27 +4351,50 @@ window.syncLastDateAfterDelete = async (mId) => {
 };
 
 window.deleteLog = async (mId, logId, shouldDownLevel) => {
-    if(!confirm("삭제하시겠습니까?")) return;
+Window.deleteLog = async (mId, logId, shouldDownLevel, activityData = null) => {
+    if(!confirm("기록을 삭제하시겠습니까?\n(동행 횟수와 레벨이 함께 차감됩니다)")) return;
     
     try {
-        await deleteDoc(doc(db, `sanwoori/${mId}/logs`, logId));
-        
+        // 1. 차감할 데이터 바구니 생성
+        const rollbackData = {
+            count: increment(-1) 
+        };
+
         if(shouldDownLevel) {
-            await updateDoc(doc(db, "sanwoori", mId), { level: increment(-1) });
+            rollbackData.level = increment(-1);
         }
 
-        // 삭제 후 남은 기록 중 '진짜 산행' 날짜로 D-Day 복구
-        await window.syncLastDateAfterDelete(mId);
+        // 2. [핵심] 인연의 숲 차감 (데이터가 있을 때만 실행)
+        // activityData가 없어도 에러가 나지 않게 체크합니다.
+        if (activityData) {
+            rollbackData.buddyCount = increment(-1); 
+            let upVal = shouldDownLevel ? 1 : 0;
+            let pointToSub = (activityData.isRegular) ? 100 : (100 * upVal);
+            rollbackData.friendshipPoint = increment(-pointToSub);
+        } else {
+            // 만약 버튼에서 데이터를 안 보내준다면, 최소한 buddyCount라도 깎아줍니다.
+            rollbackData.buddyCount = increment(-1);
+        }
 
-        // UI 갱신
-        loadMemberLogs(); 
-        updateVibeTemp();
-        startRealtimeSync(); 
+        // 3. DB 업데이트
+        await updateDoc(doc(db, "sanwoori", mId), rollbackData);
+
+        // 4. 실제 로그 문서 삭제
+        await deleteDoc(doc(db, `sanwoori/${mId}/logs`, logId));
+        
+        // 5. 후속 조치 및 UI 갱신
+        if (window.syncLastDateAfterDelete) await window.syncLastDateAfterDelete(mId);
+        if (typeof loadMemberLogs === 'function') loadMemberLogs(); 
+        if (typeof updateVibeTemp === 'function') updateVibeTemp();
+        if (typeof startRealtimeSync === 'function') startRealtimeSync(); 
+
+        alert("삭제 및 수치 차감이 완료되었습니다.");
     } catch (e) {
         console.error("삭제 중 오류:", e);
-        alert("삭제 실패: " + e.message);
+        alert("삭제 실패! 콘솔을 확인하세요.");
     }
-}; 
+};
+
 
 window.updateMemberName = async () => {
 const id = document.getElementById('memberSelectEdit').value;
