@@ -3017,111 +3017,141 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 });
 };
 
-    window.showBondingForestModal = async () => {
-    // 1. 기본 UI 요소 및 이름 추출 (중복 제거 및 통합)
-    const fpElement = document.getElementById('memberFriendshipPoint');
-    const currentFP = fpElement ? parseInt(fpElement.innerText.replace(/[^0-9]/g, '')) : 0;
-        
-    let mName = "";
-    // 기존에 사용하시던 이름 찾기 로직으로 통합
-    const nameTags = Array.from(document.querySelectorAll('h2, .text-blue-600, .font-bold, .member-name'));
-    const foundTag = nameTags.find(el => el.innerText.includes('님') && !el.innerText.includes('산행'));
-    
-    if (foundTag) {
-        mName = foundTag.innerText.split(' ')[0].replace('님', '').trim();
-    }
-
-    if (!mName) return alert("회원 이름을 찾을 수 없습니다.");
-
-    // 2. 초기 데이터 및 DB 정보 가져오기
-    const initialHikes = {
-        "오즈": 32, "지니": 23, "나스": 17, "해수": 15, "하트": 12, "아랑": 18, "쿠키": 8, "용삼": 14, 
-        "식이": 6, "몰랑": 9, "길치": 7, "등초": 6, "구름": 5, "튜브": 4, "햄찌": 5, "켄신": 3, 
-        "애플": 4, "민이": 3, "운해": 3, "윤윤": 2, "무니": 3, "태리": 2, "이구": 2, "영규": 2, 
-        "후후": 6, "피치": 2, "호프": 2, "멸치": 1, "섭섭": 1, "뚜벅": 3, "송돌": 2, "여록": 1, 
-        "람쥐": 1, "몽꽁": 1, "란이": 2, "얌얌": 0, "수리": 1, "희야": 0, "성민": 0
-    };
-
-    const memberInfo = (typeof currentData !== 'undefined') ? currentData.find(m => m.name === mName) : null;
-    const realBuddyCount = (memberInfo && memberInfo.buddyCount) ? memberInfo.buddyCount : 0;
-    const STORAGE_KEY = `forest_v5_final_${mName}`;
-
-    // 3. [신입 청소 로직] 포인트 0, 동행 0이면 옛날 기억 삭제
-    if (currentFP === 0 && realBuddyCount === 0) {
-        localStorage.removeItem(STORAGE_KEY);
-        console.log(`${mName}님 신입 확인: 유령 데이터를 청소했습니다.`);
-    }
-
+    Window.showBondingForestModal = async () => {
     try {
-        // 기존 cached 구조에 quartersMap 추가 (초기값 설정 부분)
-let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { 
-    processedIds: [], extraHikes: 0, partnersMap: {}, uniquePartners: [], quartersMap: {} 
-};
+        // 1. 기본 정보 추출 (이름, 우정포인트)
+        const fpElement = document.getElementById('memberFriendshipPoint');
+        // 화면에서 FP 숫자를 가져와서 세 자릿수 콤마 등을 제거하고 숫자로 변환
+        const currentFP = fpElement ? parseInt(fpElement.innerText.replace(/[^0-9]/g, '')) : 0;
+        
+        let mName = "";
+        const nameTags = Array.from(document.querySelectorAll('h2, .text-blue-600, .font-bold, .member-name'));
+        const foundTag = nameTags.find(el => el.innerText.includes('님') && !el.innerText.includes('산행'));
+        if (foundTag) mName = foundTag.innerText.split(' ')[0].replace('님', '').trim();
+        
+        if (!mName) return alert("회원 이름을 찾을 수 없습니다.");
 
-bondingSnap.forEach(doc => {
-    if (cached.processedIds.includes(doc.id)) return;
-    const data = doc.data();
-    const members = data.members || [];
-    
-    // 날짜 데이터에서 분기 계산 (예: "2026-03-30")
-    const dateStr = data.date || ""; 
-    const month = dateStr ? parseInt(dateStr.split('-')[1]) : new Date().getMonth() + 1;
-    const year = dateStr ? dateStr.split('-')[0] : new Date().getFullYear();
-    const quarter = `${year} Q${Math.ceil(month / 3)}`; // 예: "2026 Q1"
+        const STORAGE_KEY = `forest_v5_final_${mName}`;
+        let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { 
+            processedIds: [], extraHikes: 0, partnersMap: {}, uniquePartners: [], quartersMap: {} 
+        };
 
-    if (members.includes(mName)) {
-        cached.processedIds.push(doc.id);
-        if (!cached.quartersMap) cached.quartersMap = {};
-        if (!cached.quartersMap[quarter]) cached.quartersMap[quarter] = {};
-
-        members.forEach(p => {
-            if (p !== mName) {
-                // 전체 합산용
-                cached.partnersMap[p] = (cached.partnersMap[p] || 0) + 1;
-                // 분기별 합산용 ⭐ 추가
-                cached.quartersMap[quarter][p] = (cached.quartersMap[quarter][p] || 0) + 1;
+        // 2. 파이어베이스 데이터 실시간 로드 및 분기별 계산
+        const bondingSnap = await getDocs(collection(db, "bondingForest"));
+        
+        bondingSnap.forEach(doc => {
+            if (cached.processedIds.includes(doc.id)) return;
+            const data = doc.data();
+            const members = data.members || [];
+            
+            if (members.includes(mName)) {
+                cached.processedIds.push(doc.id);
                 
-                if (!cached.uniquePartners.includes(p)) cached.uniquePartners.push(p);
+                // 날짜 기준 분기 계산 (예: "2026 Q1")
+                const dateStr = data.date || ""; 
+                const month = dateStr ? parseInt(dateStr.split('-')[1]) : new Date().getMonth() + 1;
+                const year = dateStr ? dateStr.split('-')[0] : new Date().getFullYear();
+                const quarter = `${year} Q${Math.ceil(month / 3)}`;
+
+                if (!cached.quartersMap) cached.quartersMap = {};
+                if (!cached.quartersMap[quarter]) cached.quartersMap[quarter] = {};
+
+                members.forEach(p => {
+                    if (p !== mName) {
+                        cached.partnersMap[p] = (cached.partnersMap[p] || 0) + 1;
+                        cached.quartersMap[quarter][p] = (cached.quartersMap[quarter][p] || 0) + 1;
+                        if (!cached.uniquePartners.includes(p)) cached.uniquePartners.push(p);
+                    }
+                });
             }
         });
-    }
-});
-
-        // 업데이트된 캐시 저장
         localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
 
-        // 6. 수치 계산 (실시간 DB 반영 버전)
-        const baseHikes = initialHikes[mName] || 0;
-        // 최종 총 횟수: 관리자가 수정한 값(realBuddyCount)을 최우선으로 반영
-        const finalTotalHikes = baseHikes + (cached.extraHikes || 0);
+        // 3. 동행 지수 수치 계산
+        const memberInfo = (typeof currentData !== 'undefined') ? currentData.find(m => m.name === mName) : null;
+        const realBuddyCount = (memberInfo && memberInfo.buddyCount) ? memberInfo.buddyCount : 0;
+        const finalTotalHikes = (memberInfo?.count || 0) + (cached.extraHikes || 0);
+        const finalSynergy = finalTotalHikes > 0 ? Math.min(100, Math.round((realBuddyCount / finalTotalHikes) * 100)) : 0;
 
-        // 7. 시너지 및 동행 지수 계산
-        const legacyHikesFromFP = Math.floor(currentFP / 10); 
-        const myMultiHikes = (memberInfo && memberInfo.buddyCount !== undefined) ? realBuddyCount : 0;
-        const finalSynergy = finalTotalHikes > 0 ? Math.min(100, Math.round((myMultiHikes / finalTotalHikes) * 100)) : 0;
+        // 4. 이번 분기 베스트 파트너 추출
+        const now = new Date();
+        const currentQuarter = `${now.getFullYear()} Q${Math.ceil((now.getMonth() + 1) / 3)}`;
+        let bestP = "없음"; let bestC = 0;
+        const targetMap = (cached.quartersMap && cached.quartersMap[currentQuarter]) ? cached.quartersMap[currentQuarter] : cached.partnersMap;
+        if(targetMap) {
+            Object.entries(targetMap).forEach(([n, c]) => { if(c > bestC) { bestP = n; bestC = c; } });
+        }
 
+        // 5. 시각적 요소 설정 (색상 등)
+        let gaugeColor = finalSynergy >= 80 ? "#10b981" : (finalSynergy >= 40 ? "#f59e0b" : "#ef4444");
 
-window.showForestMemberList = () => {
+        // 6. 모달 HTML 출력 (우정포인트 항목 포함)
+        const modalHTML = `
+            <div id="forestModal" class="fixed inset-0 z-[10000] flex items-center justify-center bg-black/85 backdrop-blur-md" onclick="this.remove()">
+                <div class="bg-[#0f172a] border border-emerald-500/30 p-8 rounded-[2.5rem] w-[320px] text-center shadow-2xl" onclick="event.stopPropagation()">
+                    <div class="text-emerald-400 text-[10px] font-black mb-6 tracking-[0.4em]">BONDING FOREST</div>
+                    <div class="text-5xl mb-6">🌳</div>
+                    <h3 class="text-white text-2xl font-bold mb-2">${mName}님의 인연</h3>
+                    <p class="text-[11px] text-slate-500 mb-8 leading-relaxed">함께한 발걸음이 깊은 숲을 이룹니다.</p>
+                    
+                    <div class="space-y-3 text-left">
+                        <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
+                            <div class="text-[10px] font-bold mb-1" style="color: ${gaugeColor}">🤝 동행 지수 (${finalSynergy}%)</div>
+                            <div class="w-full h-1.5 bg-white/10 rounded-full mt-2 overflow-hidden">
+                                <div class="h-full transition-all duration-1000" style="width: ${finalSynergy}%; background-color: ${gaugeColor}"></div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06] cursor-pointer hover:bg-white/[0.07] active:scale-95 transition-all" 
+                             onclick="window.showForestSeasonList()">
+                            <div class="text-[10px] text-blue-400 font-bold mb-1">💫 역대 시즌 기록 (Click)</div>
+                            <div class="text-white text-[14px] font-bold">총 ${cached.uniquePartners.length}명과 연결됨</div>
+                        </div>
+
+                        <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
+                            <div class="text-[10px] text-orange-400 font-bold mb-1">👑 이번 분기 베스트 (${currentQuarter})</div>
+                            <div class="text-white text-[14px] font-bold">${bestP} <span class="text-emerald-400 font-black">(${bestC}회)</span></div>
+                        </div>
+
+                        <div class="bg-white/[0.03] p-4 rounded-2xl border border-white/[0.06]">
+                            <div class="text-[10px] text-amber-400 font-bold mb-1">💞 우정 포인트 (Friendship)</div>
+                            <div class="text-white text-[14px] font-bold">${currentFP.toLocaleString()} <span class="text-[10px] text-slate-400 font-normal ml-1">FP</span></div>
+                        </div>
+                    </div>
+
+                    <button onclick="document.getElementById('forestModal').remove()" 
+                            class="mt-8 w-full py-4 bg-emerald-500 text-white text-xs font-black rounded-2xl shadow-lg shadow-emerald-500/20 active:scale-95 transition-transform">
+                        숲에서 나가기
+                    </button>
+                </div>
+            </div>`;
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+    } catch (e) { 
+        console.error("인연의 숲 로딩 에러:", e);
+        alert("데이터를 불러오지 못했습니다.");
+    }
+};
+
+                
+window.showForestSeasonList = () => {
     const mName = document.querySelector('#forestModal h3').innerText.replace('님의 인연', '').trim();
-    const STORAGE_KEY = `forest_v5_final_${mName}`;
-    const cached = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    const cached = JSON.parse(localStorage.getItem(`forest_v5_final_${mName}`));
 
-    if (!cached || !cached.quartersMap) return alert("데이터가 부족합니다.");
+    if (!cached || !cached.quartersMap || Object.keys(cached.quartersMap).length === 0) {
+        return alert("아직 기록된 시즌 데이터가 없습니다.");
+    }
 
-    // 분기 역순 정렬 (최신 분기가 위로)
     const sortedQuarters = Object.keys(cached.quartersMap).sort().reverse();
-
     const quarterSections = sortedQuarters.map(q => {
         const partners = Object.entries(cached.quartersMap[q]).sort((a,b) => b[1]-a[1]);
         const bestName = partners[0][0];
         const bestCount = partners[0][1];
-
         return `
-            <div class="mb-6 border-l-4 border-emerald-500 pl-4 py-1">
-                <div class="text-emerald-400 text-[10px] font-bold mb-2">${q} 시즌</div>
-                <div class="flex justify-between items-center bg-white/5 p-3 rounded-xl">
-                    <span class="text-amber-400 font-bold">👑 ${bestName}</span>
-                    <span class="text-white text-xs">${bestCount}회 동행</span>
+            <div class="mb-4 border-l-2 border-emerald-500/50 pl-4 py-1">
+                <div class="text-emerald-400 text-[10px] font-bold mb-1">${q} 시즌</div>
+                <div class="flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/5">
+                    <span class="text-white text-sm font-bold">👑 ${bestName}</span>
+                    <span class="text-emerald-400 text-xs font-black">${bestCount}회 동행</span>
                 </div>
             </div>
         `;
@@ -3129,18 +3159,16 @@ window.showForestMemberList = () => {
 
     const popupHTML = `
         <div id="forestListOverlay" class="fixed inset-0 z-[10001] flex items-center justify-center bg-black/90 backdrop-blur-xl" onclick="this.remove()">
-            <div class="bg-[#0f172a] border border-emerald-500/40 p-8 rounded-[2.5rem] w-[340px]" onclick="event.stopPropagation()">
-                <h4 class="text-white text-xl font-bold mb-6 text-center">시즌별 최고의 파트너</h4>
-                <div class="max-h-[400px] overflow-y-auto pr-2 custom-scroll">
-                    ${quarterSections}
-                </div>
-                <button onclick="document.getElementById('forestListOverlay').remove()" class="mt-6 w-full py-4 bg-emerald-600 text-white rounded-xl text-xs font-bold">닫기</button>
+            <div class="bg-[#0f172a] border border-emerald-500/40 p-8 rounded-[2.5rem] w-[320px]" onclick="event.stopPropagation()">
+                <h4 class="text-white text-lg font-bold mb-6 text-center">시즌별 베스트 파트너</h4>
+                <div class="max-h-[350px] overflow-y-auto pr-2 custom-scroll">${quarterSections}</div>
+                <button onclick="document.getElementById('forestListOverlay').remove()" class="mt-6 w-full py-4 bg-white/10 text-white rounded-xl text-xs">닫기</button>
             </div>
-        </div>
-    `;
+        </div>`;
     document.body.insertAdjacentHTML('beforeend', popupHTML);
 };
 
+   
         // --- [핵심] 퍼센트별 색상 및 효과 설정 ---
         let gaugeColor = "#ef4444"; // 40미만: Red
         let glowClass = "";
