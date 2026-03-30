@@ -4354,45 +4354,35 @@ Window.deleteLog = async (mId, logId, shouldDownLevel) => {
     if(!confirm("기록을 삭제하시겠습니까?")) return;
     
     try {
-        // 1. 로그(별) 문서 삭제
+        // 1. 이름 찾기 (캐시 삭제를 위해 필요)
+        // 현재 화면에서 해당 회원의 이름을 가져옵니다.
+        const memberInfo = (typeof currentData !== 'undefined') ? currentData.find(m => m.id === mId) : null;
+        if (memberInfo) {
+            const STORAGE_KEY = `forest_v5_final_${memberInfo.name}`;
+            localStorage.removeItem(STORAGE_KEY); // ✨ [핵심] 삭제 즉시 캐시 파기!
+            console.log(`${memberInfo.name}님의 캐시를 갱신했습니다.`);
+        }
+
+        // 2. 로그 삭제 및 수치 차감 (기존 무적 코드 그대로)
         await deleteDoc(doc(db, `sanwoori/${mId}/logs`, logId));
-        
-        // 2. 개별 필드 차감 로직 (하나씩 안전하게 실행)
         const memberRef = doc(db, "sanwoori", mId);
-
-        // [A] 전체 횟수(count) 차감 시도
-        try {
-            await updateDoc(memberRef, { count: increment(-1) });
-        } catch(e) { console.log("count 필드 없음"); }
-
-        // [B] 인연의 숲(buddyCount) 차감 시도
-        try {
-            await updateDoc(memberRef, { buddyCount: increment(-1) });
-        } catch(e) { console.log("buddyCount 필드 없음"); }
-
-        // [C] 레벨 다운 처리
+        
+        try { await updateDoc(memberRef, { count: increment(-1) }); } catch(e){}
+        try { await updateDoc(memberRef, { buddyCount: increment(-1) }); } catch(e){}
+        
         if(shouldDownLevel) {
-            try {
-                await updateDoc(memberRef, { level: increment(-1) });
-            } catch(e) { console.log("level 필드 없음"); }
+            try { await updateDoc(memberRef, { level: increment(-1) }); } catch(e){}
         }
 
-        // 3. 후속 조치 및 UI 갱신 (기존 성공 로직 그대로)
-        if (window.syncLastDateAfterDelete) {
-            await window.syncLastDateAfterDelete(mId);
-        }
-
+        // 3. UI 및 동기화 (새로고침 없이 실시간 반영 유도)
+        if (window.syncLastDateAfterDelete) await window.syncLastDateAfterDelete(mId);
         if (typeof loadMemberLogs === 'function') loadMemberLogs(); 
-        if (typeof updateVibeTemp === 'function') updateVibeTemp();
-        if (typeof startRealtimeSync === 'function') startRealtimeSync(); 
-
-        alert("삭제 및 모든 수치 차감이 완료되었습니다.");
+        
+        alert("삭제 완료! 수치가 실시간으로 갱신되었습니다.");
     } catch (e) {
-        console.error("삭제 중 중대 오류:", e);
-        alert("삭제 실패: " + e.message);
+        alert("오류 발생: " + e.message);
     }
 };
-
 
 window.updateMemberName = async () => {
 const id = document.getElementById('memberSelectEdit').value;
