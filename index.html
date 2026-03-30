@@ -4354,36 +4354,38 @@ Window.deleteLog = async (mId, logId, shouldDownLevel) => {
     if(!confirm("삭제하시겠습니까?")) return;
     
     try {
-        // 1. 실제 기록(별) 삭제
+        // 1. 로그 삭제 (성공 확인된 코드 그대로)
         await deleteDoc(doc(db, `sanwoori/${mId}/logs`, logId));
         
-        // 2. 수치 차감 설정
-        const updateObj = { 
-            count: increment(-1),      // 전체 횟수 차감
-            buddyCount: increment(-1)  // ✨ [추가] 인연의 숲 동행 횟수 차감
-        };
-
+        // 2. 기본 수치 차감 (buddyCount 추가)
+        // 기존에 작동하던 방식인 { 필드: increment(-1) } 형식을 유지합니다.
+        await updateDoc(doc(db, "sanwoori", mId), { 
+            count: increment(-1),
+            buddyCount: increment(-1) // 인연의 숲 수치 차감 한 줄 추가
+        });
+        
+        // 3. 레벨 다운이 필요한 경우만 추가 실행
         if(shouldDownLevel) {
-            updateObj.level = increment(-1); // 레벨 차감
+            await updateDoc(doc(db, "sanwoori", mId), { 
+                level: increment(-1) 
+            });
         }
-
-        // 3. DB에 한 번에 반영
-        await updateDoc(doc(db, "sanwoori", mId), updateObj);
 
         // 삭제 후 남은 기록 중 '진짜 산행' 날짜로 D-Day 복구
         await window.syncLastDateAfterDelete(mId);
 
-        // UI 갱신
+        // UI 갱신 (성공 확인된 코드 그대로)
         loadMemberLogs(); 
         updateVibeTemp();
         startRealtimeSync(); 
 
-        alert("삭제되었습니다.");
+        alert("삭제 완료!");
     } catch (e) {
         console.error("삭제 중 오류:", e);
         alert("삭제 실패: " + e.message);
     }
 };
+
 
 
 window.updateMemberName = async () => {
