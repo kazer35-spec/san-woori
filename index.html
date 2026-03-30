@@ -4353,25 +4353,50 @@ window.syncLastDateAfterDelete = async (mId) => {
 Window.deleteLog = async (mId, logId, shouldDownLevel) => {
     if(!confirm("삭제하시겠습니까?")) return;
     
+    // 필요한 명령어들을 안전하게 참조 (DB 연결용)
+    const { doc, updateDoc, deleteDoc, increment } = firebase.firestore;
+
     try {
+        // 1. 실제 로그(활동 내역) 문서 삭제
         await deleteDoc(doc(db, `sanwoori/${mId}/logs`, logId));
         
+        // 2. 수치 차감 데이터 준비
+        const rollbackData = {
+            count: increment(-1) // 전체 산행 횟수 차감
+        };
+
+        // 3. 레벨 다운 처리
         if(shouldDownLevel) {
-            await updateDoc(doc(db, "sanwoori", mId), { level: increment(-1) });
+            rollbackData.level = increment(-1);
         }
 
-        // 삭제 후 남은 기록 중 '진짜 산행' 날짜로 D-Day 복구
-        await window.syncLastDateAfterDelete(mId);
+        // 4. 인연의 숲(buddyCount) 수치 차감 시도
+        // (필드가 없는 경우를 대비해 안전하게 처리)
+        try {
+            rollbackData.buddyCount = increment(-1);
+        } catch(e) { 
+            console.log("buddyCount 필드가 없어 차감을 건너뜁니다.");
+        }
 
-        // UI 갱신
-        loadMemberLogs(); 
-        updateVibeTemp();
-        startRealtimeSync(); 
+        // 5. DB 업데이트 실행
+        await updateDoc(doc(db, "sanwoori", mId), rollbackData);
+
+        // 6. 후속 조치 (기존 코드 유지)
+        if (window.syncLastDateAfterDelete) {
+            await window.syncLastDateAfterDelete(mId);
+        }
+
+        // UI 갱신 함수들 체크 후 실행
+        if (typeof loadMemberLogs === 'function') loadMemberLogs(); 
+        if (typeof updateVibeTemp === 'function') updateVibeTemp();
+        if (typeof startRealtimeSync === 'function') startRealtimeSync(); 
+
+        alert("삭제되었습니다.");
     } catch (e) {
-        console.error("삭제 중 오류:", e);
+        console.error("삭제 중 오류 상세:", e);
         alert("삭제 실패: " + e.message);
     }
-}; 
+};
 
 
 window.updateMemberName = async () => {
