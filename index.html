@@ -3068,34 +3068,39 @@ if (!cached.quarterlyPartners) {
     console.log("분기별 데이터 구조를 생성했습니다.");
 }
 
-// 5. DB에서 인연의 숲 기록 가져오기 및 분기 계산
+// 5. DB에서 인연의 숲 기록 가져오기 및 실시간 계산
 const bondingSnap = await getDocs(collection(db, "bondingForest"));
 
-// [초기화] 정확한 계산을 위해 기존 데이터를 비우고 다시 훑습니다.
+// [중요] 기록 삭제를 반영하기 위해 매번 데이터를 새로 집계합니다.
 cached.quarterlyPartners = { q1: {}, q2: {}, q3: {}, q4: {} };
 cached.partnersMap = {}; 
 cached.uniquePartners = [];
-cached.processedIds = []; 
+cached.processedIds = [];
+cached.myHikes = 0; // 내 참여 횟수 초기화
 
-// 현재 연도 확인 (예: 2026)
+// DB에 실제 존재하는 '날짜가 있는 기록'의 총 개수 (삭제 반영)
+const validDocs = bondingSnap.docs.filter(doc => doc.data().date);
+const finalTotalHikes = validDocs.length; 
+cached.totalHikes = finalTotalHikes;
+
 const currentYear = new Date().getFullYear();
 
-bondingSnap.forEach(doc => {
+validDocs.forEach(doc => {
     const data = doc.data();
     const members = data.members || [];
     
     // 유저 본인이 포함된 산행인지 확인
     if (members.includes(mName)) {
+        cached.myHikes++; // 내 참여 횟수 증가
         cached.processedIds.push(doc.id);
         
         // 날짜 분석 (예: "2026-01-23")
         const dateStr = data.date || ""; 
-        const dateParts = dateStr.split('-'); // ["2026", "01", "23"]
-        
+        const dateParts = dateStr.split('-');
         const year = parseInt(dateParts[0]);
         const month = parseInt(dateParts[1]);
         
-        // 1. 역대 합산 (연도 상관 없이 모든 파트너 기록)
+        // 1. 역대 파트너 합산 (전체 기간)
         members.forEach(p => {
             if (p !== mName) {
                 cached.partnersMap[p] = (cached.partnersMap[p] || 0) + 1;
@@ -3103,7 +3108,7 @@ bondingSnap.forEach(doc => {
             }
         });
 
-        // 2. 분기별 합산 (오직 "올해(currentYear)" 데이터만 분류)
+        // 2. 분기별 파트너 합산 (오직 "올해" 기록만)
         if (year === currentYear) {
             let qKey = "";
             if (month >= 1 && month <= 3) qKey = "q1";
@@ -3122,7 +3127,10 @@ bondingSnap.forEach(doc => {
     }
 });
 
-// 결과 저장
+// 시너지(동행지수) 재계산
+const finalSynergy = finalTotalHikes > 0 ? Math.floor((cached.myHikes / finalTotalHikes) * 100) : 0;
+
+// 업데이트된 캐시 저장
 localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
 
         // 6. 수치 계산 (실시간 DB 반영 버전)
