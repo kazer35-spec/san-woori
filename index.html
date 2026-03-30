@@ -3043,7 +3043,13 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
     };
 
     const memberInfo = (typeof currentData !== 'undefined') ? currentData.find(m => m.name === mName) : null;
-    const realBuddyCount = (memberInfo && memberInfo.buddyCount) ? memberInfo.buddyCount : 0;
+    let realBuddyCount = 0;
+if (memberInfo) {
+    // 1순위: buddyCount (동행 전용 필드)
+    // 2순위: count (일반 횟수 필드)
+    // 3순위: 0 (데이터 없음)
+    realBuddyCount = memberInfo.buddyCount !== undefined ? memberInfo.buddyCount : (memberInfo.count || 0);
+    }
     const STORAGE_KEY = `forest_v5_final_${mName}`;
 
     // 3. [신입 청소 로직] 포인트 0, 동행 0이면 옛날 기억 삭제
