@@ -3152,17 +3152,19 @@ bondingSnap.forEach(doc => {
 // 결과 저장
 localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
 
-        // 1. DB에서 현재 회원의 실시간 동행 횟수 가져오기
-// 상단 로직에 따라 realBuddyCount 변수를 그대로 활용합니다.
-const dbMemberCount = (typeof realBuddyCount !== 'undefined') ? realBuddyCount : 0;
+        // 6. 수치 계산 (실시간 DB 반영 버전)
+const baseHikes = initialHikes[mName] || 0;
 
-// 2. 최종 총 횟수: (상단 initialHikes 값) + (실시간 DB 동행 횟수)
-const finalTotalHikes = (initialHikes[mName] || 0) + dbMemberCount;
+// [수정 포인트] 캐시(extraHikes) 대신 DB의 실시간 값(realBuddyCount)을 더합니다.
+// 이렇게 하면 캐시를 삭제해도 DB 데이터가 살아있어서 숫자가 유지됩니다.
+const finalTotalHikes = baseHikes + realBuddyCount;
 
-// 3. 시너지 및 동행 지수 계산
-// 총 횟수가 0일 때 오류를 방지하며 계산합니다.
-const finalSynergy = finalTotalHikes > 0 ? Math.min(100, Math.round((dbMemberCount / finalTotalHikes) * 100)) : 0;
+// 7. 시너지 및 동행 지수 계산
+// 기존 코드에서 사용하던 변수명(myMultiHikes)을 그대로 유지해야 창이 정상적으로 열립니다.
+const myMultiHikes = realBuddyCount; 
 
+const finalSynergy = finalTotalHikes > 0 ? Math.min(100, Math.round((myMultiHikes / finalTotalHikes) * 100)) : 0;
+        
         // --- 우정 포인트 사용 안내 팝업 ---
 window.showFriendshipGuide = () => {
     const guideHTML = `
