@@ -3442,28 +3442,74 @@ const currentQData = getBestInQuarter(cached.quarterlyPartners[currentQKey]);
    
     
 window.toggleHallModal = async (show) => {
-const modal = document.getElementById('hallModal');
-modal.style.display = show ? 'flex' : 'none';
-if(show) {
-const listArea = document.getElementById('hallListArea');
-let combinedHtml = "";
-const seasons = [{ year: 2026, quarter: 1 }, { year: 2025, quarter: 4 }];
-for (const s of seasons) {
-let top3 = [];
-let isCurrent = (s.year === new Date().getFullYear() && s.quarter === Math.ceil((new Date().getMonth()+1)/3));
-if(isCurrent) top3 = [...currentData].filter(m => !m.isHidden && m.name !== "오즈" && m.qCount > 0).sort((a,b) => b.qCount - a.qCount || b.level - a.level).slice(0, 3);
-else if(s.year === 2025 && s.quarter === 4) top3 = [{ name: "아랑" }, { name: "용삼" }, { name: "우진" }];
-if(top3.length > 0) {
-combinedHtml += `<div class="hall-card ${isCurrent ? 'border-blue-100 bg-blue-50/30' : ''}">
-<div class="hall-season-title"><span>${s.year}년 ${s.quarter}분기 (Season ${s.year === 2025 ? 1 : 2})</span>${isCurrent ? '<span class="status-badge-live">LIVE</span>' : '<span class="status-badge-end">종료</span>'}</div>
-<div class="hall-rank-flex"><div class="hall-rank-item"><span class="hall-rank-label glow-gold">🥇산신령</span><span class="hall-rank-name">${top3[0]?.name || '-'}</span></div>
-${top3[1] ? `<div class="hall-rank-item"><span class="hall-rank-label glow-silver">🥈심마니</span><span class="hall-rank-name">${top3[1].name}</span></div>` : ''}
-${top3[2] ? `<div class="hall-rank-item"><span class="hall-rank-label glow-bronze">🥉나무꾼</span><span class="hall-rank-name">${top3[2].name}</span></div>` : ''}</div></div>`;
-}
-}
-listArea.innerHTML = combinedHtml;
-}
+    const modal = document.getElementById('hallModal');
+    modal.style.display = show ? 'flex' : 'none';
+    
+    if (show) {
+        const listArea = document.getElementById('hallListArea');
+        let combinedHtml = "";
+        
+        // 데이터 설정: 2026년 2분기(현재), 2026년 1분기(신규 추가), 2025년 4분기(기존)
+        const seasons = [
+            { year: 2026, quarter: 2, seasonNum: 3 }, // 현재 진행 중인 시즌
+            { year: 2026, quarter: 1, seasonNum: 2 }, // 종료된 1분기
+            { year: 2025, quarter: 4, seasonNum: 1 }  // 시즌 1
+        ];
+
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentQuarter = Math.ceil((now.getMonth() + 1) / 3);
+
+        for (const s of seasons) {
+            let top3 = [];
+            let isCurrent = (s.year === currentYear && s.quarter === currentQuarter);
+            
+            // 1. 현재 실시간 시즌 (2분기)
+            if (isCurrent) {
+                top3 = [...currentData]
+                    .filter(m => !m.isHidden && m.name !== "오즈" && m.qCount > 0)
+                    .sort((a, b) => b.qCount - a.qCount || b.level - a.level)
+                    .slice(0, 3);
+            } 
+            // 2. 2026년 1분기 (요청하신 데이터 고정)
+            else if (s.year === 2026 && s.quarter === 1) {
+                top3 = [{ name: "지니" }, { name: "나스" }, { name: "해수" }];
+            }
+            // 3. 2025년 4분기 (기존 데이터 고정)
+            else if (s.year === 2025 && s.quarter === 4) {
+                top3 = [{ name: "아랑" }, { name: "용삼" }, { name: "우진" }];
+            }
+
+            if (top3.length > 0) {
+                combinedHtml += `
+                <div class="hall-card ${isCurrent ? 'border-blue-100 bg-blue-50/30' : ''}">
+                    <div class="hall-season-title">
+                        <span>${s.year}년 ${s.quarter}분기 (Season ${s.seasonNum})</span>
+                        ${isCurrent ? '<span class="status-badge-live">LIVE</span>' : '<span class="status-badge-end">종료</span>'}
+                    </div>
+                    <div class="hall-rank-flex">
+                        <div class="hall-rank-item">
+                            <span class="hall-rank-label glow-gold">🥇산신령</span>
+                            <span class="hall-rank-name">${top3[0]?.name || '-'}</span>
+                        </div>
+                        ${top3[1] ? `
+                        <div class="hall-rank-item">
+                            <span class="hall-rank-label glow-silver">🥈심마니</span>
+                            <span class="hall-rank-name">${top3[1].name}</span>
+                        </div>` : ''}
+                        ${top3[2] ? `
+                        <div class="hall-rank-item">
+                            <span class="hall-rank-label glow-bronze">🥉나무꾼</span>
+                            <span class="hall-rank-name">${top3[2].name}</span>
+                        </div>` : ''}
+                    </div>
+                </div>`;
+            }
+        }
+        listArea.innerHTML = combinedHtml;
+    }
 };
+
 
 window.toggleVibeModal = (show) => { document.getElementById('vibeModal').style.display = show ? 'flex' : 'none'; };
 
