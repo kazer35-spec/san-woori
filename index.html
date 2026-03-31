@@ -3439,7 +3439,7 @@ const currentQData = getBestInQuarter(cached.quarterlyPartners[currentQKey]);
     } catch (e) { console.error(e); }
 };
 
-   window.toggleHallModal = async (show) => {
+window.toggleHallModal = async (show) => {
     const modal = document.getElementById('hallModal');
     modal.style.display = show ? 'flex' : 'none';
     
@@ -3447,25 +3447,28 @@ const currentQData = getBestInQuarter(cached.quarterlyPartners[currentQKey]);
         const listArea = document.getElementById('hallListArea');
         let combinedHtml = "";
         
-        // 1. 표시할 시즌 리스트 생성 (현재 기준 역순)
+        // 1. 현재 날짜 기준으로 LIVE 여부 판단
         const now = new Date();
         const curYear = now.getFullYear();
         const curQuarter = Math.ceil((now.getMonth() + 1) / 3);
         
-        // 표시하고 싶은 시즌들을 정의합니다. (새 시즌이 오면 여기에 추가만 하면 됩니다)
+        /**
+         * 2. 표시하고 싶은 시즌 정의 (최신순)
+         * 새로운 시즌이 시작되면 이 배열의 맨 위에 추가하세요.
+         */
         const seasons = [
-            { year: 2026, quarter: 2, sNum: 3 }, // 현재
-            { year: 2026, quarter: 1, sNum: 2 }, 
-            { year: 2025, quarter: 4, sNum: 1 }
+            { year: 2026, quarter: 2, sNum: 3 }, // 현재 진행 시즌
+            { year: 2026, quarter: 1, sNum: 2 }, // 종료된 시즌 (고정 데이터)
+            { year: 2025, quarter: 4, sNum: 1 }  // 종료된 시즌 (고정 데이터)
         ];
 
         for (const s of seasons) {
             let top3 = [];
             const isLive = (s.year === curYear && s.quarter === curQuarter);
             
-            // --- 데이터 매칭 로직 ---
+            // --- [데이터 매칭 로직] ---
             if (isLive) {
-                // 현재 진행 중인 시즌: 실시간 데이터에서 추출
+                // 현재 진행 중인 분기: currentData(실시간 데이터)에서 계산하여 추출
                 top3 = [...currentData]
                     .filter(m => !m.isHidden && m.name !== "오즈" && m.qCount > 0)
                     .sort((a, b) => b.qCount - a.qCount || b.level - a.level)
@@ -3473,33 +3476,36 @@ const currentQData = getBestInQuarter(cached.quarterlyPartners[currentQKey]);
                     .map(m => ({ name: m.name }));
             } 
             else if (s.year === 2026 && s.quarter === 1) {
-                // 26년 1분기 고정 데이터
+                // 2026년 1분기 확정 데이터 (명예의 전당 고정)
                 top3 = [{ name: "지니" }, { name: "나스" }, { name: "해수" }];
             }
             else if (s.year === 2025 && s.quarter === 4) {
-                // 25년 4분기 고정 데이터
+                // 2025년 4분기 확정 데이터 (명예의 전당 고정)
                 top3 = [{ name: "아랑" }, { name: "용삼" }, { name: "우진" }];
             }
 
-            // HTML 생성
+            // --- [HTML 생성 로직] ---
             if (top3.length > 0) {
                 combinedHtml += `
-                <div class="hall-card ${isLive ? 'border-blue-100 bg-blue-50/30' : 'bg-white/50'} mb-4">
+                <div class="hall-card ${isLive ? 'border-blue-100 bg-blue-50/30' : 'bg-white/50'} mb-4 p-4 rounded-3xl border border-white/40 shadow-sm">
                     <div class="hall-season-title flex justify-between items-center mb-3">
-                        <span class="font-black text-[11px] text-slate-600">
-                            ${s.year}년 ${s.quarter}분기 (Season ${s.sNum})
+                        <span class="font-black text-[11px] text-slate-600 uppercase tracking-tighter">
+                            ${s.year} YEAR / QUARTER ${s.quarter} (Season ${s.sNum})
                         </span>
                         ${isLive ? '<span class="status-badge-live">LIVE</span>' : '<span class="status-badge-end">종료</span>'}
                     </div>
+                    
                     <div class="hall-rank-flex flex justify-around gap-2">
                         <div class="hall-rank-item text-center flex-1 p-2 rounded-xl bg-white shadow-sm border border-gray-50">
                             <span class="hall-rank-label block text-[9px] font-black text-amber-500 mb-1">🥇산신령</span>
                             <span class="hall-rank-name font-bold text-slate-800 text-sm">${top3[0]?.name || '-'}</span>
                         </div>
+                        
                         <div class="hall-rank-item text-center flex-1 p-2 rounded-xl bg-white shadow-sm border border-gray-50">
                             <span class="hall-rank-label block text-[9px] font-black text-slate-400 mb-1">🥈심마니</span>
                             <span class="hall-rank-name font-bold text-slate-800 text-sm">${top3[1]?.name || '-'}</span>
                         </div>
+                        
                         <div class="hall-rank-item text-center flex-1 p-2 rounded-xl bg-white shadow-sm border border-gray-50">
                             <span class="hall-rank-label block text-[9px] font-black text-orange-400 mb-1">🥉나무꾼</span>
                             <span class="hall-rank-name font-bold text-slate-800 text-sm">${top3[2]?.name || '-'}</span>
@@ -3508,7 +3514,8 @@ const currentQData = getBestInQuarter(cached.quarterlyPartners[currentQKey]);
                 </div>`;
             }
         }
-        listArea.innerHTML = combinedHtml || '<p class="text-center text-gray-400 py-10">데이터를 불러오는 중...</p>';
+        
+        listArea.innerHTML = combinedHtml || '<p class="text-center text-gray-400 py-10">기록된 시즌 데이터가 없습니다.</p>';
     }
 };
 
