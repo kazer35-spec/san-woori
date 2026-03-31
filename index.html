@@ -4256,32 +4256,13 @@ window.addMultiActivity = async () => {
         updateAdminMemberLists();
         startRealtimeSync(); 
 
-// 1. 먼저 선택된 인원수를 변수에 담습니다.
-const memberCount = selectedMemberIds.size; 
-
-// 2. 메시지 띄우기
-alert(isHike ? "산행 기록 및 인연의 숲 저장 완료!" : "기록 저장 완료!");
-selectedMemberIds.clear();
-tempCoord = null;
-updateAdminMemberLists();
-startRealtimeSync();
-
-// 3. 캐시 비우기 로직 (변수 정의 후 실행)
-if (isHike && memberCount >= 2) {
-    // memberName은 반복문 안에서 쓰던 변수이므로, 
-    // 실제 전체 인원에게 적용하려면 저장 반복문(for) 안으로 이 로직을 넣거나 
-    // 마지막 한 명 기준으로 처리해야 합니다.
-    const STORAGE_KEY = `forest_v5_final_${memberName}`; 
-    let cachedData = localStorage.getItem(STORAGE_KEY);
-    
-    if (cachedData) {
-        let cached = JSON.parse(cachedData);
-        cached.extraHikes += 1;
-        cached.processedIds = []; // ⭐ 목록 비우기
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
-    }
-}
-
+        if (isHike && memberCount >= 2) {
+    const STORAGE_KEY = `forest_v5_final_${memberName}`;
+    let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { processedIds: [], extraHikes: 0 };
+    cached.extraHikes += 1;
+    cached.processedIds = []; // ⭐ 목록을 비워야 실시간 반영됨
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
+        }
         
     } catch (error) {
         console.error("Error:", error);
