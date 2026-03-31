@@ -4190,47 +4190,47 @@ window.addMultiActivity = async () => {
         pendingLevelUpCards = []; 
 
         // --- 멤버별 데이터 업데이트 루프 ---
-        for(const id of selectedMemberIds){
-            const member = currentData.find(m => m.id === id);
-            if(!member) continue;
+        for (const id of selectedMemberIds) {
+    const member = currentData.find(m => m.id === id);
+    if (!member) continue;
 
-             const now = new Date();
-    const qKey = `${now.getFullYear()}_q${Math.ceil((now.getMonth() + 1) / 3)}`; // 예: "2026_q1"
-    let pointToAdd = (isQuarterOnlyOne || isRegular) ? 100 : (100 * (effectiveUp || 1));
+    const now = new Date();
+    const qKey = `${now.getFullYear()}_q${Math.ceil((now.getMonth() + 1) / 3)}`;
+    
+    const oldLevel = member.level || 0;
+    const newLevel = oldLevel + effectiveUp;
 
-            const oldLevel = member.level || 0;
-            const newLevel = oldLevel + effectiveUp;
-
-                        // 1. 통합 업데이트 객체 생성 (기본값: 레벨, 높이, 전체 횟수)
-            const updateData = { 
-                level: newLevel, 
-                totalHeight: increment(height),
-                count: increment(1), // ⭐ DB 스냅샷 확인 결과: 전체 산행 횟수 필드는 'count'
-                friendshipPoint: increment(pointToAdd), // 전체 합산 포인트
-        [`fp_bins.${qKey}`]: increment(pointToAdd) // 분기별 개별 바구니 (예: fp_bins.2026_q1)
+    // 1. [수정] 기본 업데이트 객체에는 '공통 항목'만 넣습니다. (포인트 제외)
+    const updateData = { 
+        level: newLevel, 
+        totalHeight: increment(height),
+        count: increment(1) 
     };
-            
 
-            // 2. 활동 유형별(산행/러닝/트래킹) 공통 날짜 및 D-day 로직
-            if (isHike || isRunning || isTracking) {
-                updateData.lastDate = ts;
-                if (isHike) updateData.bonusDays = 0;
-                if (oldLevel > 0) {
-                    let calculatedDday = Math.min(122, (member.dday || 0) + 15);
-                    updateData.dday = calculatedDday;
-                }
-            }
+    // 2. [정상 코드 적용] 2인 이상 산행일 때만 포인트 관련 필드 추가
+    if (isHike && selectedMemberIds.size >= 2) {
+        // 포인트 계산 로직을 이 안으로 이동
+        let pointToAdd = (isQuarterOnlyOne || isRegular) ? 100 : (100 * (effectiveUp || 1));
+        
+        updateData.buddyCount = increment(1);       // 동행 횟수
+        updateData.friendshipPoint = increment(pointToAdd); // 전체 우정 포인트
+        updateData[`fp_bins.${qKey}`] = increment(pointToAdd); // 분기별 포인트
+    }
 
-            // 3. [핵심] 동행 기록 분리 (2인 이상 산행일 때만 추가)
-            if (isHike && selectedMemberIds.size >= 2) {
-                let pointToAdd = (isQuarterOnlyOne || isRegular) ? 100 : (100 * effectiveUp);
-                
-                updateData.buddyCount = increment(1);       // ⭐ 동행 횟수: 2인 이상일 때만 포함
-                updateData.friendshipPoint = increment(pointToAdd); // 우정 포인트 추가
-            }
+    // 3. 활동 유형별 날짜 및 D-day 로직 (기존 유지)
+    if (isHike || isRunning || isTracking) {
+        updateData.lastDate = ts;
+        if (isHike) updateData.bonusDays = 0;
+        if (oldLevel > 0) {
+            // 러닝/트래킹/산행 시 15일 연장 (최대 122일)
+            let calculatedDday = Math.min(122, (member.dday || 0) + 15);
+            updateData.dday = calculatedDday;
+        }
+    }
 
-            // 4. 단 한 번의 DB 호출로 모든 변경사항 저장 (에러 방지 및 통합)
-            await updateDoc(doc(db, "sanwoori", id), updateData);
+    // 4. DB 업데이트 (수정된 updateData 전송)
+    await updateDoc(doc(db, "sanwoori", id), updateData);
+    
 
 
             // 개별 로그(별) 생성
