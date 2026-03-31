@@ -3053,37 +3053,6 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
     }
 
     try {
-        // [1단계: 기존 포인트 이사 로직] - 딱 한 번만 실행됨
-        if (currentFP > 0 && memberInfo && !memberInfo.lastUpdate_Q1) {
-            console.log("기존 포인트를 26년 1분기(Q1) 데이터로 통합합니다.");
-            const memberRef = doc(db, "sanwoori", memberInfo.id);
-            await updateDoc(memberRef, {
-                friendshipPoint_Q1: currentFP,
-                lastUpdate_Q1: 2026
-            });
-        }
-
-        // [2단계: 1년 주기 분기 삭제 로직] - 내년 1분기(27년)가 되면 작동함
-        const now = new Date();
-        const currentYear = now.getFullYear(); 
-        const currentQ = "Q" + (Math.floor(now.getMonth() / 3) + 1); 
-        const syncKey = `lastUpdate_${currentQ}`;
-
-        if (memberInfo && memberInfo[syncKey] && memberInfo[syncKey] !== currentYear) {
-            console.log(`${currentQ} 포인트가 1년이 지나 초기화됩니다.`);
-            const memberRef = doc(db, "sanwoori", memberInfo.id);
-            const oldPoint = memberInfo[`friendshipPoint_${currentQ}`] || 0;
-
-            await updateDoc(memberRef, {
-                [syncKey]: currentYear,
-                [`friendshipPoint_${currentQ}`]: 0,
-                friendshipPoint: increment(-oldPoint) 
-            });
-        } 
-
-    } catch (e) { 
-        console.error("포인트 처리 중 에러:", e); 
-    }
 // --- [4 & 5 통합 수정 버전] ---
 
 // 4. 캐시 데이터 로드 및 구조 초기화
@@ -4219,26 +4188,12 @@ window.addMultiActivity = async () => {
             }
 
             // 3. [핵심] 동행 기록 분리 (2인 이상 산행일 때만 추가)
-if (isHike && selectedMemberIds.size >= 2) {
-    let pointToAdd = (isQuarterOnlyOne || isRegular) ? 100 : (100 * effectiveUp);
-    
-    // [자동 계산] 날짜를 보고 Q1, Q2 등을 알아서 정함
-    const now = new Date(dateVal);
-    const qKey = "Q" + (Math.floor(now.getMonth() / 3) + 1); 
-    const currentYear = now.getFullYear();
-
-    // 1. 전체 합계 업데이트 (기존 총점에 합산)
-    updateData.friendshipPoint = increment(pointToAdd); 
-    
-    // 2. 해당 분기 칸에 포인트 적립 (예: friendshipPoint_Q1)
-    updateData[`friendshipPoint_${qKey}`] = increment(pointToAdd); 
-    
-    // 3. 해당 분기의 업데이트 연도 기록 (예: lastUpdate_Q1 = 2026)
-    updateData[`lastUpdate_${qKey}`] = currentYear; 
-
-    // 4. 동행 횟수 추가
-    updateData.buddyCount = increment(1); 
-}
+            if (isHike && selectedMemberIds.size >= 2) {
+                let pointToAdd = (isQuarterOnlyOne || isRegular) ? 100 : (100 * effectiveUp);
+                
+                updateData.buddyCount = increment(1);       // ⭐ 동행 횟수: 2인 이상일 때만 포함
+                updateData.friendshipPoint = increment(pointToAdd); // 우정 포인트 추가
+            }
 
             // 4. 단 한 번의 DB 호출로 모든 변경사항 저장 (에러 방지 및 통합)
             await updateDoc(doc(db, "sanwoori", id), updateData);
