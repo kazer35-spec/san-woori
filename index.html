@@ -3041,7 +3041,7 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
         "식이": 6, "몰랑": 10, "길치": 7, "등초": 7, "구름": 5, "튜브": 4, "햄찌": 5, "로드": 3, 
         "애플": 5, "민이": 3, "운해": 5, "윤윤": 2, "무니": 3, "태리": 2, "이구": 3, "영규": 2, 
         "후후": 6, "피치": 2, "호프": 2, "멸치": 1, "섭섭": 1, "뚜벅": 3, "송돌": 2, "여록": 1, 
-        "람쥐": 1, "몽꽁": 1, "란이": 2, "얌얌": 0, "수리": 1, "희야": 0, "성민": 0, "운해": 5
+        "람쥐": 1, "몽꽁": 1, "란이": 2, "얌얌": 0, "수리": 1, "희야": 0, "성민": 0, "운해": 2
     };
 
     const memberInfo = (typeof currentData !== 'undefined') ? currentData.find(m => m.name === mName) : null;
@@ -3094,68 +3094,88 @@ if (!cached.quarterlyPartners) {
     console.log("분기별 데이터 구조를 생성했습니다.");
 }
 
-// 5. DB에서 실시간 데이터 가져오기 및 변수 초기화
-const bondingSnap = await getDocs(collection(db, "bondingForest"));
-
-// [중요] 화면에 즉시 보여주기 위해 임시 저장소(변수)를 새로 만듭니다.
-let currentPartnersMap = {};
-let currentUniquePartners = [];
-let currentQuarterly = { q1: {}, q2: {}, q3: {}, q4: {} };
-const currentYear = new Date().getFullYear();
-
-bondingSnap.forEach(doc => {
-    const data = doc.data();
-    const members = data.members || [];
+// 5. DB에서 실시간 데이터 가져오기
+uniquePartners = currentUniquePartners;
+    // 1. 범용 이름 추출 로직 (어떤 회원이든 대응)
+    let mName = "";
+    const nameTags = Array.from(document.querySelectorAll('h2, .text-blue-600, .font-bold, .member-name, #memberName'));
     
-    // 본인이 포함된 산행 기록만 필터링
-    if (members.includes(mName)) {
-        const dateStr = data.date || ""; 
-        const dateParts = dateStr.split('-');
-        const year = parseInt(dateParts[0]);
-        const month = parseInt(dateParts[1]);
-        
-        // 전체 파트너 합산 (실시간 DB 값)
-        members.forEach(p => {
-            if (p !== mName) {
-                currentPartnersMap[p] = (currentPartnersMap[p] || 0) + 1;
-                if (!currentUniquePartners.includes(p)) {
-                    currentUniquePartners.push(p);
+    // "OOO님의 인연"에서 이름을 가져오거나, 태그에서 직접 이름을 가져옵니다.
+    const forestTitleTag = nameTags.find(el => el.innerText.includes('님의 인연'));
+    
+    if (forestTitleTag) {
+        mName = forestTitleTag.innerText.replace('님의 인연', '').trim();
+    } else {
+        const nameOnlyTag = nameTags.find(el => el.innerText.includes('님') && !el.innerText.includes('산행'));
+        if (nameOnlyTag) mName = nameOnlyTag.innerText.split(' ')[0].replace('님', '').trim();
+    }
+
+    if (!mName) return alert("회원 이름을 찾을 수 없습니다.");
+    const STORAGE_KEY = `forest_v5_final_${mName}`;
+
+    try {
+        // 5. DB에서 실시간 기록 가져오기 (bondingForest 컬렉션 전체 조회)
+        const bondingSnap = await getDocs(collection(db, "bondingForest"));
+
+        let currentPartnersMap = {};
+        let currentUniquePartners = [];
+        let currentProcessedIds = []; // 실시간 산행 횟수 체크용
+        let currentQuarterly = { q1: {}, q2: {}, q3: {}, q4: {} };
+        const currentYear = new Date().getFullYear();
+
+        bondingSnap.forEach(doc => {
+            const data = doc.data();
+            const members = data.members || [];
+            
+            // 추출한 이름(mName)이 해당 산행 멤버 명단에 있는지 확인
+            if (members.includes(mName)) {
+                currentProcessedIds.push(doc.id); // 산행 횟수 +1
+                
+                const dateStr = data.date || ""; 
+                const dateParts = dateStr.split('-');
+                const year = parseInt(dateParts[0]);
+                const month = parseInt(dateParts[1]);
+                
+                // 파트너 및 인연의 반경 계산
+                members.forEach(p => {
+                    if (p !== mName) {
+                        currentPartnersMap[p] = (currentPartnersMap[p] || 0) + 1;
+                        if (!currentUniquePartners.includes(p)) currentUniquePartners.push(p);
+                    }
+                });
+
+                // 올해 분기별 최고 파트너 계산
+                if (year === currentYear) {
+                    let qKey = (month >= 1 && month <= 3) ? "q1" : 
+                               (month >= 4 && month <= 6) ? "q2" : 
+                               (month >= 7 && month <= 9) ? "q3" : "q4";
+                    members.forEach(p => {
+                        if (p !== mName) {
+                            currentQuarterly[qKey][p] = (currentQuarterly[qKey][p] || 0) + 1;
+                        }
+                    });
                 }
             }
         });
 
-        // 올해 분기별 데이터 합산
-        if (year === currentYear) {
-            let qKey = (month >= 1 && month <= 3) ? "q1" : 
-                       (month >= 4 && month <= 6) ? "q2" : 
-                       (month >= 7 && month <= 9) ? "q3" : "q4";
-            
-            members.forEach(p => {
-                if (p !== mName) {
-                    currentQuarterly[qKey][p] = (currentQuarterly[qKey][p] || 0) + 1;
-                }
-            });
-        }
-    }
-});
+        // 6. DB에서 가져온 최신 데이터를 캐시에 강제 업데이트 (화면 즉시 반영의 핵심)
+        cached.partnersMap = currentPartnersMap;
+        cached.uniquePartners = currentUniquePartners;
+        cached.processedIds = currentProcessedIds; 
+        cached.quarterlyPartners = currentQuarterly;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
 
-// 6. DB에서 갓 긁어온 따끈따끈한 데이터를 캐시(저장소)에 업데이트
-cached.partnersMap = currentPartnersMap;
-cached.uniquePartners = currentUniquePartners;
-cached.quarterlyPartners = currentQuarterly;
-localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
+        // 7. 실시간 화면 표시 수치 최종 확정
+        const baseHikes = initialHikes[mName] || 0;
+        
+        // [총 횟수] 기본 데이터 + DB에서 직접 센 횟수
+        const finalTotalHikes = baseHikes + currentProcessedIds.length;
 
-// 7. [핵심] 화면에 보여줄 수치 재계산 (과거 캐시가 아닌 위에서 만든 currentPartnersMap 사용)
-const baseHikes = initialHikes[mName] || 0;
+        // [동행 횟수] sanwoori 컬렉션의 count 또는 buddyCount 필드 값
+        const myMultiHikes = memberInfo ? (memberInfo.count ?? memberInfo.buddyCount ?? 0) : 0;
 
-// 파트너 수와 상관없이, 내가 참여한 '산행 기록의 개수'만 셉니다.
-const dbTotalHikes = cached.processedIds.length; 
-
-// 최종 화면에 표시될 값 (baseHikes + DB에서 가져온 횟수)
-const finalTotalHikes = baseHikes + dbTotalHikes; 
-
-const myMultiHikes = (memberInfo && memberInfo.buddyCount !== undefined) ? realBuddyCount : 0;
-const finalSynergy = finalTotalHikes > 0 ? Math.min(100, Math.round((myMultiHikes / finalTotalHikes) * 100)) : 0;
+        // [동행 지수(시너지) 계산]
+        const finalSynergy = finalTotalHikes > 0 ? Math.min(100, Math.round((myMultiHikes / finalTotalHikes) * 100)) : 0;
 
 
         // --- 우정 포인트 사용 안내 팝업 ---
@@ -5162,11 +5182,11 @@ window.showMilkyWay = async (mId, mName) => {
 
     // --- [1. 기초 데이터 정의] ---
     const initialHikes = {
-        "오즈": 33, "지니": 24, "나스": 19, "해수": 15, "하트": 12, "아랑": 19, "쿠키": 8, "용삼": 14, 
-        "식이": 6, "몰랑": 10, "길치": 7, "등초": 7, "구름": 5, "튜브": 4, "햄찌": 5, "로드": 3, 
-        "애플": 5, "민이": 3, "운해": 5, "윤윤": 2, "무니": 3, "태리": 2, "이구": 3, "영규": 2, 
+        "오즈": 32, "지니": 22, "나스": 17, "해수": 15, "하트": 12, "아랑": 17, "쿠키": 8, "용삼": 14, 
+        "식이": 6, "몰랑": 8, "길치": 7, "등초": 6, "구름": 5, "튜브": 4, "햄찌": 5, "켄신": 3, 
+        "애플": 4, "민이": 3, "운해": 3, "윤윤": 2, "무니": 3, "태리": 2, "이구": 2, "영규": 2, 
         "후후": 6, "피치": 2, "호프": 2, "멸치": 1, "섭섭": 1, "뚜벅": 3, "송돌": 2, "여록": 1, 
-        "람쥐": 1, "몽꽁": 1, "란이": 2, "얌얌": 0, "수리": 1, "희야": 0, "성민": 0, "운해": 5
+        "람쥐": 1, "몽꽁": 1, "란이": 2, "얌얌": 0, "수리": 1, "희야": 0, "성민": 0
     };
 
     // --- [2. UI 초기화] ---
