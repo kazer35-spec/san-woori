@@ -3017,140 +3017,126 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 });
 };
 
- Window.showBondingForestModal = async () => {
-    try {
-        // 1. 기본 UI 요소 및 이름 추출
-        const fpElement = document.getElementById('memberFriendshipPoint');
-        let currentFP = fpElement ? parseInt(fpElement.innerText.replace(/[^0-9]/g, '')) || 0 : 0;
+    window.showBondingForestModal = async () => {
+    // 1. 기본 UI 요소 및 이름 추출 (중복 제거 및 통합)
+    const fpElement = document.getElementById('memberFriendshipPoint');
+    const currentFP = fpElement ? parseInt(fpElement.innerText.replace(/[^0-9]/g, '')) : 0;
 
-        let mName = "";
-        const nameTags = Array.from(document.querySelectorAll('h2, .text-blue-600, .font-bold, .member-name'));
-        const foundTag = nameTags.find(el => el.innerText.includes('님') && !el.innerText.includes('산행'));
         
-        if (foundTag) {
-            mName = foundTag.innerText.split(' ')[0].replace('님', '').trim();
-        }
-        if (!mName) return alert("회원 이름을 찾을 수 없습니다.");
+        
+    let mName = "";
+    // 기존에 사용하시던 이름 찾기 로직으로 통합
+    const nameTags = Array.from(document.querySelectorAll('h2, .text-blue-600, .font-bold, .member-name'));
+    const foundTag = nameTags.find(el => el.innerText.includes('님') && !el.innerText.includes('산행'));
+    
+    if (foundTag) {
+        mName = foundTag.innerText.split(' ')[0].replace('님', '').trim();
+    }
 
-        // 2. 초기 데이터 및 DB 정보 가져오기
-        const initialHikes = {
-            "오즈": 32, "지니": 23, "나스": 19, "해수": 15, "하트": 12, "아랑": 18, "쿠키": 8, "용삼": 14, 
-            "식이": 6, "몰랑": 9, "길치": 7, "등초": 6, "구름": 5, "튜브": 4, "햄찌": 5, "로드": 3, 
-            "애플": 4, "민이": 3, "운해": 5, "윤윤": 2, "무니": 3, "태리": 2, "이구": 3, "영규": 2, 
-            "후후": 6, "피치": 2, "호프": 2, "멸치": 1, "섭섭": 1, "뚜벅": 3, "송돌": 2, "여록": 1, 
-            "람쥐": 1, "몽꽁": 1, "란이": 2, "얌얌": 0, "수리": 1, "희야": 0, "성민": 0
-        };
+    if (!mName) return alert("회원 이름을 찾을 수 없습니다.");
 
-        const memberInfo = (typeof currentData !== 'undefined') ? currentData.find(m => m.name === mName) : null;
-        if (!memberInfo) return alert("DB에서 회원 정보를 찾을 수 없습니다.");
+    // 2. 초기 데이터 및 DB 정보 가져오기
+    const initialHikes = {
+        "오즈": 32, "지니": 23, "나스": 19, "해수": 15, "하트": 12, "아랑": 18, "쿠키": 8, "용삼": 14, 
+        "식이": 6, "몰랑": 9, "길치": 7, "등초": 6, "구름": 5, "튜브": 4, "햄찌": 5, "로드": 3, 
+        "애플": 4, "민이": 3, "운해": 5, "윤윤": 2, "무니": 3, "태리": 2, "이구": 3, "영규": 2, 
+        "후후": 6, "피치": 2, "호프": 2, "멸치": 1, "섭섭": 1, "뚜벅": 3, "송돌": 2, "여록": 1, 
+        "람쥐": 1, "몽꽁": 1, "란이": 2, "얌얌": 0, "수리": 1, "희야": 0, "성민": 0, "운해": 2
+    };
 
-        const realBuddyCount = memberInfo.buddyCount ?? memberInfo.count ?? 0;
-        const STORAGE_KEY = `forest_v5_final_${mName}`;
+    const memberInfo = (typeof currentData !== 'undefined') ? currentData.find(m => m.name === mName) : null;
+    const realBuddyCount = memberInfo ? (memberInfo.buddyCount ?? memberInfo.count ?? 0) : 0;
+    const STORAGE_KEY = `forest_v5_final_${mName}`;
 
-        // ---------------------------------------------------------
-        // [핵심 추가] 1년 전 동일 분기 포인트 소멸 로직
-        // ---------------------------------------------------------
-        const now = new Date();
-        const curY = now.getFullYear();
-        const curQ = Math.ceil((now.getMonth() + 1) / 3);
-        const lastYearQKey = `${curY - 1}_q${curQ}`; // 예: 2025_q1
+    // 3. [신입 청소 로직] 포인트 0, 동행 0이면 옛날 기억 삭제
+    if (currentFP === 0 && realBuddyCount === 0) {
+        localStorage.removeItem(STORAGE_KEY);
+        console.log(`${mName}님 신입 확인: 유령 데이터를 청소했습니다.`);
+    }
 
-        if (memberInfo.fp_bins && memberInfo.fp_bins[lastYearQKey] > 0) {
-            const expiredP = memberInfo.fp_bins[lastYearQKey];
-            
-            // DB 차감 업데이트
-            await updateDoc(doc(db, "sanwoori", memberInfo.id), {
-                friendshipPoint: increment(-expiredP),
-                [`fp_bins.${lastYearQKey}`]: 0
-            });
-            
-            console.log(`만료된 ${lastYearQKey} 분기 포인트 ${expiredP}P가 소멸되었습니다.`);
-            
-            // 화면 및 로컬 변수 즉시 반영
-            currentFP = Math.max(0, currentFP - expiredP);
-            if (fpElement) fpElement.innerText = currentFP.toLocaleString();
-        }
-        // ---------------------------------------------------------
+    try {
+// --- [4 & 5 통합 수정 버전] ---
 
-        // 3. [신입 청소 로직] 포인트 0, 동행 0이면 옛날 기억 삭제
-        if (currentFP === 0 && realBuddyCount === 0) {
-            localStorage.removeItem(STORAGE_KEY);
-            console.log(`${mName}님 신입 확인: 유령 데이터를 청소했습니다.`);
-        }
+// 4. 캐시 데이터 로드 및 구조 초기화
+let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { 
+    processedIds: [], extraHikes: 0, partnersMap: {}, uniquePartners: [],
+    quarterlyPartners: { q1: {}, q2: {}, q3: {}, q4: {} } 
+};
 
-        // 4. 캐시 데이터 로드 및 구조 초기화
-        let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { 
-            processedIds: [], extraHikes: 0, partnersMap: {}, uniquePartners: [],
-            quarterlyPartners: { q1: {}, q2: {}, q3: {}, q4: {} } 
-        };
+// [중요] 만약 기존 캐시에 분기 데이터 바구니가 없으면 강제로 새로 만듭니다.
+if (!cached.quarterlyPartners) {
+    cached.quarterlyPartners = { q1: {}, q2: {}, q3: {}, q4: {} };
+    cached.processedIds = []; // 분기 계산을 위해 ID 목록을 비워 DB에서 다시 읽게 합니다.
+    console.log("분기별 데이터 구조를 생성했습니다.");
+}
 
-        if (!cached.quarterlyPartners) {
-            cached.quarterlyPartners = { q1: {}, q2: {}, q3: {}, q4: {} };
-            cached.processedIds = [];
-            console.log("분기별 데이터 구조를 생성했습니다.");
-        }
+// 5. DB에서 인연의 숲 기록 가져오기 및 분기 계산
+const bondingSnap = await getDocs(collection(db, "bondingForest"));
 
-        // 5. DB에서 인연의 숲 기록 가져오기 및 분기 계산
-        const bondingSnap = await getDocs(collection(db, "bondingForest"));
+// [초기화] 정확한 계산을 위해 기존 데이터를 비우고 다시 훑습니다.
+cached.quarterlyPartners = { q1: {}, q2: {}, q3: {}, q4: {} };
+cached.partnersMap = {}; 
+cached.uniquePartners = [];
+cached.processedIds = []; 
 
-        // 초기화 후 다시 집계
-        cached.quarterlyPartners = { q1: {}, q2: {}, q3: {}, q4: {} };
-        cached.partnersMap = {}; 
-        cached.uniquePartners = [];
-        cached.processedIds = []; 
+// 현재 연도 확인 (예: 2026)
+const currentYear = new Date().getFullYear();
 
-        bondingSnap.forEach(doc => {
-            const data = doc.data();
-            const members = data.members || [];
-            
-            if (members.includes(mName)) {
-                cached.processedIds.push(doc.id);
-                
-                const dateStr = data.date || ""; 
-                const dateParts = dateStr.split('-');
-                const year = parseInt(dateParts[0]);
-                const month = parseInt(dateParts[1]);
-                
-                // 역대 합산
-                members.forEach(p => {
-                    if (p !== mName) {
-                        cached.partnersMap[p] = (cached.partnersMap[p] || 0) + 1;
-                        if (!cached.uniquePartners.includes(p)) cached.uniquePartners.push(p);
-                    }
-                });
-
-                // 분기별 합산 (올해 데이터만)
-                if (year === curY) {
-                    let qKey = (month <= 3) ? "q1" : (month <= 6) ? "q2" : (month <= 9) ? "q3" : "q4";
-                    members.forEach(p => {
-                        if (p !== mName) {
-                            cached.quarterlyPartners[qKey][p] = (cached.quarterlyPartners[qKey][p] || 0) + 1;
-                        }
-                    });
-                }
+bondingSnap.forEach(doc => {
+    const data = doc.data();
+    const members = data.members || [];
+    
+    // 유저 본인이 포함된 산행인지 확인
+    if (members.includes(mName)) {
+        cached.processedIds.push(doc.id);
+        
+        // 날짜 분석 (예: "2026-01-23")
+        const dateStr = data.date || ""; 
+        const dateParts = dateStr.split('-'); // ["2026", "01", "23"]
+        
+        const year = parseInt(dateParts[0]);
+        const month = parseInt(dateParts[1]);
+        
+        // 1. 역대 합산 (연도 상관 없이 모든 파트너 기록)
+        members.forEach(p => {
+            if (p !== mName) {
+                cached.partnersMap[p] = (cached.partnersMap[p] || 0) + 1;
+                if (!cached.uniquePartners.includes(p)) cached.uniquePartners.push(p);
             }
         });
 
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
+        // 2. 분기별 합산 (오직 "올해(currentYear)" 데이터만 분류)
+        if (year === currentYear) {
+            let qKey = "";
+            if (month >= 1 && month <= 3) qKey = "q1";
+            else if (month >= 4 && month <= 6) qKey = "q2";
+            else if (month >= 7 && month <= 9) qKey = "q3";
+            else if (month >= 10 && month <= 12) qKey = "q4";
 
-        // 6. 수치 계산
+            if (qKey) {
+                members.forEach(p => {
+                    if (p !== mName) {
+                        cached.quarterlyPartners[qKey][p] = (cached.quarterlyPartners[qKey][p] || 0) + 1;
+                    }
+                });
+            }
+        }
+    }
+});
+
+// 결과 저장
+localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
+
+        // 6. 수치 계산 (실시간 DB 반영 버전)
         const baseHikes = initialHikes[mName] || 0;
+        // 최종 총 횟수: 관리자가 수정한 값(realBuddyCount)을 최우선으로 반영
         const finalTotalHikes = baseHikes + (cached.extraHikes || 0);
 
         // 7. 시너지 및 동행 지수 계산
-        const myMultiHikes = (memberInfo.buddyCount !== undefined) ? memberInfo.buddyCount : realBuddyCount;
+        const legacyHikesFromFP = Math.floor(currentFP / 10); 
+        const myMultiHikes = (memberInfo && memberInfo.buddyCount !== undefined) ? realBuddyCount : 0;
         const finalSynergy = finalTotalHikes > 0 ? Math.min(100, Math.round((myMultiHikes / finalTotalHikes) * 100)) : 0;
 
-        console.log("인연의 창 데이터 준비 완료");
-        
-        // 여기에 실제로 모달을 띄우는 UI 코드를 이어서 작성하시면 됩니다.
-
-    } catch (err) {
-        console.error("인연의 창 에러:", err);
-        alert("데이터 로딩 중 오류가 발생했습니다.");
-    }
-};
-   
         // --- 우정 포인트 사용 안내 팝업 ---
 window.showFriendshipGuide = () => {
     const guideHTML = `
