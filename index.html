@@ -4215,33 +4215,12 @@ window.addMultiActivity = async () => {
                 });
             }
 
-                            if (isHike) {
-            // 1. 서버 DB의 진짜 숫자(합계)를 1 올립니다. (캐시 지워도 0 안 되게 함)
-            const memberRef = doc(db, "sanwoori", id);
-            await updateDoc(memberRef, {
-                count: increment(1),
-                level: increment(1)
-            });
-
-            // 2. 로컬 캐시 초기화
-            const STORAGE_KEY = `forest_v5_final_${member.name}`;
-            let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { 
-                processedIds: [], extraHikes: 0 
-            };
-            
-            if (selectedMemberIds.size >= 2) {
-                cached.extraHikes = (cached.extraHikes || 0) + 1;
-            }
-            
-            // ⭐ 목록을 비워서 다음 클릭 시 DB에서 새로 계산하도록 강제
-            cached.processedIds = []; 
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
-            
-            console.log(`${member.name}님 서버 반영 및 캐시 초기화 완료`);
-        }
-    } 
-
-
+            // ✨ [핵심 로직] 레벨업 수치가 올라갈 때 '인연의 숲' 산행 카운트도 즉시 반영
+            if (isHike) {
+                const STORAGE_KEY = `forest_v5_final_${member.name}`;
+                let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { 
+                    processedIds: [], extraHikes: 0, partnersMap: {}, uniquePartners: [] 
+                };
                 
                 // 수동 입력 건에 대한 고유 ID (중복 카운트 방지)
                 const manualId = `manual_${dateVal}_${mName}_${id}`;
