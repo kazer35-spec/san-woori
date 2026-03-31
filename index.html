@@ -3152,18 +3152,27 @@ bondingSnap.forEach(doc => {
 // 결과 저장
 localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
 
-        // 6. 수치 계산 (중복 합산 방지)
+        // --- [6 & 7 규칙 반영 수정 버전] ---
+
+// 1. 초기값 설정 (고정 데이터)
 const baseHikes = initialHikes[mName] || 0;
 
-// [수정 로직] 
-// 만약 DB 데이터(realBuddyCount)가 초기 데이터(baseHikes)보다 작다면, 
-// 아직 DB에 과거 기록이 다 안 옮겨진 것이므로 초기값을 기준으로 잡습니다.
-// 반대로 DB 데이터가 더 크다면, 그 숫자가 최신이므로 그 숫자를 그대로 씁니다.
-const finalTotalHikes = Math.max(baseHikes, realBuddyCount);
+// 2. DB에서 실시간 데이터 가져오기
+// 총 횟수는 count, 동행 횟수는 buddyCount 필드를 사용합니다.
+const dbTotalCount = memberInfo ? (memberInfo.count || 0) : 0;
+const dbBuddyCount = memberInfo ? (memberInfo.buddyCount || 0) : 0;
 
-// 7. 시너지 및 동행 지수 계산
-const myMultiHikes = realBuddyCount; 
+// 3. 최종 총 횟수 계산 (중복 방지)
+// 초기값(33)과 DB의 총 횟수(count) 중 더 큰 값을 선택합니다.
+// 이렇게 하면 캐시를 지워도 DB의 count가 33 이상일 테니 숫자가 유지됩니다.
+const finalTotalHikes = Math.max(baseHikes, dbTotalCount);
 
+// 4. 최종 동행 횟수 (BuddyCount)
+// 이 값은 DB에 저장된 순수 동행 횟수를 그대로 사용합니다.
+const myMultiHikes = dbBuddyCount;
+
+// 5. 시너지(동행 지수) 계산
+// (순수 동행 횟수 / 전체 산행 횟수) * 100
 const finalSynergy = finalTotalHikes > 0 ? Math.min(100, Math.round((myMultiHikes / finalTotalHikes) * 100)) : 0;
 
 
