@@ -3947,6 +3947,36 @@ window.globalSyncMountainInfo = async () => {
     } catch (e) { alert("저장 실패: " + e.message); }
 };
 
+    // [모바일용 임시 실행 코드] 
+// 관리자 페이지에 접속하는 순간 딱 한 번 실행되고 스스로 멈춥니다.
+(async function runMobileMigration() {
+    // 이미 실행했는지 체크 (중복 방지)
+    if (localStorage.getItem('migration_done_2026q1')) return;
+
+    try {
+        const snap = await getDocs(collection(db, "sanwoori"));
+        const batch = writeBatch(db);
+        
+        snap.forEach(d => {
+            const total = d.data().friendshipPoint || 0;
+            // 1. 기존 포인트를 2026_q1 바구니에 담기
+            // 2. 현재 포인트(friendshipPoint)는 그대로 유지
+            batch.update(d.ref, { 
+                "fp_bins.2026_q1": total 
+            });
+        });
+
+        await batch.commit();
+        
+        // 실행 완료 기록 (다시는 실행 안 됨)
+        localStorage.setItem('migration_done_2026q1', 'true');
+        alert("✅ 포인트 분기별 바구니 정리 완료! (2026_q1)");
+    } catch (e) {
+        console.error("마이그레이션 실패:", e);
+    }
+})();
+
+
 // [3] 알뜰 모드 데이터 실시간 동기화 함수
 async function startRealtimeSync() {
     console.log("데이터 불러오기 시작...");
@@ -5721,35 +5751,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
-// [모바일용 임시 실행 코드] 
-// 관리자 페이지에 접속하는 순간 딱 한 번 실행되고 스스로 멈춥니다.
-(async function runMobileMigration() {
-    // 이미 실행했는지 체크 (중복 방지)
-    if (localStorage.getItem('migration_done_2026q1')) return;
-
-    try {
-        const snap = await getDocs(collection(db, "sanwoori"));
-        const batch = writeBatch(db);
-        
-        snap.forEach(d => {
-            const total = d.data().friendshipPoint || 0;
-            // 1. 기존 포인트를 2026_q1 바구니에 담기
-            // 2. 현재 포인트(friendshipPoint)는 그대로 유지
-            batch.update(d.ref, { 
-                "fp_bins.2026_q1": total 
-            });
-        });
-
-        await batch.commit();
-        
-        // 실행 완료 기록 (다시는 실행 안 됨)
-        localStorage.setItem('migration_done_2026q1', 'true');
-        alert("✅ 포인트 분기별 바구니 정리 완료! (2026_q1)");
-    } catch (e) {
-        console.error("마이그레이션 실패:", e);
-    }
-})();
-
 
 </script>
 </body>
