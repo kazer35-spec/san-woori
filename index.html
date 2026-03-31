@@ -3021,24 +3021,6 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
     // 1. 기본 UI 요소 및 이름 추출 (중복 제거 및 통합)
     const fpElement = document.getElementById('memberFriendshipPoint');
     const currentFP = fpElement ? parseInt(fpElement.innerText.replace(/[^0-9]/g, '')) : 0;
-
-        const now = new Date();
-    const curY = now.getFullYear();
-    const curQ = Math.ceil((now.getMonth() + 1) / 3);
-    const lastYearQKey = `${curY - 1}_q${curQ}`; // 1년 전 동일 분기 키 (예: 2025_q1)
-
-    // memberInfo 내부에 1년 전 바구니(fp_bins)에 포인트가 남아있다면
-    if (memberInfo && memberInfo.fp_bins && memberInfo.fp_bins[lastYearQKey] > 0) {
-        const expiredP = memberInfo.fp_bins[lastYearQKey];
-        
-        await updateDoc(doc(db, "sanwoori", memberInfo.id), {
-            friendshipPoint: increment(-expiredP), // 전체에서 차감
-            [`fp_bins.${lastYearQKey}`]: 0        // 해당 바구니 비우기
-        });
-        
-        console.log(`만료된 ${lastYearQKey} 분기 포인트 ${expiredP}P가 소멸되었습니다.`);
-        // 필요 시 화면의 currentFP 변수도 업데이트 로직 추가
-    }
         
     let mName = "";
     // 기존에 사용하시던 이름 찾기 로직으로 통합
@@ -4185,10 +4167,9 @@ window.addMultiActivity = async () => {
             const member = currentData.find(m => m.id === id);
             if(!member) continue;
 
-             const now = new Date();
+            const now = new Date();
     const qKey = `${now.getFullYear()}_q${Math.ceil((now.getMonth() + 1) / 3)}`; // 예: "2026_q1"
     let pointToAdd = (isQuarterOnlyOne || isRegular) ? 100 : (100 * (effectiveUp || 1));
-
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
@@ -4200,7 +4181,7 @@ window.addMultiActivity = async () => {
                 friendshipPoint: increment(pointToAdd), // 전체 합산 포인트
         [`fp_bins.${qKey}`]: increment(pointToAdd) // 분기별 개별 바구니 (예: fp_bins.2026_q1)
     };
-            
+    
 
             // 2. 활동 유형별(산행/러닝/트래킹) 공통 날짜 및 D-day 로직
             if (isHike || isRunning || isTracking) {
@@ -5721,6 +5702,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
 // [모바일용 임시 실행 코드] 
 // 관리자 페이지에 접속하는 순간 딱 한 번 실행되고 스스로 멈춥니다.
 (async function runMobileMigration() {
@@ -5749,7 +5731,6 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error("마이그레이션 실패:", e);
     }
 })();
-
 
 </script>
 </body>
