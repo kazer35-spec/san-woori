@@ -3016,41 +3016,55 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 </tr>`;
 });
 };
+Window.showBondingForestModal = async () => {
+    try {
+        // 1. UI 요소 확인
+        const fpElement = document.getElementById('memberFriendshipPoint');
+        let currentFP = fpElement ? parseInt(fpElement.innerText.replace(/[^0-9]/g, '')) || 0 : 0;
 
-    window.showBondingForestModal = async () => {
-    // 1. 기본 UI 요소 및 이름 추출 (중복 제거 및 통합)
-    const fpElement = document.getElementById('memberFriendshipPoint');
-    const currentFP = fpElement ? parseInt(fpElement.innerText.replace(/[^0-9]/g, '')) : 0;
+        // 2. 이름 추출 로직 (기존 로직 유지)
+        let mName = "";
+        const nameTags = Array.from(document.querySelectorAll('h2, .text-blue-600, .font-bold, .member-name'));
+        const foundTag = nameTags.find(el => el.innerText.includes('님') && !el.innerText.includes('산행'));
+        
+        if (foundTag) {
+            mName = foundTag.innerText.split(' ')[0].replace('님', '').trim();
+        }
+        if (!mName) return alert("회원 이름을 찾을 수 없습니다.");
 
+        // 3. DB에서 해당 멤버 데이터 가져오기 (memberInfo가 없을 경우 대비)
+        // 만약 상위 스코프에 memberInfo가 이미 있다면 이 과정은 생략 가능하지만, 안전을 위해 추가합니다.
+        const q = query(collection(db, "sanwoori"), where("name", "==", mName));
+        const snap = await getDocs(q);
+        if (snap.empty) return alert("멤버 정보를 불러올 수 없습니다.");
+        
+        const mDoc = snap.docs[0];
+        const mData = mDoc.data();
+        const mId = mDoc.id;
+
+        // 4. [핵심] 1년 전 포인트 소멸 로직
         const now = new Date();
-    const curY = now.getFullYear();
-    const curQ = Math.ceil((now.getMonth() + 1) / 3);
-    const lastYearQKey = `${curY - 1}_q${curQ}`; // 1년 전 동일 분기 키 (예: 2025_q1)
+        const curY = now.getFullYear();
+        const curQ = Math.ceil((now.getMonth() + 1) / 3);
+        const lastYearQKey = `${curY - 1}_q${curQ}`;
 
-    // memberInfo 내부에 1년 전 바구니(fp_bins)에 포인트가 남아있다면
-    if (memberInfo && memberInfo.fp_bins && memberInfo.fp_bins[lastYearQKey] > 0) {
-        const expiredP = memberInfo.fp_bins[lastYearQKey];
-        
-        await updateDoc(doc(db, "sanwoori", memberInfo.id), {
-            friendshipPoint: increment(-expiredP), // 전체에서 차감
-            [`fp_bins.${lastYearQKey}`]: 0        // 해당 바구니 비우기
-        });
-        
-        console.log(`만료된 ${lastYearQKey} 분기 포인트 ${expiredP}P가 소멸되었습니다.`);
-        // 필요 시 화면의 currentFP 변수도 업데이트 로직 추가
-    }
-        
-    let mName = "";
-    // 기존에 사용하시던 이름 찾기 로직으로 통합
-    const nameTags = Array.from(document.querySelectorAll('h2, .text-blue-600, .font-bold, .member-name'));
-    const foundTag = nameTags.find(el => el.innerText.includes('님') && !el.innerText.includes('산행'));
+        if (mData.fp_bins && mData.fp_bins[lastYearQKey] > 0) {
+            const expiredP = mData.fp_bins[lastYearQKey];
+            
+            await updateDoc(doc(db, "sanwoori", mId), {
+                friendshipPoint: increment(-expiredP),
+                [`fp_bins.${lastYearQKey}`]: 0
+            });
+            
+            console.log(`만료된 ${lastYearQKey} 포인트 ${expiredP}P 소멸 완료`);
+            // 화면 숫자도 갱신
+            if (fpElement) {
+                currentFP = Math.max(0, currentFP - expiredP);
+                fpElement.innerText = currentFP.toLocaleString();
+            }
+        }
+
     
-    if (foundTag) {
-        mName = foundTag.innerText.split(' ')[0].replace('님', '').trim();
-    }
-
-    if (!mName) return alert("회원 이름을 찾을 수 없습니다.");
-
     // 2. 초기 데이터 및 DB 정보 가져오기
     const initialHikes = {
         "오즈": 32, "지니": 23, "나스": 19, "해수": 15, "하트": 12, "아랑": 18, "쿠키": 8, "용삼": 14, 
