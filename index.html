@@ -3045,6 +3045,31 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
     };
 
     const memberInfo = (typeof currentData !== 'undefined') ? currentData.find(m => m.name === mName) : null;
+
+            if (memberInfo && memberInfo.fp_bins) {
+        const now = new Date();
+        const curY = now.getFullYear();
+        const curQ = Math.ceil((now.getMonth() + 1) / 3);
+        const lastYearQKey = `${curY - 1}_q${curQ}`; 
+
+        if (memberInfo.fp_bins[lastYearQKey] > 0) {
+            const expiredP = memberInfo.fp_bins[lastYearQKey];
+            
+            // DB 업데이트
+            await updateDoc(doc(db, "sanwoori", memberInfo.id), {
+                friendshipPoint: increment(-expiredP),
+                [`fp_bins.${lastYearQKey}`]: 0
+            });
+            
+            console.log(`만료된 ${lastYearQKey} 포인트 ${expiredP}P가 소멸되었습니다.`);
+            
+            // 변수 업데이트 (이후 계산에 반영되도록)
+            // currentFP는 상단에서 이미 선언했으므로 여기서 재할당합니다.
+            // currentFP = Math.max(0, currentFP - expiredP); 
+            // if(fpElement) fpElement.innerText = currentFP.toLocaleString();
+        }
+            }
+        
     const realBuddyCount = memberInfo ? (memberInfo.buddyCount ?? memberInfo.count ?? 0) : 0;
     const STORAGE_KEY = `forest_v5_final_${mName}`;
 
