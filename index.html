@@ -4207,56 +4207,57 @@ window.saveCardImage = async () => {
     }
 };
 
-Window.addMultiActivity = async () => {
-    // 1. 기본 데이터 수집 (날짜, 산이름, 체크박스 등)
-    const dateVal = document.getElementById('activityDate').value;
-    
-    // ⭐ 빨간 동그라미 체크박스 (기록 전용 모드)
-    const isLogOnlyMode = document.getElementById('isQuarterCheck')?.checked || false; 
 
-    const mName = document.getElementById('mountainName').value.trim();
-    const height = parseInt(document.getElementById('mountainHeight').value) || 0;
-    const isTop100 = document.getElementById('isTop100Check').checked;
-    const isBAC = document.getElementById('isBACCheck').checked;
-    const isRegular = document.getElementById('isRegularCheck')?.checked || false;
-    const isRunning = document.getElementById('isRunningCheck')?.checked || false;
-    const isTracking = document.getElementById('isTrackingCheck')?.checked || false;
-    const region = document.getElementById('adminManualRegionSelect').value;
-    
-    // 위쪽 분기1회 체크박스 (기존 로직용)
-    const isQuarterNormal = document.getElementById('isQuarter1Check')?.checked || false; 
-
-    if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜 확인");
-
-    const upElement = document.querySelector('input[name="upAmount"]:checked');
-    if(!upElement) return alert("레벨업 수치를 선택해주세요.");
-    const up = parseInt(upElement.value);
-
-    const isSpecial = isRunning || isTracking; 
-    const isHike = !isSpecial; 
-
-    // ⭐ 핵심: 체크박스 눌렸을 때 레벨업 수치를 0으로 고정
-    const effectiveUp = (isHike && !isLogOnlyMode) ? up : 0;
-    
-    // 기록 전용일 때도 별(로그)은 1개만 생성
-    const logLoopCount = (isRegular || isSpecial || isLogOnlyMode) ? 1 : up;
-    const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
-
-    const selectedNames = [];
-    selectedMemberIds.forEach(id => {
-        const m = currentData.find(mem => mem.id === id);
-        if(m) selectedNames.push(m.name);
-    });
-
-    if(mName && tempCoord) {
-        await setDoc(doc(db, "mountains", mName), {
-            x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region
-        }, { merge: true });
-    }
-
+    window.addMultiActivity = async () => {
     try {
+        // 1. 기본 데이터 수집
+        const dateVal = document.getElementById('activityDate')?.value;
+        const mName = document.getElementById('mountainName')?.value.trim();
+        
+        // ⭐ 빨간 동그라미 체크박스 ID 확인 (isQuarterCheck)
+        const isLogOnlyMode = document.getElementById('isQuarterCheck')?.checked || false; 
+
+        if(!selectedMemberIds.size || !dateVal) {
+            return alert("대상과 날짜를 확인해주세요.");
+        }
+
+        const height = parseInt(document.getElementById('mountainHeight')?.value) || 0;
+        const isTop100 = document.getElementById('isTop100Check')?.checked || false;
+        const isBAC = document.getElementById('isBACCheck')?.checked || false;
+        const isRegular = document.getElementById('isRegularCheck')?.checked || false;
+        const isRunning = document.getElementById('isRunningCheck')?.checked || false;
+        const isTracking = document.getElementById('isTrackingCheck')?.checked || false;
+        const region = document.getElementById('adminManualRegionSelect')?.value;
+
+        const upElement = document.querySelector('input[name="upAmount"]:checked');
+        const up = upElement ? parseInt(upElement.value) : 1;
+
+        const isSpecial = isRunning || isTracking; 
+        const isHike = !isSpecial; 
+
+        // ⭐ 체크박스 눌렸으면 레벨업 수치는 0
+        const effectiveUp = (isHike && !isLogOnlyMode) ? up : 0;
+        
+        // 기록 전용일 때는 별(로그) 1개 생성
+        const logLoopCount = (isRegular || isSpecial || isLogOnlyMode) ? 1 : up;
+        const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
+
+        const selectedNames = [];
+        selectedMemberIds.forEach(id => {
+            const m = currentData.find(mem => mem.id === id);
+            if(m) selectedNames.push(m.name);
+        });
+
+        // 산 정보 저장
+        if(mName && tempCoord) {
+            await setDoc(doc(db, "mountains", mName), {
+                x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region
+            }, { merge: true });
+        }
+
         pendingLevelUpCards = []; 
 
+        // --- 멤버별 루프 ---
         for (const id of selectedMemberIds) {
             const member = currentData.find(m => m.id === id);
             if (!member) continue;
@@ -4266,32 +4267,35 @@ Window.addMultiActivity = async () => {
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
-            // 1. 공통 업데이트 (날짜/D-day만)
+            // 업데이트할 바구니 준비
             let updateData = { 
                 lastDate: ts,
                 bonusDays: isHike ? 0 : (member.bonusDays || 0)
             };
 
+            // D-Day 연장 (최대 122일)
             if (oldLevel > 0) {
                 updateData.dday = Math.min(122, (member.dday || 0) + 15);
             }
 
-            // 2. ⭐ '기록 전용'이 아닐 때만 수치(레벨/횟수/포인트) 증가
+            // ⭐ '기록 전용'이 아닐 때만 점수/횟수 추가
             if (!isLogOnlyMode) {
                 updateData.level = newLevel;
                 updateData.totalHeight = increment(height);
                 updateData.count = increment(1);
 
-                // 동행 산행 포인트 (2인 이상)
                 if (isHike && selectedMemberIds.size >= 2) {
+                    // 상단 분기체크박스 ID가 'isQuarter1Check'라고 가정
+                    const isQuarterNormal = document.getElementById('isQuarter1Check')?.checked || false;
                     let pointToAdd = (isQuarterNormal || isRegular) ? 100 : (100 * (effectiveUp || 1));
+                    
                     updateData.buddyCount = increment(1);
                     updateData.friendshipPoint = increment(pointToAdd);
                     updateData[`fp_bins.${qKey}`] = increment(pointToAdd);
                 }
             }
 
-            // DB 전송
+            // DB 업데이트
             await updateDoc(doc(db, "sanwoori", id), updateData);
 
             // 로그(별) 생성
@@ -4304,33 +4308,26 @@ Window.addMultiActivity = async () => {
                     else assignedStarType = "regular_" + (Math.floor(Math.random() * 4) + 1);
                 }
                 await addDoc(collection(db, `sanwoori/${id}/logs`), {
-                    date: ts, mountain: mName, height, coords: tempCoord,
+                    date: ts, mountain: mName, height, coords: tempCoord || null,
                     isTop100, isBAC, isRegular, isRunning, isTracking, region,
                     starType: assignedStarType, author: member.name
                 });
             }
 
-            // 3. ⭐ 인연의 숲 개인 캐시 (체크박스 안 눌렀을 때만!)
+            // 인연의 숲 개인 캐시 (기록 전용 아닐 때만)
             if (isHike && !isLogOnlyMode) { 
                 const STORAGE_KEY = `forest_v5_final_${member.name}`;
-                let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { 
-                    processedIds: [], extraHikes: 0, partnersMap: {}, uniquePartners: [] 
-                };
-                
+                let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { processedIds: [], extraHikes: 0 };
                 const manualId = `manual_${dateVal}_${mName}_${id}`;
                 if (!cached.processedIds.includes(manualId)) {
                     cached.extraHikes += 1;
                     cached.processedIds.push(manualId);
                     localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
                 }
-
-                if (typeof checkLevelUpgrade === 'function') {
-                    checkLevelUpgrade(member.name, oldLevel, newLevel);
-                }
             }
         }
 
-        // 4. ⭐ 인연의 숲 공용 DB (체크박스 안 눌렀을 때만!)
+        // 공용 인연의 숲 DB (기록 전용 아닐 때만)
         if (selectedNames.length >= 2 && isHike && !isLogOnlyMode) {
             await addDoc(collection(db, "bondingForest"), {
                 mountain: mName, members: selectedNames,
@@ -4338,49 +4335,19 @@ Window.addMultiActivity = async () => {
             });
         }
 
-        // 알림 및 화면 갱신
-        if (pendingLevelUpCards.length > 0 && typeof showCombinedLevelUpAlert === 'function') {
-            showCombinedLevelUpAlert();
-        }
-
-        alert(isLogOnlyMode ? "단순 로그 기록 완료!" : "기록 및 수치 반영 완료!");
+        alert(isLogOnlyMode ? "단순 기록 저장이 완료되었습니다!" : "기록 및 수치 저장이 완료되었습니다!");
         
+        // 초기화
         selectedMemberIds.clear();
-        tempCoord = null;
-        updateAdminMemberLists();
-        startRealtimeSync(); 
+        if (typeof updateAdminMemberLists === 'function') updateAdminMemberLists();
         
     } catch (error) {
-        console.error("Error:", error);
-        alert("저장 실패: " + error.message);
+        console.error("Error 상세:", error);
+        alert("저장 중 오류 발생: " + error.message);
     }
 };
 
-
-           // 관리자가 동행 횟수를 수동으로 수정하는 함수
-window.updateBuddyCountManual = async () => {
-    const mId = document.getElementById('memberSelectManage').value; // 선택된 멤버 ID
-    const newCount = parseInt(document.getElementById('buddyCountInput').value);
-
-    if (!mId) return alert("대상을 선택해주세요.");
-    if (isNaN(newCount)) return alert("수정할 횟수를 입력해주세요.");
-
-    if (!confirm(`선택한 회원의 동행 횟수를 ${newCount}회로 변경하시겠습니까?`)) return;
-
-    try {
-        await updateDoc(doc(db, "sanwoori", mId), {
-            buddyCount: newCount
-        });
-        alert("동행 횟수가 수정되었습니다!");
-        document.getElementById('buddyCountInput').value = ""; // 입력칸 비우기
-        if (typeof startRealtimeSync === 'function') startRealtimeSync(); // 화면 새로고침
-    } catch (e) {
-        console.error(e);
-        alert("수정 실패: " + e.message);
-    }
-};
- 
-
+                    
     window.loadMemberLogs = async () => {
 const id = document.getElementById('memberSelectEdit').value;
 const area = document.getElementById('logListArea'); area.innerHTML = ""; if(!id) return;
