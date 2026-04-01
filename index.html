@@ -4251,90 +4251,94 @@ window.addMultiActivity = async () => {
         pendingLevelUpCards = []; 
 
         // --- 멤버별 데이터 업데이트 루프 ---
-// --- [수정된 멤버별 데이터 업데이트 루프] ---
-for (const id of selectedMemberIds) {
+        for (const id of selectedMemberIds) {
     const member = currentData.find(m => m.id === id);
     if (!member) continue;
 
     const now = new Date();
     const qKey = `${now.getFullYear()}_q${Math.ceil((now.getMonth() + 1) / 3)}`;
+    
     const oldLevel = member.level || 0;
+    const newLevel = oldLevel + effectiveUp;
 
-    // ⭐ [중요] '분기 1회'가 체크되어 있다면 '기록용' 모드로 작동
-    if (isQuarterOnlyOne) {
-        // A. 순수 기록용 모드 (레벨/횟수/포인트 업데이트 안 함)
-        console.log(`${member.name}님: 분기 1회 체크됨 - 수치 업데이트 건너뜀`);
+    // 1. [수정] 기본 업데이트 객체에는 '공통 항목'만 넣습니다. (포인트 제외)
+    const updateData = { 
+        level: newLevel, 
+        totalHeight: increment(height),
+        count: increment(1) 
+    };
+
+    // 2. [정상 코드 적용] 2인 이상 산행일 때만 포인트 관련 필드 추가
+    if (isHike && selectedMemberIds.size >= 2) {
+        // 포인트 계산 로직을 이 안으로 이동
+        let pointToAdd = (isQuarterOnlyOne || isRegular) ? 100 : (100 * (effectiveUp || 1));
         
-        // 1. 개별 로그(타임라인용 별)만 생성
-        for(let i = 0; i < logLoopCount; i++) {
-            await addDoc(collection(db, `sanwoori/${id}/logs`), {
-                date: ts, mountain: mName, height, coords: tempCoord,
-                isTop100, isBAC, isRegular, isRunning, isTracking, region,
-                author: member.name
-            });
-        }
-    } 
-    else {
-        // B. 정상 반영 모드 (레벨/횟수/포인트 모두 올라감)
-        const newLevel = oldLevel + effectiveUp;
-        const updateData = { 
-            level: newLevel, 
-            totalHeight: increment(height),
-            count: increment(1) 
-        };
+        updateData.buddyCount = increment(1);       // 동행 횟수
+        updateData.friendshipPoint = increment(pointToAdd); // 전체 우정 포인트
+        updateData[`fp_bins.${qKey}`] = increment(pointToAdd); // 분기별 포인트
+    }
 
-        // 2인 이상 산행 포인트 로직
-        if (isHike && selectedMemberIds.size >= 2) {
-            let pointToAdd = isRegular ? 100 : (100 * (effectiveUp || 1));
-            updateData.buddyCount = increment(1);
-            updateData.friendshipPoint = increment(pointToAdd);
-            updateData[`fp_bins.${qKey}`] = increment(pointToAdd);
-        }
-
-        // 날짜 및 D-day 갱신
-        if (isHike || isRunning || isTracking) {
-            updateData.lastDate = ts;
-            if (isHike) updateData.bonusDays = 0;
-            if (oldLevel > 0) {
-                updateData.dday = Math.min(122, (member.dday || 0) + 15);
-            }
-        }
-
-        // 서버 DB 업데이트 실행
-        await updateDoc(doc(db, "sanwoori", id), updateData);
-
-        // 개별 로그 생성
-        for(let i = 0; i < logLoopCount; i++) {
-            await addDoc(collection(db, `sanwoori/${id}/logs`), {
-                date: ts, mountain: mName, height, coords: tempCoord,
-                isTop100, isBAC, isRegular, isRunning, isTracking, region,
-                author: member.name
-            });
-        }
-
-        // '인연의 숲' 로컬 캐시 반영
-        if (isHike) {
-            const STORAGE_KEY = `forest_v5_final_${member.name}`;
-            let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { processedIds: [], extraHikes: 0 };
-            const manualId = `manual_${dateVal}_${mName}_${id}`;
-            if (!cached.processedIds.includes(manualId)) {
-                cached.extraHikes += 1;
-                cached.processedIds.push(manualId);
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
-            }
-            if (typeof checkLevelUpgrade === 'function') checkLevelUpgrade(member.name, oldLevel, newLevel);
+    // 3. 활동 유형별 날짜 및 D-day 로직 (기존 유지)
+    if (isHike || isRunning || isTracking) {
+        updateData.lastDate = ts;
+        if (isHike) updateData.bonusDays = 0;
+        if (oldLevel > 0) {
+            // 러닝/트래킹/산행 시 15일 연장 (최대 122일)
+            let calculatedDday = Math.min(122, (member.dday || 0) + 15);
+            updateData.dday = calculatedDday;
         }
     }
-}
 
-// ⚠️ 루프 밖: '인연의 숲' 공용 DB 저장도 체크박스 켜져있으면 안 되게 막기
-if (selectedNames.length >= 2 && isHike && !isQuarterOnlyOne) {
-    await addDoc(collection(db, "bondingForest"), {
-        mountain: mName, members: selectedNames,
-        memberCount: selectedNames.length, date: dateVal, createdAt: new Date()
-    });
-}
+    // 4. DB 업데이트 (수정된 updateData 전송)
+    await updateDoc(doc(db, "sanwoori", id), updateData);
+    
 
+
+            // 개별 로그(별) 생성
+            for(let i = 0; i < logLoopCount; i++) {
+                let assignedStarType = null;
+                if (isRegular) {
+                    const rand = Math.random() * 100;
+                    if (rand <= 3) assignedStarType = "super";
+                    else if (rand <= 10) assignedStarType = "special";
+                    else assignedStarType = "regular_" + (Math.floor(Math.random() * 4) + 1);
+                }
+                await addDoc(collection(db, `sanwoori/${id}/logs`), {
+                    date: ts, mountain: mName, height, coords: tempCoord,
+                    isTop100, isBAC, isRegular, isRunning, isTracking, region,
+                    starType: assignedStarType, author: member.name // 본인 이름 필드 추가
+                });
+            }
+
+            // ✨ [핵심 로직] 레벨업 수치가 올라갈 때 '인연의 숲' 산행 카운트도 즉시 반영
+            if (isHike) {
+                const STORAGE_KEY = `forest_v5_final_${member.name}`;
+                let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { 
+                    processedIds: [], extraHikes: 0, partnersMap: {}, uniquePartners: [] 
+                };
+                
+                // 수동 입력 건에 대한 고유 ID (중복 카운트 방지)
+                const manualId = `manual_${dateVal}_${mName}_${id}`;
+                if (!cached.processedIds.includes(manualId)) {
+                    cached.extraHikes += 1; // 산행이므로 전체 횟수 1 증가
+                    cached.processedIds.push(manualId);
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
+                }
+
+                // 등급 상향 체크 (팝업용)
+                if (typeof checkLevelUpgrade === 'function') {
+                    checkLevelUpgrade(member.name, oldLevel, newLevel);
+                }
+            }
+        }
+
+        // 인연의 숲(동료 기록) 저장
+        if (selectedNames.length >= 2 && isHike) {
+            await addDoc(collection(db, "bondingForest"), {
+                mountain: mName, members: selectedNames,
+                memberCount: selectedNames.length, date: dateVal, createdAt: new Date()
+            });
+        }
 
         // 레벨업 카드 노출
         if (pendingLevelUpCards.length > 0 && typeof showCombinedLevelUpAlert === 'function') {
