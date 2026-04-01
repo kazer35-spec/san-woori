@@ -4211,6 +4211,7 @@ window.saveCardImage = async () => {
 window.addMultiActivity = async () => {
     // 1. 기본 데이터 수집 (날짜, 산이름, 체크박스 등)
     const dateVal = document.getElementById('activityDate').value;
+    const isLogOnlyMode = document.getElementById('isQuarterCheck')?.checked || false; 
     const mName = document.getElementById('mountainName').value.trim();
     const height = parseInt(document.getElementById('mountainHeight').value) || 0;
     const isTop100 = document.getElementById('isTop100Check').checked;
@@ -4229,7 +4230,7 @@ window.addMultiActivity = async () => {
 
     const isSpecial = isRunning || isTracking; 
     const isHike = !isSpecial; 
-    const effectiveUp = isHike ? up : 0;
+    const effectiveUp = (isHike && !isLogOnlyMode) ? up : 0;
     const logLoopCount = isRegular ? 1 : (isSpecial ? 1 : (isQuarterOnlyOne ? 1 : up));
     const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
 
@@ -4261,37 +4262,35 @@ window.addMultiActivity = async () => {
     const oldLevel = member.level || 0;
     const newLevel = oldLevel + effectiveUp;
 
-    // 1. [수정] 기본 업데이트 객체에는 '공통 항목'만 넣습니다. (포인트 제외)
-    const updateData = { 
-        level: newLevel, 
-        totalHeight: increment(height),
-        count: increment(1) 
+        // 1. [수정] 기본 업데이트 객체 - 체크 여부와 상관없이 '날짜'와 'D-day'만 먼저 넣습니다.
+    let updateData = { 
+        lastDate: ts,
+        bonusDays: isHike ? 0 : (member.bonusDays || 0)
     };
 
-    // 2. [정상 코드 적용] 2인 이상 산행일 때만 포인트 관련 필드 추가
-    if (isHike && selectedMemberIds.size >= 2) {
-        // 포인트 계산 로직을 이 안으로 이동
-        let pointToAdd = (isQuarterOnlyOne || isRegular) ? 100 : (100 * (effectiveUp || 1));
-        
-        updateData.buddyCount = increment(1);       // 동행 횟수
-        updateData.friendshipPoint = increment(pointToAdd); // 전체 우정 포인트
-        updateData[`fp_bins.${qKey}`] = increment(pointToAdd); // 분기별 포인트
+    // 산행/러닝/트래킹 시 15일 연장 (최대 122일) - 이것도 공통 적용
+    if (oldLevel > 0) {
+        updateData.dday = Math.min(122, (member.dday || 0) + 15);
     }
 
-    // 3. 활동 유형별 날짜 및 D-day 로직 (기존 유지)
-    if (isHike || isRunning || isTracking) {
-        updateData.lastDate = ts;
-        if (isHike) updateData.bonusDays = 0;
-        if (oldLevel > 0) {
-            // 러닝/트래킹/산행 시 15일 연장 (최대 122일)
-            let calculatedDday = Math.min(122, (member.dday || 0) + 15);
-            updateData.dday = calculatedDday;
+    // 2. [핵심] '기록 전용(동그라미)' 체크가 안 되었을 때만 수치 증가!
+    if (!isLogOnlyMode) {
+        updateData.level = (member.level || 0) + effectiveUp;
+        updateData.totalHeight = increment(height);
+        updateData.count = increment(1);
+
+        // 2인 이상 산행일 때만 포인트 관련 필드 추가
+        if (isHike && selectedMemberIds.size >= 2) {
+            let pointToAdd = (isQuarterOnlyOne || isRegular) ? 100 : (100 * (effectiveUp || 1));
+            updateData.buddyCount = increment(1);
+            updateData.friendshipPoint = increment(pointToAdd);
+            updateData[`fp_bins.${qKey}`] = increment(pointToAdd);
         }
     }
 
-    // 4. DB 업데이트 (수정된 updateData 전송)
+    // 3. DB 업데이트 (최종적으로 걸러진 updateData 전송)
     await updateDoc(doc(db, "sanwoori", id), updateData);
-    
+
 
 
             // 개별 로그(별) 생성
@@ -4311,7 +4310,7 @@ window.addMultiActivity = async () => {
             }
 
             // ✨ [핵심 로직] 레벨업 수치가 올라갈 때 '인연의 숲' 산행 카운트도 즉시 반영
-            if (isHike) {
+            if (isHike && !isLogOnlyMode) { 
                 const STORAGE_KEY = `forest_v5_final_${member.name}`;
                 let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { 
                     processedIds: [], extraHikes: 0, partnersMap: {}, uniquePartners: [] 
