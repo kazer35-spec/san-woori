@@ -2481,14 +2481,9 @@ class="w-full bg-transparent text-white text-sm outline-none text-right border-n
 <button onclick="updateMemberName()" class="bg-indigo-500 text-white px-3 rounded-xl text-xs font-bold whitespace-nowrap">이름 수정</button>
 </div>
 
-<div class="flex gap-2 mb-2">
-    <input type="number" id="manualLevelInput" placeholder="레벨(Lv) 입력" class="h-10 text-sm flex-1 border rounded-xl px-3 outline-none">
-    <input type="number" id="manualQCountInput" placeholder="분기횟수 입력" class="h-10 text-sm flex-1 border rounded-xl px-3 outline-none">
-</div>
-
 <div class="flex gap-2 mb-3">
-    <button onclick="window.updateManualLevel()" class="bg-indigo-500 text-white h-10 flex-1 rounded-xl text-xs font-bold whitespace-nowrap">레벨 적용</button>
-    <button onclick="window.updateManualQCount()" class="bg-orange-500 text-white h-10 flex-1 rounded-xl text-xs font-bold whitespace-nowrap">횟수 적용</button>
+<input type="number" id="manualLevelInput" placeholder="레벨(Lv) 입력" class="h-10 text-sm flex-1 border rounded-xl px-3 outline-none">
+<button onclick="window.updateManualLevel()" class="bg-indigo-500 text-white px-3 rounded-xl text-xs font-bold whitespace-nowrap">레벨 적용</button>
 </div>
 
 <div id="logListArea" class="log-grid"></div>
@@ -3042,7 +3037,7 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 
     // 2. 초기 데이터 및 DB 정보 가져오기
     const initialHikes = {
-        "오즈": 33, "지니": 24, "나스": 19, "해수": 15, "하트": 13, "아랑": 19, "쿠키": 9, "용삼": 14, 
+        "오즈": 33, "지니": 24, "나스": 19, "해수": 15, "하트": 13, "아랑": 19, "쿠키": 8, "용삼": 14, 
         "식이": 6, "몰랑": 10, "길치": 7, "등초": 7, "구름": 5, "튜브": 4, "햄찌": 5, "로드": 3, 
         "애플": 5, "민이": 3, "운해": 5, "윤윤": 2, "무니": 3, "태리": 2, "이구": 2, "영규": 2, 
         "후후": 6, "피치": 2, "호프": 2, "멸치": 1, "섭섭": 1, "뚜벅": 3, "송돌": 2, "여록": 1, 
@@ -3406,7 +3401,7 @@ const currentQData = getBestInQuarter(cached.quarterlyPartners[currentQKey]);
     <div class="bg-white/[0.03] py-2.5 px-4 rounded-2xl border border-white/[0.06] cursor-pointer active:scale-95 transition-all hover:bg-white/[0.06]" 
          onclick="showQuarterlyDetails()">
         <div class="flex justify-between items-start mb-1">
-            <div class="text-[10px] text-purple-400 font-bold mb-1">🎖 분기 베스트 (${qName})</div>
+            <div class="text-[10px] text-purple-400 font-bold">🏅 시즌 베스트 (${qName})</div>
             <div class="text-[8px] text-slate-500 opacity-50 uppercase">Click</div>
         </div>
         <div class="flex justify-between items-center">
@@ -4654,48 +4649,6 @@ window.updateManualLevel = async () => {
     }
 };
 
-    // [추가] 분기 횟수 수동 수정 함수
-window.updateManualQCount = async () => {
-    const mId = document.getElementById('memberSelectEdit').value;
-    const qInput = document.getElementById('manualQCountInput');
-    const newQCount = parseInt(qInput.value);
-
-    if (!mId) return alert("대상을 먼저 선택해주세요.");
-    if (isNaN(newQCount)) return alert("수정할 숫자를 입력해주세요.");
-
-    if (!confirm(`분기 횟수를 ${newQCount}회로 영구 수정하시겠습니까?`)) return;
-
-    try {
-        const memberRef = doc(db, "sanwoori", mId); 
-        
-        // 🔥 핵심: DB의 count와 qCount를 모두 업데이트해야 합니다.
-        // 메인 화면(활동지수)은 qCount를, 관리자 목록은 count를 참조할 수 있기 때문입니다.
-        await updateDoc(memberRef, {
-            count: newQCount,
-            qCount: newQCount 
-        });
-        
-        // 로컬 데이터(currentData)도 즉시 동기화해서 화면 깜빡임 방지
-        const localMember = currentData.find(m => m.id === mId);
-        if (localMember) {
-            localMember.count = newQCount;
-            localMember.qCount = newQCount;
-        }
-
-        alert("DB 수정 완료! 이제 재입장해도 유지됩니다. ✨");
-        qInput.value = ""; 
-
-        // UI 즉시 갱신 함수들 호출
-        if (typeof updateAdminMemberLists === 'function') updateAdminMemberLists();
-        if (typeof updateVibeTemp === 'function') updateVibeTemp();
-        
-    } catch (e) {
-        console.error("DB 업데이트 실패:", e);
-        alert("저장 실패: " + e.message);
-    }
-};
-
-
 // 초기 실행 로직 정리
 if (!sessionStorage.getItem('visited')) { 
     if (typeof updateVisitorCount === 'function') updateVisitorCount(); 
@@ -5838,7 +5791,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
-
 
 </script>
 </body>
