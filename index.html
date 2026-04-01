@@ -4654,6 +4654,33 @@ window.updateManualLevel = async () => {
     }
 };
 
+    // [추가] 분기 횟수 수동 수정 함수
+window.updateManualQCount = async () => {
+    const mId = document.getElementById('memberSelectEdit').value;
+    const newQCount = parseInt(document.getElementById('manualQCountInput').value);
+
+    if (!mId) return alert("대상을 먼저 선택해주세요.");
+    if (isNaN(newQCount)) return alert("수정할 횟수를 입력해주세요.");
+
+    if (!confirm(`선택한 회원의 분기 산행 횟수를 ${newQCount}회로 변경하시겠습니까?`)) return;
+
+    try {
+        // DB의 qCount 필드 업데이트
+        await updateDoc(doc(db, "sanwoori", mId), {
+            qCount: newQCount
+        });
+        
+        alert("분기 횟수가 수정되었습니다! ✅");
+        document.getElementById('manualQCountInput').value = ""; // 입력창 비우기
+        
+        // 화면 실시간 동기화 (기존에 만들어둔 함수 호출)
+        if (typeof startRealtimeSync === 'function') startRealtimeSync(); 
+    } catch (e) {
+        console.error("횟수 수정 실패:", e);
+        alert("수정 실패: " + e.message);
+    }
+};
+
 // 초기 실행 로직 정리
 if (!sessionStorage.getItem('visited')) { 
     if (typeof updateVisitorCount === 'function') updateVisitorCount(); 
@@ -5797,32 +5824,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-    // [추가] 분기 횟수 수동 수정 함수
-window.updateManualQCount = async () => {
-    const mId = document.getElementById('memberSelectEdit').value;
-    const newQCount = parseInt(document.getElementById('manualQCountInput').value);
-
-    if (!mId) return alert("대상을 먼저 선택해주세요.");
-    if (isNaN(newQCount)) return alert("수정할 횟수를 입력해주세요.");
-
-    if (!confirm(`선택한 회원의 분기 산행 횟수를 ${newQCount}회로 변경하시겠습니까?`)) return;
-
-    try {
-        // DB의 qCount 필드 업데이트
-        await updateDoc(doc(db, "sanwoori", mId), {
-            qCount: newQCount
-        });
-        
-        alert("분기 횟수가 수정되었습니다! ✅");
-        document.getElementById('manualQCountInput').value = ""; // 입력창 비우기
-        
-        // 화면 실시간 동기화 (기존에 만들어둔 함수 호출)
-        if (typeof startRealtimeSync === 'function') startRealtimeSync(); 
-    } catch (e) {
-        console.error("횟수 수정 실패:", e);
-        alert("수정 실패: " + e.message);
-    }
-};
 
 </script>
 </body>
