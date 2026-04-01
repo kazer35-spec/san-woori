@@ -2453,7 +2453,7 @@ class="w-full bg-transparent text-white text-sm outline-none text-right border-n
 <label class="!text-[9px]"><input type="radio" name="upAmount" value="3">3</label>
 
 <label style="margin-left: 9px; font-size: 13px; color: #ff4d4d; cursor: pointer; vertical-align: middle;">
-<input type="checkbox" id="isQuarterCheck">
+ <input type="checkbox" id="isOnlyLog">
 </label>
 </div>
 </div>
@@ -4220,6 +4220,7 @@ window.addMultiActivity = async () => {
     const isTracking = document.getElementById('isTrackingCheck')?.checked || false;
     const region = document.getElementById('adminManualRegionSelect').value;
     const isQuarterOnlyOne = document.getElementById('isQuarterCheck')?.checked || false;
+const isOnlyLog = document.getElementById('isOnlyLog')?.checked || false;
 
     if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜 확인");
 
@@ -4261,22 +4262,22 @@ window.addMultiActivity = async () => {
     const oldLevel = member.level || 0;
     const newLevel = oldLevel + effectiveUp;
 
-    // 1. [수정] 기본 업데이트 객체에는 '공통 항목'만 넣습니다. (포인트 제외)
-    const updateData = { 
-        level: newLevel, 
-        totalHeight: increment(height),
-        count: increment(1) 
-    };
+    // 1. [교체] 기본 업데이트 객체 설정 (isOnlyLog 체크 반영)
+const updateData = { 
+    level: isOnlyLog ? oldLevel : newLevel, 
+    totalHeight: isOnlyLog ? increment(0) : increment(height),
+    count: isOnlyLog ? increment(0) : increment(1) 
+};
 
-    // 2. [정상 코드 적용] 2인 이상 산행일 때만 포인트 관련 필드 추가
-    if (isHike && selectedMemberIds.size >= 2) {
-        // 포인트 계산 로직을 이 안으로 이동
-        let pointToAdd = (isQuarterOnlyOne || isRegular) ? 100 : (100 * (effectiveUp || 1));
-        
-        updateData.buddyCount = increment(1);       // 동행 횟수
-        updateData.friendshipPoint = increment(pointToAdd); // 전체 우정 포인트
-        updateData[`fp_bins.${qKey}`] = increment(pointToAdd); // 분기별 포인트
-    }
+// 2. [중요] 포인트 관련 필드 (isOnlyLog가 아닐 때만 실행되도록 조건 추가)
+if (isHike && selectedMemberIds.size >= 2 && !isOnlyLog) {
+    let pointToAdd = (isQuarterOnlyOne || isRegular) ? 100 : (100 * (effectiveUp || 1));
+    
+    updateData.buddyCount = increment(1);       
+    updateData.friendshipPoint = increment(pointToAdd); 
+    updateData[`fp_bins.${qKey}`] = increment(pointToAdd); 
+}
+
 
     // 3. 활동 유형별 날짜 및 D-day 로직 (기존 유지)
     if (isHike || isRunning || isTracking) {
@@ -4306,7 +4307,7 @@ window.addMultiActivity = async () => {
                 await addDoc(collection(db, `sanwoori/${id}/logs`), {
                     date: ts, mountain: mName, height, coords: tempCoord,
                     isTop100, isBAC, isRegular, isRunning, isTracking, region,
-                    starType: assignedStarType, author: member.name // 본인 이름 필드 추가
+                    starType: assignedStarType, isOnlyLog: isOnlyLog, author: member.name // 본인 이름 필드 추가
                 });
             }
 
