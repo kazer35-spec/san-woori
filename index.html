@@ -2453,7 +2453,7 @@ class="w-full bg-transparent text-white text-sm outline-none text-right border-n
 <label class="!text-[9px]"><input type="radio" name="upAmount" value="3">3</label>
 
 <label style="margin-left: 9px; font-size: 13px; color: #ff4d4d; cursor: pointer; vertical-align: middle;">
-<input type="checkbox" id="isQuarterCheck">
+<input type="checkbox" id="isOnlyLog"> 
 </label>
 </div>
 </div>
@@ -3570,11 +3570,12 @@ const dateActivities = {};
 
 logsQuarter.forEach(l => {
     const key = `${l.date.getFullYear()}-${l.date.getMonth() + 1}-${l.date.getDate()}`;
-    
     if(!dateActivities[key]) {
-        dateActivities[key] = { hike: 0, run: 0, trek: 0, isRegular: false };
+        dateActivities[key] = { hike: 0, run: 0, trek: 0, isOnlyLog: false, isRegular: false };
     }
-    
+
+    if(l.isOnlyLog) {
+        dateActivities[key].isOnlyLog = true; 
     if(l.isRunning) {
         dateActivities[key].run++;
     } else if(l.isTracking) {
@@ -3605,26 +3606,27 @@ for (let i = 0; i < totalDaysInQ; i++) {
     let iconTag = ""; 
     const month = cur.getMonth() + 1;
 
-    if (act) {
-        // --- [로직 A] 정기산행 또는 HOT 멤버 꽃 피우기 ---
-       if (act.isRegular) {
-    // 테두리를 없애고(none), 배경색에 !important를 붙여 확실히 적용합니다.
-    style = `background: linear-gradient(135deg, #FF69B4, #ADFF2F, #A020F0) !important; 
-             border: none !important; 
-             box-shadow: inset 0 0 5px rgba(255,255,255,0.3) !important; 
-             outline: none !important;`;
-    
-    cl += " grass-regular-premium"; 
+        if (act) {
+        // 1. [신규] 단순 기록(주황색) 체크를 가장 먼저 합니다.
+        if (act.isOnlyLog) {
+            style = "background: #FF9800 !important; border: none !important; outline: none !important;";
+        } 
+        // 2. 정기산행 프리미엄 효과
+        else if (act.isRegular) {
+            style = `background: linear-gradient(135deg, #FF69B4, #ADFF2F, #A020F0) !important; 
+                     border: none !important; 
+                     box-shadow: inset 0 0 5px rgba(255,255,255,0.3) !important; 
+                     outline: none !important;`;
+            cl += " grass-regular-premium"; 
 
-    // 계절별 이모지 로직
-    let qIcon = (month >= 3 && month <= 5) ? "🌸" : 
-                (month >= 6 && month <= 8) ? "🍀" : 
-                (month >= 9 && month <= 11) ? "🍁" : "❄️";
+            let qIcon = (month >= 3 && month <= 5) ? "🌸" : 
+                        (month >= 6 && month <= 8) ? "🍀" : 
+                        (month >= 9 && month <= 11) ? "🍁" : "❄️";
 
-    iconTag = `<span style="font-size: 11px; display: flex; align-items: center; justify-content: center; height: 100%; pointer-events: none; position: relative; z-index: 5; text-shadow: 0 0 3px rgba(0,0,0,0.3);">${qIcon}</span>`;
-}
+            iconTag = `<span style="font-size: 11px; display: flex; align-items: center; justify-content: center; height: 100%; pointer-events: none; position: relative; z-index: 5; text-shadow: 0 0 3px rgba(0,0,0,0.3);">${qIcon}</span>`;
+        }
+        // 3. 일반 활동 (등산, 런닝, 트래킹)
         else {
-            // 일반 활동 색상 로직
             const hasHike = act.hike > 0;
             const hasExtra = act.run > 0 || act.trek > 0;
             
@@ -3639,6 +3641,20 @@ for (let i = 0; i < totalDaysInQ; i++) {
                 const level = Math.min(act.hike, 4);
                 cl += ` grass-active-${level}`;
             }
+
+            // HOT 멤버 꽃 효과 (단순기록/정기산행 아닐 때만 30% 확률)
+            if (typeof isHotMember !== 'undefined' && isHotMember && (act.hike > 0 || act.run > 0 || act.trek > 0)) {
+                if (Math.random() < 0.3) {
+                    let flowerList = (month >= 3 && month <= 5) ? seasonalFlowers.spring :
+                                     (month >= 6 && month <= 8) ? seasonalFlowers.summer :
+                                     (month >= 9 && month <= 11) ? seasonalFlowers.fall : seasonalFlowers.winter;
+                    const randomFlower = flowerList[Math.floor(Math.random() * flowerList.length)];
+                    iconTag = `<span style="position:absolute; font-size:8px; right:0; bottom:0; pointer-events:none; z-index:10;">${randomFlower}</span>`;
+                }
+            }
+        }
+    }
+
 
             // HOT 멤버라면 30% 확률로 계절 꽃 추가 (정기산행이 아닐 때만)
             if (typeof isHotMember !== 'undefined' && isHotMember && (act.hike > 0 || act.run > 0 || act.trek > 0)) {
@@ -4220,7 +4236,9 @@ window.addMultiActivity = async () => {
     const isTracking = document.getElementById('isTrackingCheck')?.checked || false;
     const region = document.getElementById('adminManualRegionSelect').value;
     const isQuarterOnlyOne = document.getElementById('isQuarterCheck')?.checked || false;
+    const isOnlyLog = document.getElementById('isOnlyLog')?.checked || false;
 
+    
     if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜 확인");
 
     const upElement = document.querySelector('input[name="upAmount"]:checked');
@@ -4263,10 +4281,11 @@ window.addMultiActivity = async () => {
 
     // 1. [수정] 기본 업데이트 객체에는 '공통 항목'만 넣습니다. (포인트 제외)
     const updateData = { 
-        level: newLevel, 
-        totalHeight: increment(height),
-        count: increment(1) 
-    };
+    // isOnlyLog가 true면 0을 더하고(변화 없음), false일 때만 정상 수치 증가
+    level: isOnlyLog ? oldLevel : oldLevel + effectiveUp, 
+    totalHeight: isOnlyLog ? increment(0) : increment(height),
+    count: isOnlyLog ? increment(0) : increment(1) 
+};
 
     // 2. [정상 코드 적용] 2인 이상 산행일 때만 포인트 관련 필드 추가
     if (isHike && selectedMemberIds.size >= 2) {
@@ -4306,7 +4325,7 @@ window.addMultiActivity = async () => {
                 await addDoc(collection(db, `sanwoori/${id}/logs`), {
                     date: ts, mountain: mName, height, coords: tempCoord,
                     isTop100, isBAC, isRegular, isRunning, isTracking, region,
-                    starType: assignedStarType, author: member.name // 본인 이름 필드 추가
+                    starType: assignedStarType, isOnlyLog: isOnlyLog, author: member.name // 본인 이름 필드 추가
                 });
             }
 
