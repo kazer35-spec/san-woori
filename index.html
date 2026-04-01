@@ -3566,22 +3566,33 @@ window.showMemberTimeline = async (mId, mName) => {
         }
 
         // 4. 잔디 데이터 분석
+const dateActivities = {};
+
 logsQuarter.forEach(l => {
     const key = `${l.date.getFullYear()}-${l.date.getMonth() + 1}-${l.date.getDate()}`;
+    
+    // 1. 초기 객체 생성 (isOnlyLog 추가)
     if(!dateActivities[key]) {
         dateActivities[key] = { hike: 0, run: 0, trek: 0, isOnlyLog: false, isRegular: false };
     }
-
-    if(l.isOnlyLog) {
-        dateActivities[key].isOnlyLog = true; // 단순 기록 표시
+    
+    // 2. 활동 유형 판별 (순서가 중요합니다!)
+    if (l.isOnlyLog) {
+        // 주황색 단순 기록인 경우
+        dateActivities[key].isOnlyLog = true;
+    } else if (l.isRunning) {
+        // 런닝인 경우
         dateActivities[key].run++;
-    } else if(l.isTracking) {
+    } else if (l.isTracking) {
+        // 트래킹인 경우
         dateActivities[key].trek++;
     } else {
+        // 일반 산행인 경우
         dateActivities[key].hike++;
         if(l.isRegular) dateActivities[key].isRegular = true;
     }
 });
+
 
 // 5. 잔디 보드 HTML 생성
 let grassHtml = "";
