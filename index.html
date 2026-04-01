@@ -4214,12 +4214,10 @@ window.saveCardImage = async () => {
         const dateVal = document.getElementById('activityDate')?.value;
         const mName = document.getElementById('mountainName')?.value.trim();
         
-        // ⭐ 빨간 동그라미 체크박스 ID 확인 (isQuarterCheck)
+        // ⭐ 동그라미 체크박스 (기록 전용 모드)
         const isLogOnlyMode = document.getElementById('isQuarterCheck')?.checked || false; 
 
-        if(!selectedMemberIds.size || !dateVal) {
-            return alert("대상과 날짜를 확인해주세요.");
-        }
+        if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜를 확인해주세요.");
 
         const height = parseInt(document.getElementById('mountainHeight')?.value) || 0;
         const isTop100 = document.getElementById('isTop100Check')?.checked || false;
@@ -4229,16 +4227,19 @@ window.saveCardImage = async () => {
         const isTracking = document.getElementById('isTrackingCheck')?.checked || false;
         const region = document.getElementById('adminManualRegionSelect')?.value;
 
+        // 상단 '분기1회' 체크박스 (ID 확인 필요: 보통 상단은 다른 ID를 사용함)
+        const isQuarterNormal = document.getElementById('isQuarter1Check')?.checked || false; 
+
         const upElement = document.querySelector('input[name="upAmount"]:checked');
         const up = upElement ? parseInt(upElement.value) : 1;
 
         const isSpecial = isRunning || isTracking; 
         const isHike = !isSpecial; 
-
+        
         // ⭐ 체크박스 눌렸으면 레벨업 수치는 0
         const effectiveUp = (isHike && !isLogOnlyMode) ? up : 0;
         
-        // 기록 전용일 때는 별(로그) 1개 생성
+        // 기록 전용일 때도 로그는 1개만 생성
         const logLoopCount = (isRegular || isSpecial || isLogOnlyMode) ? 1 : up;
         const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
 
@@ -4248,7 +4249,7 @@ window.saveCardImage = async () => {
             if(m) selectedNames.push(m.name);
         });
 
-        // 산 정보 저장
+        // 산 메타 정보 저장
         if(mName && tempCoord) {
             await setDoc(doc(db, "mountains", mName), {
                 x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region
@@ -4257,7 +4258,7 @@ window.saveCardImage = async () => {
 
         pendingLevelUpCards = []; 
 
-        // --- 멤버별 루프 ---
+        // --- 멤버별 루프 시작 ---
         for (const id of selectedMemberIds) {
             const member = currentData.find(m => m.id === id);
             if (!member) continue;
@@ -4267,38 +4268,34 @@ window.saveCardImage = async () => {
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
-            // 업데이트할 바구니 준비
+            // 1. 공통 업데이트 데이터 (날짜와 D-day 연장)
             let updateData = { 
                 lastDate: ts,
                 bonusDays: isHike ? 0 : (member.bonusDays || 0)
             };
 
-            // D-Day 연장 (최대 122일)
             if (oldLevel > 0) {
                 updateData.dday = Math.min(122, (member.dday || 0) + 15);
             }
 
-            // ⭐ '기록 전용'이 아닐 때만 점수/횟수 추가
+            // 2. ⭐ '기록 전용'이 아닐 때만 수치(레벨, 횟수, 포인트) 증가
             if (!isLogOnlyMode) {
                 updateData.level = newLevel;
                 updateData.totalHeight = increment(height);
                 updateData.count = increment(1);
 
                 if (isHike && selectedMemberIds.size >= 2) {
-                    // 상단 분기체크박스 ID가 'isQuarter1Check'라고 가정
-                    const isQuarterNormal = document.getElementById('isQuarter1Check')?.checked || false;
+                    // 상단 분기체크나 정기산행이면 100점, 아니면 레벨당 100점
                     let pointToAdd = (isQuarterNormal || isRegular) ? 100 : (100 * (effectiveUp || 1));
-                    
                     updateData.buddyCount = increment(1);
                     updateData.friendshipPoint = increment(pointToAdd);
                     updateData[`fp_bins.${qKey}`] = increment(pointToAdd);
                 }
             }
 
-            // DB 업데이트
             await updateDoc(doc(db, "sanwoori", id), updateData);
 
-            // 로그(별) 생성
+            // 3. 개별 로그(별) 생성
             for(let i = 0; i < logLoopCount; i++) {
                 let assignedStarType = null;
                 if (isRegular) {
@@ -4314,20 +4311,29 @@ window.saveCardImage = async () => {
                 });
             }
 
-            // 인연의 숲 개인 캐시 (기록 전용 아닐 때만)
+            // 4. ✨ 인연의 숲 개인 캐시 실시간 반영 (기록 전용 아닐 때만)
             if (isHike && !isLogOnlyMode) { 
                 const STORAGE_KEY = `forest_v5_final_${member.name}`;
-                let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { processedIds: [], extraHikes: 0 };
+                let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { 
+                    processedIds: [], extraHikes: 0, partnersMap: {}, uniquePartners: [] 
+                };
+                
                 const manualId = `manual_${dateVal}_${mName}_${id}`;
                 if (!cached.processedIds.includes(manualId)) {
                     cached.extraHikes += 1;
                     cached.processedIds.push(manualId);
+                    // 목록 비우기를 통해 다음 인연의 숲 로딩 시 강제 동기화 유도
+                    cached.processedIds = []; 
                     localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
+                }
+
+                if (typeof checkLevelUpgrade === 'function') {
+                    checkLevelUpgrade(member.name, oldLevel, newLevel);
                 }
             }
         }
 
-        // 공용 인연의 숲 DB (기록 전용 아닐 때만)
+        // 5. 인연의 숲 공용 DB 저장 (혼산 아닐 때 & 기록 전용 아닐 때)
         if (selectedNames.length >= 2 && isHike && !isLogOnlyMode) {
             await addDoc(collection(db, "bondingForest"), {
                 mountain: mName, members: selectedNames,
@@ -4335,18 +4341,26 @@ window.saveCardImage = async () => {
             });
         }
 
-        alert(isLogOnlyMode ? "단순 기록 저장이 완료되었습니다!" : "기록 및 수치 저장이 완료되었습니다!");
+        // 레벨업 카드 알림
+        if (pendingLevelUpCards && pendingLevelUpCards.length > 0 && typeof showCombinedLevelUpAlert === 'function') {
+            showCombinedLevelUpAlert();
+        }
+
+        alert(isLogOnlyMode ? "단순 로그 기록이 완료되었습니다." : "기록 및 수치 반영이 완료되었습니다.");
         
-        // 초기화
+        // 초기화 및 화면 갱신
         selectedMemberIds.clear();
+        tempCoord = null;
         if (typeof updateAdminMemberLists === 'function') updateAdminMemberLists();
+        if (typeof startRealtimeSync === 'function') startRealtimeSync(); 
         
     } catch (error) {
-        console.error("Error 상세:", error);
-        alert("저장 중 오류 발생: " + error.message);
+        console.error("저장 실패 상세:", error);
+        alert("저장 실패: " + error.message);
     }
 };
 
+    
                     
     window.loadMemberLogs = async () => {
 const id = document.getElementById('memberSelectEdit').value;
