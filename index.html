@@ -4264,7 +4264,8 @@ window.addMultiActivity = async () => {
         for (const id of selectedMemberIds) {
     const member = currentData.find(m => m.id === id);
     if (!member) continue;
-            
+
+    const isRealHike = !isRunning && !isTracking && !isOnlyLog;
     const now = new Date();
     const qKey = `${now.getFullYear()}_q${Math.ceil((now.getMonth() + 1) / 3)}`;
     
@@ -4273,10 +4274,12 @@ window.addMultiActivity = async () => {
 
     // 1. [교체] 기본 업데이트 객체 설정 (isOnlyLog 체크 반영)
 const updateData = { 
-        level: isOnlyLog ? member.level : (member.level + effectiveUp), 
-        totalHeight: isOnlyLog ? increment(0) : increment(height),
-        count: isOnlyLog ? increment(0) : increment(1)
-};
+        level: isRealHike ? (member.level + effectiveUp) : member.level, 
+        count: isRealHike ? increment(1) : increment(0),
+        totalHeight: isRealHike ? increment(height) : increment(0),
+        
+        lastDate: ts
+    };
 
 // 2. [중요] 포인트 관련 필드 (isOnlyLog가 아닐 때만 실행되도록 조건 추가)
 if (isHike && selectedMemberIds.size >= 2 && !isOnlyLog) {
@@ -4319,7 +4322,7 @@ if (isHike && selectedMemberIds.size >= 2 && !isOnlyLog) {
             }
 
             // ✨ [핵심 로직] 레벨업 수치가 올라갈 때 '인연의 숲' 산행 카운트도 즉시 반영
-            if (isHike) {
+            if (isRealHike) {
                 const STORAGE_KEY = `forest_v5_final_${member.name}`;
                 let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { 
                     processedIds: [], extraHikes: 0, partnersMap: {}, uniquePartners: [] 
@@ -4341,11 +4344,11 @@ if (isHike && selectedMemberIds.size >= 2 && !isOnlyLog) {
         }
 
         // 인연의 숲(동료 기록) 저장
-        if (selectedNames.length >= 2 && isHike) {
-            await addDoc(collection(db, "bondingForest"), {
-                mountain: mName, members: selectedNames,
-                memberCount: selectedNames.length, date: dateVal, createdAt: new Date()
-            });
+        if (selectedNames.length >= 2 && isRealHike) { // isHike 대신 isRealHike 사용
+    await addDoc(collection(db, "bondingForest"), {
+        mountain: mName, members: selectedNames,
+        memberCount: selectedNames.length, date: dateVal, createdAt: new Date()
+    });
         }
 
         // 레벨업 카드 노출
