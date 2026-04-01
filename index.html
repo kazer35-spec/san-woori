@@ -4666,19 +4666,30 @@ window.updateManualQCount = async () => {
     if (!confirm(`분기 횟수를 ${newQCount}회로 직접 수정하시겠습니까?`)) return;
 
     try {
-        // 🔥 중요: DB 확인 결과 필드명이 'qCount'가 아니라 'count'입니다.
         const memberRef = doc(db, "sanwoori", mId); 
+        
+        // 1. DB 업데이트 (count와 qCount를 모두 업데이트하여 정합성을 맞춤)
         await updateDoc(memberRef, {
-            count: newQCount // 메인 화면에서 사용하는 'count' 필드를 직접 수정합니다.
+            count: newQCount,
+            qCount: newQCount // 활동지수(온도) 계산 시 사용하는 필드
         });
+        
+        // 2. 로컬 데이터(currentData) 즉시 반영 (선택 사항이나 권장)
+        const localMember = currentData.find(m => m.id === mId);
+        if (localMember) {
+            localMember.count = newQCount;
+            localMember.qCount = newQCount;
+        }
         
         alert("분기 횟수 수정 완료! ✨");
         qInput.value = ""; 
 
-        // 관리자 목록 새로고침
+        // 3. UI 즉시 갱신
         if (typeof updateAdminMemberLists === 'function') updateAdminMemberLists();
+        if (typeof updateVibeTemp === 'function') updateVibeTemp(); // 활동지수(온도)도 다시 계산
         
     } catch (e) {
+        console.error("수정 실패:", e);
         alert("수정 실패: " + e.message);
     }
 };
