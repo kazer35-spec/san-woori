@@ -4229,15 +4229,14 @@ window.addMultiActivity = async () => {
     const isRunning = document.getElementById('isRunningCheck')?.checked || false;
     const isTracking = document.getElementById('isTrackingCheck')?.checked || false;
     const region = document.getElementById('adminManualRegionSelect').value;
-    const isQuarterOnlyOne = document.getElementById('isQuarterCheck')?.checked || false;
-    const isOnlyLog = document.getElementById('isOnlyLog')?.checked || false;
-    if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜 확인");
-
+    const isQuarterOnlyOne = document.getElementById('isQuarterCheck')?.checked || false; // 위쪽 체크박스
+    const isOnlyLog = document.getElementById('isOnlyLog')?.checked || false;  
+    
     const upElement = document.querySelector('input[name="upAmount"]:checked');
     if(!upElement) return alert("레벨업 수치를 선택해주세요.");
     const up = parseInt(upElement.value);
 
-    const isSpecial = isRunning || isTracking; 
+    const isSpecial = isRunning || isTracking || isOnlyLog;
     const isHike = !isSpecial; 
     const effectiveUp = isHike ? up : 0;
     const logLoopCount = isRegular ? 1 : (isSpecial ? 1 : (isQuarterOnlyOne ? 1 : up));
@@ -4274,13 +4273,14 @@ window.addMultiActivity = async () => {
 
     // 1. [교체] 기본 업데이트 객체 설정 (isOnlyLog 체크 반영)
 const updateData = { 
+        // 레벨: 진짜 산행일 때만 업, 아니면 유지
         level: isRealHike ? (member.level + effectiveUp) : member.level, 
         count: isRealHike ? increment(1) : increment(0),
         totalHeight: isRealHike ? increment(height) : increment(0),
         
         lastDate: ts
     };
-
+        
 // 2. [중요] 포인트 관련 필드 (isOnlyLog가 아닐 때만 실행되도록 조건 추가)
 if (isHike && selectedMemberIds.size >= 2 && !isOnlyLog) {
         let pointToAdd = (isQuarterOnlyOne || isRegular) ? 100 : (100 * (effectiveUp || 1));
