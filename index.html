@@ -4313,27 +4313,20 @@ for (const id of selectedMemberIds) {
         updateData.bonusDays = 0;
     } 
     else if (isRunning || isTracking) {
-        // [조건 체크] 신입이 아니고(Level > 0) && 남은 날짜가 10일 초과인 경우만 15일 추가
         if (oldLevel > 0 && currentDdayVal > 10) {
-            // (오늘 날짜로 갱신될 것이므로 diffDays는 0이 됨)
-            // 따라서 '갱신 후 D-Day' = 122 + 새로운 보너스
-            // 이 값이 122를 넘지 않으려면 보너스는 0 이하여야 함.
-            
-            // 🚩 핵심 로직: 런닝/트래킹 시 lastDate가 오늘(ts)로 바뀌면 
-            // 기본 122일이 확보되므로, 사실상 보너스는 0이 되어야 122일이 됩니다.
-            // 만약 "기존에 남은 날짜 + 15일"을 하고 싶다면 아래와 같이 계산합니다.
-            
+            // 1. 현재 남은 날짜(currentDdayVal)에 15일을 더함
             let nextDday = currentDdayVal + 15;
+            
+            // 2. 122일이 넘지 않도록 제한 (캡 적용)
             if (nextDday > 122) nextDday = 122;
             
-            // baseLimit(122)을 뺀 나머지가 새로운 bonusDays가 됨
-            updateData.bonusDays = nextDday - baseLimit; 
+            // 🚩 핵심 수정: lastDate가 오늘(ts)로 바뀌면 기본값이 122가 되므로, 
+            // 최종 결과가 nextDday가 되려면 보너스는 (목표값 - 122)가 되어야 함.
+            updateData.bonusDays = nextDday - 122; 
             
-            console.log(`${member.name}: 15일 추가 시도 -> 최종 D-Day ${nextDday}일 (보너스: ${updateData.bonusDays})`);
+            console.log(`${member.name}: 15일 추가 -> 최종 ${nextDday}일 (보너스: ${updateData.bonusDays})`);
         } else {
-            // 신입이거나 10일 이하인 경우: 보너스 없이 오늘 날짜로만 갱신 (기본 30/122일 충전)
             updateData.bonusDays = 0;
-            console.log(`${member.name}: 보너스 제외 (기본 충전만 진행)`);
         }
     }
 
@@ -4344,8 +4337,6 @@ for (const id of selectedMemberIds) {
         console.error(`${member.name} 업데이트 실패:`, e);
     }
 }
-
-
 
             
             // 4. 개별 로그(별) 생성
