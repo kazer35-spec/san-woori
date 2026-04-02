@@ -4243,25 +4243,28 @@ Window.addMultiActivity = async () => {
 
     // 산 정보 저장
     if(mName && tempCoord) {
-        await setDoc(doc(db, "mountains", mName), {
-            x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region
-        }, { merge: true });
+        try {
+            await setDoc(doc(db, "mountains", mName), {
+                x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region
+            }, { merge: true });
+        } catch(e) { console.error("산 정보 저장 오류:", e); }
     }
 
     try {
         pendingLevelUpCards = []; 
 
-        // --- 멤버별 데이터 업데이트 루프 시작 (통합) ---
+        // --- 멤버별 데이터 업데이트 루프 (단일 루프) ---
         for (const id of selectedMemberIds) {
             const member = currentData.find(m => m.id === id);
             if (!member) continue;
 
             const now = new Date();
             const qKey = `${now.getFullYear()}_q${Math.ceil((now.getMonth() + 1) / 3)}`;
+            
             const oldLevel = Number(member.level || 0);
             const newLevel = oldLevel + effectiveUp;
 
-            // 1. DB 업데이트 기본 객체 구성
+            // [1] DB 업데이트 기본 객체
             let updateData = { 
                 level: newLevel, 
                 totalHeight: isRealHike ? increment(height) : increment(0),
@@ -4269,7 +4272,7 @@ Window.addMultiActivity = async () => {
                 lastDate: ts
             };
 
-            // 2. 우정 포인트 로직
+            // [2] 우정 포인트 로직
             if (isRealHike && selectedMemberIds.size >= 2) {
                 let pointToAdd = (isQuarterOnlyOne || isRegular) ? 100 : (100 * (effectiveUp || 1));
                 updateData.buddyCount = increment(1); 
@@ -4277,13 +4280,13 @@ Window.addMultiActivity = async () => {
                 updateData[`fp_bins.${qKey}`] = increment(pointToAdd);
             }
 
-            // 3. 🛡️ D-Day 연장 로직 (요청 규칙 반영)
+            // [3] 🛡️ D-Day 연장 로직 (핵심 요청사항)
             if (isRealHike) {
-                updateData.dday = 122;
-                updateData.bonusDays = 0; 
+                updateData.dday = 122; // 산행은 풀충전
+                updateData.bonusDays = 0;
             } 
             else if (isRunning || isTracking) {
-                // 런닝/트레킹: 신입(Lv.0) 제외 15일 추가
+                // 신입(Lv.0)은 제외하고 15일 추가
                 if (oldLevel > 0) {
                     const currentDday = Number(member.dday || 0);
                     let nextDday = currentDday + 15;
@@ -4291,10 +4294,10 @@ Window.addMultiActivity = async () => {
                 }
             }
 
-            // [핵심] 실제 DB 저장 실행
+            // [4] 실제 DB 업데이트 실행
             await updateDoc(doc(db, "sanwoori", id), updateData);
-            
-            // 4. 개별 로그(별) 생성
+
+            // [5] 개별 로그 생성 루프
             for(let i = 0; i < logLoopCount; i++) {
                 let assignedStarType = null;
                 if (isRegular) {
@@ -4310,7 +4313,7 @@ Window.addMultiActivity = async () => {
                 });
             }
 
-            // 5. ✨ 인연의 숲 로컬 캐시 (진짜 산행일 때만)
+            // [6] 인연의 숲 로컬 캐시 (산행 시)
             if (isRealHike) {
                 const STORAGE_KEY = `forest_v5_final_${member.name}`;
                 let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { 
@@ -4328,9 +4331,9 @@ Window.addMultiActivity = async () => {
                     checkLevelUpgrade(member.name, oldLevel, newLevel);
                 }
             }
-        } // 멤버별 루프 종료
+        } // 멤버 루프 종료
 
-        // 6. ✨ 인연의 숲 전체 DB 저장 (2인 이상 산행 시)
+        // [7] 인연의 숲 전체 DB 저장
         if (isRealHike && selectedNames.length >= 2) {
             await addDoc(collection(db, "bondingForest"), {
                 mountain: mName, members: selectedNames,
@@ -4338,7 +4341,7 @@ Window.addMultiActivity = async () => {
             });
         }
 
-        // 7. 후속 처리
+        // [8] 결과 알림 및 초기화
         if (pendingLevelUpCards.length > 0 && typeof showCombinedLevelUpAlert === 'function') {
             showCombinedLevelUpAlert();
         }
@@ -4351,11 +4354,10 @@ Window.addMultiActivity = async () => {
         if (typeof startRealtimeSync === 'function') startRealtimeSync(); 
         
     } catch (error) {
-        console.error("Error:", error);
+        console.error("실행 에러:", error);
         alert("저장 실패: " + error.message);
     }
 };
-
 
         
 
