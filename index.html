@@ -4279,15 +4279,20 @@ window.addMultiActivity = async () => {
     }
 
     // 3. 활동 유형별 날짜 및 D-day 로직 (기존 유지)
-    if (isHike || isRunning || isTracking) {
-        updateData.lastDate = ts;
-        if (isHike) updateData.bonusDays = 0;
-        if (oldLevel > 0) {
-            // 러닝/트래킹/산행 시 15일 연장 (최대 122일)
-            let calculatedDday = Math.min(122, (member.dday || 0) + 15);
-            updateData.dday = calculatedDday;
+    // --- 수정 후 코드의 논리 구조 ---
+
+if (isHike) { 
+    // [산행 팀]
+    updateData.lastDate = ts;      // 오늘 날짜로 기록! (이게 122일 리셋의 핵심)
+    updateData.bonusDays = 0;
+} 
+else if ((isRunning || isTracking) && selectedMemberIds.size >= 2) {
+    // [러닝/트래킹 팀 - 2인 이상]
+    // 여기서는 lastDate를 오늘로 바꾸지 않고 '보유 날짜'만 15일 늘려줍니다.
+    let currentDday = member.dday || 0;
+    updateData.dday = Math.min(122, currentDday + 15);
+}
         }
-    }
 
     // 4. DB 업데이트 (수정된 updateData 전송)
     await updateDoc(doc(db, "sanwoori", id), updateData);
