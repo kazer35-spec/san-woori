@@ -4287,7 +4287,16 @@ for (const id of selectedMemberIds) {
     const oldLevel = member.level || 0;
     const currentBonus = Number(member.bonusDays || 0);
     const effectiveUp = isRealHike ? up : 0;
-    
+
+    // --- [1. 현재 남은 D-Day 계산] ---
+    const today = new Date();
+    const todayZero = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+    const last = member.lastDate ? member.lastDate.toDate() : new Date();
+    const lastZero = new Date(last.getFullYear(), last.getMonth(), last.getDate()).getTime();
+    const diffDays = Math.floor((todayZero - lastZero) / (1000 * 60 * 60 * 24));
+    const baseLimit = (oldLevel === 0 ? 30 : 122);
+    const currentDdayVal = (baseLimit + currentBonus) - diffDays; 
+
     let updateData = { 
         level: oldLevel + effectiveUp, 
         lastDate: ts, 
@@ -4296,21 +4305,25 @@ for (const id of selectedMemberIds) {
     };
 
     if (isRealHike) {
-        // [산행] 보너스 초기화
+        // [산행] 122일 풀충전 (보너스 초기화)
         updateData.bonusDays = 0;
     } 
     else if (isRunning || isTracking) {
         // [런닝/트레킹]
         if (oldLevel > 0) {
-            // 🚩 최대 122일을 넘지 않도록 제한 (Math.min 사용)
-            const nextBonus = currentBonus + 15;
-            updateData.bonusDays = Math.min(nextBonus, 122); 
+            // 🚩 핵심 로직: 현재 남은 날짜에 15일을 더하되 122일을 넘지 않게 설정
+            let nextDday = currentDdayVal + 15;
+            if (nextDday > 122) nextDday = 122;
+
+            // lastDate를 오늘(ts)로 바꾸면 기본값이 122가 되므로,
+            // (122 + bonusDays = nextDday) 가 되어야 함.
+            // 즉, 보너스는 (목표날짜 - 122)가 됨 (대부분 0 또는 음수)
+            updateData.bonusDays = nextDday - 122;
             
-            console.log(`${member.name}: 레벨 ${oldLevel} -> 보너스 적용 (현재: ${updateData.bonusDays}일)`);
+            console.log(`${member.name}: 현재 ${currentDdayVal}일 -> 수정 후 ${nextDday}일 (보너스: ${updateData.bonusDays})`);
         } else {
-            // 신입(레벨 0)은 보너스 없음
-            updateData.bonusDays = 0; 
-            console.log(`${member.name}: 신입 -> 15일 추가 제외`);
+            // 신입(레벨 0)은 보너스 없이 기본 30일만 적용
+            updateData.bonusDays = 0;
         }
     }
 
