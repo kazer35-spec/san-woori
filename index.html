@@ -2453,7 +2453,7 @@ class="w-full bg-transparent text-white text-sm outline-none text-right border-n
 <label class="!text-[9px]"><input type="radio" name="upAmount" value="3">3</label>
 
 <label style="margin-left: 9px; font-size: 13px; color: #ff4d4d; cursor: pointer; vertical-align: middle;">
- <input type="checkbox" id="isOnlyLog">
+<input type="checkbox" id="isQuarterCheck">
 </label>
 </div>
 </div>
@@ -3401,7 +3401,7 @@ const currentQData = getBestInQuarter(cached.quarterlyPartners[currentQKey]);
     <div class="bg-white/[0.03] py-2.5 px-4 rounded-2xl border border-white/[0.06] cursor-pointer active:scale-95 transition-all hover:bg-white/[0.06]" 
          onclick="showQuarterlyDetails()">
         <div class="flex justify-between items-start mb-1">
-            <div class="text-[10px] text-purple-400 font-bold">🏅 시즌 베스트 (${qName})</div>
+            <div class="text-[10px] text-purple-400 font-bold mb-1">🎖 분기 베스트 (${qName})</div>
             <div class="text-[8px] text-slate-500 opacity-50 uppercase">Click</div>
         </div>
         <div class="flex justify-between items-center">
@@ -3571,28 +3571,19 @@ const dateActivities = {};
 logsQuarter.forEach(l => {
     const key = `${l.date.getFullYear()}-${l.date.getMonth() + 1}-${l.date.getDate()}`;
     
-    // 1. 초기 객체 생성 (isOnlyLog 추가)
     if(!dateActivities[key]) {
-        dateActivities[key] = { hike: 0, run: 0, trek: 0, isOnlyLog: false, isRegular: false };
+        dateActivities[key] = { hike: 0, run: 0, trek: 0, isRegular: false };
     }
     
-    // 2. 활동 유형 판별 (순서가 중요합니다!)
-    if (l.isOnlyLog) {
-        // 주황색 단순 기록인 경우
-        dateActivities[key].isOnlyLog = true;
-    } else if (l.isRunning) {
-        // 런닝인 경우
+    if(l.isRunning) {
         dateActivities[key].run++;
-    } else if (l.isTracking) {
-        // 트래킹인 경우
+    } else if(l.isTracking) {
         dateActivities[key].trek++;
     } else {
-        // 일반 산행인 경우
         dateActivities[key].hike++;
         if(l.isRegular) dateActivities[key].isRegular = true;
     }
 });
-
 
 // 5. 잔디 보드 HTML 생성
 let grassHtml = "";
@@ -3614,27 +3605,26 @@ for (let i = 0; i < totalDaysInQ; i++) {
     let iconTag = ""; 
     const month = cur.getMonth() + 1;
 
-       if (act) {
-        // 1. [신규] 단순 기록(주황색) 체크를 가장 먼저 합니다.
-        if (act.isOnlyLog) {
-            style = "background: #FF9800 !important; border: none !important; outline: none !important;";
-        } 
-        // 2. 정기산행 프리미엄 효과
-        else if (act.isRegular) {
-            style = `background: linear-gradient(135deg, #FF69B4, #ADFF2F, #A020F0) !important; 
-                     border: none !important; 
-                     box-shadow: inset 0 0 5px rgba(255,255,255,0.3) !important; 
-                     outline: none !important;`;
-            cl += " grass-regular-premium"; 
+    if (act) {
+        // --- [로직 A] 정기산행 또는 HOT 멤버 꽃 피우기 ---
+       if (act.isRegular) {
+    // 테두리를 없애고(none), 배경색에 !important를 붙여 확실히 적용합니다.
+    style = `background: linear-gradient(135deg, #FF69B4, #ADFF2F, #A020F0) !important; 
+             border: none !important; 
+             box-shadow: inset 0 0 5px rgba(255,255,255,0.3) !important; 
+             outline: none !important;`;
+    
+    cl += " grass-regular-premium"; 
 
-            let qIcon = (month >= 3 && month <= 5) ? "🌸" : 
-                        (month >= 6 && month <= 8) ? "🍀" : 
-                        (month >= 9 && month <= 11) ? "🍁" : "❄️";
+    // 계절별 이모지 로직
+    let qIcon = (month >= 3 && month <= 5) ? "🌸" : 
+                (month >= 6 && month <= 8) ? "🍀" : 
+                (month >= 9 && month <= 11) ? "🍁" : "❄️";
 
-            iconTag = `<span style="font-size: 11px; display: flex; align-items: center; justify-content: center; height: 100%; pointer-events: none; position: relative; z-index: 5; text-shadow: 0 0 3px rgba(0,0,0,0.3);">${qIcon}</span>`;
-        }
-        // 3. 일반 활동 (등산, 런닝, 트래킹)
+    iconTag = `<span style="font-size: 11px; display: flex; align-items: center; justify-content: center; height: 100%; pointer-events: none; position: relative; z-index: 5; text-shadow: 0 0 3px rgba(0,0,0,0.3);">${qIcon}</span>`;
+}
         else {
+            // 일반 활동 색상 로직
             const hasHike = act.hike > 0;
             const hasExtra = act.run > 0 || act.trek > 0;
             
@@ -3650,19 +3640,19 @@ for (let i = 0; i < totalDaysInQ; i++) {
                 cl += ` grass-active-${level}`;
             }
 
-            // HOT 멤버 효과
+            // HOT 멤버라면 30% 확률로 계절 꽃 추가 (정기산행이 아닐 때만)
             if (typeof isHotMember !== 'undefined' && isHotMember && (act.hike > 0 || act.run > 0 || act.trek > 0)) {
                 if (Math.random() < 0.3) {
                     let flowerList = (month >= 3 && month <= 5) ? seasonalFlowers.spring :
                                      (month >= 6 && month <= 8) ? seasonalFlowers.summer :
                                      (month >= 9 && month <= 11) ? seasonalFlowers.fall : seasonalFlowers.winter;
+                    
                     const randomFlower = flowerList[Math.floor(Math.random() * flowerList.length)];
                     iconTag = `<span style="position:absolute; font-size:8px; right:0; bottom:0; pointer-events:none; z-index:10;">${randomFlower}</span>`;
                 }
             }
         }
     }
-    
 
     // --- [로직 B] 팝업 데이터 인코딩 및 HTML 조립 ---
     // 데이터가 있을 때만 인코딩하여 팝업 함수에 전달
@@ -4217,8 +4207,9 @@ window.saveCardImage = async () => {
     }
 };
 
+
 window.addMultiActivity = async () => {
-    // 1. 기본 데이터 수집 (누락 없음)
+    // 1. 기본 데이터 수집 (날짜, 산이름, 체크박스 등)
     const dateVal = document.getElementById('activityDate').value;
     const mName = document.getElementById('mountainName').value.trim();
     const height = parseInt(document.getElementById('mountainHeight').value) || 0;
@@ -4228,28 +4219,28 @@ window.addMultiActivity = async () => {
     const isRunning = document.getElementById('isRunningCheck')?.checked || false;
     const isTracking = document.getElementById('isTrackingCheck')?.checked || false;
     const region = document.getElementById('adminManualRegionSelect').value;
-    const isQuarterOnlyOne = document.getElementById('isQuarterCheck')?.checked || false; 
-    const isOnlyLog = document.getElementById('isOnlyLog')?.checked || false;  
-    
+    const isQuarterOnlyOne = document.getElementById('isQuarterCheck')?.checked || false;
+
+    if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜 확인");
+
     const upElement = document.querySelector('input[name="upAmount"]:checked');
     if(!upElement) return alert("레벨업 수치를 선택해주세요.");
     const up = parseInt(upElement.value);
 
-    // 🚩 [필터링 핵심] 진짜 산행 판정
-    const isSpecial = isRunning || isTracking || isOnlyLog;
-    const isRealHike = !isSpecial; 
-    const effectiveUp = isRealHike ? up : 0;
+    const isSpecial = isRunning || isTracking; 
+    const isHike = !isSpecial; 
+    const effectiveUp = isHike ? up : 0;
     const logLoopCount = isRegular ? 1 : (isSpecial ? 1 : (isQuarterOnlyOne ? 1 : up));
     const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
 
-    if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜 확인");
-
+    // 인연의 숲용 이름 명단
     const selectedNames = [];
     selectedMemberIds.forEach(id => {
         const m = currentData.find(mem => mem.id === id);
         if(m) selectedNames.push(m.name);
     });
 
+    // 산 메타 정보 저장
     if(mName && tempCoord) {
         await setDoc(doc(db, "mountains", mName), {
             x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region
@@ -4261,39 +4252,49 @@ window.addMultiActivity = async () => {
 
         // --- 멤버별 데이터 업데이트 루프 ---
         for (const id of selectedMemberIds) {
-            const member = currentData.find(m => m.id === id);
-            if (!member) continue;
+    const member = currentData.find(m => m.id === id);
+    if (!member) continue;
 
-            const now = new Date();
-            const qKey = `${now.getFullYear()}_q${Math.ceil((now.getMonth() + 1) / 3)}`;
-            const oldLevel = member.level || 0;
-            const newLevel = oldLevel + effectiveUp;
+    const now = new Date();
+    const qKey = `${now.getFullYear()}_q${Math.ceil((now.getMonth() + 1) / 3)}`;
+    
+    const oldLevel = member.level || 0;
+    const newLevel = oldLevel + effectiveUp;
 
-            // 1. DB 업데이트 데이터 (count: 0 적용으로 분기횟수 방어)
-            const updateData = { 
-                level: isRealHike ? newLevel : oldLevel, 
-                count: isRealHike ? increment(1) : increment(0), 
-                totalHeight: isRealHike ? increment(height) : increment(0),
-                lastDate: ts
-            };
-                
-            // 2. 우정 포인트 (isOnlyLog가 아닐 때만)
-            if (isRealHike && selectedMemberIds.size >= 2) {
-                let pointToAdd = (isQuarterOnlyOne || isRegular) ? 100 : (100 * (effectiveUp || 1));
-                updateData.buddyCount = increment(1);
-                updateData.friendshipPoint = increment(pointToAdd);
-                updateData[`fp_bins.${qKey}`] = increment(pointToAdd);
-            }
+    // 1. [수정] 기본 업데이트 객체에는 '공통 항목'만 넣습니다. (포인트 제외)
+    const updateData = { 
+        level: newLevel, 
+        totalHeight: increment(height),
+        count: increment(1) 
+    };
 
-            // 3. 활동 유형별 날짜 및 D-day 로직 (런닝/트래킹 포함 연장)
-            if (oldLevel > 0) {
-                updateData.dday = Math.min(122, (member.dday || 0) + 15);
-                if (isRealHike) updateData.bonusDays = 0;
-            }
+    // 2. [정상 코드 적용] 2인 이상 산행일 때만 포인트 관련 필드 추가
+    if (isHike && selectedMemberIds.size >= 2) {
+        // 포인트 계산 로직을 이 안으로 이동
+        let pointToAdd = (isQuarterOnlyOne || isRegular) ? 100 : (100 * (effectiveUp || 1));
+        
+        updateData.buddyCount = increment(1);       // 동행 횟수
+        updateData.friendshipPoint = increment(pointToAdd); // 전체 우정 포인트
+        updateData[`fp_bins.${qKey}`] = increment(pointToAdd); // 분기별 포인트
+    }
 
-            await updateDoc(doc(db, "sanwoori", id), updateData);
+    // 3. 활동 유형별 날짜 및 D-day 로직 (기존 유지)
+    if (isHike || isRunning || isTracking) {
+        updateData.lastDate = ts;
+        if (isHike) updateData.bonusDays = 0;
+        if (oldLevel > 0) {
+            // 러닝/트래킹/산행 시 15일 연장 (최대 122일)
+            let calculatedDday = Math.min(122, (member.dday || 0) + 15);
+            updateData.dday = calculatedDday;
+        }
+    }
 
-            // 4. 개별 로그(별) 생성 (isOnlyLog 태그 포함)
+    // 4. DB 업데이트 (수정된 updateData 전송)
+    await updateDoc(doc(db, "sanwoori", id), updateData);
+    
+
+
+            // 개별 로그(별) 생성
             for(let i = 0; i < logLoopCount; i++) {
                 let assignedStarType = null;
                 if (isRegular) {
@@ -4305,66 +4306,64 @@ window.addMultiActivity = async () => {
                 await addDoc(collection(db, `sanwoori/${id}/logs`), {
                     date: ts, mountain: mName, height, coords: tempCoord,
                     isTop100, isBAC, isRegular, isRunning, isTracking, region,
-                    starType: assignedStarType, isOnlyLog: isOnlyLog, author: member.name
+                    starType: assignedStarType, author: member.name // 본인 이름 필드 추가
                 });
             }
 
-            // 5. 인연의 숲 로컬 캐시 즉시 반영 (진짜 산행일 때만)
-            if (isRealHike) {
+            // ✨ [핵심 로직] 레벨업 수치가 올라갈 때 '인연의 숲' 산행 카운트도 즉시 반영
+            if (isHike) {
                 const STORAGE_KEY = `forest_v5_final_${member.name}`;
                 let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { 
                     processedIds: [], extraHikes: 0, partnersMap: {}, uniquePartners: [] 
                 };
                 
+                // 수동 입력 건에 대한 고유 ID (중복 카운트 방지)
                 const manualId = `manual_${dateVal}_${mName}_${id}`;
                 if (!cached.processedIds.includes(manualId)) {
-                    cached.extraHikes += 1;
+                    cached.extraHikes += 1; // 산행이므로 전체 횟수 1 증가
                     cached.processedIds.push(manualId);
                     localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
                 }
 
+                // 등급 상향 체크 (팝업용)
                 if (typeof checkLevelUpgrade === 'function') {
                     checkLevelUpgrade(member.name, oldLevel, newLevel);
                 }
             }
         }
 
-        // 6. 인연의 숲 전체 DB 저장 (진짜 산행일 때만)
-        if (selectedNames.length >= 2 && isRealHike) {
+        // 인연의 숲(동료 기록) 저장
+        if (selectedNames.length >= 2 && isHike) {
             await addDoc(collection(db, "bondingForest"), {
                 mountain: mName, members: selectedNames,
                 memberCount: selectedNames.length, date: dateVal, createdAt: new Date()
             });
         }
 
-        // 7. 레벨업 알림
+        // 레벨업 카드 노출
         if (pendingLevelUpCards.length > 0 && typeof showCombinedLevelUpAlert === 'function') {
             showCombinedLevelUpAlert();
         }
 
-        alert(isRealHike ? "산행 기록 및 인연의 숲 저장 완료!" : "기록 완료 (횟수 제외)");
-
-        // 8. 후속 처리 (선택 해제 및 동기화)
+        alert(isHike ? "산행 기록 및 인연의 숲 저장 완료!" : "기록 완료");
         selectedMemberIds.clear();
         tempCoord = null;
         updateAdminMemberLists();
-        if (typeof startRealtimeSync === 'function') startRealtimeSync(); 
+        startRealtimeSync(); 
 
-        // 9. 인연의 숲 실시간 반영을 위한 리셋 로직 (원본 유지)
-        selectedNames.forEach(memberName => {
-            const STORAGE_KEY = `forest_v5_final_${memberName}`;
-            let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { processedIds: [], extraHikes: 0 };
-            cached.processedIds = []; // 목록을 비워야 실시간 반영됨
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
-        });
-
+        if (isHike && selectedMemberIds.size >= 2) {
+    const STORAGE_KEY = `forest_v5_final_${memberName}`;
+    let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { processedIds: [], extraHikes: 0 };
+    cached.extraHikes += 1;
+    cached.processedIds = []; // ⭐ 목록을 비워야 실시간 반영됨
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
+        }
+        
     } catch (error) {
         console.error("Error:", error);
         alert("저장 실패: " + error.message);
     }
 };
-
-        
 
            // 관리자가 동행 횟수를 수동으로 수정하는 함수
 window.updateBuddyCountManual = async () => {
@@ -5629,19 +5628,8 @@ window.showGrassPopup = (event, date, encodedAct) => {
     dateEl.innerText = date;
     
     let items = "";
-    
-    // 1. 일반 산행 (초록색)
     if (act.hike > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; gap:12px;"><span>⛰️ 산행</span><b>${act.hike}회</b></div>`;
-    
-    // 2. [신규] 단순 기록 (주황색) - act.isOnlyLog가 true일 때 표시
-    if (act.isOnlyLog) {
-        items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#FF9800; gap:12px;"><span>📝 기록</span><b>1회</b></div>`;
-    }
-
-    // 3. 러닝 (분홍색)
     if (act.run > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#ec4899; gap:12px;"><span>🏃 러닝</span><b>${act.run}회</b></div>`;
-    
-    // 4. 트레킹 (보라색)
     if (act.trek > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#a855f7; gap:12px;"><span>🥾 트레킹</span><b>${act.trek}회</b></div>`;
     
     content.innerHTML = items;
@@ -5652,7 +5640,7 @@ window.showGrassPopup = (event, date, encodedAct) => {
     popup.style.position = 'fixed';
     popup.style.zIndex = '999999';
 
-    // 좌표 계산 (모바일/PC 공용)
+    // 좌표 계산
     const clientX = event.touches ? event.touches[0].clientX : event.clientX;
     const clientY = event.touches ? event.touches[0].clientY : event.clientY;
 
