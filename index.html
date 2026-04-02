@@ -4281,10 +4281,19 @@ window.saveCardImage = async () => {
             }
 
             // 3. D-day 연장 (런닝/트래킹 포함 모든 활동 시 15일 연장)
+                        // 3. [D-day 로직 수정] 산행은 122일 리셋, 러닝/트래킹은 +15일
             if (oldLevel > 0) {
-                let calculatedDday = Math.min(122, (member.dday || 0) + 15);
-                updateData.dday = calculatedDday;
-                if (isRealHike) updateData.bonusDays = 0; // 산행 시 보너스 초기화
+                if (isRealHike) {
+                    // 🟢 산행(혼자/둘 다) -> 무조건 122일로 풀충전
+                    updateData.dday = 122;
+                    updateData.bonusDays = 0; 
+                } 
+                else if (isRunning || isTracking) {
+                    // 🟡 러닝/트래킹 -> 기존 남은 날짜에 15일 더하기 (최대 122일)
+                    // (기존 코드 상단 processedData 로직과 호환되도록 처리)
+                    let currentDday = member.dday || 0;
+                    updateData.dday = Math.min(122, currentDday + 15);
+                }
             }
 
             // DB 업데이트 실행
