@@ -4281,46 +4281,40 @@ window.addMultiActivity = async () => {
 
             // 3. 🛡️ [핵심] D-Day 연장 로직 (통합본)
 
-for (const id of selectedMemberIds) {
-    // 1. 현재 메모리에 있는 데이터가 아닌, DB의 최신 상태를 참조 (안전장치)
+// --- 멤버별 데이터 업데이트 루프 ---
+for(const id of selectedMemberIds){
     const member = currentData.find(m => m.id === id);
-    if (!member) continue;
+    if(!member) continue;
 
     const oldLevel = member.level || 0;
-    const effectiveUp = isRealHike ? up : 0;
-    
-    // 업데이트할 기본 객체
-    let updateData = { 
-        level: oldLevel + effectiveUp, 
-        lastDate: ts,
-        count: isRealHike ? increment(1) : increment(0),
-        totalHeight: isRealHike ? increment(height) : increment(0)
+    const newLevel = oldLevel + effectiveUp;
+
+    // 1. 기본 업데이트 데이터 (레벨, 높이)
+    const updateData = { 
+        level: newLevel, 
+        totalHeight: isHike ? increment(height) : increment(0) 
     };
 
-    // 🚩 [D-Day 연산 핵심: 122일 제한]
-    if (isRealHike) {
-        // 산행은 무조건 122일 (더 이상 올라가지 않음)
-        updateData.dday = 122;
-        updateData.bonusDays = 0;
-        console.log(`${member.name}: 산행 -> 122일 풀충전`);
-    } 
-    else if (isRunning || isTracking) {
-        // 🏃 런닝/트레킹: 현재 값에 15를 더하되 122를 절대 넘지 않음
-        // "임의 수정"처럼 Number()로 강제 변환하여 계산
-        const currentDday = Number(member.dday || 0);
-        const nextDday = currentDday + 15;
-        
-        // 122일 캡(Cap) 적용
-        updateData.dday = nextDday > 122 ? 122 : nextDday;
-        
-        console.log(`${member.name}: ${currentDday} -> ${updateData.dday} (122일 제한 적용)`);
+    // 2. D-Day 및 마지막 활동일 로직
+    if (isHike || isRunning || isTracking) {
+        updateData.lastDate = ts;
+
+        if (isHike) {
+            // ⛰️ 산행: 무조건 122일 풀충전 및 보너스 초기화
+            updateData.dday = 122;
+            updateData.bonusDays = 0;
+        } 
+        else if (oldLevel > 0) { 
+            // 🏃 런닝/트레킹: 기존 값에 15일 추가하되 122일 제한 (숫자 안정성 보장)
+            let currentDday = Number(member.dday || 0); 
+            updateData.dday = Math.min(122, currentDday + 15);
+        }
     }
 
-    // DB 업데이트 실행
+    // 3. 한 번의 호출로 모든 데이터 업데이트
     await updateDoc(doc(db, "sanwoori", id), updateData);
-}
+    
 
-            
             // 4. 개별 로그(별) 생성
             for(let i = 0; i < logLoopCount; i++) {
                 let assignedStarType = null;
