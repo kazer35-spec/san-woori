@@ -4207,8 +4207,7 @@ window.saveCardImage = async () => {
     }
 };
 
-
- window.addMultiActivity = async () => {
+window.addMultiActivity = async () => {
     // 1. 기본 데이터 수집
     const dateVal = document.getElementById('activityDate').value;
     const mName = document.getElementById('mountainName').value.trim();
@@ -4218,7 +4217,7 @@ window.saveCardImage = async () => {
     const isRegular = document.getElementById('isRegularCheck')?.checked || false;
     const isRunning = document.getElementById('isRunningCheck')?.checked || false;
     const isTracking = document.getElementById('isTrackingCheck')?.checked || false;
-    const isOnlyLog = document.getElementById('isOnlyLog')?.checked || false; // 기록 전용 체크박스
+    const isOnlyLog = document.getElementById('isOnlyLog')?.checked || false; 
     const region = document.getElementById('adminManualRegionSelect').value;
     const isQuarterOnlyOne = document.getElementById('isQuarterCheck')?.checked || false;
 
@@ -4228,9 +4227,9 @@ window.saveCardImage = async () => {
     if(!upElement) return alert("레벨업 수치를 선택해주세요.");
     const up = parseInt(upElement.value);
 
-    // 🚩 [필터링 핵심] 진짜 산행 판정 (런닝, 트래킹, 기록전용은 제외)
+    // 🚩 판정 로직
     const isSpecial = isRunning || isTracking || isOnlyLog;
-    const isRealHike = !isSpecial; 
+    const isRealHike = !isSpecial; // 런닝/트래킹/기록전용이 아니면 '진짜 산행'
     
     const effectiveUp = isRealHike ? up : 0;
     const logLoopCount = isRegular ? 1 : (isSpecial ? 1 : (isQuarterOnlyOne ? 1 : up));
@@ -4264,7 +4263,7 @@ window.saveCardImage = async () => {
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
-            // 1. DB 업데이트 객체 (isRealHike일 때만 횟수와 높이 증가)
+            // 1. DB 업데이트 기본 객체 구성
             const updateData = { 
                 level: newLevel, 
                 totalHeight: isRealHike ? increment(height) : increment(0),
@@ -4272,7 +4271,7 @@ window.saveCardImage = async () => {
                 lastDate: ts
             };
 
-            // 2. 우정 포인트 (진짜 산행이면서 2인 이상일 때만)
+            // 2. 우정 포인트 로직 (진짜 산행이면서 2인 이상일 때)
             if (isRealHike && selectedMemberIds.size >= 2) {
                 let pointToAdd = (isQuarterOnlyOne || isRegular) ? 100 : (100 * (effectiveUp || 1));
                 updateData.buddyCount = increment(1); 
@@ -4280,35 +4279,30 @@ window.saveCardImage = async () => {
                 updateData[`fp_bins.${qKey}`] = increment(pointToAdd);
             }
 
-                        // --- [핵심] 3. D-day 연장 및 활동 로직 분기 ---
-if (oldLevel > 0) {
-    // 현재 멤버가 가진 기존 dday 값을 숫자로 가져옵니다 (없으면 0)
-    const currentDday = Number(member.dday || 0);
+            // 3. 🛡️ [핵심] D-Day 연장 로직 (통합본)
+            if (oldLevel > 0) {
+                const currentDday = Number(member.dday || 0);
 
-    if (isRealHike) {
-        // 🟢 [산행] 혼자든 둘이든 무조건 122일로 풀충전
-        updateData.dday = 122;
-        updateData.bonusDays = 0; // 보너스 초기화
-        console.log(`${member.name}: 산행 기록 -> 122일 충전 완료`);
-    } 
-    else if (isRunning || isTracking) {
-        // 🟡 [러닝/트래킹] 기존 날짜에 15일 추가 (최대 122일)
-        const nextDday = Math.min(122, currentDday + 15);
-        updateData.dday = nextDday;
-        
-        // ⚠️ 주의: 러닝/트래킹 시에는 count(산행횟수)가 올라가지 않도록 
-        // 위에서 만들어진 updateData를 한번 더 체크합니다.
-        updateData.count = increment(0); 
-        updateData.totalHeight = increment(0);
-        
-        console.log(`${member.name}: 러닝/트래킹 -> ${currentDday} + 15 = ${nextDday}일 적용`);
-    }
-} else {
-    // ⚪ [신입 Lv.0] 신입은 활동 시 무조건 30일로 리셋 (또는 유지)
-    updateData.dday = 30;
-}
-
-
+                if (isRealHike) {
+                    // ⛰️ 산행: 남은 기간 상관없이 무조건 122일 풀충전!
+                    updateData.dday = 122;
+                    updateData.bonusDays = 0; // 보너스 초기화
+                    console.log(`${member.name}: 산행 -> 122일 풀충전`);
+                } 
+                else if (isRunning || isTracking) {
+                    // 🏃 런닝 / 🥾 트래킹: 기존 방식대로 15일씩 추가 (최대 122일)
+                    // 운영 규칙: 남은 기간 10일 이하 시 런닝 연장 불가 적용(필요시)
+                    if (currentDday > 10) {
+                        updateData.dday = Math.min(122, currentDday + 15);
+                        console.log(`${member.name}: 러닝/트래킹 -> 15일 연장`);
+                    } else {
+                        console.log(`${member.name}: 10일 이하 남음 -> 러닝 연장 불가`);
+                    }
+                }
+            } else {
+                // 신입 Lv.0은 활동 시 최소 유지 기간 부여 (예: 30일)
+                updateData.dday = 30;
+            }
 
             // DB 업데이트 실행
             await updateDoc(doc(db, "sanwoori", id), updateData);
@@ -4329,7 +4323,7 @@ if (oldLevel > 0) {
                 });
             }
 
-            // 5. ✨ 인연의 숲 로컬 캐시 (진짜 산행일 때만 총 횟수 반영)
+            // 5. ✨ 인연의 숲 로컬 캐시 (진짜 산행일 때만)
             if (isRealHike) {
                 const STORAGE_KEY = `forest_v5_final_${member.name}`;
                 let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { 
@@ -4338,7 +4332,7 @@ if (oldLevel > 0) {
                 
                 const manualId = `manual_${dateVal}_${mName}_${id}`;
                 if (!cached.processedIds.includes(manualId)) {
-                    cached.extraHikes += 1; // 산행 횟수 증가
+                    cached.extraHikes += 1;
                     cached.processedIds.push(manualId);
                     localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
                 }
@@ -4347,9 +4341,9 @@ if (oldLevel > 0) {
                     checkLevelUpgrade(member.name, oldLevel, newLevel);
                 }
             }
-        }
+        } // 루프 종료
 
-        // 6. ✨ 인연의 숲 전체 DB 저장 (진짜 산행이면서 2인 이상일 때만)
+        // 6. ✨ 인연의 숲 전체 DB 저장 (2인 이상 산행 시)
         if (isRealHike && selectedNames.length >= 2) {
             await addDoc(collection(db, "bondingForest"), {
                 mountain: mName, members: selectedNames,
@@ -4357,12 +4351,12 @@ if (oldLevel > 0) {
             });
         }
 
-        // 7. 알림 및 후속 처리
+        // 7. 후속 처리
         if (pendingLevelUpCards.length > 0 && typeof showCombinedLevelUpAlert === 'function') {
             showCombinedLevelUpAlert();
         }
 
-        alert(isRealHike ? "산행 기록 및 인연의 숲 저장 완료!" : "기록 완료 (산행 횟수 제외)");
+        alert(isRealHike ? "산행 기록 및 122일 충전 완료! ✅" : "기록 완료 (15일 연장 적용) 🏃");
         
         selectedMemberIds.clear();
         tempCoord = null;
@@ -4375,6 +4369,7 @@ if (oldLevel > 0) {
     }
 };
 
+        
     
            // 관리자가 동행 횟수를 수동으로 수정하는 함수
 window.updateBuddyCountManual = async () => {
