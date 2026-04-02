@@ -3160,12 +3160,8 @@ const baseHikes = initialHikes[mName] || 0;
 // 2. DB에서 실시간 데이터 가져오기
 // 총 횟수는 count, 동행 횟수는 buddyCount 필드를 사용합니다.
 const dbTotalCount = memberInfo ? (memberInfo.count || 0) : 0;
-const dbBuddyCount = memberInfo ? (memberInfo.buddyCount || 0) : 0;
-
-// 3. 최종 총 횟수 계산 (중복 방지)
-// 초기값(33)과 DB의 총 횟수(count) 중 더 큰 값을 선택합니다.
-// 이렇게 하면 캐시를 지워도 DB의 count가 33 이상일 테니 숫자가 유지됩니다.
 const finalTotalHikes = Math.max(baseHikes, dbTotalCount);
+const myMultiHikes = memberInfo ? (memberInfo.buddyCount || 0) : 0;
 
 // 4. 최종 동행 횟수 (BuddyCount)
 // 이 값은 DB에 저장된 순수 동행 횟수를 그대로 사용합니다.
@@ -4279,15 +4275,18 @@ window.addMultiActivity = async () => {
     }
 
     // 3. 활동 유형별 날짜 및 D-day 로직 (기존 유지)
-    if (isHike || isRunning || isTracking) {
-        updateData.lastDate = ts;
-        if (isHike) updateData.bonusDays = 0;
-        if (oldLevel > 0) {
-            // 러닝/트래킹/산행 시 15일 연장 (최대 122일)
-            let calculatedDday = Math.min(122, (member.dday || 0) + 15);
-            updateData.dday = calculatedDday;
-        }
-    }
+if (isHike) { 
+    // [산행 팀]
+    updateData.lastDate = ts;      // 오늘 날짜로 기록! (이게 122일 리셋의 핵심)
+    updateData.bonusDays = 0;
+} 
+else if ((isRunning || isTracking) && selectedMemberIds.size >= 2) {
+    // [러닝/트래킹 팀 - 2인 이상]
+    // 여기서는 lastDate를 오늘로 바꾸지 않고 '보유 날짜'만 15일 늘려줍니다.
+    let currentDday = member.dday || 0;
+    updateData.dday = Math.min(122, currentDday + 15);
+}
+
 
     // 4. DB 업데이트 (수정된 updateData 전송)
     await updateDoc(doc(db, "sanwoori", id), updateData);
@@ -4351,13 +4350,15 @@ window.addMultiActivity = async () => {
         updateAdminMemberLists();
         startRealtimeSync(); 
 
-        if (isHike && selectedMemberIds.size >= 2) {
-    const STORAGE_KEY = `forest_v5_final_${memberName}`;
-    let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { processedIds: [], extraHikes: 0 };
-    cached.extraHikes += 1;
-    cached.processedIds = []; // ⭐ 목록을 비워야 실시간 반영됨
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
-        }
+        if (isHike && selectedNames.length >= 2) {
+    await addDoc(collection(db, "bondingForest"), {
+        mountain: mName, 
+        members: selectedNames, // 함께 간 사람 명단
+        memberCount: selectedNames.length, 
+        date: dateVal,          // 산행 날짜
+        createdAt: new Date()
+    });
+}
         
     } catch (error) {
         console.error("Error:", error);
