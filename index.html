@@ -4282,41 +4282,34 @@ window.addMultiActivity = async () => {
             // 3. 🛡️ [핵심] D-Day 연장 로직 (통합본)
 
 for (const id of selectedMemberIds) {
-    // 1. 현재 메모리에 있는 데이터가 아닌, DB의 최신 상태를 참조 (안전장치)
     const member = currentData.find(m => m.id === id);
     if (!member) continue;
 
     const oldLevel = member.level || 0;
+    const currentBonus = Number(member.bonusDays || 0); // 기존 보너스 일수
     const effectiveUp = isRealHike ? up : 0;
     
-    // 업데이트할 기본 객체
     let updateData = { 
         level: oldLevel + effectiveUp, 
-        lastDate: ts,
+        lastDate: ts, // 👈 런닝 시에도 날짜가 오늘(ts)로 갱신됨
         count: isRealHike ? increment(1) : increment(0),
         totalHeight: isRealHike ? increment(height) : increment(0)
     };
 
-    // 🚩 [D-Day 연산 핵심: 122일 제한]
     if (isRealHike) {
-        // 산행은 무조건 122일 (더 이상 올라가지 않음)
-        updateData.dday = 122;
+        // 산행 시: 보너스 초기화 (기본 122일로 풀충전됨)
         updateData.bonusDays = 0;
-        console.log(`${member.name}: 산행 -> 122일 풀충전`);
     } 
     else if (isRunning || isTracking) {
-        // 🏃 런닝/트레킹: 현재 값에 15를 더하되 122를 절대 넘지 않음
-        // "임의 수정"처럼 Number()로 강제 변환하여 계산
-        const currentDday = Number(member.dday || 0);
-        const nextDday = currentDday + 15;
+        // 🏃 런닝/트레킹 시: 
+        // 1. lastDate가 ts(오늘)로 갱신되므로, 기본적으로 level에 따른 30일/122일이 확보됨
+        // 2. 여기에 추가로 15일을 더하고 싶다면 bonusDays에 15를 더함
+        // (단, 기존 로직상 lastDate가 오늘이면 이미 풀충전이므로, 
+        //  '기한 연장'이 목적이라면 lastDate는 그대로 두고 bonusDays만 올릴지 결정해야 함)
         
-        // 122일 캡(Cap) 적용
-        updateData.dday = nextDday > 122 ? 122 : nextDday;
-        
-        console.log(`${member.name}: ${currentDday} -> ${updateData.dday} (122일 제한 적용)`);
+        updateData.bonusDays = currentBonus + 15;
     }
 
-    // DB 업데이트 실행
     await updateDoc(doc(db, "sanwoori", id), updateData);
 }
 
