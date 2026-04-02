@@ -4287,64 +4287,33 @@ for (const id of selectedMemberIds) {
     const oldLevel = member.level || 0;
     const currentBonus = Number(member.bonusDays || 0);
     const effectiveUp = isRealHike ? up : 0;
-
-    // 1. 현재 시점의 D-Day 계산 (기존 로직 동일)
-    const today = new Date();
-    const todayZero = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
-    const last = member.lastDate ? member.lastDate.toDate() : new Date();
-    const lastZero = new Date(last.getFullYear(), last.getMonth(), last.getDate()).getTime();
-    const diffDays = Math.floor((todayZero - lastZero) / (1000 * 60 * 60 * 24));
-    const baseLimit = (oldLevel === 0 ? 30 : 122);
     
-    // 현재 남은 날짜 (보너스 포함)
-    const currentDdayVal = (baseLimit + currentBonus) - diffDays; 
-
-    // 2. 기본 업데이트 객체 생성
     let updateData = { 
         level: oldLevel + effectiveUp, 
-        lastDate: ts, // 활동했으므로 날짜 갱신
+        lastDate: ts, 
         count: isRealHike ? increment(1) : increment(0),
         totalHeight: isRealHike ? increment(height) : increment(0)
     };
 
-    // 3. 활동 유형 및 조건에 따른 보너스 처리
     if (isRealHike) {
-        // 산행은 보너스 초기화 (기본 122일로 풀충전)
+        // [산행] 보너스 초기화 및 122일 풀충전
         updateData.bonusDays = 0;
     } 
-        else if (isRunning || isTracking) {
-        // [조건] 신입(0레벨)이 아니고, 남은 날짜가 10일 초과인 경우만 15일 추가
-        if (oldLevel > 0 && currentDdayVal > 10) {
-            let nextDday = currentDdayVal + 15;
-            if (nextDday > 122) nextDday = 122;
-
-            // 1. 활동 날짜를 오늘로 갱신
-            updateData.lastDate = ts; 
-            
-            // 2. 보너스 조정: (목표 날짜 - 122)
-            // 예: 50일 남은 사람이 15일 추가되어 65일이 되어야 한다면, 
-            // 122(기본) + (-57)(보너스) = 65일이 됨
-            updateData.bonusDays = nextDday - 122; 
-            
-            console.log(`${member.name}: 15일 추가 적용 -> 최종 ${nextDday}일`);
+    else if (isRunning || isTracking) {
+        // [런닝/트레킹]
+        if (oldLevel > 0) {
+            // 🚩 레벨이 0보다 큰 경우에만 15일 추가
+            updateData.bonusDays = currentBonus + 15;
+            console.log(`${member.name}: 레벨 ${oldLevel} -> 15일 추가 적용`);
         } else {
-            // 🚩 10일 이하 또는 신입: 날짜 갱신을 하지 않음 (기록만 추가)
-            // updateData에서 lastDate를 제거하여 기존 D-Day 유지
-            delete updateData.lastDate; 
-            updateData.bonusDays = currentBonus; // 기존 보너스 유지
-            
-            console.log(`${member.name}: 10일 이하 또는 신입 -> 날짜 갱신 제외 (현상태 유지)`);
+            // 🚩 신입(레벨 0)은 날짜(lastDate)만 갱신되고 보너스는 없음
+            updateData.bonusDays = 0; 
+            console.log(`${member.name}: 신입 -> 15일 추가 제외 (기본 30일만 적용)`);
         }
     }
 
-    // 4. 개별 업데이트 실행 (에러 방지를 위해 개별 await 또는 Promise.all 사용)
-    try {
-        await updateDoc(doc(db, "sanwoori", id), updateData);
-    } catch (e) {
-        console.error(`${member.name} 업데이트 실패:`, e);
-    }
+    await updateDoc(doc(db, "sanwoori", id), updateData);
 }
-
             
             // 4. 개별 로그(별) 생성
             for(let i = 0; i < logLoopCount; i++) {
