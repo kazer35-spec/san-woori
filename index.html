@@ -3037,7 +3037,7 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 
     // 2. 초기 데이터 및 DB 정보 가져오기
     const initialHikes = {
-        "오즈": 33, "지니": 24, "나스": 19, "해수": 15, "하트": 13, "아랑": 19, "쿠키": 9, "용삼": 14, 
+        "오즈": 34, "지니": 24, "나스": 19, "해수": 15, "하트": 13, "아랑": 19, "쿠키": 9, "용삼": 14, 
         "식이": 6, "몰랑": 10, "길치": 7, "등초": 7, "구름": 5, "튜브": 4, "햄찌": 5, "로드": 3, 
         "애플": 5, "민이": 3, "운해": 5, "윤윤": 2, "무니": 3, "태리": 2, "이구": 2, "영규": 2, 
         "후후": 6, "피치": 2, "호프": 2, "멸치": 1, "섭섭": 1, "뚜벅": 3, "송돌": 2, "여록": 1, 
@@ -4351,13 +4351,15 @@ window.addMultiActivity = async () => {
         updateAdminMemberLists();
         startRealtimeSync(); 
 
-        if (isHike && selectedMemberIds.size >= 2) {
-    const STORAGE_KEY = `forest_v5_final_${memberName}`;
-    let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { processedIds: [], extraHikes: 0 };
-    cached.extraHikes += 1;
-    cached.processedIds = []; // ⭐ 목록을 비워야 실시간 반영됨
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
-        }
+        if (isHike && selectedNames.length >= 2) {
+    await addDoc(collection(db, "bondingForest"), {
+        mountain: mName, 
+        members: selectedNames, // 함께 간 사람 명단
+        memberCount: selectedNames.length, 
+        date: dateVal,          // 산행 날짜
+        createdAt: new Date()
+    });
+    }
         
     } catch (error) {
         console.error("Error:", error);
