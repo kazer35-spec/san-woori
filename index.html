@@ -4280,38 +4280,54 @@ window.addMultiActivity = async () => {
             }
 
             // 3. 🛡️ [핵심] D-Day 연장 로직 (통합본)
-
 for (const id of selectedMemberIds) {
     const member = currentData.find(m => m.id === id);
     if (!member) continue;
 
     const oldLevel = member.level || 0;
-    const currentBonus = Number(member.bonusDays || 0); // 기존 보너스 일수
+    const currentBonus = Number(member.bonusDays || 0);
     const effectiveUp = isRealHike ? up : 0;
-    
+
+    // --- [D-Day 계산 로직 복제] ---
+    const today = new Date();
+    const todayZero = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+    const last = member.lastDate ? member.lastDate.toDate() : new Date();
+    const lastZero = new Date(last.getFullYear(), last.getMonth(), last.getDate()).getTime();
+    const diffDays = Math.floor((todayZero - lastZero) / (1000 * 60 * 60 * 24));
+    const baseLimit = (oldLevel === 0 ? 30 : 122);
+    const currentDdayVal = (baseLimit + currentBonus) - diffDays; 
+    // ----------------------------
+
     let updateData = { 
         level: oldLevel + effectiveUp, 
-        lastDate: ts, // 👈 런닝 시에도 날짜가 오늘(ts)로 갱신됨
+        lastDate: ts, 
         count: isRealHike ? increment(1) : increment(0),
         totalHeight: isRealHike ? increment(height) : increment(0)
     };
 
     if (isRealHike) {
-        // 산행 시: 보너스 초기화 (기본 122일로 풀충전됨)
+        // 산행 시: 보너스 초기화
         updateData.bonusDays = 0;
     } 
     else if (isRunning || isTracking) {
-        // 🏃 런닝/트레킹 시: 
-        // 1. lastDate가 ts(오늘)로 갱신되므로, 기본적으로 level에 따른 30일/122일이 확보됨
-        // 2. 여기에 추가로 15일을 더하고 싶다면 bonusDays에 15를 더함
-        // (단, 기존 로직상 lastDate가 오늘이면 이미 풀충전이므로, 
-        //  '기한 연장'이 목적이라면 lastDate는 그대로 두고 bonusDays만 올릴지 결정해야 함)
-        
-        updateData.bonusDays = currentBonus + 15;
+        // [런닝/트레킹 시 15일 추가 조건]
+        // 1. 신입이 아님 (oldLevel > 0)
+        // 2. 남은 날짜가 10일 초과 (currentDdayVal > 10)
+        if (oldLevel > 0 && currentDdayVal > 10) {
+            updateData.bonusDays = currentBonus + 15;
+            console.log(`${member.name}: 15일 추가 적용 (현재 D-Day: ${currentDdayVal})`);
+        } else {
+            // 위 조건에 해당하지 않으면 보너스 유지 (또는 0으로 초기화, 기획에 따라 선택)
+            // 여기서는 기존 보너스를 유지하도록 설정합니다.
+            updateData.bonusDays = currentBonus; 
+            console.log(`${member.name}: 15일 추가 제외 (사유: ${oldLevel === 0 ? '신입' : 'D-Day 10일 이하'})`);
+        }
     }
 
     await updateDoc(doc(db, "sanwoori", id), updateData);
 }
+
+
 
             
             // 4. 개별 로그(별) 생성
