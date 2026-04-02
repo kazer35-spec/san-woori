@@ -4312,21 +4312,28 @@ for (const id of selectedMemberIds) {
         // 산행은 보너스 초기화 (기본 122일로 풀충전)
         updateData.bonusDays = 0;
     } 
-    else if (isRunning || isTracking) {
+        else if (isRunning || isTracking) {
+        // [조건] 신입(0레벨)이 아니고, 남은 날짜가 10일 초과인 경우만 15일 추가
         if (oldLevel > 0 && currentDdayVal > 10) {
-            // 1. 현재 남은 날짜(currentDdayVal)에 15일을 더함
             let nextDday = currentDdayVal + 15;
-            
-            // 2. 122일이 넘지 않도록 제한 (캡 적용)
             if (nextDday > 122) nextDday = 122;
+
+            // 1. 활동 날짜를 오늘로 갱신
+            updateData.lastDate = ts; 
             
-            // 🚩 핵심 수정: lastDate가 오늘(ts)로 바뀌면 기본값이 122가 되므로, 
-            // 최종 결과가 nextDday가 되려면 보너스는 (목표값 - 122)가 되어야 함.
+            // 2. 보너스 조정: (목표 날짜 - 122)
+            // 예: 50일 남은 사람이 15일 추가되어 65일이 되어야 한다면, 
+            // 122(기본) + (-57)(보너스) = 65일이 됨
             updateData.bonusDays = nextDday - 122; 
             
-            console.log(`${member.name}: 15일 추가 -> 최종 ${nextDday}일 (보너스: ${updateData.bonusDays})`);
+            console.log(`${member.name}: 15일 추가 적용 -> 최종 ${nextDday}일`);
         } else {
-            updateData.bonusDays = 0;
+            // 🚩 10일 이하 또는 신입: 날짜 갱신을 하지 않음 (기록만 추가)
+            // updateData에서 lastDate를 제거하여 기존 D-Day 유지
+            delete updateData.lastDate; 
+            updateData.bonusDays = currentBonus; // 기존 보너스 유지
+            
+            console.log(`${member.name}: 10일 이하 또는 신입 -> 날짜 갱신 제외 (현상태 유지)`);
         }
     }
 
