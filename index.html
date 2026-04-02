@@ -4281,15 +4281,15 @@ window.addMultiActivity = async () => {
 
             // 3. 🛡️ [핵심] D-Day 연장 로직 (통합본)
 
-// --- 멤버별 데이터 업데이트 루프 시작 ---
 for (const id of selectedMemberIds) {
+    // 1. 현재 메모리에 있는 데이터가 아닌, DB의 최신 상태를 참조 (안전장치)
     const member = currentData.find(m => m.id === id);
     if (!member) continue;
 
     const oldLevel = member.level || 0;
     const effectiveUp = isRealHike ? up : 0;
     
-    // [A] 업데이트할 기본 객체 (레벨, 날짜 등)
+    // 업데이트할 기본 객체
     let updateData = { 
         level: oldLevel + effectiveUp, 
         lastDate: ts,
@@ -4297,31 +4297,28 @@ for (const id of selectedMemberIds) {
         totalHeight: isRealHike ? increment(height) : increment(0)
     };
 
-    // [B] 🚩 D-Day 연산 로직 (요청하신 규칙 반영)
+    // 🚩 [D-Day 연산 핵심: 122일 제한]
     if (isRealHike) {
-        // 1. 일반 산행: 무조건 122일로 풀충전 (신입/기존회원 공통)
+        // 산행은 무조건 122일 (더 이상 올라가지 않음)
         updateData.dday = 122;
-        updateData.bonusDays = 0; 
+        updateData.bonusDays = 0;
+        console.log(`${member.name}: 산행 -> 122일 풀충전`);
     } 
     else if (isRunning || isTracking) {
-        // 2. 런닝/트레킹: 15일 추가 로직
-        const currentLevel = Number(member.level || 0);
+        // 🏃 런닝/트레킹: 현재 값에 15를 더하되 122를 절대 넘지 않음
+        // "임의 수정"처럼 Number()로 강제 변환하여 계산
         const currentDday = Number(member.dday || 0);
-
-        // [규칙] 신입 제외 (레벨 0인 경우 추가 안 함)
-        if (currentLevel > 0) {
-            let nextDday = currentDday + 15;
-            // 최대 122일 제한 (Cap)
-            updateData.dday = nextDday > 122 ? 122 : nextDday;
-            console.log(`${member.name}: 런닝/트레킹으로 15일 추가됨 (${currentDday} -> ${updateData.dday})`);
-        } else {
-            console.log(`${member.name}: 신입(LV.0)이라 15일 추가 제외됨`);
-        }
+        const nextDday = currentDday + 15;
+        
+        // 122일 캡(Cap) 적용
+        updateData.dday = nextDday > 122 ? 122 : nextDday;
+        
+        console.log(`${member.name}: ${currentDday} -> ${updateData.dday} (122일 제한 적용)`);
     }
 
-    // [C] 실제 DB에 저장 (이 한 줄이 있어야 반영됩니다)
+    // DB 업데이트 실행
     await updateDoc(doc(db, "sanwoori", id), updateData);
-
+}
 
             
             // 4. 개별 로그(별) 생성
