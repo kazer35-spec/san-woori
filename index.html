@@ -4241,10 +4241,17 @@ Window.addMultiActivity = async () => {
         if(m) selectedNames.push(m.name);
     });
 
+    // 산 정보 저장
+    if(mName && tempCoord) {
+        await setDoc(doc(db, "mountains", mName), {
+            x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region
+        }, { merge: true });
+    }
+
     try {
         pendingLevelUpCards = []; 
 
-        // --- 멤버별 데이터 업데이트 루프 ---
+        // --- 멤버별 데이터 업데이트 루프 시작 (통합) ---
         for (const id of selectedMemberIds) {
             const member = currentData.find(m => m.id === id);
             if (!member) continue;
@@ -4254,7 +4261,7 @@ Window.addMultiActivity = async () => {
             const oldLevel = Number(member.level || 0);
             const newLevel = oldLevel + effectiveUp;
 
-            // 1. DB 업데이트 데이터 준비
+            // 1. DB 업데이트 기본 객체 구성
             let updateData = { 
                 level: newLevel, 
                 totalHeight: isRealHike ? increment(height) : increment(0),
@@ -4270,19 +4277,21 @@ Window.addMultiActivity = async () => {
                 updateData[`fp_bins.${qKey}`] = increment(pointToAdd);
             }
 
-            // 3. 🛡️ D-Day 연장 로직 (핵심 수정 부분)
+            // 3. 🛡️ D-Day 연장 로직 (요청 규칙 반영)
             if (isRealHike) {
-                updateData.dday = 122; // 산행은 풀충전
-                updateData.bonusDays = 0;
-            } else if (isRunning || isTracking) {
-                if (oldLevel > 0) { // 신입 제외
+                updateData.dday = 122;
+                updateData.bonusDays = 0; 
+            } 
+            else if (isRunning || isTracking) {
+                // 런닝/트레킹: 신입(Lv.0) 제외 15일 추가
+                if (oldLevel > 0) {
                     const currentDday = Number(member.dday || 0);
                     let nextDday = currentDday + 15;
                     updateData.dday = nextDday > 122 ? 122 : nextDday;
                 }
             }
 
-            // DB 실제 저장
+            // [핵심] 실제 DB 저장 실행
             await updateDoc(doc(db, "sanwoori", id), updateData);
             
             // 4. 개별 로그(별) 생성
@@ -4301,13 +4310,27 @@ Window.addMultiActivity = async () => {
                 });
             }
 
-            // 5. 레벨업 알림 체크
-            if (isRealHike && typeof checkLevelUpgrade === 'function') {
-                checkLevelUpgrade(member.name, oldLevel, newLevel);
-            }
-        } // 루프 종료
+            // 5. ✨ 인연의 숲 로컬 캐시 (진짜 산행일 때만)
+            if (isRealHike) {
+                const STORAGE_KEY = `forest_v5_final_${member.name}`;
+                let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { 
+                    processedIds: [], extraHikes: 0, partnersMap: {}, uniquePartners: [] 
+                };
+                
+                const manualId = `manual_${dateVal}_${mName}_${id}`;
+                if (!cached.processedIds.includes(manualId)) {
+                    cached.extraHikes += 1;
+                    cached.processedIds.push(manualId);
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
+                }
 
-        // 6. 인연의 숲 저장
+                if (typeof checkLevelUpgrade === 'function') {
+                    checkLevelUpgrade(member.name, oldLevel, newLevel);
+                }
+            }
+        } // 멤버별 루프 종료
+
+        // 6. ✨ 인연의 숲 전체 DB 저장 (2인 이상 산행 시)
         if (isRealHike && selectedNames.length >= 2) {
             await addDoc(collection(db, "bondingForest"), {
                 mountain: mName, members: selectedNames,
@@ -4315,14 +4338,13 @@ Window.addMultiActivity = async () => {
             });
         }
 
-        // 7. 결과 창 띄우기
+        // 7. 후속 처리
         if (pendingLevelUpCards.length > 0 && typeof showCombinedLevelUpAlert === 'function') {
             showCombinedLevelUpAlert();
         }
 
         alert(isRealHike ? "산행 기록 및 122일 충전 완료! ✅" : "기록 완료 (15일 연장 적용) 🏃");
         
-        // 초기화
         selectedMemberIds.clear();
         tempCoord = null;
         if (typeof updateAdminMemberLists === 'function') updateAdminMemberLists();
@@ -4333,6 +4355,9 @@ Window.addMultiActivity = async () => {
         alert("저장 실패: " + error.message);
     }
 };
+
+
+        
 
             
         
