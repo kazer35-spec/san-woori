@@ -4306,29 +4306,24 @@ window.addMultiActivity = async () => {
                 await addDoc(collection(db, `sanwoori/${id}/logs`), {
                     date: ts, mountain: mName, height, coords: tempCoord,
                     isTop100, isBAC, isRegular, isRunning, isTracking, region,
-                    starType: assignedStarType, author: member.name
+                    starType: assignedStarType, author: member.name // 본인 이름 필드 추가
                 });
             }
 
-            // 5. 인연의 숲 로컬 캐시 즉시 반영 (진짜 산행일 때만)
+            // ✨ [핵심 로직] 레벨업 수치가 올라갈 때 '인연의 숲' 산행 카운트도 즉시 반영
             if (isHike) {
                 const STORAGE_KEY = `forest_v5_final_${member.name}`;
                 let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { 
                     processedIds: [], extraHikes: 0, partnersMap: {}, uniquePartners: [] 
                 };
                 
+                // 수동 입력 건에 대한 고유 ID (중복 카운트 방지)
                 const manualId = `manual_${dateVal}_${mName}_${id}`;
                 if (!cached.processedIds.includes(manualId)) {
-                    cached.extraHikes += 1;
+                    cached.extraHikes += 1; // 산행이므로 전체 횟수 1 증가
                     cached.processedIds.push(manualId);
                     localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
                 }
-
-                if (typeof checkLevelUpgrade === 'function') {
-                    checkLevelUpgrade(member.name, oldLevel, newLevel);
-                }
-            }
-        }
 
                 // 등급 상향 체크 (팝업용)
                 if (typeof checkLevelUpgrade === 'function') {
