@@ -4295,35 +4295,32 @@ window.addMultiActivity = async () => {
 
 
             // 개별 로그(별) 생성
-            for(let i = 0; i < logLoopCount; i++) {
-                let assignedStarType = null;
-                if (isRegular) {
-                    const rand = Math.random() * 100;
-                    if (rand <= 3) assignedStarType = "super";
-                    else if (rand <= 10) assignedStarType = "special";
-                    else assignedStarType = "regular_" + (Math.floor(Math.random() * 4) + 1);
-                }
-                await addDoc(collection(db, `sanwoori/${id}/logs`), {
-                    date: ts, mountain: mName, height, coords: tempCoord,
-                    isTop100, isBAC, isRegular, isRunning, isTracking, region,
-                    starType: assignedStarType, author: member.name // 본인 이름 필드 추가
-                });
-            }
-
-            // ✨ [핵심 로직] 레벨업 수치가 올라갈 때 '인연의 숲' 산행 카운트도 즉시 반영
-            if (isHike) {
-                const STORAGE_KEY = `forest_v5_final_${member.name}`;
-                let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { 
-                    processedIds: [], extraHikes: 0, partnersMap: {}, uniquePartners: [] 
-                };
-                
-                // 수동 입력 건에 대한 고유 ID (중복 카운트 방지)
-                const manualId = `manual_${dateVal}_${mName}_${id}`;
-                if (!cached.processedIds.includes(manualId)) {
-                    cached.extraHikes += 1; // 산행이므로 전체 횟수 1 증가
-                    cached.processedIds.push(manualId);
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
-                }
+            // ✨ 이 부분을 찾아서 아래 내용으로 교체하세요!
+if (isHike) {
+    const STORAGE_KEY = `forest_v5_final_${member.name}`;
+    let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { 
+        processedIds: [], extraHikes: 0, partnersMap: {}, uniquePartners: [] 
+    };
+    
+    // 수동 입력 건에 대한 고유 ID (중복 방지)
+    const manualId = `manual_${dateVal}_${mName}_${id}`;
+    
+    // [수정 핵심] 런닝(isRunning)이나 트래킹(isTracking)이 아닐 때만 횟수 증가!
+    if (!isRunning && !isTracking) {
+        if (!cached.processedIds.includes(manualId)) {
+            cached.extraHikes += 1; // 이제 진짜 '산행'일 때만 올라갑니다.
+            cached.processedIds.push(manualId);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
+            console.log(`${member.name}님: 산행 횟수가 인연의 숲에 반영되었습니다.`);
+        }
+    } else {
+        // 런닝/트래킹일 때는 기록만 남기고 횟수는 건너뜁니다.
+        if (!cached.processedIds.includes(manualId)) {
+            cached.processedIds.push(manualId);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
+            console.log(`${member.name}님: 운동 기록(런닝/트래킹)은 횟수에서 제외됩니다.`);
+        }
+    }
 
                 // 등급 상향 체크 (팝업용)
                 if (typeof checkLevelUpgrade === 'function') {
