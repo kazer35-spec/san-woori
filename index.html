@@ -4280,25 +4280,34 @@ window.saveCardImage = async () => {
                 updateData[`fp_bins.${qKey}`] = increment(pointToAdd);
             }
 
-                        // 3. [D-day 로직 최종 수정] 산행은 122일, 러닝/트래킹은 +15일
-            if (oldLevel > 0) {
-                // 현재 DB에 기록된 dday 값을 가져옵니다.
-                const currentDday = member.dday || 0;
+                        // --- [핵심] 3. D-day 연장 및 활동 로직 분기 ---
+if (oldLevel > 0) {
+    // 현재 멤버가 가진 기존 dday 값을 숫자로 가져옵니다 (없으면 0)
+    const currentDday = Number(member.dday || 0);
 
-                if (isRealHike) {
-                    // 🟢 산행(혼자/둘 다) -> 무조건 122일로 풀충전
-                    updateData.dday = 122;
-                    updateData.bonusDays = 0; 
-                    console.log(`${member.name}님: 산행으로 122일 충전`);
-                } 
-                else if (isRunning || isTracking) {
-                    // 🟡 러닝/트래킹 -> 기존 남은 날짜에 15일 더하기 (최대 122일)
-                    // 계산된 값을 변수에 담아 확실히 적용합니다.
-                    const extendedDday = Math.min(122, currentDday + 15);
-                    updateData.dday = extendedDday;
-                    console.log(`${member.name}님: 러닝/트래킹으로 15일 연장 (결과: ${extendedDday}일)`);
-                }
-            }
+    if (isRealHike) {
+        // 🟢 [산행] 혼자든 둘이든 무조건 122일로 풀충전
+        updateData.dday = 122;
+        updateData.bonusDays = 0; // 보너스 초기화
+        console.log(`${member.name}: 산행 기록 -> 122일 충전 완료`);
+    } 
+    else if (isRunning || isTracking) {
+        // 🟡 [러닝/트래킹] 기존 날짜에 15일 추가 (최대 122일)
+        const nextDday = Math.min(122, currentDday + 15);
+        updateData.dday = nextDday;
+        
+        // ⚠️ 주의: 러닝/트래킹 시에는 count(산행횟수)가 올라가지 않도록 
+        // 위에서 만들어진 updateData를 한번 더 체크합니다.
+        updateData.count = increment(0); 
+        updateData.totalHeight = increment(0);
+        
+        console.log(`${member.name}: 러닝/트래킹 -> ${currentDday} + 15 = ${nextDday}일 적용`);
+    }
+} else {
+    // ⚪ [신입 Lv.0] 신입은 활동 시 무조건 30일로 리셋 (또는 유지)
+    updateData.dday = 30;
+}
+
 
 
             // DB 업데이트 실행
