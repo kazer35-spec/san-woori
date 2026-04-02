@@ -4207,9 +4207,8 @@ window.saveCardImage = async () => {
     }
 };
 
-
 window.addMultiActivity = async () => {
-    // 1. 데이터 수집
+    // 1. 기본 데이터 수집
     const dateVal = document.getElementById('activityDate').value;
     const mName = document.getElementById('mountainName').value.trim();
     const height = parseInt(document.getElementById('mountainHeight').value) || 0;
@@ -4230,18 +4229,20 @@ window.addMultiActivity = async () => {
 
     // 🚩 판정 로직
     const isSpecial = isRunning || isTracking || isOnlyLog;
-    const isRealHike = !isSpecial; 
+    const isRealHike = !isSpecial; // 런닝/트래킹/기록전용이 아니면 '진짜 산행'
     
     const effectiveUp = isRealHike ? up : 0;
     const logLoopCount = isRegular ? 1 : (isSpecial ? 1 : (isQuarterOnlyOne ? 1 : up));
     const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
 
+    // 인연의 숲용 이름 명단 추출
     const selectedNames = [];
     selectedMemberIds.forEach(id => {
         const m = currentData.find(mem => mem.id === id);
         if(m) selectedNames.push(m.name);
     });
 
+    // 산 정보 저장
     if(mName && tempCoord) {
         await setDoc(doc(db, "mountains", mName), {
             x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region
@@ -4251,25 +4252,26 @@ window.addMultiActivity = async () => {
     try {
         pendingLevelUpCards = []; 
 
-        // --- 멤버별 데이터 업데이트 루프 (단일 루프) ---
+        // --- 멤버별 데이터 업데이트 루프 ---
         for (const id of selectedMemberIds) {
             const member = currentData.find(m => m.id === id);
             if (!member) continue;
 
             const now = new Date();
             const qKey = `${now.getFullYear()}_q${Math.ceil((now.getMonth() + 1) / 3)}`;
+            
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + effectiveUp;
 
-            // 1. 업데이트 객체 생성
-            let updateData = { 
+            // 1. DB 업데이트 기본 객체 구성
+            const updateData = { 
                 level: newLevel, 
                 totalHeight: isRealHike ? increment(height) : increment(0),
                 count: isRealHike ? increment(1) : increment(0),
                 lastDate: ts
             };
 
-            // 2. 우정 포인트 (2인 이상 산행 시)
+            // 2. 우정 포인트 로직 (진짜 산행이면서 2인 이상일 때)
             if (isRealHike && selectedMemberIds.size >= 2) {
                 let pointToAdd = (isQuarterOnlyOne || isRegular) ? 100 : (100 * (effectiveUp || 1));
                 updateData.buddyCount = increment(1); 
@@ -4277,22 +4279,49 @@ window.addMultiActivity = async () => {
                 updateData[`fp_bins.${qKey}`] = increment(pointToAdd);
             }
 
-            // 3. 🛡️ D-Day 연장 (우리가 맞췄던 122일 제한 로직)
-            if (isRealHike) {
-                updateData.dday = 122; // 산행은 풀충전
-                updateData.bonusDays = 0;
-            } else if (isRunning || isTracking) {
-                if (oldLevel > 0) {
-                    let currentDday = Number(member.dday || 0);
-                    // 122일 넘지 않게 계산
-                    updateData.dday = Math.min(122, currentDday + 15);
-                }
-            }
+            // 3. 🛡️ [핵심] D-Day 연장 로직 (통합본)
 
-            // DB 업데이트
-            await updateDoc(doc(db, "sanwoori", id), updateData);
+for (const id of selectedMemberIds) {
+    // 1. 현재 메모리에 있는 데이터가 아닌, DB의 최신 상태를 참조 (안전장치)
+    const member = currentData.find(m => m.id === id);
+    if (!member) continue;
 
-            // 4. 별 로그 생성
+    const oldLevel = member.level || 0;
+    const effectiveUp = isRealHike ? up : 0;
+    
+    // 업데이트할 기본 객체
+    let updateData = { 
+        level: oldLevel + effectiveUp, 
+        lastDate: ts,
+        count: isRealHike ? increment(1) : increment(0),
+        totalHeight: isRealHike ? increment(height) : increment(0)
+    };
+
+    // 🚩 [D-Day 연산 핵심: 122일 제한]
+    if (isRealHike) {
+        // 산행은 무조건 122일 (더 이상 올라가지 않음)
+        updateData.dday = 122;
+        updateData.bonusDays = 0;
+        console.log(`${member.name}: 산행 -> 122일 풀충전`);
+    } 
+    else if (isRunning || isTracking) {
+        // 🏃 런닝/트레킹: 현재 값에 15를 더하되 122를 절대 넘지 않음
+        // "임의 수정"처럼 Number()로 강제 변환하여 계산
+        const currentDday = Number(member.dday || 0);
+        const nextDday = currentDday + 15;
+        
+        // 122일 캡(Cap) 적용
+        updateData.dday = nextDday > 122 ? 122 : nextDday;
+        
+        console.log(`${member.name}: ${currentDday} -> ${updateData.dday} (122일 제한 적용)`);
+    }
+
+    // DB 업데이트 실행
+    await updateDoc(doc(db, "sanwoori", id), updateData);
+}
+
+            
+            // 4. 개별 로그(별) 생성
             for(let i = 0; i < logLoopCount; i++) {
                 let assignedStarType = null;
                 if (isRegular) {
@@ -4308,25 +4337,27 @@ window.addMultiActivity = async () => {
                 });
             }
 
-            // 5. 인연의 숲 캐시
+            // 5. ✨ 인연의 숲 로컬 캐시 (진짜 산행일 때만)
             if (isRealHike) {
                 const STORAGE_KEY = `forest_v5_final_${member.name}`;
                 let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { 
                     processedIds: [], extraHikes: 0, partnersMap: {}, uniquePartners: [] 
                 };
+                
                 const manualId = `manual_${dateVal}_${mName}_${id}`;
                 if (!cached.processedIds.includes(manualId)) {
                     cached.extraHikes += 1;
                     cached.processedIds.push(manualId);
                     localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
                 }
+
                 if (typeof checkLevelUpgrade === 'function') {
                     checkLevelUpgrade(member.name, oldLevel, newLevel);
                 }
             }
         } // 루프 종료
 
-        // 6. 인연의 숲 전체 DB 저장
+        // 6. ✨ 인연의 숲 전체 DB 저장 (2인 이상 산행 시)
         if (isRealHike && selectedNames.length >= 2) {
             await addDoc(collection(db, "bondingForest"), {
                 mountain: mName, members: selectedNames,
@@ -4334,7 +4365,7 @@ window.addMultiActivity = async () => {
             });
         }
 
-        // 7. 알림
+        // 7. 후속 처리
         if (pendingLevelUpCards.length > 0 && typeof showCombinedLevelUpAlert === 'function') {
             showCombinedLevelUpAlert();
         }
@@ -4352,7 +4383,6 @@ window.addMultiActivity = async () => {
     }
 };
 
-        
         
     
            // 관리자가 동행 횟수를 수동으로 수정하는 함수
