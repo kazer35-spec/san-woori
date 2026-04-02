@@ -4280,29 +4280,33 @@ window.addMultiActivity = async () => {
             }
 
             // 3. 🛡️ [핵심] D-Day 연장 로직 (통합본)
-            if (oldLevel > 0) {
-                const currentDday = Number(member.dday || 0);
+            // --- [D-day 연장 및 활동 로직 통합] ---
 
-                if (isRealHike) {
-                    // ⛰️ 산행: 남은 기간 상관없이 무조건 122일 풀충전!
-                    updateData.dday = 122;
-                    updateData.bonusDays = 0; // 보너스 초기화
-                    console.log(`${member.name}: 산행 -> 122일 풀충전`);
-                } 
-                else if (isRunning || isTracking) {
-                    // 🏃 런닝 / 🥾 트래킹: 기존 방식대로 15일씩 추가 (최대 122일)
-                    // 운영 규칙: 남은 기간 10일 이하 시 런닝 연장 불가 적용(필요시)
-                    if (currentDday > 10) {
-                        updateData.dday = Math.min(122, currentDday + 15);
-                        console.log(`${member.name}: 러닝/트래킹 -> 15일 연장`);
-                    } else {
-                        console.log(`${member.name}: 10일 이하 남음 -> 러닝 연장 불가`);
-                    }
-                }
-            } else {
-                // 신입 Lv.0은 활동 시 최소 유지 기간 부여 (예: 30일)
-                updateData.dday = 30;
-            }
+// 1. 현재 DB의 dday 값을 가져와서 '무조건' 숫자로 변환 (없으면 0)
+let currentDday = 0;
+if (member.dday !== undefined && member.dday !== null) {
+    currentDday = Number(member.dday); // 이 부분이 핵심입니다 (빼기 코드와 동일한 원리)
+}
+
+if (isRealHike) {
+    // 🟢 [산행] 무조건 122일 풀충전
+    updateData.dday = 122;
+    updateData.bonusDays = 0;
+    console.log(`${member.name}: 산행 기록 -> 122일 충전`);
+} 
+else if (isRunning || isTracking) {
+    // 🟡 [러닝/트래킹] 현재 값에서 15 더하기 (최대 122일)
+    // 빼기가 잘 된다면 이 Number() 변환 방식이 정답입니다.
+    const nextDday = Math.min(122, currentDday + 15);
+    updateData.dday = nextDday;
+    
+    // 러닝/트래킹은 산행 횟수와 높이가 올라가지 않도록 방어
+    updateData.count = increment(0);
+    updateData.totalHeight = increment(0);
+    
+    console.log(`${member.name}: 러닝/트래킹 -> ${currentDday}에서 15일 추가하여 ${nextDday}일`);
+}
+
 
             // DB 업데이트 실행
             await updateDoc(doc(db, "sanwoori", id), updateData);
