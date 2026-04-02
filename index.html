@@ -4295,7 +4295,21 @@ window.addMultiActivity = async () => {
 
 
             // 개별 로그(별) 생성
-            // ✨ 이 부분을 찾아서 아래 내용으로 교체하세요!
+            for(let i = 0; i < logLoopCount; i++) {
+                let assignedStarType = null;
+                if (isRegular) {
+                    const rand = Math.random() * 100;
+                    if (rand <= 3) assignedStarType = "super";
+                    else if (rand <= 10) assignedStarType = "special";
+                    else assignedStarType = "regular_" + (Math.floor(Math.random() * 4) + 1);
+                }
+                await addDoc(collection(db, `sanwoori/${id}/logs`), {
+                    date: ts, mountain: mName, height, coords: tempCoord,
+                    isTop100, isBAC, isRegular, isRunning, isTracking, region,
+                    starType: assignedStarType, author: member.name // 본인 이름 필드 추가
+                });
+            }
+
             // ✨ [핵심 로직] 레벨업 수치가 올라갈 때 '인연의 숲' 산행 카운트도 즉시 반영
             if (isHike) {
                 const STORAGE_KEY = `forest_v5_final_${member.name}`;
@@ -4305,37 +4319,11 @@ window.addMultiActivity = async () => {
                 
                 // 수동 입력 건에 대한 고유 ID (중복 카운트 방지)
                 const manualId = `manual_${dateVal}_${mName}_${id}`;
-
-                // ---------------------------------------------------------
-                // [수정] 런닝(!isRunning)과 트래킹(!isTracking)이 아닐 때만 횟수 증가
-                // ---------------------------------------------------------
-                if (!isRunning && !isTracking) {
-                    if (!cached.processedIds.includes(manualId)) {
-                        cached.extraHikes += 1; // 순수 산행일 때만 전체 횟수 1 증가
-                        
-                        // 동행자가 있을 경우 파트너 데이터도 업데이트
-                        if (selectedNames && selectedNames.length >= 2) {
-                            selectedNames.forEach(pName => {
-                                if (pName !== member.name) {
-                                    cached.partnersMap[pName] = (cached.partnersMap[pName] || 0) + 1;
-                                    if (!cached.uniquePartners.includes(pName)) {
-                                        cached.uniquePartners.push(pName);
-                                    }
-                                }
-                            });
-                        }
-
-                        cached.processedIds.push(manualId);
-                        localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
-                    }
-                } else {
-                    // 런닝/트래킹일 경우: 중복 처리용 ID만 저장하고 횟수(extraHikes)는 올리지 않음
-                    if (!cached.processedIds.includes(manualId)) {
-                        cached.processedIds.push(manualId);
-                        localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
-                    }
+                if (!cached.processedIds.includes(manualId)) {
+                    cached.extraHikes += 1; // 산행이므로 전체 횟수 1 증가
+                    cached.processedIds.push(manualId);
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
                 }
-            
 
                 // 등급 상향 체크 (팝업용)
                 if (typeof checkLevelUpgrade === 'function') {
