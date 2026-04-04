@@ -3692,12 +3692,11 @@ for (let i = 0; i < totalDaysInQ; i++) {
     const k = `${cur.getFullYear()}-${cur.getMonth() + 1}-${cur.getDate()}`;
     const act = dateActivities[k];
 
-        // [추가] 미리 정해둔 자리에만 나비 표시
+    // [추가] 미리 정해둔 자리에만 나비 표시
     let butterflyTag = "";
-    if (butterflyPositions.includes(i)) {
+    if (typeof butterflyPositions !== 'undefined' && butterflyPositions.includes(i)) {
         butterflyTag = `<div class="butterfly-box"><span class="butterfly-ani">🦋</span></div>`;
     }
-
 
     let cl = "grass-day";
     let style = "";
@@ -3705,29 +3704,28 @@ for (let i = 0; i < totalDaysInQ; i++) {
     const month = cur.getMonth() + 1;
 
     if (act) {
-        // [추가] 팀 콤보: 정기산행이 아니고, 일반 등산 동행자가 2명 이상일 때
-        if (!act.isRegular && act.maxMates >= 2) {
+        // --- [로직 수정] 우선순위에 따른 잔디 색상 결정 ---
+
+        // 1. 팀 콤보: 정기산행이 아니고, 일반 등산 동행자가 2명 이상일 때 (무지개)
+        // 런닝(run), 트레킹(trek) 기록이 섞이지 않은 순수 등산일 때만 적용
+        if (!act.isRegular && act.hike > 0 && act.run === 0 && act.trek === 0 && act.maxMates >= 2) {
             cl += " grass-rainbow-combo";
         }
-        // --- [로직 A] 정기산행 또는 HOT 멤버 꽃 피우기 ---
-       if (act.isRegular) {
-    // 테두리를 없애고(none), 배경색에 !important를 붙여 확실히 적용합니다.
-    style = `background: linear-gradient(135deg, #FF69B4, #ADFF2F, #A020F0) !important; 
-             border: none !important; 
-             box-shadow: inset 0 0 5px rgba(255,255,255,0.3) !important; 
-             outline: none !important;`;
-    
-    cl += " grass-regular-premium"; 
+        // 2. 정기산행 (기존 로직 유지)
+        else if (act.isRegular) {
+            style = `background: linear-gradient(135deg, #FF69B4, #ADFF2F, #A020F0) !important; 
+                     border: none !important; 
+                     box-shadow: inset 0 0 5px rgba(255,255,255,0.3) !important; 
+                     outline: none !important;`;
+            cl += " grass-regular-premium"; 
 
-    // 계절별 이모지 로직
-    let qIcon = (month >= 3 && month <= 5) ? "🌸" : 
-                (month >= 6 && month <= 8) ? "🍀" : 
-                (month >= 9 && month <= 11) ? "🍁" : "❄️";
-
-    iconTag = `<span style="font-size: 11px; display: flex; align-items: center; justify-content: center; height: 100%; pointer-events: none; position: relative; z-index: 5; text-shadow: 0 0 3px rgba(0,0,0,0.3);">${qIcon}</span>`;
-}
+            let qIcon = (month >= 3 && month <= 5) ? "🌸" : 
+                        (month >= 6 && month <= 8) ? "🍀" : 
+                        (month >= 9 && month <= 11) ? "🍁" : "❄️";
+            iconTag = `<span style="font-size: 11px; display: flex; align-items: center; justify-content: center; height: 100%; pointer-events: none; position: relative; z-index: 5; text-shadow: 0 0 3px rgba(0,0,0,0.3);">${qIcon}</span>`;
+        }
+        // 3. 일반 활동 (등산, 런닝, 트레킹)
         else {
-            // 일반 활동 색상 로직
             const hasHike = act.hike > 0;
             const hasExtra = act.run > 0 || act.trek > 0;
             
@@ -3743,13 +3741,12 @@ for (let i = 0; i < totalDaysInQ; i++) {
                 cl += ` grass-active-${level}`;
             }
 
-            // HOT 멤버라면 30% 확률로 계절 꽃 추가 (정기산행이 아닐 때만)
+            // HOT 멤버 시즌 꽃 표시
             if (typeof isHotMember !== 'undefined' && isHotMember && (act.hike > 0 || act.run > 0 || act.trek > 0)) {
                 if (Math.random() < 0.3) {
                     let flowerList = (month >= 3 && month <= 5) ? seasonalFlowers.spring :
                                      (month >= 6 && month <= 8) ? seasonalFlowers.summer :
                                      (month >= 9 && month <= 11) ? seasonalFlowers.fall : seasonalFlowers.winter;
-                    
                     const randomFlower = flowerList[Math.floor(Math.random() * flowerList.length)];
                     iconTag = `<span style="position:absolute; font-size:8px; right:0; bottom:0; pointer-events:none; z-index:10;">${randomFlower}</span>`;
                 }
@@ -3758,16 +3755,17 @@ for (let i = 0; i < totalDaysInQ; i++) {
     }
 
     // --- [로직 B] 팝업 데이터 인코딩 및 HTML 조립 ---
-    // 데이터가 있을 때만 인코딩하여 팝업 함수에 전달
     const encodedAct = act ? btoa(unescape(encodeURIComponent(JSON.stringify({...act})))) : "";
     
-     grassHtml += `
+    grassHtml += `
         <div class="${cl}" 
              style="${style} position:relative;" 
              onclick="window.showGrassPopup(event, '${k}', '${encodedAct}')">
              ${iconTag}
-             ${butterflyTag}  </div>`;
+             ${butterflyTag}
+        </div>`;
 }
+
 
         grassBoard.innerHTML = grassHtml;
 
