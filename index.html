@@ -3593,16 +3593,45 @@ window.showMemberTimeline = async (mId, mName) => {
             isHotMember = true;
         }
 
-                // [추가] 연속 등정 콤보 계산 (매주 1회 이상 산행 여부)
+                        // [추가] 1. 주별 산행 여부 체크 바구니
         const weeklyCheck = {};
+        const validHikeDays = []; // 나비가 앉을 수 있는 '산행한 날' 후보들
+
         logsQuarter.forEach(l => {
             // 해당 날짜가 몇 번째 주인지 계산
             const dayOffset = Math.floor((l.date - start) / (1000 * 60 * 60 * 24));
             const weekIdx = Math.floor(dayOffset / 7);
+            
             if(!l.isRunning && !l.isTracking) { // 순수 '산행'만 체크
                 weeklyCheck[weekIdx] = true;
+                // 나비 후보지로 등록 (분기별 일차 수)
+                validHikeDays.push(dayOffset); 
             }
         });
+
+        // [추가] 2. 4주 연속 산행 여부 및 나비 자리 선정
+        let has4WeeksCombo = false;
+        const butterflyPositions = []; // 최종 나비가 앉을 자리 (최대 2개)
+
+        // 분기 내에 4주 연속 기록이 한 번이라도 있는지 체크
+        for (let w = 3; w < totalDaysInQ / 7; w++) {
+            if (weeklyCheck[w] && weeklyCheck[w-1] && weeklyCheck[w-2] && weeklyCheck[w-3]) {
+                has4WeeksCombo = true;
+                break; // 한 번만 만족하면 됨
+            }
+        }
+
+        // 4주 연속 성공했고, 산행한 날이 있다면 랜덤으로 2자리 뽑기
+        if (has4WeeksCombo && validHikeDays.length > 0) {
+            // 후보지를 랜덤하게 섞음 (Fisher-Yates Shuffle)
+            for (let i = validHikeDays.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [validHikeDays[i], validHikeDays[j]] = [validHikeDays[j], validHikeDays[i]];
+            }
+            // 섞인 후보지 중 앞에서 2개만 콕 집음
+            butterflyPositions.push(...validHikeDays.slice(0, 2));
+        }
+
 
         // 4. 잔디 데이터 분석
 const dateActivities = {};
@@ -3638,6 +3667,12 @@ for (let i = 0; i < totalDaysInQ; i++) {
     cur.setDate(start.getDate() + i);
     const k = `${cur.getFullYear()}-${cur.getMonth() + 1}-${cur.getDate()}`;
     const act = dateActivities[k];
+
+        // [추가] 미리 정해둔 자리에만 나비 표시
+    let butterflyTag = "";
+    if (butterflyPositions.includes(i)) {
+        butterflyTag = `<div class="butterfly-box"><span class="butterfly-ani">🦋</span></div>`;
+    }
 
         // [추가] 연속 등정 나비 로직
     const currentWeekIdx = Math.floor(i / 7);
