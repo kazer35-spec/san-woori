@@ -3593,43 +3593,60 @@ window.showMemberTimeline = async (mId, mName) => {
             isHotMember = true;
         }
 
-                        // [추가] 1. 주별 산행 여부 체크 바구니
+                                // 3. 데이터 분석 (나비 & 무지개)
+        const dateActivities = {};
         const weeklyCheck = {};
-        const validHikeDays = []; // 나비가 앉을 수 있는 '산행한 날' 후보들
+        const validHikeDays = []; // 나비 후보지 (정기산행 제외)
 
         logsQuarter.forEach(l => {
-            // 해당 날짜가 몇 번째 주인지 계산
+            const y = l.date.getFullYear(), m = l.date.getMonth() + 1, d = l.date.getDate();
+            const key = `${y}-${m}-${d}`;
+            const dateStr = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
             const dayOffset = Math.floor((l.date - start) / (1000 * 60 * 60 * 24));
             const weekIdx = Math.floor(dayOffset / 7);
-            
-            if(!l.isRunning && !l.isTracking) { // 순수 '산행'만 체크
-                weeklyCheck[weekIdx] = true;
-                // 나비 후보지로 등록 (분기별 일차 수)
-                validHikeDays.push(dayOffset); 
+
+            if(!dateActivities[key]) {
+                dateActivities[key] = { hike: 0, run: 0, trek: 0, isRegular: false, memberCount: 0 };
+            }
+
+            if(l.isRunning) { 
+                dateActivities[key].run++; 
+            } else if(l.isTracking) { 
+                dateActivities[key].trek++; 
+            } else {
+                // --- 산행 기록 ---
+                dateActivities[key].hike++;
+                weeklyCheck[weekIdx] = true; // 4주 연속 체크용
+
+                if(l.isRegular) {
+                    dateActivities[key].isRegular = true;
+                    // 정기산행은 나비 후보(validHikeDays)에서 제외!
+                } else {
+                    // 일반 산행인 날만 나비 후보지로 등록
+                    validHikeDays.push(dayOffset);
+
+                    // bondingForest에서 해당 날짜의 3인 이상 기록 찾기 (무지개용)
+                    const bond = forestData.find(f => f.date === dateStr && f.members && f.members.includes(mName));
+                    if(bond) dateActivities[key].memberCount = bond.memberCount || 0;
+                }
             }
         });
 
-        // [추가] 2. 4주 연속 산행 여부 및 나비 자리 선정
-        let has4WeeksCombo = false;
-        const butterflyPositions = []; // 최종 나비가 앉을 자리 (최대 2개)
-
-        // 분기 내에 4주 연속 기록이 한 번이라도 있는지 체크
+        // 4주 연속 산행 시 랜덤 나비 1~2마리 자리 선정
+        const butterflyPositions = [];
+        let has4Weeks = false;
         for (let w = 3; w < totalDaysInQ / 7; w++) {
-            if (weeklyCheck[w] && weeklyCheck[w-1] && weeklyCheck[w-2] && weeklyCheck[w-3]) {
-                has4WeeksCombo = true;
-                break; // 한 번만 만족하면 됨
+            if (weeklyCheck[w] && weeklyCheck[w-1] && weeklyCheck[w-2] && weeklyCheck[w-3]) { 
+                has4Weeks = true; 
+                break; 
             }
         }
-
-        // 4주 연속 성공했고, 산행한 날이 있다면 랜덤으로 2자리 뽑기
-        if (has4WeeksCombo && validHikeDays.length > 0) {
-            // 후보지를 랜덤하게 섞음 (Fisher-Yates Shuffle)
-            for (let i = validHikeDays.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [validHikeDays[i], validHikeDays[j]] = [validHikeDays[j], validHikeDays[i]];
-            }
-            // 섞인 후보지 중 앞에서 2개만 콕 집음
-            butterflyPositions.push(...validHikeDays.slice(0, 2));
+        
+        if (has4Weeks && validHikeDays.length > 0) {
+            const shuffled = [...validHikeDays].sort(() => 0.5 - Math.random());
+            // 50% 확률로 1마리 또는 2마리 결정
+            const butterflyCount = Math.floor(Math.random() * 2) + 1; 
+            butterflyPositions.push(...shuffled.slice(0, butterflyCount));
         }
 
 
