@@ -13,22 +13,6 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-    /* 팀 콤보: 무지개 잔디 (다른 모든 색상을 무시하고 적용됨) */
-.grass-rainbow-combo {
-    background: linear-gradient(124deg, #ff2400, #e81d1d, #e8b71d, #e3e81d, #1de840, #1ddde8, #2b1de8, #dd00f3) !important;
-    background-size: 400% 400% !important;
-    animation: rainbow-wave 3s ease infinite !important;
-    border: none !important;
-    box-shadow: inset 0 0 5px rgba(255, 255, 255, 0.5) !important;
-}
-
-@keyframes rainbow-wave {
-    0% { background-position: 0% 82%; }
-    50% { background-position: 100% 19%; }
-    100% { background-position: 0% 82%; }
-}
-
-
     /* 나비 애니메이션 */
 .butterfly-box {
     position: absolute;
@@ -3585,8 +3569,6 @@ window.showMemberTimeline = async (mId, mName) => {
         // 2. 데이터 로드
         const snapAll = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc")));
         const logsAll = snapAll.docs.map(doc => ({ ...doc.data(), date: doc.data().date.toDate() }));
-        const snapForest = await getDocs(collection(db, "bondingForest"));
-        const forestData = snapForest.docs.map(doc => doc.data());
         const logsQuarter = logsAll.filter(l => l.date >= start && l.date < end);
 
         const badge = document.getElementById('timelineCountBadge');
@@ -3651,27 +3633,14 @@ window.showMemberTimeline = async (mId, mName) => {
         }
 
 
- // 4. 잔디 데이터 분석
+        // 4. 잔디 데이터 분석
 const dateActivities = {};
 
 logsQuarter.forEach(l => {
     const key = `${l.date.getFullYear()}-${l.date.getMonth() + 1}-${l.date.getDate()}`;
-    const dateString = l.date.toISOString().split('T')[0]; // "2026-03-20" 형태
     
     if(!dateActivities[key]) {
-        dateActivities[key] = { hike: 0, run: 0, trek: 0, isRegular: false, maxMates: 0 };
-    }
-
-    // [중요] bondingForest에서 같은 날짜, 같은 산, 본인이 포함된 기록 찾기
-    const matchingBond = forestData.find(f => 
-        f.date === dateString && 
-        f.mountain === l.mountain && 
-        f.members.includes(mName) // mName은 함수의 인자로 들어온 멤버 이름
-    );
-
-    if (matchingBond) {
-        // bondingForest의 memberCount가 3 이상이면 maxMates를 업데이트
-        dateActivities[key].maxMates = matchingBond.memberCount;
+        dateActivities[key] = { hike: 0, run: 0, trek: 0, isRegular: false };
     }
     
     if(l.isRunning) {
@@ -3680,16 +3649,7 @@ logsQuarter.forEach(l => {
         dateActivities[key].trek++;
     } else {
         dateActivities[key].hike++;
-        if(l.isRegular) {
-            dateActivities[key].isRegular = true;
-        } else {
-            // [중요] 정기산행이 아닌 '일반 등산'일 때만 동행자 수 체크
-            // 본인 제외 동행자가 2명 이상(즉, 총 3인 이상)인지 확인
-            const currentMates = l.mates ? l.mates.length : 0;
-            if (currentMates >= 2 && currentMates > dateActivities[key].maxMates) {
-                dateActivities[key].maxMates = currentMates;
-            }
-        }
+        if(l.isRegular) dateActivities[key].isRegular = true;
     }
 });
 
@@ -3708,11 +3668,12 @@ for (let i = 0; i < totalDaysInQ; i++) {
     const k = `${cur.getFullYear()}-${cur.getMonth() + 1}-${cur.getDate()}`;
     const act = dateActivities[k];
 
-    // [추가] 미리 정해둔 자리에만 나비 표시
+        // [추가] 미리 정해둔 자리에만 나비 표시
     let butterflyTag = "";
-    if (typeof butterflyPositions !== 'undefined' && butterflyPositions.includes(i)) {
-        butterflyTag = `<div class="butterfly-box"><span class="butterfly-ani">🦋</span></div>`;
+    if (butterflyPositions.includes(i)) {
+        butterflyTag = `<div class="butterfly-box"><span class="butterfly-ani">🐦</span></div>`;
     }
+
 
     let cl = "grass-day";
     let style = "";
@@ -3720,20 +3681,25 @@ for (let i = 0; i < totalDaysInQ; i++) {
     const month = cur.getMonth() + 1;
 
     if (act) {
-        // 1순위: 무지개 콤보 (3인 이상 일반 등산)
-        if (!act.isRegular && act.hike > 0 && act.run === 0 && act.trek === 0 && act.memberCount >= 3) {
-            cl += " grass-rainbow-combo";
-            style = ""; // 중요: 기존에 들어있을지 모르는 style 값을 비워줌
-        } 
-        // 2순위: 정기산행
-        else if (act.isRegular) {
-            style = `background: linear-gradient(135deg, #FF69B4, #ADFF2F, #A020F0) !important; border: none !important;`;
-            cl += " grass-regular-premium"; 
-            let qIcon = (month >= 3 && month <= 5) ? "🌸" : (month >= 6 && month <= 8) ? "🍀" : (month >= 9 && month <= 11) ? "🍁" : "❄️";
-            iconTag = `<span style="font-size: 11px; display: flex; align-items: center; justify-content: center; height: 100%; position: relative; z-index: 5;">${qIcon}</span>`;
-        } 
-        // 3순위: 일반 활동 (여기서 빨간색/초록색 등이 결정됨)
+        // --- [로직 A] 정기산행 또는 HOT 멤버 꽃 피우기 ---
+       if (act.isRegular) {
+    // 테두리를 없애고(none), 배경색에 !important를 붙여 확실히 적용합니다.
+    style = `background: linear-gradient(135deg, #FF69B4, #ADFF2F, #A020F0) !important; 
+             border: none !important; 
+             box-shadow: inset 0 0 5px rgba(255,255,255,0.3) !important; 
+             outline: none !important;`;
+    
+    cl += " grass-regular-premium"; 
+
+    // 계절별 이모지 로직
+    let qIcon = (month >= 3 && month <= 5) ? "🌸" : 
+                (month >= 6 && month <= 8) ? "🍀" : 
+                (month >= 9 && month <= 11) ? "🍁" : "❄️";
+
+    iconTag = `<span style="font-size: 11px; display: flex; align-items: center; justify-content: center; height: 100%; pointer-events: none; position: relative; z-index: 5; text-shadow: 0 0 3px rgba(0,0,0,0.3);">${qIcon}</span>`;
+}
         else {
+            // 일반 활동 색상 로직
             const hasHike = act.hike > 0;
             const hasExtra = act.run > 0 || act.trek > 0;
             
@@ -3745,17 +3711,17 @@ for (let i = 0; i < totalDaysInQ; i++) {
             } else if (act.trek > 0) { 
                 style = "background: #E0B0FF;"; 
             } else if (act.hike > 0) {
-                // 일반 등산일 때 단계별 색상 (빨간색 계열 클래스 등)
                 const level = Math.min(act.hike, 4);
                 cl += ` grass-active-${level}`;
             }
 
-            // HOT 멤버 시즌 꽃 표시
+            // HOT 멤버라면 30% 확률로 계절 꽃 추가 (정기산행이 아닐 때만)
             if (typeof isHotMember !== 'undefined' && isHotMember && (act.hike > 0 || act.run > 0 || act.trek > 0)) {
                 if (Math.random() < 0.3) {
                     let flowerList = (month >= 3 && month <= 5) ? seasonalFlowers.spring :
                                      (month >= 6 && month <= 8) ? seasonalFlowers.summer :
                                      (month >= 9 && month <= 11) ? seasonalFlowers.fall : seasonalFlowers.winter;
+                    
                     const randomFlower = flowerList[Math.floor(Math.random() * flowerList.length)];
                     iconTag = `<span style="position:absolute; font-size:8px; right:0; bottom:0; pointer-events:none; z-index:10;">${randomFlower}</span>`;
                 }
@@ -3764,17 +3730,16 @@ for (let i = 0; i < totalDaysInQ; i++) {
     }
 
     // --- [로직 B] 팝업 데이터 인코딩 및 HTML 조립 ---
+    // 데이터가 있을 때만 인코딩하여 팝업 함수에 전달
     const encodedAct = act ? btoa(unescape(encodeURIComponent(JSON.stringify({...act})))) : "";
     
-    grassHtml += `
+     grassHtml += `
         <div class="${cl}" 
              style="${style} position:relative;" 
              onclick="window.showGrassPopup(event, '${k}', '${encodedAct}')">
              ${iconTag}
-             ${butterflyTag}
-        </div>`;
+             ${butterflyTag}  </div>`;
 }
-
 
         grassBoard.innerHTML = grassHtml;
 
