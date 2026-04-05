@@ -13,45 +13,6 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-    
-@key/* 부모 컨테이너 설정 */
-#grassBoard {
-    position: relative; /* 자식 요소인 나비/눈꽃의 기준점 */
-    overflow: visible !important; /* 나비가 보드 밖으로 살짝 나가도 보이게 */
-    min-height: 120px; /* 효과가 보일 공간 확보 */
-}
-
-/* 나비 애니메이션 */
-@keyframes flyAcross1 {
-    0% { left: -10%; top: 20%; opacity: 0; transform: rotate(0deg); }
-    20% { opacity: 1; }
-    50% { left: 50%; top: 10%; transform: rotate(15deg); }
-    80% { opacity: 1; }
-    100% { left: 110%; top: 20%; opacity: 0; }
-}
-
-@keyframes flyAcross2 {
-    0% { right: -10%; top: 60%; opacity: 0; transform: scaleX(-1) rotate(0deg); }
-    20% { opacity: 1; }
-    50% { right: 40%; top: 40%; transform: scaleX(-1) rotate(-20deg); }
-    100% { right: 110%; top: 50%; opacity: 0; transform: scaleX(-1); }
-}
-
-/* 눈꽃 애니메이션 */
-@keyframes snowFallEffect {
-    0% { transform: translateY(0); opacity: 0; }
-    20% { opacity: 1; }
-    100% { transform: translateY(100px); opacity: 0; }
-}
-
-.butterfly-unit {
-    position: absolute; font-size: 10px; z-index: 100; pointer-events: none;
-}
-.snow-unit {
-    position: absolute; font-size: 10px; color: #fff; z-index: 100; pointer-events: none;
-}
-
-
 /* 인연 목록 팝업 전용 스타일 */
 .forest-list-overlay {
     position: fixed;
@@ -3623,66 +3584,6 @@ logsQuarter.forEach(l => {
         if(l.isRegular) dateActivities[key].isRegular = true;
     }
 });
-
-       // --- [개선된 4주 연속 산행 판별] ---
-let hasContinuousHike = false;
-const hikeWeeks = new Set();
-
-// 1. 산행 기록만 추출하여 주차별로 정리 (ISO 주차 방식)
-logsAll.forEach(l => {
-    if (!l.isRunning && !l.isTracking) {
-        const d = new Date(l.date);
-        const dayNum = (d.getDay() + 6) % 7;
-        d.setDate(d.getDate() - dayNum + 3);
-        const firstThursday = d.getTime();
-        d.setMonth(0, 1);
-        if (d.getDay() !== 4) d.setMonth(0, 1 + ((4 - d.getDay()) + 7) % 7);
-        const weekNum = 1 + Math.ceil((firstThursday - d) / 604800000);
-        hikeWeeks.add(`${d.getFullYear()}-${weekNum}`);
-    }
-});
-
-// 2. 연속성 체크
-const sortedWeeks = Array.from(hikeWeeks).sort();
-let combo = 1;
-for (let i = 1; i < sortedWeeks.length; i++) {
-    const [pY, pW] = sortedWeeks[i-1].split('-').map(Number);
-    const [cY, cW] = sortedWeeks[i].split('-').map(Number);
-    // 연도가 같고 주차가 1 차이 나거나, 연도가 바뀌는 시점 처리
-    if ((pY === cY && cW === pW + 1) || (pY < cY && cW === 1)) {
-        combo++;
-        if (combo >= 4) { hasContinuousHike = true; break; }
-    } else {
-        combo = 1;
-    }
-}
-
-// 3. 효과용 HTML 생성
-let effectHtml = "";
-const isWinter = [12, 1, 2].includes(new Date().getMonth() + 1); // 현재 월 기준 겨울 판별
-
-if (hasContinuousHike) {
-    if (isWinter) {
-        // 눈꽃 5송이
-        for(let i=0; i<5; i++) {
-            const leftPos = Math.random() * 90;
-            const delay = i * 1.5;
-            effectHtml += `<span class="snow-unit" style="left:${leftPos}%; top:0; animation: snowFallEffect 5s linear infinite; animation-delay:${delay}s;">❄️</span>`;
-        }
-    } else {
-        // 나비 (50% 확률로 1~2마리)
-        if (Math.random() < 0.5) {
-            const count = Math.random() < 0.5 ? 1 : 2;
-            for(let i=1; i<=count; i++) {
-                const animName = (i === 1) ? 'flyAcross1' : 'flyAcross2';
-                const duration = 7 + (i * 2);
-                effectHtml += `<span class="butterfly-unit" style="animation: ${animName} ${duration}s linear infinite;">🦋</span>`;
-            }
-        }
-    }
-}
-
-
 
 // 5. 잔디 보드 HTML 생성
 let grassHtml = "";
