@@ -3232,14 +3232,17 @@ const baseHikes = initialHikes[mName] || 0;
 const dbTotalCount = memberInfo ? (memberInfo.count || 0) : 0;
 const dbBuddyCount = memberInfo ? (memberInfo.buddyCount || 0) : 0;
 
-/// 6 & 7 규칙 반영 수정 버전
-const memberInfo = (typeof currentData !== 'undefined') ? currentData.find(m => m.name === mName) : null;
+// 3. 최종 총 횟수 계산 (중복 방지)
+// 초기값(33)과 DB의 총 횟수(count) 중 더 큰 값을 선택합니다.
+// 이렇게 하면 캐시를 지워도 DB의 count가 33 이상일 테니 숫자가 유지됩니다.
+const finalTotalHikes = Math.max(baseHikes, dbTotalCount);
 
-// 이제 DB에 초기값(예: 34회)이 이미 들어가 있다고 가정하면 훨씬 단순해집니다.
-const finalTotalHikes = memberInfo ? (memberInfo.count || 0) : 0;
-const myMultiHikes = memberInfo ? (memberInfo.buddyCount || 0) : 0;
+// 4. 최종 동행 횟수 (BuddyCount)
+// 이 값은 DB에 저장된 순수 동행 횟수를 그대로 사용합니다.
+const myMultiHikes = dbBuddyCount;
 
-// 시너지(동행 지수) 계산
+// 5. 시너지(동행 지수) 계산
+// (순수 동행 횟수 / 전체 산행 횟수) * 100
 const finalSynergy = finalTotalHikes > 0 ? Math.min(100, Math.round((myMultiHikes / finalTotalHikes) * 100)) : 0;
 
 
@@ -4391,14 +4394,13 @@ window.addMultiActivity = async () => {
             const currentDdayVal = (baseLimit + Number(member.bonusDays || 0)) - diffDays;
 
             // 2. 업데이트 객체 생성
-let updateData = { 
-    level: oldLevel + effectiveUp, 
-    lastDate: ts, 
-    // [수정] 진짜 산행일 때 DB의 count를 1 올림 (이게 인연의 숲 '총 횟수'가 됩니다)
-    count: isRealHike ? increment(1) : increment(0), 
-    totalHeight: isRealHike ? increment(height) : increment(0)
-};
-            
+            let updateData = { 
+                level: oldLevel + effectiveUp, 
+                lastDate: ts, 
+                count: isRealHike ? increment(1) : increment(0), // 총 횟수 DB 저장
+                totalHeight: isRealHike ? increment(height) : increment(0)
+            };
+
             // 3. 산행/런닝에 따른 D-Day 처리
             if (isRealHike) {
                 updateData.bonusDays = 0; // 산행 시 122일 풀충전
