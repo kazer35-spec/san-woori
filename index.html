@@ -13,34 +13,64 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-    /* 나비 애니메이션 */
-/* 나비 애니메이션 및 크기 최소화 */
+    /* ========================================= */
+/* [추가] 나비 & 눈꽃 애니메이션 CSS (랜덤 변수 지원) */
+/* ========================================= */
+
+/* 1. 나비/눈꽃 공통 박스 설정 */
 .butterfly-box {
     position: absolute;
-    width: 8px;   /* 14px -> 8px로 축소 */
-    height: 8px;  /* 14px -> 8px로 축소 */
-    top: -3px;    /* 위치 살짝 조정 */
-    left: -3px;
+    top: -2px;
+    left: -2px;
     z-index: 20;
     pointer-events: none;
-    animation: butterfly-move 4s infinite ease-in-out;
-}
-
-@keyframes butterfly-move {
-    0%, 100% { transform: translate(0, 0) rotate(0deg); }
-    50% { transform: translate(2px, -2px) rotate(15deg); }
-}
-
-.butterfly-ani {
-    display: inline-block;
-    font-size: 7px; /* 폰트 크기를 매우 작게 설정 */
     line-height: 1;
-    animation: butterfly-flap 0.2s infinite alternate;
 }
 
+/* 2. [나비 전용] 랜덤 움직임 애니메이션 */
+.butterfly-ani-base {
+    display: inline-block;
+    font-size: 8px; /* 크기는 작게 유지 */
+    
+    /* 💥 JS에서 넣어준 랜덤 변수 사용 */
+    animation: 
+        butterfly-move calc(var(--rand-dur, 4) * 1s) calc(var(--rand-delay, 0) * -1s) infinite ease-in-out,
+        butterfly-flap 0.2s infinite alternate;
+}
+
+/* 나비 날개짓 */
 @keyframes butterfly-flap {
     from { transform: scaleX(1); }
-    to { transform: scaleX(0.6); } /* 날개짓 폭을 조금 더 좁게 */
+    to { transform: scaleX(0.5); }
+}
+
+/* 나비의 불규칙한 이동 (랜덤 변수 적용) */
+@keyframes butterfly-move {
+    0%, 100% { 
+        transform: translate(0, 0) rotate(0deg); 
+    }
+    50% { 
+        /* 💥 JS에서 넘어온 랜덤 x, y, degree 값 */
+        transform: translate(calc(var(--rand-x) * 1px), calc(var(--rand-y) * 1px)) rotate(calc(var(--rand-deg) * 1deg));
+    }
+}
+
+/* 3. [겨울 전용] 눈꽃 생성/소멸 애니메이션 */
+.snow-fade-box {
+    animation: snow-fade-in-out calc(var(--rand-dur, 10) * 1s) calc(var(--rand-delay, 0) * 1s) infinite linear;
+    opacity: 0; /* 시작은 안보이게 */
+}
+
+@keyframes snow-fade-in-out {
+    0% { opacity: 0; transform: translateY(-5px); }       /* 위에서 시작 */
+    10%, 90% { opacity: 1; transform: translateY(0px); }  /* 중간에 나타나서 멈춤 */
+    100% { opacity: 0; transform: translateY(3px); }      /* 아래로 살짝 내리며 사라짐 */
+}
+
+/* 눈꽃 이모지 크기 */
+.snow-ani {
+    font-size: 9px;
+    display: inline-block;
 }
 
 /* 인연 목록 팝업 전용 스타일 */
@@ -3674,12 +3704,45 @@ for (let i = 0; i < totalDaysInQ; i++) {
     const k = `${cur.getFullYear()}-${cur.getMonth() + 1}-${cur.getDate()}`;
     const act = dateActivities[k];
 
-        // [추가] 미리 정해둔 자리에만 나비 표시
-    let butterflyTag = "";
-    if (butterflyPositions.includes(i)) {
-        butterflyTag = `<div class="butterfly-box"><span class="butterfly-ani">🦋</span></div>`;
-    }
+                // [수정] 5. 랜덤 움직임 나비 또는 겨울 눈꽃 표시
+        let butterflyTag = "";
+        
+        // 4주 연속 산행 성공 && 나비 자리가 지정되었고 && 현재 칸이 나비 자리라면
+        if (has4WeeksCombo && butterflyPositions.includes(i)) {
+            
+            // 🔥 [중요] 겨울 시즌 체크 (12월, 1월, 2월)
+            // seasonalFlowers 로직을 사용하지 않고, 현재 날짜(cur)의 월을 직접 체크
+            const currentMonthForButterfly = cur.getMonth() + 1; // 1 ~ 12
+            const isWinterSeason = (currentMonthForButterfly === 12 || currentMonthForButterfly === 1 || currentMonthForButterfly === 2);
 
+            if (isWinterSeason) {
+                // --- A. [겨울] 눈꽃 생성 애니메이션 HTML ---
+                const duration = Math.random() * 5 + 8; // 8~13초 (천천히)
+                const delay = Math.random() * 5;        // 0~5초 지연
+
+                butterflyTag = `
+                    <div class="butterfly-box snow-fade-box" 
+                         style="--rand-dur: ${duration}; --rand-delay: ${delay};">
+                        <span class="snow-ani">❄️</span>
+                    </div>`;
+            } else {
+                // --- B. [그외 계절] 랜덤 움직임 나비 HTML ---
+                // 💥 각 나비마다 다른 랜덤 변수 생성
+                const moveX = (Math.random() - 0.5) * 6; // -3px ~ 3px 이동
+                const moveY = (Math.random() - 0.5) * 6; // -3px ~ 3px 이동
+                const rotateDeg = (Math.random() - 0.5) * 40; // -20도 ~ 20도 회전
+                const duration = Math.random() * 2 + 3;  // 3~5초 속도
+                const delay = Math.random() * 5;        // 0~5초 지연 (모두 획일적으로 시작하지 않게)
+
+                // HTML 스타일에 직접 변수 주입
+                butterflyTag = `
+                    <div class="butterfly-box" 
+                         style="--rand-x: ${moveX}; --rand-y: ${moveY}; --rand-deg: ${rotateDeg};">
+                        <span class="butterfly-ani-base" 
+                              style="--rand-dur: ${duration}; --rand-delay: ${delay};">🦋</span>
+                    </div>`;
+            }
+        }
 
     let cl = "grass-day";
     let style = "";
