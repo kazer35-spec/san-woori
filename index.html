@@ -13,6 +13,39 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+    /* 나비/눈꽃 공통 스타일 */
+.floating-env {
+    position: absolute;
+    pointer-events: none;
+    z-index: 20;
+    font-size: 10px;
+}
+
+/* 나비 애니메이션 1 (부드러운 곡선) */
+@keyframes fly1 {
+    0% { transform: translate(0, 0) rotate(0deg); }
+    25% { transform: translate(50px, -30px) rotate(15deg); }
+    50% { transform: translate(100px, 0px) rotate(-15deg); }
+    75% { transform: translate(50px, 30px) rotate(10deg); }
+    100% { transform: translate(0, 0) rotate(0deg); }
+}
+
+/* 나비 애니메이션 2 (지그재그) */
+@keyframes fly2 {
+    0% { transform: translate(100%, 80%) scaleX(-1); }
+    33% { transform: translate(40%, 20%) scaleX(-1); }
+    66% { transform: translate(70%, 50%) scaleX(1); }
+    100% { transform: translate(100%, 80%) scaleX(-1); }
+}
+
+/* 눈꽃 애니메이션 */
+@keyframes fallSnow {
+    0% { transform: translateY(-10px); opacity: 0; }
+    20% { opacity: 1; }
+    80% { opacity: 1; }
+    100% { transform: translateY(150px); opacity: 0; }
+}
+
 /* 인연 목록 팝업 전용 스타일 */
 .forest-list-overlay {
     position: fixed;
@@ -3585,6 +3618,47 @@ logsQuarter.forEach(l => {
     }
 });
 
+        // --- [추가] 4주 연속 산행 판별 로직 ---
+const checkFourConsecutiveWeeks = () => {
+    // 1. 산행 기록만 추출 (러닝, 트래킹 제외) 및 날짜 오름차순 정렬
+    const hikeDates = logsAll
+        .filter(l => !l.isRunning && !l.isTracking)
+        .map(l => {
+            const d = new Date(l.date);
+            // 주차 계산 (월요일 기준)
+            const firstDayOfYear = new Date(d.getFullYear(), 0, 1);
+            const pastDaysOfYear = (d - firstDayOfYear) / 86400000;
+            return {
+                year: d.getFullYear(),
+                week: Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7)
+            };
+        });
+
+    if (hikeDates.length < 4) return false;
+
+    // 2. 고유 주차(Week) 중복 제거 및 정렬
+    const uniqueWeeks = [...new Set(hikeDates.map(h => `${h.year}-${h.week}`))].sort();
+
+    // 3. 연속성 확인
+    let consecutiveCount = 1;
+    for (let i = 1; i < uniqueWeeks.length; i++) {
+        const [prevYear, prevWeek] = uniqueWeeks[i - 1].split('-').map(Number);
+        const [currYear, currWeek] = uniqueWeeks[i].split('-').map(Number);
+
+        // 같은 연도 내 연속 혹은 연말/연초 연결 확인
+        if ((currYear === prevYear && currWeek === prevWeek + 1) || 
+            (currYear === prevYear + 1 && currWeek === 1 && prevWeek >= 52)) {
+            consecutiveCount++;
+            if (consecutiveCount >= 4) return true;
+        } else {
+            consecutiveCount = 1;
+        }
+    }
+    return false;
+};
+
+const isFourWeeks = checkFourConsecutiveWeeks();
+
 // 5. 잔디 보드 HTML 생성
 let grassHtml = "";
 const seasonalFlowers = {
@@ -3668,6 +3742,38 @@ for (let i = 0; i < totalDaysInQ; i++) {
 
         grassBoard.innerHTML = grassHtml;
 
+        // --- [추가] 나비 또는 눈꽃 효과 렌더링 ---
+if (isFourWeeks) {
+    const isWinter = (selectedQuarter === 4 || selectedQuarter === 1); // 겨울 시즌 판별
+    
+    if (isWinter) {
+        // 겨울: 눈꽃 효과 (여러 개 생성)
+        for (let s = 0; s < 8; s++) {
+            const snow = document.createElement('div');
+            snow.className = 'floating-env';
+            snow.innerHTML = '❄️';
+            snow.style.left = Math.random() * 90 + '%';
+            snow.style.animation = `fallSnow ${3 + Math.random() * 2}s linear infinite`;
+            snow.style.animationDelay = `${Math.random() * 3}s`;
+            grassBoard.appendChild(snow);
+        }
+    } else {
+        // 그 외: 나비 효과 (50% 확률로 1~2마리)
+        if (Math.random() > 0.5) {
+            const count = Math.random() > 0.5 ? 2 : 1;
+            for (let b = 1; b <= count; b++) {
+                const butterfly = document.createElement('div');
+                butterfly.className = 'floating-env';
+                butterfly.innerHTML = '🦋';
+                butterfly.style.top = (20 + (b * 20)) + '%';
+                butterfly.style.left = (10 + (b * 10)) + '%';
+                // 서로 다른 애니메이션 적용
+                butterfly.style.animation = `fly${b} ${4 + b}s ease-in-out infinite`;
+                grassBoard.appendChild(butterfly);
+            }
+        }
+    }
+}
         // 6. 하단 타임라인 리스트
         if(logsAll.length === 0) {
             container.innerHTML = "<p class='text-center text-[10px] py-10 text-gray-400'>기록 없음</p>";
