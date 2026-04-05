@@ -13,37 +13,32 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-    /* 나비/눈꽃 공통 스타일 */
-.floating-env {
+    /* 나비 애니메이션 */
+.butterfly-box {
     position: absolute;
-    pointer-events: none;
+    width: 14px;
+    height: 14px;
+    top: -5px;
+    left: -5px;
     z-index: 20;
-    font-size: 10px;
+    pointer-events: none;
+    animation: butterfly-move 4s infinite ease-in-out;
 }
 
-/* 나비 애니메이션 1 (부드러운 곡선) */
-@keyframes fly1 {
-    0% { transform: translate(0, 0) rotate(0deg); }
-    25% { transform: translate(50px, -30px) rotate(15deg); }
-    50% { transform: translate(100px, 0px) rotate(-15deg); }
-    75% { transform: translate(50px, 30px) rotate(10deg); }
-    100% { transform: translate(0, 0) rotate(0deg); }
+@keyframes butterfly-move {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    50% { transform: translate(3px, -3px) rotate(20deg); }
 }
 
-/* 나비 애니메이션 2 (지그재그) */
-@keyframes fly2 {
-    0% { transform: translate(100%, 80%) scaleX(-1); }
-    33% { transform: translate(40%, 20%) scaleX(-1); }
-    66% { transform: translate(70%, 50%) scaleX(1); }
-    100% { transform: translate(100%, 80%) scaleX(-1); }
+/* 나비 날개짓 (이모지 자체를 흔듦) */
+.butterfly-ani {
+    display: inline-block;
+    animation: butterfly-flap 0.2s infinite alternate;
 }
 
-/* 눈꽃 애니메이션 */
-@keyframes fallSnow {
-    0% { transform: translateY(-10px); opacity: 0; }
-    20% { opacity: 1; }
-    80% { opacity: 1; }
-    100% { transform: translateY(150px); opacity: 0; }
+@keyframes butterfly-flap {
+    from { transform: scaleX(1); }
+    to { transform: scaleX(0.7); }
 }
 
 /* 인연 목록 팝업 전용 스타일 */
@@ -3598,6 +3593,46 @@ window.showMemberTimeline = async (mId, mName) => {
             isHotMember = true;
         }
 
+                        // [추가] 1. 주별 산행 여부 체크 바구니
+        const weeklyCheck = {};
+        const validHikeDays = []; // 나비가 앉을 수 있는 '산행한 날' 후보들
+
+        logsQuarter.forEach(l => {
+            // 해당 날짜가 몇 번째 주인지 계산
+            const dayOffset = Math.floor((l.date - start) / (1000 * 60 * 60 * 24));
+            const weekIdx = Math.floor(dayOffset / 7);
+            
+            if(!l.isRunning && !l.isTracking) { // 순수 '산행'만 체크
+                weeklyCheck[weekIdx] = true;
+                // 나비 후보지로 등록 (분기별 일차 수)
+                validHikeDays.push(dayOffset); 
+            }
+        });
+
+        // [추가] 2. 4주 연속 산행 여부 및 나비 자리 선정
+        let has4WeeksCombo = false;
+        const butterflyPositions = []; // 최종 나비가 앉을 자리 (최대 2개)
+
+        // 분기 내에 4주 연속 기록이 한 번이라도 있는지 체크
+        for (let w = 3; w < totalDaysInQ / 7; w++) {
+            if (weeklyCheck[w] && weeklyCheck[w-1] && weeklyCheck[w-2] && weeklyCheck[w-3]) {
+                has4WeeksCombo = true;
+                break; // 한 번만 만족하면 됨
+            }
+        }
+
+        // 4주 연속 성공했고, 산행한 날이 있다면 랜덤으로 2자리 뽑기
+        if (has4WeeksCombo && validHikeDays.length > 0) {
+            // 후보지를 랜덤하게 섞음 (Fisher-Yates Shuffle)
+            for (let i = validHikeDays.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [validHikeDays[i], validHikeDays[j]] = [validHikeDays[j], validHikeDays[i]];
+            }
+            // 섞인 후보지 중 앞에서 2개만 콕 집음
+            butterflyPositions.push(...validHikeDays.slice(0, 2));
+        }
+
+
         // 4. 잔디 데이터 분석
 const dateActivities = {};
 
@@ -3618,47 +3653,6 @@ logsQuarter.forEach(l => {
     }
 });
 
-        // --- [추가] 4주 연속 산행 판별 로직 ---
-const checkFourConsecutiveWeeks = () => {
-    // 1. 산행 기록만 추출 (러닝, 트래킹 제외) 및 날짜 오름차순 정렬
-    const hikeDates = logsAll
-        .filter(l => !l.isRunning && !l.isTracking)
-        .map(l => {
-            const d = new Date(l.date);
-            // 주차 계산 (월요일 기준)
-            const firstDayOfYear = new Date(d.getFullYear(), 0, 1);
-            const pastDaysOfYear = (d - firstDayOfYear) / 86400000;
-            return {
-                year: d.getFullYear(),
-                week: Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7)
-            };
-        });
-
-    if (hikeDates.length < 4) return false;
-
-    // 2. 고유 주차(Week) 중복 제거 및 정렬
-    const uniqueWeeks = [...new Set(hikeDates.map(h => `${h.year}-${h.week}`))].sort();
-
-    // 3. 연속성 확인
-    let consecutiveCount = 1;
-    for (let i = 1; i < uniqueWeeks.length; i++) {
-        const [prevYear, prevWeek] = uniqueWeeks[i - 1].split('-').map(Number);
-        const [currYear, currWeek] = uniqueWeeks[i].split('-').map(Number);
-
-        // 같은 연도 내 연속 혹은 연말/연초 연결 확인
-        if ((currYear === prevYear && currWeek === prevWeek + 1) || 
-            (currYear === prevYear + 1 && currWeek === 1 && prevWeek >= 52)) {
-            consecutiveCount++;
-            if (consecutiveCount >= 4) return true;
-        } else {
-            consecutiveCount = 1;
-        }
-    }
-    return false;
-};
-
-const isFourWeeks = checkFourConsecutiveWeeks();
-
 // 5. 잔디 보드 HTML 생성
 let grassHtml = "";
 const seasonalFlowers = {
@@ -3673,6 +3667,13 @@ for (let i = 0; i < totalDaysInQ; i++) {
     cur.setDate(start.getDate() + i);
     const k = `${cur.getFullYear()}-${cur.getMonth() + 1}-${cur.getDate()}`;
     const act = dateActivities[k];
+
+        // [추가] 미리 정해둔 자리에만 나비 표시
+    let butterflyTag = "";
+    if (butterflyPositions.includes(i)) {
+        butterflyTag = `<div class="butterfly-box"><span class="butterfly-ani">🦋</span></div>`;
+    }
+
 
     let cl = "grass-day";
     let style = "";
@@ -3732,48 +3733,16 @@ for (let i = 0; i < totalDaysInQ; i++) {
     // 데이터가 있을 때만 인코딩하여 팝업 함수에 전달
     const encodedAct = act ? btoa(unescape(encodeURIComponent(JSON.stringify({...act})))) : "";
     
-    grassHtml += `
+     grassHtml += `
         <div class="${cl}" 
              style="${style} position:relative;" 
              onclick="window.showGrassPopup(event, '${k}', '${encodedAct}')">
              ${iconTag}
-        </div>`;
+             ${butterflyTag}  </div>`;
 }
 
         grassBoard.innerHTML = grassHtml;
 
-        // --- [추가] 나비 또는 눈꽃 효과 렌더링 ---
-if (isFourWeeks) {
-    const isWinter = (selectedQuarter === 4 || selectedQuarter === 1); // 겨울 시즌 판별
-    
-    if (isWinter) {
-        // 겨울: 눈꽃 효과 (여러 개 생성)
-        for (let s = 0; s < 8; s++) {
-            const snow = document.createElement('div');
-            snow.className = 'floating-env';
-            snow.innerHTML = '❄️';
-            snow.style.left = Math.random() * 90 + '%';
-            snow.style.animation = `fallSnow ${3 + Math.random() * 2}s linear infinite`;
-            snow.style.animationDelay = `${Math.random() * 3}s`;
-            grassBoard.appendChild(snow);
-        }
-    } else {
-        // 그 외: 나비 효과 (50% 확률로 1~2마리)
-        if (Math.random() > 0.5) {
-            const count = Math.random() > 0.5 ? 2 : 1;
-            for (let b = 1; b <= count; b++) {
-                const butterfly = document.createElement('div');
-                butterfly.className = 'floating-env';
-                butterfly.innerHTML = '🦋';
-                butterfly.style.top = (20 + (b * 20)) + '%';
-                butterfly.style.left = (10 + (b * 10)) + '%';
-                // 서로 다른 애니메이션 적용
-                butterfly.style.animation = `fly${b} ${4 + b}s ease-in-out infinite`;
-                grassBoard.appendChild(butterfly);
-            }
-        }
-    }
-}
         // 6. 하단 타임라인 리스트
         if(logsAll.length === 0) {
             container.innerHTML = "<p class='text-center text-[10px] py-10 text-gray-400'>기록 없음</p>";
