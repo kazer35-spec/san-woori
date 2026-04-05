@@ -13,33 +13,53 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-    /* 나비 애니메이션 */
+    /* --- 나비 애니메이션 공통 --- */
 .butterfly-box {
     position: absolute;
     width: 10px;
     height: 10px;
-    top: -5px;
-    left: -5px;
+    top: -5px; /* 약간 위쪽에 배치 */
+    left: -5px; /* 약간 왼쪽에 배치 */
     z-index: 20;
-    pointer-events: none;
-    animation: butterfly-move 4s infinite ease-in-out;
+    pointer-events: none; /* 클릭 방해 금지 */
 }
 
-@keyframes butterfly-move {
-    0%, 100% { transform: translate(0, 0) rotate(0deg); }
-    50% { transform: translate(3px, -3px) rotate(20deg); }
-}
-
-/* 나비 날개짓 (이모지 자체를 흔듦) */
+/* 나비 날개짓 (이모지 자체를 흔듦) - 공통 */
 .butterfly-ani {
     display: inline-block;
-    animation: butterfly-flap 0.2s infinite alternate;
+    animation: butterfly-flap 0.2s infinite alternate ease-in-out;
 }
 
 @keyframes butterfly-flap {
     from { transform: scaleX(1); }
     to { transform: scaleX(0.7); }
 }
+
+
+/* --- [변경] 나비 1번 움직임 (약간 오른쪽 위로) --- */
+.butterfly-style1 {
+    animation: butterfly-move1 5s infinite ease-in-out;
+}
+
+@keyframes butterfly-move1 {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    25% { transform: translate(2px, -4px) rotate(10deg); }
+    50% { transform: translate(4px, -2px) rotate(20deg); }
+    75% { transform: translate(2px, 0px) rotate(10deg); }
+}
+
+/* --- [추가] 나비 2번 움직임 (왼쪽 위로 더 크게, 회전 반대) --- */
+.butterfly-style2 {
+    animation: butterfly-move2 6s infinite ease-in-out; /* 시간차를 둠 */
+}
+
+@keyframes butterfly-move2 {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    30% { transform: translate(-3px, -5px) rotate(-15deg); }
+    60% { transform: translate(-5px, -1px) rotate(-25deg); }
+    80% { transform: translate(-2px, -3px) rotate(-10deg); }
+}
+
 
 /* 인연 목록 팝업 전용 스타일 */
 .forest-list-overlay {
@@ -3593,44 +3613,25 @@ window.showMemberTimeline = async (mId, mName) => {
             isHotMember = true;
         }
 
-                        // [추가] 1. 주별 산행 여부 체크 바구니
-        const weeklyCheck = {};
-        const validHikeDays = []; // 나비가 앉을 수 있는 '산행한 날' 후보들
+                        // 1. 후보지 뽑기 (정기산행이 아닌 '산행' 기록만 필터링)
+const validHikeDays = []; 
+logsQuarter.forEach(l => {
+    const dayOffset = Math.floor((l.date - start) / (1000 * 60 * 60 * 24));
+    
+    // 정기산행(isRegular)이 아니고, 달리기/트래킹이 아닐 때만 후보
+    if (!l.isRunning && !l.isTracking && !l.isRegular) {
+        validHikeDays.push(dayOffset);
+    }
+});
 
-        logsQuarter.forEach(l => {
-            // 해당 날짜가 몇 번째 주인지 계산
-            const dayOffset = Math.floor((l.date - start) / (1000 * 60 * 60 * 24));
-            const weekIdx = Math.floor(dayOffset / 7);
-            
-            if(!l.isRunning && !l.isTracking) { // 순수 '산행'만 체크
-                weeklyCheck[weekIdx] = true;
-                // 나비 후보지로 등록 (분기별 일차 수)
-                validHikeDays.push(dayOffset); 
-            }
-        });
+// 2. 나비 위치 선정 (4주 연속 성공 시 랜덤 2곳)
+const butterflyPositions = [];
+if (has4WeeksCombo && validHikeDays.length > 0) {
+    // 무작위 섞기 후 2개 선택
+    const shuffled = validHikeDays.sort(() => 0.5 - Math.random());
+    butterflyPositions.push(...shuffled.slice(0, 2));
+}
 
-        // [추가] 2. 4주 연속 산행 여부 및 나비 자리 선정
-        let has4WeeksCombo = false;
-        const butterflyPositions = []; // 최종 나비가 앉을 자리 (최대 2개)
-
-        // 분기 내에 4주 연속 기록이 한 번이라도 있는지 체크
-        for (let w = 3; w < totalDaysInQ / 7; w++) {
-            if (weeklyCheck[w] && weeklyCheck[w-1] && weeklyCheck[w-2] && weeklyCheck[w-3]) {
-                has4WeeksCombo = true;
-                break; // 한 번만 만족하면 됨
-            }
-        }
-
-        // 4주 연속 성공했고, 산행한 날이 있다면 랜덤으로 2자리 뽑기
-        if (has4WeeksCombo && validHikeDays.length > 0) {
-            // 후보지를 랜덤하게 섞음 (Fisher-Yates Shuffle)
-            for (let i = validHikeDays.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [validHikeDays[i], validHikeDays[j]] = [validHikeDays[j], validHikeDays[i]];
-            }
-            // 섞인 후보지 중 앞에서 2개만 콕 집음
-            butterflyPositions.push(...validHikeDays.slice(0, 2));
-        }
 
 
         // 4. 잔디 데이터 분석
@@ -3668,11 +3669,15 @@ for (let i = 0; i < totalDaysInQ; i++) {
     const k = `${cur.getFullYear()}-${cur.getMonth() + 1}-${cur.getDate()}`;
     const act = dateActivities[k];
 
-        // [추가] 미리 정해둔 자리에만 나비 표시
-    let butterflyTag = "";
-    if (butterflyPositions.includes(i)) {
-        butterflyTag = `<div class="butterfly-box"><span class="butterfly-ani">🦋</span></div>`;
-    }
+        // 잔디 그리는 반복문(for) 내부
+let butterflyTag = "";
+const bfIdx = butterflyPositions.indexOf(i); // i는 현재 날짜 index
+
+if (bfIdx !== -1) {
+    // 0번째 나비는 style1, 1번째 나비는 style2 적용
+    const cls = (bfIdx === 0) ? "butterfly-style1" : "butterfly-style2";
+    butterflyTag = `<div class="butterfly-box ${cls}"><span class="butterfly-ani">🦋</span></div>`;
+}
 
 
     let cl = "grass-day";
