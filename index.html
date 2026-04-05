@@ -13,6 +13,44 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+        /* 나비: 살랑살랑 흔들리는 효과 */
+    @keyframes flutter { 
+        0%, 100% { transform: translateY(0) scale(1); } 
+        50% { transform: translateY(-2px) scale(1.1); } 
+    }
+    /* 눈꽃: 위에서 아래로 살짝 내리는 효과 */
+    @keyframes falling { 
+        0% { transform: translateY(-3px); opacity: 0; } 
+        50% { opacity: 1; } 
+        100% { transform: translateY(3px); opacity: 0; } 
+    }
+    
+    /* 나비 아이콘 설정 (최소 크기) */
+    .ani-butterfly { 
+        display: block; 
+        animation: flutter 2s infinite ease-in-out; 
+        position: absolute; 
+        top: -4px;    /* 잔디 칸 살짝 위쪽 */
+        right: -2px;  /* 오른쪽 정렬 */
+        z-index: 30; 
+        font-size: 7px; /* 아이콘 크기를 아주 작게 설정 */
+        line-height: 1;
+        letter-spacing: -2px; /* 여러 마리일 때 간격 좁힘 */
+    }
+    
+    /* 눈꽃 아이콘 설정 (최소 크기) */
+    .ani-snow { 
+        display: block; 
+        animation: falling 2.5s infinite linear; 
+        position: absolute; 
+        top: 0; 
+        left: 0;
+        width: 100%; 
+        text-align: center; 
+        z-index: 30; 
+        font-size: 6px; /* 눈꽃은 더 작게 설정 */
+        opacity: 0.8;
+    }
 /* 인연 목록 팝업 전용 스타일 */
 .forest-list-overlay {
     position: fixed;
@@ -3585,6 +3623,33 @@ logsQuarter.forEach(l => {
     }
 });
 
+        // --- [추가] 4주 연속 산행 콤보 분석 ---
+const weekGroups = {}; // 주차별 산행 여부 저장
+logsAll.forEach(l => {
+    if (!l.isRunning && !l.isTracking) { // '산행' 기록만 체크
+        const d = new Date(l.date);
+        d.setHours(0,0,0,0);
+        // 해당 날짜가 속한 주의 일요일을 기준으로 주차 계산
+        const sunday = new Date(d);
+        sunday.setDate(d.getDate() - d.getDay());
+        const weekKey = `${sunday.getFullYear()}-${sunday.getMonth() + 1}-${sunday.getDate()}`;
+        weekGroups[weekKey] = true;
+    }
+});
+
+// 현재 날짜로부터 역순으로 4주 연속 기록이 있는지 확인
+const checkCombo = (targetDate) => {
+    for (let i = 0; i < 4; i++) {
+        const d = new Date(targetDate);
+        d.setDate(d.getDate() - (i * 7));
+        const sun = new Date(d);
+        sun.setDate(d.getDate() - d.getDay());
+        const k = `${sun.getFullYear()}-${sun.getMonth() + 1}-${sun.getDate()}`;
+        if (!weekGroups[k]) return false;
+    }
+    return true;
+};
+
 // 5. 잔디 보드 HTML 생성
 let grassHtml = "";
 const seasonalFlowers = {
@@ -3650,6 +3715,25 @@ for (let i = 0; i < totalDaysInQ; i++) {
                     const randomFlower = flowerList[Math.floor(Math.random() * flowerList.length)];
                     iconTag = `<span style="position:absolute; font-size:8px; right:0; bottom:0; pointer-events:none; z-index:10;">${randomFlower}</span>`;
                 }
+            }
+        }
+    }
+    
+    // --- [추가] 4주 연속 콤보 및 나비/눈꽃 로직 ---
+    if (act && !act.isRegular && (act.hike > 0)) { 
+        // 정기산행 아니고 일반 산행이 있을 때
+        const isCombo = checkCombo(cur);
+        if (isCombo && Math.random() < 0.5) { // 50% 확률
+            const isWinter = (month === 12 || month === 1 || month === 2);
+            if (isWinter) {
+                // 겨울이면 눈꽃 1~2개
+                const snowCount = Math.floor(Math.random() * 2) + 1;
+                iconTag += `<span class="ani-snow">${'❄️'.repeat(snowCount)}</span>`;
+            } else {
+                // 그외 계절 나비 1~2마리
+                const butterfly = Math.random() < 0.5 ? "🦋" : "🐝";
+                const bfCount = Math.floor(Math.random() * 2) + 1;
+                iconTag += `<span class="ani-butterfly">${butterfly.repeat(bfCount)}</span>`;
             }
         }
     }
