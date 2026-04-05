@@ -13,92 +13,6 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-    /* --- [2단계] 콤보 아이콘(나비/눈송이) 전체 화면 애니메이션 --- */
-
-/* 1. 기본 설정: 잔디 보드 위에 아이콘이 다닐 공간 확보 */
-#grassBoard {
-    position: relative; /* 아이콘 위치 기준점 */
-    overflow: visible;  /* 아이콘이 잔디 보드 밖으로 살짝 나가도 보이게 */
-}
-
-/* 2. 아이콘 공통 스타일 정의 */
-#grassBoard.combo-active::before,
-#grassBoard.combo-active::after {
-    display: block;
-    position: absolute;
-    font-size: 14px; /* 아이콘 크기 (전체 화면이므로 조금 키움) */
-    z-index: 100;    /* 잔디보다 무조건 위에 표시 */
-    pointer-events: none; /* 클릭 방해 금지 */
-    opacity: 0;      /* 기본적으로 안 보임 */
-}
-
-/* 3. 계절별 아이콘 및 애니메이션 지정 */
-
-/* [기본: 나비 (🦋) - 날개 펄럭임 + 넓게 배회] */
-#grassBoard.combo-active::before,
-#grassBoard.combo-active::after {
-    content: '🦋'; /* 나비 아이콘 */
-    animation: butterfly-wander 15s linear infinite, butterfly-flap 0.5s ease-in-out infinite;
-}
-
-/* [겨울: 눈송이 (❄️) - 위에서 아래로 떨어짐] */
-#grassBoard.combo-active.combo-winter::before,
-#grassBoard.combo-active.combo-winter::after {
-    content: '❄️'; /* 눈송이 아이콘 */
-    animation: snowflake-fall 10s linear infinite;
-}
-
-/* 4. 두 마리의 타이밍 조절 (1~2마리 효과) */
-#grassBoard.combo-active::after {
-    animation-delay: 7.5s; /* 2번째 마리는 7.5초 뒤에 등장 */
-}
-#grassBoard.combo-active.combo-winter::after {
-    animation-delay: 5s; /* 겨울 눈송이 2번째는 5초 뒤에 등장 */
-}
-
-
-/* 5. 애니메이션 정의 (@keyframes) */
-
-/* 🦋 나비 애니메이션 1: 넓게 배회하기 (방황) */
-@keyframes butterfly-wander {
-    0% { top: 10%; left: -10%; opacity: 0; transform: scale(0.5); }
-    10% { opacity: 1; transform: scale(1); }
-    30% { top: 80%; left: 30%; }
-    50% { top: 20%; left: 60%; }
-    70% { top: 90%; left: 90%; }
-    90% { opacity: 1; transform: scale(1); }
-    100% { top: 30%; left: 110%; opacity: 0; transform: scale(0.5); }
-}
-
-/* 🦋 나비 애니메이션 2: 날개 펄럭임 (x축 크기 조절) */
-@keyframes butterfly-flap {
-    0%, 100% { transform: scaleX(1); }
-    50% { transform: scaleX(0.3); }
-}
-
-/* ❄️ 눈송이 애니메이션: 위에서 아래로 떨어지기 */
-@keyframes snowflake-fall {
-    0% { top: -10%; left: 20%; opacity: 0; transform: translateY(0); }
-    10% { opacity: 1; }
-    90% { opacity: 1; }
-    100% { top: 110%; left: 80%; opacity: 0; transform: translateY(20px); }
-}
-/* 눈송이 2번째는 다른 위치에서 떨어지게 시작점 변경 */
-#grassBoard.combo-active.combo-winter::after {
-    left: 70%;
-}
-@keyframes snowflake-fall-2 { /* 2번째 눈송이용 애니메이션 (옵션) */
-     0% { top: -10%; left: 70%; opacity: 0; }
-     10% { opacity: 1; }
-     90% { opacity: 1; }
-     100% { top: 110%; left: 30%; opacity: 0; }
-}
-/* 겨울 눈송이 2번째 애니메이션 수정 (위의snowflake-fall-2를 사용하도록) */
-#grassBoard.combo-active.combo-winter::after {
-    animation-name: snowflake-fall-2;
-}
-
-
 /* 인연 목록 팝업 전용 스타일 */
 .forest-list-overlay {
     position: fixed;
@@ -3670,38 +3584,6 @@ logsQuarter.forEach(l => {
         if(l.isRegular) dateActivities[key].isRegular = true;
     }
 });
-        // --- [1단계] 4주 연속 산행 여부 확인 및 클래스 부여 ---
-const consecutiveWeeks = new Set();
-for (let i = 0; i < 4; i++) {
-    const weekStart = new Date();
-    weekStart.setDate(weekStart.getDate() - (7 * (i + 1)));
-    const weekEnd = new Date();
-    weekEnd.setDate(weekEnd.getDate() - (7 * i));
-
-    const hasHikeThisWeek = logsAll.some(l => 
-        l.date >= weekStart && l.date < weekEnd && !l.isRunning && !l.isTracking
-    );
-    consecutiveWeeks.add(hasHikeThisWeek);
-}
-
-// 모든 주차에 산행 기록이 있으면 (콤보 달성)
-if (!consecutiveWeeks.has(false)) {
-    // 50% 확률로 콤보 효과 적용
-    if (Math.random() < 0.5) {
-        grassBoard.classList.add('combo-active'); // 잔디 보드에 클래스 추가
-        
-        // 겨울인지 확인하여 계절 클래스도 추가
-        const now = new Date();
-        const month = now.getMonth() + 1;
-        if (month === 12 || month <= 2) {
-            grassBoard.classList.add('combo-winter');
-        }
-    }
-} else {
-    // 콤보 미달성 시 클래스 제거 (혹시 남아있을지 모를 클래스 정리)
-    grassBoard.classList.remove('combo-active', 'combo-winter');
-}
-
 
 // 5. 잔디 보드 HTML 생성
 let grassHtml = "";
@@ -3757,34 +3639,6 @@ for (let i = 0; i < totalDaysInQ; i++) {
                 const level = Math.min(act.hike, 4);
                 cl += ` grass-active-${level}`;
             }
-
-            // --- [수정] 연속 콤보 나비(방황)/눈송이(낙하) 효과 ---
-// 1. 콤보 활성 상태이고, 2. 일반 산행 기록이 있고, 3. 정기 산행이 아닐 때만!
-if (isComboActive && act.hike > 0 && !act.isRegular) {
-    // 60% 확률로 등장
-    if (Math.random() < 0.6) {
-        const isWinter = (month === 12 || month <= 2);
-        
-        // 아이콘 세팅 및 전용 애니메이션 클래스 지정
-        const iconParams = isWinter 
-            ? { icons: ['❄️', '☃️'], animeClass: 'winter-animation' } // 겨울: 떨어짐
-            : { icons: ['🦋', '✨'], animeClass: 'combo-animation' }; // 그 외: 까딱거림
-
-        const selectedIcon = iconParams.icons[Math.floor(Math.random() * iconParams.icons.length)];
-        
-        // 1~2마리 랜덤 배치
-        const count = Math.random() > 0.5 ? 2 : 1;
-        for(let j=0; j<count; j++) {
-            // 위치 랜덤성 부여
-            const randomLeft = Math.floor(Math.random() * 12); 
-            const randomTop = isWinter ? Math.floor(Math.random() * -5) - 5 : -5; // 눈은 약간 더 위에서 시작
-            
-            // 🔥 [크기 수정] font-size를 7px로 아주 작게 줄였습니다.
-            iconTag += `<span class="${iconParams.animeClass}" style="position:absolute; font-size:7px; left:${randomLeft}px; top:${randomTop}px; z-index:20; pointer-events:none;">${selectedIcon}</span>`;
-        }
-    }
-}
-
 
             // HOT 멤버라면 30% 확률로 계절 꽃 추가 (정기산행이 아닐 때만)
             if (typeof isHotMember !== 'undefined' && isHotMember && (act.hike > 0 || act.run > 0 || act.trek > 0)) {
