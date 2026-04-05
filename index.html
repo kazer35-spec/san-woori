@@ -12,27 +12,26 @@
 body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: #333; }
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
-
-    /* 나비 애니메이션 */
+/* --- 
+    나비 애니메이션 기초 --- */
 .butterfly-box {
     position: absolute;
     width: 10px;
     height: 10px;
-    top: -5px;
-    left: -5px;
+    top: -5px; /* 잔디칸 위쪽에 걸치게 */
+    left: -5px; /* 잔디칸 왼쪽에 걸치게 */
     z-index: 20;
     pointer-events: none;
-    animation: butterfly-move 4s infinite ease-in-out;
-}
-
-@keyframes butterfly-move {
-    0%, 100% { transform: translate(0, 0) rotate(0deg); }
-    50% { transform: translate(3px, -3px) rotate(20deg); }
+    /* 기본 애니메이션 속성 (이름은 자바스크립트에서 주입) */
+    animation-duration: 4s;
+    animation-iteration-count: infinite;
+    animation-timing-function: ease-in-out;
 }
 
 /* 나비 날개짓 (이모지 자체를 흔듦) */
 .butterfly-ani {
     display: inline-block;
+    /* 기본 날개짓 속도 */
     animation: butterfly-flap 0.2s infinite alternate;
 }
 
@@ -40,6 +39,44 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
     from { transform: scaleX(1); }
     to { transform: scaleX(0.7); }
 }
+
+/* --- [추가] 1. 날개짓 속도 다양화 --- */
+.butterfly-ani.f-fast { animation-duration: 0.15s; }
+.butterfly-ani.f-slow { animation-duration: 0.3s; }
+
+
+/* --- [추가] 2. 서로 다른 이동 애니메이션 정의 --- */
+
+/* 타입 1: 우상단 이동 후 복귀 (기존과 유사) */
+.butterfly-box.m-1 { animation-name: butterfly-move-1; }
+@keyframes butterfly-move-1 {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    50% { transform: translate(4px, -4px) rotate(15deg); }
+}
+
+/* 타입 2: 좌상단 이동 후 복귀 + 더 많이 회전 */
+.butterfly-box.m-2 { animation-name: butterfly-move-2; animation-duration: 3.5s; }
+@keyframes butterfly-move-2 {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    50% { transform: translate(-3px, -5px) rotate(-25deg); }
+}
+
+/* 타입 3: 원형으로 약간 돌기 */
+.butterfly-box.m-3 { animation-name: butterfly-move-3; animation-duration: 5s; }
+@keyframes butterfly-move-3 {
+    0%, 100% { transform: translate(0, 0); }
+    25% { transform: translate(3px, -2px); }
+    50% { transform: translate(0px, -4px); }
+    75% { transform: translate(-3px, -2px); }
+}
+
+/* 타입 4: 위아래로만 흔들리기 (정박) */
+.butterfly-box.m-4 { animation-name: butterfly-move-4; animation-duration: 3s; }
+@keyframes butterfly-move-4 {
+    0%, 100% { transform: translate(0, 0); }
+    50% { transform: translate(0px, -6px); }
+}
+
 
 /* 인연 목록 팝업 전용 스타일 */
 .forest-list-overlay {
@@ -3593,42 +3630,40 @@ window.showMemberTimeline = async (mId, mName) => {
             isHotMember = true;
         }
 
-                        // [추가] 1. 주별 산행 여부 체크 바구니
-        const weeklyCheck = {};
-        const validHikeDays = []; // 나비가 앉을 수 있는 '산행한 날' 후보들
+                        const weeklyCheck = {};
+        const validHikeDays = []; // 나비가 앉을 수 있는 후보들
 
         logsQuarter.forEach(l => {
-            // 해당 날짜가 몇 번째 주인지 계산
             const dayOffset = Math.floor((l.date - start) / (1000 * 60 * 60 * 24));
             const weekIdx = Math.floor(dayOffset / 7);
             
             if(!l.isRunning && !l.isTracking) { // 순수 '산행'만 체크
                 weeklyCheck[weekIdx] = true;
-                // 나비 후보지로 등록 (분기별 일차 수)
-                validHikeDays.push(dayOffset); 
+                
+                // [수정 포인트] 정기산행(isRegular)이 아닌 경우에만 나비 후보지로 등록
+                if (!l.isRegular) {
+                    validHikeDays.push(dayOffset); 
+                }
             }
         });
 
-        // [추가] 2. 4주 연속 산행 여부 및 나비 자리 선정
         let has4WeeksCombo = false;
-        const butterflyPositions = []; // 최종 나비가 앉을 자리 (최대 2개)
+        const butterflyPositions = []; 
 
-        // 분기 내에 4주 연속 기록이 한 번이라도 있는지 체크
         for (let w = 3; w < totalDaysInQ / 7; w++) {
             if (weeklyCheck[w] && weeklyCheck[w-1] && weeklyCheck[w-2] && weeklyCheck[w-3]) {
                 has4WeeksCombo = true;
-                break; // 한 번만 만족하면 됨
+                break;
             }
         }
 
-        // 4주 연속 성공했고, 산행한 날이 있다면 랜덤으로 2자리 뽑기
         if (has4WeeksCombo && validHikeDays.length > 0) {
-            // 후보지를 랜덤하게 섞음 (Fisher-Yates Shuffle)
+            // Fisher-Yates Shuffle
             for (let i = validHikeDays.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [validHikeDays[i], validHikeDays[j]] = [validHikeDays[j], validHikeDays[i]];
             }
-            // 섞인 후보지 중 앞에서 2개만 콕 집음
+            // 최대 2자리 선정
             butterflyPositions.push(...validHikeDays.slice(0, 2));
         }
 
@@ -3668,11 +3703,18 @@ for (let i = 0; i < totalDaysInQ; i++) {
     const k = `${cur.getFullYear()}-${cur.getMonth() + 1}-${cur.getDate()}`;
     const act = dateActivities[k];
 
-        // [추가] 미리 정해둔 자리에만 나비 표시
-    let butterflyTag = "";
-    if (butterflyPositions.includes(i)) {
-        butterflyTag = `<div class="butterfly-box"><span class="butterfly-ani">🦋</span></div>`;
-    }
+        let butterflyTag = "";
+            if (butterflyPositions.includes(i)) {
+                // 움직임 타입 랜덤 (m-1 ~ m-4)
+                const moveType = `m-${Math.floor(Math.random() * 4) + 1}`;
+                // 날개짓 속도 랜덤 (기본, f-fast, f-slow)
+                const flapSpeed = ['f-fast', 'f-slow', ''][Math.floor(Math.random() * 3)];
+                
+                butterflyTag = `
+                    <div class="butterfly-box ${moveType}">
+                        <span class="butterfly-ani ${flapSpeed}">🦋</span>
+                    </div>`;
+            }
 
 
     let cl = "grass-day";
