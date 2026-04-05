@@ -13,6 +13,31 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+    /* 1. 나비/반짝이: 살랑살랑 까딱거리는 애니메이션 */
+@keyframes flutter {
+    0% { transform: translateY(0) rotate(0deg); opacity: 0.8; }
+    50% { transform: translateY(-2px) rotate(10deg); opacity: 1; }
+    100% { transform: translateY(0) rotate(0deg); opacity: 0.8; }
+}
+
+.combo-animation {
+    animation: flutter 2s ease-in-out infinite;
+    display: inline-block;
+    filter: drop-shadow(0 0 1px rgba(255,255,255,0.5)); /* 작은 아이콘 가독성 확보 */
+}
+
+/* 2. 겨울 눈/눈사람: 위에서 아래로 스르륵 떨어지며 사라지는 애니메이션 */
+@keyframes snowfall {
+    0% { transform: translateY(0); opacity: 0; }        /* 시작: 안보임 */
+    20% { opacity: 1; }                                /* 살짝 내려오며 나타남 */
+    100% { transform: translateY(15px); opacity: 0; }   /* 아래로 떨어지며 사라짐 */
+}
+
+.winter-animation {
+    animation: snowfall 3s linear infinite; /* 일정한 속도로 떨어짐 */
+    display: inline-block;
+}
+
 /* 인연 목록 팝업 전용 스타일 */
 .forest-list-overlay {
     position: fixed;
@@ -3584,6 +3609,23 @@ logsQuarter.forEach(l => {
         if(l.isRegular) dateActivities[key].isRegular = true;
     }
 });
+        // --- [추가] 4주 연속 산행 여부 확인 로직 ---
+const consecutiveWeeks = new Set();
+// 최근 4주(28일) 동안 매주 최소 1회 산행(hike > 0)했는지 확인
+for (let i = 0; i < 4; i++) {
+    const weekStart = new Date();
+    weekStart.setDate(weekStart.getDate() - (7 * (i + 1)));
+    const weekEnd = new Date();
+    weekEnd.setDate(weekEnd.getDate() - (7 * i));
+
+    const hasHikeThisWeek = logsAll.some(l => 
+        l.date >= weekStart && l.date < weekEnd && !l.isRunning && !l.isTracking
+    );
+    consecutiveWeeks.add(hasHikeThisWeek);
+}
+// 모든 주차에 산행 기록이 있으면 true
+const isComboActive = !consecutiveWeeks.has(false); 
+
 
 // 5. 잔디 보드 HTML 생성
 let grassHtml = "";
@@ -3639,6 +3681,34 @@ for (let i = 0; i < totalDaysInQ; i++) {
                 const level = Math.min(act.hike, 4);
                 cl += ` grass-active-${level}`;
             }
+
+            // --- [수정] 연속 콤보 나비(방황)/눈송이(낙하) 효과 ---
+// 1. 콤보 활성 상태이고, 2. 일반 산행 기록이 있고, 3. 정기 산행이 아닐 때만!
+if (isComboActive && act.hike > 0 && !act.isRegular) {
+    // 60% 확률로 등장
+    if (Math.random() < 0.6) {
+        const isWinter = (month === 12 || month <= 2);
+        
+        // 아이콘 세팅 및 전용 애니메이션 클래스 지정
+        const iconParams = isWinter 
+            ? { icons: ['❄️', '☃️'], animeClass: 'winter-animation' } // 겨울: 떨어짐
+            : { icons: ['🦋', '✨'], animeClass: 'combo-animation' }; // 그 외: 까딱거림
+
+        const selectedIcon = iconParams.icons[Math.floor(Math.random() * iconParams.icons.length)];
+        
+        // 1~2마리 랜덤 배치
+        const count = Math.random() > 0.5 ? 2 : 1;
+        for(let j=0; j<count; j++) {
+            // 위치 랜덤성 부여
+            const randomLeft = Math.floor(Math.random() * 12); 
+            const randomTop = isWinter ? Math.floor(Math.random() * -5) - 5 : -5; // 눈은 약간 더 위에서 시작
+            
+            // 🔥 [크기 수정] font-size를 7px로 아주 작게 줄였습니다.
+            iconTag += `<span class="${iconParams.animeClass}" style="position:absolute; font-size:7px; left:${randomLeft}px; top:${randomTop}px; z-index:20; pointer-events:none;">${selectedIcon}</span>`;
+        }
+    }
+}
+
 
             // HOT 멤버라면 30% 확률로 계절 꽃 추가 (정기산행이 아닐 때만)
             if (typeof isHotMember !== 'undefined' && isHotMember && (act.hike > 0 || act.run > 0 || act.trek > 0)) {
