@@ -4411,22 +4411,19 @@ window.addMultiActivity = async () => {
 
             // 3. 산행/런닝에 따른 D-Day 처리
 if (isRealHike) {
-    // 산행 시에는 무조건 122일(또는 기본 리밋)로 풀충전 (bonusDays를 0으로 리셋)
-    updateData.bonusDays = 0; 
+    updateData.bonusDays = 0; // 실제 산행은 즉시 풀충전
 } else if (oldLevel > 0) {
-    // [수정] 런닝/트래킹/단순기록인 경우
+    // 런닝/트래킹 등 특수 활동일 때
     if (isMultiHike) {
-        // 2인 이상 동행 시에만 15일 추가
+        // 2인 이상일 때만 15일 추가 로직 실행
         let nextDday = Math.min(122, currentDdayVal + 15);
         updateData.bonusDays = nextDday - 122;
     } else {
-        // 혼자 했을 때는 기존 D-Day 유지 (보너스 없음)
-        // updateData에 bonusDays를 별도로 할당하지 않으면 기존 값이 유지되거나, 
-        // 명시적으로 현재 상태를 유지하고 싶다면 아래와 같이 작성합니다.
-        updateData.bonusDays = member.bonusDays || 0; 
+        // [중요] 1인 활동일 때는 bonusDays에 변화를 주지 않음
+        // 만약 계속 추가된다면, 필드 자체를 업데이트 데이터에서 제외해야 합니다.
+        delete updateData.bonusDays; 
     }
 }
-
 
             // 4. 우정 포인트 및 동행 횟수 (실제 산행 + 2인 이상일 때만)
             if (isRealHike && isMultiHike) {
