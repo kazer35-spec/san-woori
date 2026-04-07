@@ -2302,16 +2302,29 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 <div class="space-y-4">
 
 <div>
-<label class="text-[9px] font-black text-gray-500 ml-1 mb-1 block">🔴 산행지 & 픽업</label>
-<div class="flex items-center gap-2">
-<input type="text" id="n_mt" placeholder="어디로 가나요?" class="flex-1 bg-white/5 h-[44px] rounded-2xl text-white text-sm outline-none px-4 border-none">
-<div class="flex items-center gap-1 p-1 bg-white/5 rounded-full border border-white/5 h-[44px] shrink-0">
-<input type="radio" name="n_pickup" id="p_ok" value="(픽업 가능)" class="hidden peer/ok">
-<label for="p_ok" class="px-3 py-2 rounded-full text-[10px] font-black text-gray-500 cursor-pointer peer-checked/ok:bg-blue-600 peer-checked/ok:text-white transition-all">픽업</label>
-<input type="radio" name="n_pickup" id="p_no" value="(픽업 불가)" class="hidden peer/no">
-<label for="p_no" class="px-3 py-2 rounded-full text-[10px] font-black text-gray-500 cursor-pointer peer-checked/no:bg-red-600 peer-checked/no:text-white transition-all">불가</label>
-</div>
-</div>
+    <label class="text-[9px] font-black text-gray-500 ml-1 mb-1 block">🔴 산행지 & 픽업</label>
+    <div class="flex flex-col gap-2">
+        <div class="flex items-center gap-2">
+            <input type="text" id="n_mt" placeholder="어디로 가나요?" class="flex-1 bg-white/5 h-[44px] rounded-2xl text-white text-sm outline-none px-4 border-none">
+            
+            <button onclick="toggleMountainList()" class="bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 text-[10px] font-black px-3 h-[44px] rounded-2xl shrink-0 hover:bg-emerald-600 hover:text-white transition-all">
+                ⛰️ 등록산
+            </button>
+
+            <div class="flex items-center gap-1 p-1 bg-white/5 rounded-full border border-white/5 h-[44px] shrink-0">
+                <input type="radio" name="n_pickup" id="p_ok" value="(픽업 가능)" class="hidden peer/ok">
+                <label for="p_ok" class="px-3 py-2 rounded-full text-[10px] font-black text-gray-500 cursor-pointer peer-checked/ok:bg-blue-600 peer-checked/ok:text-white transition-all">픽업</label>
+                <input type="radio" name="n_pickup" id="p_no" value="(픽업 불가)" class="hidden peer/no">
+                <label for="p_no" class="px-3 py-2 rounded-full text-[10px] font-black text-gray-500 cursor-pointer peer-checked/no:bg-red-600 peer-checked/no:text-white transition-all">불가</label>
+            </div>
+        </div>
+
+        <div id="registeredMountainBox" class="hidden bg-slate-800/80 border border-white/5 rounded-2xl p-3 max-h-[150px] overflow-y-auto custom-scrollbar">
+            <div id="registeredMountainList" class="flex flex-wrap gap-2">
+                <p class="text-gray-500 text-[10px]">등록된 산이 없습니다.</p>
+            </div>
+        </div>
+    </div>
 </div>
 
 <div>
@@ -5981,7 +5994,67 @@ window.deleteMountainDraft = async (id) => {
     }
 };
 
+    // 1. 등록된 산 목록 열기/닫기
+window.toggleMountainList = async () => {
+    const box = document.getElementById('registeredMountainBox');
+    const isHidden = box.classList.contains('hidden');
+
+    if (isHidden) {
+        box.classList.remove('hidden');
+        await loadRegisteredMountains(); // 목록 불러오기
+    } else {
+        box.classList.add('hidden');
+    }
+};
+
+// 2. 파이어베이스에서 정식 등록된 산(mountains) 가져오기
+async function loadRegisteredMountains() {
+    const listEl = document.getElementById('registeredMountainList');
+    const db = firebase.firestore();
+    
+    try {
+        const snapshot = await db.collection("mountains").orderBy("mt", "asc").get();
+        listEl.innerHTML = ""; // 초기화
+
+        if (snapshot.empty) {
+            listEl.innerHTML = "<p class='text-gray-500 text-[10px] w-full text-center'>등록된 산 정보가 없습니다.</p>";
+            return;
+        }
+
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            const btn = document.createElement('button');
+            // 버튼 디자인: 작고 깔끔한 태그 스타일
+            btn.className = "px-3 py-1.5 bg-white/5 border border-white/10 rounded-full text-[11px] text-gray-300 hover:bg-emerald-600 hover:text-white transition-all";
+            btn.innerHTML = `🏔️ ${data.mt} <span class="text-[9px] opacity-50">${data.meet || ''}</span>`;
             
+            // 클릭 시 해당 데이터 입력창에 뿌리기
+            btn.onclick = () => {
+                selectMountain(data);
+                document.getElementById('registeredMountainBox').classList.add('hidden'); // 선택 후 닫기
+            };
+            listEl.appendChild(btn);
+        });
+    } catch (e) {
+        console.error("산 목록 로드 실패:", e);
+    }
+}
+
+// 3. 선택한 산 정보 입력창에 자동 매칭
+function selectMountain(data) {
+    if(data.mt) document.getElementById('n_mt').value = data.mt;
+    if(data.meet) document.getElementById('n_meet').value = data.meet;
+    if(data.course) document.getElementById('n_course').value = data.course;
+    if(data.dist) document.getElementById('n_dist').value = data.dist;
+    if(data.lv) document.getElementById('n_lv').value = data.lv;
+    
+    // 소요시간 (시간/분 분리 입력 시)
+    if(data.time_h) document.getElementById('n_time_h').value = data.time_h;
+    if(data.time_m) document.getElementById('n_time_m').value = data.time_m;
+
+    alert(`✅ '${data.mt}' 정보가 입력되었습니다.`);
+}
+        
 </script>
 </body>
     </html>
