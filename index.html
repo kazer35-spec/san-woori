@@ -5994,67 +5994,90 @@ window.deleteMountainDraft = async (id) => {
     }
 };
 
-    // 1. 등록된 산 목록 열기/닫기
+    // 1. 등록된 산 목록 박스 열기/닫기
 window.toggleMountainList = async () => {
     const box = document.getElementById('registeredMountainBox');
+    if (!box) return;
+
     const isHidden = box.classList.contains('hidden');
 
     if (isHidden) {
         box.classList.remove('hidden');
-        await loadRegisteredMountains(); // 목록 불러오기
+        // 목록 로딩 시 애니메이션 효과를 위해 내부를 비우고 로딩 표시
+        document.getElementById('registeredMountainList').innerHTML = "<p class='text-emerald-500 text-[10px] animate-pulse'>데이터 연결 중...</p>";
+        await loadRegisteredMountains(); 
     } else {
         box.classList.add('hidden');
     }
 };
 
-// 2. 파이어베이스에서 정식 등록된 산(mountains) 가져오기
+// 2. 파이어베이스 san-woori-db에서 정식 데이터 가져오기
 async function loadRegisteredMountains() {
     const listEl = document.getElementById('registeredMountainList');
+    
+    // 파이어베이스가 정상적으로 로드되었는지 확인
+    if (typeof firebase === 'undefined') {
+        listEl.innerHTML = "<p class='text-red-400 text-[10px]'>Firebase 로드 오류</p>";
+        return;
+    }
+
     const db = firebase.firestore();
     
     try {
+        // 'mountains' 컬렉션에서 승인된 산 리스트를 가져옴
         const snapshot = await db.collection("mountains").orderBy("mt", "asc").get();
-        listEl.innerHTML = ""; // 초기화
+        listEl.innerHTML = ""; 
 
         if (snapshot.empty) {
-            listEl.innerHTML = "<p class='text-gray-500 text-[10px] w-full text-center'>등록된 산 정보가 없습니다.</p>";
+            listEl.innerHTML = "<p class='text-gray-500 text-[10px] py-2'>등록된 산이 없습니다. 관리자 승인이 필요합니다.</p>";
             return;
         }
 
         snapshot.forEach(doc => {
             const data = doc.data();
             const btn = document.createElement('button');
-            // 버튼 디자인: 작고 깔끔한 태그 스타일
-            btn.className = "px-3 py-1.5 bg-white/5 border border-white/10 rounded-full text-[11px] text-gray-300 hover:bg-emerald-600 hover:text-white transition-all";
-            btn.innerHTML = `🏔️ ${data.mt} <span class="text-[9px] opacity-50">${data.meet || ''}</span>`;
+            btn.type = "button"; // 폼 전송 방지
+            btn.className = "px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-[11px] text-emerald-200 hover:bg-emerald-600 hover:text-white transition-all active:scale-95";
+            btn.innerHTML = `🏔️ ${data.mt}`;
             
-            // 클릭 시 해당 데이터 입력창에 뿌리기
-            btn.onclick = () => {
-                selectMountain(data);
-                document.getElementById('registeredMountainBox').classList.add('hidden'); // 선택 후 닫기
+            // 클릭 시 폼에 자동 입력
+            btn.onclick = (e) => {
+                e.preventDefault();
+                selectMountainData(data);
+                document.getElementById('registeredMountainBox').classList.add('hidden'); 
             };
             listEl.appendChild(btn);
         });
     } catch (e) {
-        console.error("산 목록 로드 실패:", e);
+        console.error("데이터 불러오기 실패:", e);
+        listEl.innerHTML = "<p class='text-red-400 text-[10px] py-2'>연결 실패: 관리자 설정을 확인하세요.</p>";
     }
 }
 
-// 3. 선택한 산 정보 입력창에 자동 매칭
-function selectMountain(data) {
-    if(data.mt) document.getElementById('n_mt').value = data.mt;
-    if(data.meet) document.getElementById('n_meet').value = data.meet;
-    if(data.course) document.getElementById('n_course').value = data.course;
-    if(data.dist) document.getElementById('n_dist').value = data.dist;
-    if(data.lv) document.getElementById('n_lv').value = data.lv;
-    
-    // 소요시간 (시간/분 분리 입력 시)
-    if(data.time_h) document.getElementById('n_time_h').value = data.time_h;
-    if(data.time_m) document.getElementById('n_time_m').value = data.time_m;
+// 3. 데이터 입력창에 꽂아넣기
+function selectMountainData(data) {
+    // 각 ID에 맞는 입력창에 데이터 매칭
+    const fields = {
+        'n_mt': data.mt,
+        'n_meet': data.meet,
+        'n_course': data.course,
+        'n_dist': data.dist,
+        'n_lv': data.lv,
+        'n_time_h': data.time_h,
+        'n_time_m': data.time_m
+    };
 
-    alert(`✅ '${data.mt}' 정보가 입력되었습니다.`);
+    for (const [id, value] of Object.entries(fields)) {
+        const el = document.getElementById(id);
+        if (el && value) {
+            el.value = value;
+        }
+    }
+    
+    // 성공 알림 (선택 사항)
+    console.log(`${data.mt} 정보 로드 완료`);
 }
-        
+
 </script>
 </body>
     </html>
