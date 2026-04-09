@@ -3748,31 +3748,42 @@ for (let i = 0; i < totalDaysInQ; i++) {
     iconTag = `<span style="font-size: 11px; display: flex; align-items: center; justify-content: center; height: 100%; pointer-events: none; position: relative; z-index: 5; text-shadow: 0 0 3px rgba(0,0,0,0.3);">${qIcon}</span>`;
 }
         else {
-        else {
-    // 일반 활동 색상 로직
+    // 1. 상태 판정
     const hasHike = act.hike > 0;
-    // [수정] 산책(walk)도 Extra 활동에 포함
-    const hasExtra = act.run > 0 || act.trek > 0 || act.walk > 0;
-    
+    const hasRun = act.run > 0;
+    const hasTrek = act.trek > 0;
+    const hasWalk = act.walk > 0;
+    const hasExtra = hasRun || hasTrek || hasWalk;
+
     if (hasHike && hasExtra) {
-        // 산행과 특수 활동이 섞여 있을 때 그라데이션
-        let subColor = "#FFD1DC"; // 기본 분홍
-        if (act.walk > 0) subColor = "#FFE5B4"; // 산책이 있으면 연주황
-        else if (act.trek > 0) subColor = "#E0B0FF"; // 트레킹이면 연보라
+        // [Case 1] 산행과 다른 활동이 섞여 있는 경우 (그라데이션)
+        let subColor = "#FFD1DC"; // 기본 분홍(런닝)
+        
+        // 우선순위에 따른 색상 결정 (산책 > 트레킹 > 런닝)
+        if (hasWalk) subColor = "#FFE5B4"; 
+        else if (hasTrek) subColor = "#E0B0FF";
         
         style = `background: linear-gradient(135deg, #2ecc71 50%, ${subColor} 50%);`;
-    } else if (act.walk > 0) { 
-        // 산책만 했을 때 (선명한 주황색)
+    } 
+    else if (hasWalk) { 
+        // [Case 2] 산책만 한 경우 (주황)
         style = "background: #FFB347;"; 
-    } else if (act.run > 0) { 
+    } 
+    else if (hasRun) { 
+        // [Case 3] 런닝만 한 경우 (분홍)
         style = "background: #FFD1DC;"; 
-    } else if (act.trek > 0) { 
+    } 
+    else if (hasTrek) { 
+        // [Case 4] 트레킹만 한 경우 (보라)
         style = "background: #E0B0FF;"; 
-    } else if (act.hike > 0) {
+    } 
+    else if (hasHike) {
+        // [Case 5] 순수 산행만 한 경우 (기존 레벨별 초록색)
         const level = Math.min(act.hike, 4);
         cl += ` grass-active-${level}`;
     }
 }
+
 
             // HOT 멤버라면 30% 확률로 계절 꽃 추가 (정기산행이 아닐 때만)
             if (typeof isHotMember !== 'undefined' && isHotMember && (act.hike > 0 || act.run > 0 || act.trek > 0)) {
@@ -4415,12 +4426,17 @@ window.addMultiActivity = async () => {
             const currentDdayVal = (baseLimit + Number(member.bonusDays || 0)) - diffDays;
 
             // 2. 업데이트 객체 생성
-            let updateData = { 
-                level: newLevel, // oldLevel + effectiveUp 대신 계산된 newLevel 사용
-                lastDate: ts, 
-                count: isRealHike ? increment(1) : increment(0),
-                totalHeight: isRealHike ? increment(height) : increment(0)
-            };
+let updateData = { 
+    level: newLevel, 
+    lastDate: ts, 
+    // count와 totalHeight를 isRealHike가 true일 때만 포함시킵니다.
+};
+
+// [수정] 산행일 때만 카운트와 높이를 추가 (산책, 런닝, 트래킹은 제외)
+if (isRealHike) {
+    updateData.count = increment(1);
+    updateData.totalHeight = increment(height);
+}
 
             // 3. 산행/런닝에 따른 D-Day 처리
 if (isRealHike) {
@@ -4576,6 +4592,7 @@ window.syncLastDateAfterDelete = async (mId) => {
             collection(db, `sanwoori/${mId}/logs`),
             where("isRunning", "==", false),
             where("isTracking", "==", false),
+            where("isWalking", "==", false),
             orderBy("date", "desc"),
             limit(1)
         );
