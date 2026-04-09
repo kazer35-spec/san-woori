@@ -3748,6 +3748,7 @@ for (let i = 0; i < totalDaysInQ; i++) {
     iconTag = `<span style="font-size: 11px; display: flex; align-items: center; justify-content: center; height: 100%; pointer-events: none; position: relative; z-index: 5; text-shadow: 0 0 3px rgba(0,0,0,0.3);">${qIcon}</span>`;
 }
         else {
+        else {
     // 일반 활동 색상 로직
     const hasHike = act.hike > 0;
     // [수정] 산책(walk)도 Extra 활동에 포함
@@ -4414,17 +4415,12 @@ window.addMultiActivity = async () => {
             const currentDdayVal = (baseLimit + Number(member.bonusDays || 0)) - diffDays;
 
             // 2. 업데이트 객체 생성
-let updateData = { 
-    level: newLevel, 
-    lastDate: ts, 
-    // count와 totalHeight를 isRealHike가 true일 때만 포함시킵니다.
-};
-
-// [수정] 산행일 때만 카운트와 높이를 추가 (산책, 런닝, 트래킹은 제외)
-if (isRealHike) {
-    updateData.count = increment(1);
-    updateData.totalHeight = increment(height);
-}
+            let updateData = { 
+                level: newLevel, // oldLevel + effectiveUp 대신 계산된 newLevel 사용
+                lastDate: ts, 
+                count: isRealHike ? increment(1) : increment(0),
+                totalHeight: isRealHike ? increment(height) : increment(0)
+            };
 
             // 3. 산행/런닝에 따른 D-Day 처리
 if (isRealHike) {
@@ -4580,7 +4576,6 @@ window.syncLastDateAfterDelete = async (mId) => {
             collection(db, `sanwoori/${mId}/logs`),
             where("isRunning", "==", false),
             where("isTracking", "==", false),
-            where("isWalking", "==", false),
             orderBy("date", "desc"),
             limit(1)
         );
