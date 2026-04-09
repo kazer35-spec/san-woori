@@ -3747,7 +3747,8 @@ for (let i = 0; i < totalDaysInQ; i++) {
 
     iconTag = `<span style="font-size: 11px; display: flex; align-items: center; justify-content: center; height: 100%; pointer-events: none; position: relative; z-index: 5; text-shadow: 0 0 3px rgba(0,0,0,0.3);">${qIcon}</span>`;
 }
-        else {
+    
+            else {
             // 1. 상태 판정 변수 생성
             const hasHike = act.hike > 0;
             const hasRun = act.run > 0;
@@ -3780,6 +3781,21 @@ for (let i = 0; i < totalDaysInQ; i++) {
                 const level = Math.min(act.hike, 4);
                 cl += ` grass-active-${level}`;
             }
+
+            // HOT 멤버 꽃 추가 로직 (기존과 동일하게 유지)
+            if (typeof isHotMember !== 'undefined' && isHotMember && (hasHike || hasExtra)) {
+                if (Math.random() < 0.3) {
+                    let flowerList = (month >= 3 && month <= 5) ? seasonalFlowers.spring :
+                                     (month >= 6 && month <= 8) ? seasonalFlowers.summer :
+                                     (month >= 9 && month <= 11) ? seasonalFlowers.fall : seasonalFlowers.winter;
+                    
+                    const randomFlower = flowerList[Math.floor(Math.random() * flowerList.length)];
+                    iconTag = `<span style="position:absolute; font-size:8px; right:0; bottom:0; pointer-events:none; z-index:10;">${randomFlower}</span>`;
+                }
+            }
+        }
+
+
 
             // HOT 멤버라면 30% 확률로 계절 꽃 추가 (정기산행이 아닐 때만)
             if (typeof isHotMember !== 'undefined' && isHotMember && (act.hike > 0 || act.run > 0 || act.trek > 0)) {
@@ -4422,12 +4438,17 @@ window.addMultiActivity = async () => {
             const currentDdayVal = (baseLimit + Number(member.bonusDays || 0)) - diffDays;
 
             // 2. 업데이트 객체 생성
-            let updateData = { 
-                level: newLevel, // oldLevel + effectiveUp 대신 계산된 newLevel 사용
-                lastDate: ts, 
-                count: isRealHike ? increment(1) : increment(0),
-                totalHeight: isRealHike ? increment(height) : increment(0)
-            };
+let updateData = { 
+    level: newLevel, 
+    lastDate: ts, 
+    // count와 totalHeight를 isRealHike가 true일 때만 포함시킵니다.
+};
+
+// [수정] 산행일 때만 카운트와 높이를 추가 (산책, 런닝, 트래킹은 제외)
+if (isRealHike) {
+    updateData.count = increment(1);
+    updateData.totalHeight = increment(height);
+}
 
             // 3. 산행/런닝에 따른 D-Day 처리
 if (isRealHike) {
@@ -4583,6 +4604,7 @@ window.syncLastDateAfterDelete = async (mId) => {
             collection(db, `sanwoori/${mId}/logs`),
             where("isRunning", "==", false),
             where("isTracking", "==", false),
+            where("isWalking", "==", false),
             orderBy("date", "desc"),
             limit(1)
         );
