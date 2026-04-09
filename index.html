@@ -4421,29 +4421,33 @@ window.addMultiActivity = async () => {
             const baseLimit = (oldLevel === 0 ? 30 : 122);
             const currentDdayVal = (baseLimit + Number(member.bonusDays || 0)) - diffDays;
 
-            // 2. 업데이트 객체 생성
+                        // 2. 업데이트 객체 생성
             let updateData = { 
-                level: newLevel, // oldLevel + effectiveUp 대신 계산된 newLevel 사용
+                level: newLevel, 
                 lastDate: ts, 
-                count: isRealHike ? increment(1) : increment(0),
-                totalHeight: isRealHike ? increment(height) : increment(0)
+                // count와 totalHeight를 여기서 미리 선언하지 않습니다.
             };
 
-            // 3. 산행/런닝에 따른 D-Day 처리
-if (isRealHike) {
-    updateData.bonusDays = 0; // 실제 산행은 즉시 풀충전
-} else if (oldLevel > 0) {
-    // 런닝/트래킹 등 특수 활동일 때
-    if (isMultiHike) {
-        // 2인 이상일 때만 15일 추가 로직 실행
-        let nextDday = Math.min(122, currentDdayVal + 15);
-        updateData.bonusDays = nextDday - 122;
-    } else {
-        // [중요] 1인 활동일 때는 bonusDays에 변화를 주지 않음
-        // 만약 계속 추가된다면, 필드 자체를 업데이트 데이터에서 제외해야 합니다.
-        delete updateData.bonusDays; 
-    }
-}
+            // [핵심 수정] 실제 산행(isRealHike)일 때만 횟수와 높이 필드를 추가합니다.
+            // 산책, 런닝, 트래킹(isSpecial)일 때는 이 블록을 건너뛰므로 횟수가 올라가지 않습니다.
+            if (isRealHike) {
+                updateData.count = increment(1);
+                updateData.totalHeight = increment(height);
+            }
+
+            // 3. 산행/런닝/산책에 따른 D-Day 처리
+            if (isRealHike) {
+                updateData.bonusDays = 0; // 실제 산행은 즉시 풀충전
+            } else if (oldLevel > 0) {
+                if (isMultiHike) {
+                    let nextDday = Math.min(122, currentDdayVal + 15);
+                    updateData.bonusDays = nextDday - 122;
+                } else {
+                    // 1인 활동(산책 등)일 때는 D-Day 보너스 없음
+                    // updateData에 bonusDays 필드를 아예 넣지 않아 기존 값 유지
+                }
+            }
+
 
             // 4. 우정 포인트 및 동행 횟수 (실제 산행 + 2인 이상일 때만)
             if (isRealHike && isMultiHike) {
@@ -4580,12 +4584,15 @@ window.syncLastDateAfterDelete = async (mId) => {
     try {
         // 런닝(isRunning)과 트레킹(isTracking)이 모두 false인 '산행' 기록만 필터링
         const lastHikeQuery = query(
-            collection(db, `sanwoori/${mId}/logs`),
-            where("isRunning", "==", false),
-            where("isTracking", "==", false),
-            orderBy("date", "desc"),
-            limit(1)
-        );
+    collection(db, `sanwoori/${mId}/logs`),
+    where("isRunning", "==", false),
+    where("isTracking", "==", false),
+    where("isWalking", "==", false),
+    where("isOnlyLog", "==", false), // ✨ 기록 전용 데이터도 제외하고 싶다면 추가
+    orderBy("date", "desc"),
+    limit(1)
+);
+
         const lastHikeSnap = await getDocs(lastHikeQuery);
 
         if (!lastHikeSnap.empty) {
