@@ -4171,23 +4171,32 @@ async function startRealtimeSync() {
 
         // 3. 각 멤버별 데이터 정리
         const results = await Promise.all(snapshot.docs.map(async (docSnap) => {
-            const m = { id: docSnap.id, ...docSnap.data() };
-            const qLogsQuery = query(
-                collection(db, `sanwoori/${m.id}/logs`),
-                where("date", ">=", start),
-                where("date", "<", end)
-            );
-            const qSnap = await getDocs(qLogsQuery);
-            
-            m.qCount = qSnap.docs.filter(l => {
-                const d = l.data();
-                return !d.isRunning && !d.isTracking;
-            }).length;
+    const m = { id: docSnap.id, ...docSnap.data() };
+    const qLogsQuery = query(
+        collection(db, `sanwoori/${m.id}/logs`),
+        where("date", ">=", start),
+        where("date", "<", end)
+    );
+    const qSnap = await getDocs(qLogsQuery);
+    
+    // [수정] 분기 횟수 계산 시 산책(isWalking)도 제외
+    m.qCount = qSnap.docs.filter(l => {
+        const d = l.data();
+        return !d.isRunning && !d.isTracking && !d.isWalking; // ✨ 산책 제외 추가
+    }).length;
 
-            const allLogsSnap = await getDocs(collection(db, `sanwoori/${m.id}/logs`));
-            m.totalHeight = allLogsSnap.docs.reduce((acc, l) => acc + (l.data().height || 0), 0);
-            return m;
-        }));
+    const allLogsSnap = await getDocs(collection(db, `sanwoori/${m.id}/logs`));
+    
+    // [추가 팁] 전체 높이 합산에서도 산책/런닝/트래킹 높이를 제외하고 싶다면?
+    m.totalHeight = allLogsSnap.docs.reduce((acc, l) => {
+        const d = l.data();
+        // 순수 산행일 때만 높이를 더함 (필요 시 적용)
+        const isRealHike = !d.isRunning && !d.isTracking && !d.isWalking;
+        return acc + (isRealHike ? (d.height || 0) : 0);
+    }, 0);
+    
+    return m;
+}));
 
         // 4. 화면 업데이트 및 테마 적용
         currentData = results;
@@ -4423,15 +4432,11 @@ window.addMultiActivity = async () => {
 
             // 2. 업데이트 객체 생성
             let updateData = { 
-    level: newLevel, 
-    lastDate: ts
-};
-
-// [수정] 실제 산행(isRealHike)일 때만 횟수와 높이 필드를 객체에 추가
-if (isRealHike) {
-    updateData.count = increment(1);
-    updateData.totalHeight = increment(height);
-}
+                level: newLevel, // oldLevel + effectiveUp 대신 계산된 newLevel 사용
+                lastDate: ts, 
+                count: isRealHike ? increment(1) : increment(0),
+                totalHeight: isRealHike ? increment(height) : increment(0)
+            };
 
             // 3. 산행/런닝에 따른 D-Day 처리
 if (isRealHike) {
