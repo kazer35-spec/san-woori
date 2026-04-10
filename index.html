@@ -3680,14 +3680,18 @@ logsQuarter.forEach(l => {
     const key = `${l.date.getFullYear()}-${l.date.getMonth() + 1}-${l.date.getDate()}`;
     
     if(!dateActivities[key]) {
-        dateActivities[key] = { hike: 0, run: 0, trek: 0, walk: 0, isRegular: false };
+        // [수정] extraHike 필드 초기값 추가
+        dateActivities[key] = { hike: 0, run: 0, trek: 0, walk: 0, extraHike: 0, isRegular: false };
     }
     
-    if(l.isRunning) {
+    // 🔥 [핵심 추가] 번외산행 판정 우선순위
+    if (l.isExtraHike) {
+        dateActivities[key].extraHike++;
+    } else if(l.isRunning) {
         dateActivities[key].run++;
     } else if(l.isTracking) {
         dateActivities[key].trek++;
-    } else if(l.isWalking) { // ✨ 이 부분이 핵심입니다!
+    } else if(l.isWalking) { 
         dateActivities[key].walk++;
     } else {
         dateActivities[key].hike++;
