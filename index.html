@@ -3753,51 +3753,47 @@ for (let i = 0; i < totalDaysInQ; i++) {
 }
         
     else {
-    // 1. 활동별 색상 매핑 정보
-    const colorMap = [
-        { key: 'hike', color: '#2ecc71', active: act.hike > 0 },      // 산행 (초록)
-        { key: 'extraHike', color: '#00CED1', active: act.extraHike > 0 }, // 번외 (민트)
-        { key: 'walk', color: '#FFB347', active: act.walk > 0 },      // 산책 (주황)
-        { key: 'run', color: '#FFD1DC', active: act.run > 0 },       // 런닝 (분홍)
-        { key: 'trek', color: '#E0B0FF', active: act.trek > 0 }       // 트레킹 (보라)
-    ];
+            else {
+            // 1. 활성화된 활동과 해당 색상을 배열로 수집
+            const activeActivities = [];
+            if (act.hike > 0)      activeActivities.push({ key: 'hike', color: '#2ecc71' });      // 초록 (산행)
+            if (act.extraHike > 0) activeActivities.push({ key: 'extraHike', color: '#00CED1' }); // 민트 (번외)
+            if (act.walk > 0)      activeActivities.push({ key: 'walk', color: '#FFB347' });      // 주황 (산책)
+            if (act.run > 0)       activeActivities.push({ key: 'run', color: '#FFD1DC' });       // 분홍 (런닝)
+            if (act.trek > 0)      activeActivities.push({ key: 'trek', color: '#E0B0FF' });      // 보라 (트레킹)
 
-    // 2. 활성화된 활동만 필터링
-    const activeActivities = colorMap.filter(item => item.active);
-    const activeCount = activeActivities.length;
+            const activeCount = activeActivities.length;
 
-    if (activeCount === 0) {
-        // 아무 활동 없음 (기본 처리)
-    } 
-    else if (activeCount === 1) {
-        const activity = activeActivities[0];
-        if (activity.key === 'hike') {
-            // 순수 산행만 한 경우 (기존 레벨 시스템 유지)
-            const level = Math.min(act.hike, 4);
-            cl += ` grass-active-${level}`;
-        } else {
-            // 그 외 단일 활동 (민트, 주황 등)
-            style = `background: ${activity.color};`;
-        }
-    } 
-    else {
-        // [Case] 2개 이상의 활동이 겹친 경우 (그라데이션 생성)
-        // 예: 산책 + 런닝, 산책 + 트레킹 + 번외 등 모두 대응
-        const colors = activeActivities.map(item => item.color);
-        
-        if (colors.length === 2) {
-            // 2개일 때: 50%씩 배분
-            style = `background: linear-gradient(135deg, ${colors[0]} 50%, ${colors[1]} 50%);`;
-        } else {
-            // 3개 이상일 때: 균등 배분
-            const step = Math.floor(100 / colors.length);
-            const gradientStops = colors.map((color, idx) => {
-                return `${color} ${idx * step}% ${(idx + 1) * step}%`;
-            }).join(', ');
-            style = `background: linear-gradient(135deg, ${gradientStops});`;
-        }
-    }
-}
+            if (activeCount === 1) {
+                // [Case] 활동이 딱 하나일 때
+                const activity = activeActivities[0];
+                if (activity.key === 'hike') {
+                    // 산행만 한 경우 기존 레벨 시스템 적용
+                    const level = Math.min(act.hike, 4);
+                    cl += ` grass-active-${level}`;
+                } else {
+                    // 그 외 단일 활동은 해당 색상 단색으로
+                    style = `background: ${activity.color};`;
+                }
+            } 
+            else if (activeCount >= 2) {
+                // [Case] 2개 이상의 모든 조합 (산책+런닝, 트레킹+번외 등 모두 포함)
+                const colors = activeActivities.map(item => item.color);
+                
+                if (activeCount === 2) {
+                    // 2개일 때 50%씩 깔끔하게 배분
+                    style = `background: linear-gradient(135deg, ${colors[0]} 50%, ${colors[1]} 50%);`;
+                } else {
+                    // 3개 이상일 때 균등 배분 (33%, 25%... 자동 계산)
+                    const step = 100 / activeCount;
+                    const gradientStops = colors.map((color, idx) => {
+                        return `${color} ${idx * step}% ${(idx + 1) * step}%`;
+                    }).join(', ');
+                    style = `background: linear-gradient(135deg, ${gradientStops});`;
+                }
+            }
+
+
 
             // HOT 멤버라면 30% 확률로 계절 꽃 추가 (정기산행이 아닐 때만)
             if (typeof isHotMember !== 'undefined' && isHotMember && (act.hike > 0 || act.run > 0 || act.trek > 0)) {
