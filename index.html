@@ -3762,39 +3762,52 @@ for (let i = 0; i < totalDaysInQ; i++) {
     // 특수 활동 여부 합산
     const hasExtra = hasRun || hasTrek || hasWalk || hasExtraHike;
 
-    if (hasHike && hasExtra) {
-        // [Case 1] 산행과 특수 활동이 섞여 있는 경우 (그라데이션)
-        let subColor = "#FFD1DC"; // 기본 분홍(런닝)
-        
-        // 우선순위 결정: 번외산행(민트) > 산책(주황) > 트레킹(보라) > 런닝(분홍)
-        if (hasExtraHike) subColor = "#00CED1"; 
-        else if (hasWalk) subColor = "#FFE5B4"; 
-        else if (hasTrek) subColor = "#E0B0FF";
-        
-        style = `background: linear-gradient(135deg, #2ecc71 50%, ${subColor} 50%);`;
-    } 
-    else if (hasExtraHike) { 
-        // [Case 2] 번외산행만 한 경우 (민트색)
-        style = "background: #00CED1;"; 
-    }
-    else if (hasWalk) { 
-        // [Case 3] 산책만 한 경우 (주황색)
-        style = "background: #FFB347;"; 
-    } 
-    else if (hasRun) { 
-        // [Case 4] 런닝만 한 경우 (분홍색)
-        style = "background: #FFD1DC;"; 
-    } 
-    else if (hasTrek) { 
-        // [Case 5] 트레킹만 한 경우 (보라색)
-        style = "background: #E0B0FF;"; 
-    } 
-    else if (hasHike) {
-        // [Case 6] 순수 산행만 한 경우 (기본 초록색 레벨)
-        const level = Math.min(act.hike, 4);
-        cl += ` grass-active-${level}`;
-    }
+    else {
+    // 1. 활동별 색상 매핑 정보
+    const colorMap = [
+        { key: 'hike', color: '#2ecc71', active: act.hike > 0 },      // 산행 (초록)
+        { key: 'extraHike', color: '#00CED1', active: act.extraHike > 0 }, // 번외 (민트)
+        { key: 'walk', color: '#FFB347', active: act.walk > 0 },      // 산책 (주황)
+        { key: 'run', color: '#FFD1DC', active: act.run > 0 },       // 런닝 (분홍)
+        { key: 'trek', color: '#E0B0FF', active: act.trek > 0 }       // 트레킹 (보라)
+    ];
 
+    // 2. 활성화된 활동만 필터링
+    const activeActivities = colorMap.filter(item => item.active);
+    const activeCount = activeActivities.length;
+
+    if (activeCount === 0) {
+        // 아무 활동 없음 (기본 처리)
+    } 
+    else if (activeCount === 1) {
+        const activity = activeActivities[0];
+        if (activity.key === 'hike') {
+            // 순수 산행만 한 경우 (기존 레벨 시스템 유지)
+            const level = Math.min(act.hike, 4);
+            cl += ` grass-active-${level}`;
+        } else {
+            // 그 외 단일 활동 (민트, 주황 등)
+            style = `background: ${activity.color};`;
+        }
+    } 
+    else {
+        // [Case] 2개 이상의 활동이 겹친 경우 (그라데이션 생성)
+        // 예: 산책 + 런닝, 산책 + 트레킹 + 번외 등 모두 대응
+        const colors = activeActivities.map(item => item.color);
+        
+        if (colors.length === 2) {
+            // 2개일 때: 50%씩 배분
+            style = `background: linear-gradient(135deg, ${colors[0]} 50%, ${colors[1]} 50%);`;
+        } else {
+            // 3개 이상일 때: 균등 배분
+            const step = Math.floor(100 / colors.length);
+            const gradientStops = colors.map((color, idx) => {
+                return `${color} ${idx * step}% ${(idx + 1) * step}%`;
+            }).join(', ');
+            style = `background: linear-gradient(135deg, ${gradientStops});`;
+        }
+    }
+}
 
             // HOT 멤버라면 30% 확률로 계절 꽃 추가 (정기산행이 아닐 때만)
             if (typeof isHotMember !== 'undefined' && isHotMember && (act.hike > 0 || act.run > 0 || act.trek > 0)) {
