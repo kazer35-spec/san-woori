@@ -3795,19 +3795,20 @@ for (let i = 0; i < totalDaysInQ; i++) {
         cl += ` grass-active-${level}`;
     }
 
-    // HOT 멤버 꽃 추가 로직 (기존과 동일하게 유지)
-    if (typeof isHotMember !== 'undefined' && isHotMember && (hasHike || hasExtra)) {
-        if (Math.random() < 0.3) {
-            let flowerList = (month >= 3 && month <= 5) ? seasonalFlowers.spring :
-                             (month >= 6 && month <= 8) ? seasonalFlowers.summer :
-                             (month >= 9 && month <= 11) ? seasonalFlowers.fall : seasonalFlowers.winter;
-            
-            const randomFlower = flowerList[Math.floor(Math.random() * flowerList.length)];
-            iconTag = `<span style="position:absolute; font-size:8px; right:0; bottom:0; pointer-events:none; z-index:10;">${randomFlower}</span>`;
+
+            // HOT 멤버라면 30% 확률로 계절 꽃 추가 (정기산행이 아닐 때만)
+            if (typeof isHotMember !== 'undefined' && isHotMember && (act.hike > 0 || act.run > 0 || act.trek > 0)) {
+                if (Math.random() < 0.3) {
+                    let flowerList = (month >= 3 && month <= 5) ? seasonalFlowers.spring :
+                                     (month >= 6 && month <= 8) ? seasonalFlowers.summer :
+                                     (month >= 9 && month <= 11) ? seasonalFlowers.fall : seasonalFlowers.winter;
+                    
+                    const randomFlower = flowerList[Math.floor(Math.random() * flowerList.length)];
+                    iconTag = `<span style="position:absolute; font-size:8px; right:0; bottom:0; pointer-events:none; z-index:10;">${randomFlower}</span>`;
+                }
+            }
         }
     }
-}
-
 
     // --- [로직 B] 팝업 데이터 인코딩 및 HTML 조립 ---
     // 데이터가 있을 때만 인코딩하여 팝업 함수에 전달
@@ -5805,8 +5806,7 @@ window.showGrassPopup = (event, date, encodedAct) => {
     if (act.run > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#ec4899; gap:12px;"><span>🏃 러닝</span><b>${act.run}회</b></div>`;
     if (act.trek > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#a855f7; gap:12px;"><span>🥾 트레킹</span><b>${act.trek}회</b></div>`;
     if (act.walk > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#f97316; gap:12px;"><span>🚶 산책</span><b>${act.walk}회</b></div>`;
-    if (act.extraHike > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#00B36B; gap:12px;"><span>🏔 번외산행</span><b>${act.extraHike}회</b></div>`;
-
+    if (act.extraHike > 0) items += `<div style="display:flex; justify-content:space-between; font-size:12px; color:#00B36B; gap:12px;"><span>🏔l 번외산행</span><b>${act.extraHike}회</b></div>`;
     content.innerHTML = items;
 
     // 표시 및 레이어 설정
