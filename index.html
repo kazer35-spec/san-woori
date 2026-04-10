@@ -3752,54 +3752,63 @@ for (let i = 0; i < totalDaysInQ; i++) {
     iconTag = `<span style="font-size: 11px; display: flex; align-items: center; justify-content: center; height: 100%; pointer-events: none; position: relative; z-index: 5; text-shadow: 0 0 3px rgba(0,0,0,0.3);">${qIcon}</span>`;
 }
         else {
-    // 1. 산행 횟수별 초록색 농도 결정 (오류 방지를 위해 배열로 정의)
-    const hikeLevel = Math.min(act.hike, 4);
-    // 1~4단계 산행 색상 (기존 CSS 농도와 유사하게 설정)
-    const hikeColors = ["#c6e48b", "#7bc96f", "#239a3b", "#196127"];
-    const currentHikeColor = hikeLevel > 0 ? hikeColors[hikeLevel - 1] : "#2ecc71";
-
-    // 2. 활성화된 모든 활동 색상 수집 (배열에 순서대로 담기)
-    const activeColors = [];
+    // 1. 상태 판정 변수 생성 (번외산행 추가)
+    const hasHike = act.hike > 0;
+    const hasRun = act.run > 0;
+    const hasTrek = act.trek > 0;
+    const hasWalk = act.walk > 0;
+    const hasExtraHike = act.extraHike > 0; // 번외산행(민트)
     
-    if (act.hike > 0) activeColors.push(currentHikeColor); // 산행 (농도 반영)
-    if (act.extraHike > 0) activeColors.push("#00CED1");    // 번외산행 (민트)
-    if (act.walk > 0) activeColors.push("#FFB347");         // 산책 (주황)
-    if (act.trek > 0) activeColors.push("#E0B0FF");         // 트레킹 (보라)
-    if (act.run > 0) activeColors.push("#FFD1DC");          // 런닝 (분홍)
+    // 특수 활동 여부 합산
+    const hasExtra = hasRun || hasTrek || hasWalk || hasExtraHike;
 
-    // 3. 스타일 결정 로직
-    if (activeColors.length === 1) {
-        // [단독 활동]
-        if (act.hike > 0) {
-            // 산행만 있을 때는 기존 CSS 클래스(.grass-active-1~4)를 사용하여 농도 표현
-            cl += ` grass-active-${hikeLevel}`;
-        } else {
-            // 그 외(산책, 런닝 등) 단독은 배경색 직접 지정
-            style = `background: ${activeColors[0]};`;
-        }
+    if (hasHike && hasExtra) {
+        // [Case 1] 산행과 특수 활동이 섞여 있는 경우 (그라데이션)
+        let subColor = "#FFD1DC"; // 기본 분홍(런닝)
+        
+        // 우선순위 결정: 번외산행(민트) > 산책(주황) > 트레킹(보라) > 런닝(분홍)
+        if (hasExtraHike) subColor = "#00CED1"; 
+        else if (hasWalk) subColor = "#FFE5B4"; 
+        else if (hasTrek) subColor = "#E0B0FF";
+        
+        style = `background: linear-gradient(135deg, #2ecc71 50%, ${subColor} 50%);`;
     } 
-    else if (activeColors.length > 1) {
-        // [다중 활동] 활동 개수에 따라 그라데이션 영역 자동 분할
-        // 예: 3개 활동 시 33.3%씩 등분
-        const step = 100 / activeColors.length;
-        const gradientParts = activeColors.map((color, index) => {
-            return `${color} ${index * step}%, ${color} ${(index + 1) * step}%`;
-        });
-        style = `background: linear-gradient(135deg, ${gradientParts.join(", ")});`;
+    else if (hasExtraHike) { 
+        // [Case 2] 번외산행만 한 경우 (민트색)
+        style = "background: #00CED1;"; 
+    }
+    else if (hasWalk) { 
+        // [Case 3] 산책만 한 경우 (주황색)
+        style = "background: #FFB347;"; 
+    } 
+    else if (hasRun) { 
+        // [Case 4] 런닝만 한 경우 (분홍색)
+        style = "background: #FFD1DC;"; 
+    } 
+    else if (hasTrek) { 
+        // [Case 5] 트레킹만 한 경우 (보라색)
+        style = "background: #E0B0FF;"; 
+    } 
+    else if (hasHike) {
+        // [Case 6] 순수 산행만 한 경우 (기본 초록색 레벨)
+        const level = Math.min(act.hike, 4);
+        cl += ` grass-active-${level}`;
     }
 
-    // 4. HOT 멤버 꽃 애니메이션 추가 (기존 로직 유지)
-    if (typeof isHotMember !== 'undefined' && isHotMember && activeColors.length > 0) {
-        if (Math.random() < 0.3) {
-            let flowerList = (month >= 3 && month <= 5) ? seasonalFlowers.spring :
-                             (month >= 6 && month <= 8) ? seasonalFlowers.summer :
-                             (month >= 9 && month <= 11) ? seasonalFlowers.fall : seasonalFlowers.winter;
-            
-            const randomFlower = flowerList[Math.floor(Math.random() * flowerList.length)];
-            iconTag = `<span style="position:absolute; font-size:8px; right:0; bottom:0; pointer-events:none; z-index:10;">${randomFlower}</span>`;
+
+            // HOT 멤버라면 30% 확률로 계절 꽃 추가 (정기산행이 아닐 때만)
+            if (typeof isHotMember !== 'undefined' && isHotMember && (act.hike > 0 || act.run > 0 || act.trek > 0)) {
+                if (Math.random() < 0.3) {
+                    let flowerList = (month >= 3 && month <= 5) ? seasonalFlowers.spring :
+                                     (month >= 6 && month <= 8) ? seasonalFlowers.summer :
+                                     (month >= 9 && month <= 11) ? seasonalFlowers.fall : seasonalFlowers.winter;
+                    
+                    const randomFlower = flowerList[Math.floor(Math.random() * flowerList.length)];
+                    iconTag = `<span style="position:absolute; font-size:8px; right:0; bottom:0; pointer-events:none; z-index:10;">${randomFlower}</span>`;
+                }
+            }
         }
     }
-}
 
     // --- [로직 B] 팝업 데이터 인코딩 및 HTML 조립 ---
     // 데이터가 있을 때만 인코딩하여 팝업 함수에 전달
