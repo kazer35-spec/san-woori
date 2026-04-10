@@ -3762,17 +3762,35 @@ for (let i = 0; i < totalDaysInQ; i++) {
     // 특수 활동 여부 합산
     const hasExtra = hasRun || hasTrek || hasWalk || hasExtraHike;
 
-    if (hasHike && hasExtra) {
-        // [Case 1] 산행과 특수 활동이 섞여 있는 경우 (그라데이션)
-        let subColor = "#FFD1DC"; // 기본 분홍(런닝)
-        
-        // 우선순위 결정: 번외산행(민트) > 산책(주황) > 트레킹(보라) > 런닝(분홍)
-        if (hasExtraHike) subColor = "#00CED1"; 
-        else if (hasWalk) subColor = "#FFE5B4"; 
-        else if (hasTrek) subColor = "#E0B0FF";
-        
-        style = `background: linear-gradient(135deg, #2ecc71 50%, ${subColor} 50%);`;
-    } 
+    // 우선순위 및 색상 정의
+const colors = {
+    hike: "#2ecc71",      // 등산 (초록)
+    extraHike: "#00CED1", // 번외산행 (민트)
+    walk: "#FFE5B4",      // 산책 (주황)
+    trek: "#E0B0FF",      // 트레킹 (보라)
+    run: "#FFD1DC"        // 런닝 (분홍)
+};
+
+let activeColors = [];
+
+// 1. 활성화된 활동 확인 및 배열에 추가
+if (hasHike) activeColors.push(colors.hike);
+if (hasExtraHike) activeColors.push(colors.extraHike);
+if (hasTrek) activeColors.push(colors.trek);
+if (hasWalk) activeColors.push(colors.walk);
+if (hasRun) activeColors.push(colors.run); // 기존 subColor 기본값이었던 런닝 추가
+
+// 2. 그라데이션 스타일 생성
+if (activeColors.length === 1) {
+    style = `background: ${activeColors[0]};`;
+} else if (activeColors.length === 2) {
+    // 2개일 때: 50%씩 배분
+    style = `background: linear-gradient(135deg, ${activeColors[0]} 50%, ${activeColors[1]} 50%);`;
+} else if (activeColors.length >= 3) {
+    // 3개 이상일 때: 33.3%씩 균등 배분 (가장 깔끔한 UI를 위해 3개까지만 표현 권장)
+    style = `background: linear-gradient(135deg, ${activeColors[0]} 33.3%, ${activeColors[1]} 33.3%, ${activeColors[1]} 66.6%, ${activeColors[2]} 66.6%);`;
+}
+
     else if (hasExtraHike) { 
         // [Case 2] 번외산행만 한 경우 (민트색)
         style = "background: #00CED1;"; 
