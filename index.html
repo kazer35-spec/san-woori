@@ -3762,37 +3762,37 @@ for (let i = 0; i < totalDaysInQ; i++) {
     // 특수 활동 여부 합산
     const hasExtra = hasRun || hasTrek || hasWalk || hasExtraHike;
 
-    if (hasHike && hasExtra) {
-        // [Case 1] 산행과 특수 활동이 섞여 있는 경우 (그라데이션)
-        let subColor = "#FFD1DC"; // 기본 분홍(런닝)
-        
-        // 우선순위 결정: 번외산행(민트) > 산책(주황) > 트레킹(보라) > 런닝(분홍)
-        if (hasExtraHike) subColor = "#00CED1"; 
-        else if (hasWalk) subColor = "#FFE5B4"; 
-        else if (hasTrek) subColor = "#E0B0FF";
-        
-        style = `background: linear-gradient(135deg, #2ecc71 50%, ${subColor} 50%);`;
+    else {
+    // 1. 활성화된 활동 색상 수집
+    const activeColors = [];
+    
+    // 우선순위/순서대로 색상 추가 (산행이 항상 첫 번째)
+    if (act.hike > 0) activeColors.push("#2ecc71");      // 초록 (산행)
+    if (act.extraHike > 0) activeColors.push("#00CED1"); // 민트 (번외)
+    if (act.walk > 0) activeColors.push("#FFB347");      // 주황 (산책)
+    if (act.trek > 0) activeColors.push("#E0B0FF");      // 보라 (트레킹)
+    if (act.run > 0) activeColors.push("#FFD1DC");       // 분홍 (런닝)
+
+    // 2. 활동 개수에 따른 스타일 결정
+    if (activeColors.length === 1) {
+        // [Case 1] 활동이 하나일 때
+        if (act.hike > 0) {
+            // 순수 산행만 레벨별 초록색 적용
+            const level = Math.min(act.hike, 4);
+            cl += ` grass-active-${level}`;
+        } else {
+            // 그 외 단독 활동은 해당 색상 단색 적용
+            style = `background: ${activeColors[0]};`;
+        }
     } 
-    else if (hasExtraHike) { 
-        // [Case 2] 번외산행만 한 경우 (민트색)
-        style = "background: #00CED1;"; 
-    }
-    else if (hasWalk) { 
-        // [Case 3] 산책만 한 경우 (주황색)
-        style = "background: #FFB347;"; 
-    } 
-    else if (hasRun) { 
-        // [Case 4] 런닝만 한 경우 (분홍색)
-        style = "background: #FFD1DC;"; 
-    } 
-    else if (hasTrek) { 
-        // [Case 5] 트레킹만 한 경우 (보라색)
-        style = "background: #E0B0FF;"; 
-    } 
-    else if (hasHike) {
-        // [Case 6] 순수 산행만 한 경우 (기본 초록색 레벨)
-        const level = Math.min(act.hike, 4);
-        cl += ` grass-active-${level}`;
+    else if (activeColors.length > 1) {
+        // [Case 2] 활동이 여러 개 겹쳤을 때 (다중 그라데이션)
+        // 예: 2개면 0-50, 50-100 / 3개면 0-33, 33-66, 66-100 분할
+        const step = 100 / activeColors.length;
+        const gradientParts = activeColors.map((color, index) => {
+            return `${color} ${index * step}%, ${color} ${(index + 1) * step}%`;
+        });
+        style = `background: linear-gradient(135deg, ${gradientParts.join(", ")});`;
     }
 
 
