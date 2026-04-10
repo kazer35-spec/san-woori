@@ -3745,67 +3745,51 @@ for (let i = 0; i < totalDaysInQ; i++) {
 
     iconTag = `<span style="font-size: 11px; display: flex; align-items: center; justify-content: center; height: 100%; pointer-events: none; position: relative; z-index: 5; text-shadow: 0 0 3px rgba(0,0,0,0.3);">${qIcon}</span>`;
 }
-        else {
-    // 1. 상태 판정 변수 생성 (번외산행 추가)
-    const hasHike = act.hike > 0;
-    const hasRun = act.run > 0;
-    const hasTrek = act.trek > 0;
-    const hasWalk = act.walk > 0;
-    const hasExtraHike = act.extraHike > 0; // 번외산행(민트)
-    
-    // 특수 활동 여부 합산
-    const hasExtra = hasRun || hasTrek || hasWalk || hasExtraHike;
+        // 1. 상태 판정 변수 생성
+const hasHike = act.hike > 0;
+const hasRun = act.run > 0;
+const hasTrek = act.trek > 0;
+const hasWalk = act.walk > 0;
+const hasExtraHike = act.extraHike > 0;
 
-    // 우선순위 및 색상 정의
+// 색상 정의
 const colors = {
-    hike: "#2ecc71",      // 등산 (초록)
+    hike: "#2ecc71",      // 등산 기본 (초록)
     extraHike: "#00CED1", // 번외산행 (민트)
     walk: "#FFB347",      // 산책 (주황)
     trek: "#E0B0FF",      // 트레킹 (보라)
     run: "#FFD1DC"        // 런닝 (분홍)
 };
 
+// 2. 활성화된 활동들을 배열에 담기
 let activeColors = [];
-
-// 1. 활성화된 활동 확인 및 배열에 추가
 if (hasHike) activeColors.push(colors.hike);
 if (hasExtraHike) activeColors.push(colors.extraHike);
 if (hasTrek) activeColors.push(colors.trek);
 if (hasWalk) activeColors.push(colors.walk);
-if (hasRun) activeColors.push(colors.run); // 기존 subColor 기본값이었던 런닝 추가
+if (hasRun) activeColors.push(colors.run);
 
-// 2. 그라데이션 스타일 생성
-if (activeColors.length === 1) {
-    style = `background: ${activeColors[0]};`;
-} else if (activeColors.length === 2) {
-    // 2개일 때: 50%씩 배분
-    style = `background: linear-gradient(135deg, ${activeColors[0]} 50%, ${activeColors[1]} 50%);`;
-} else if (activeColors.length >= 3) {
-    // 3개 이상일 때: 33.3%씩 균등 배분 (가장 깔끔한 UI를 위해 3개까지만 표현 권장)
-    style = `background: linear-gradient(135deg, ${activeColors[0]} 33.3%, ${activeColors[1]} 33.3%, ${activeColors[1]} 66.6%, ${activeColors[2]} 66.6%);`;
-}
-
-    else if (hasExtraHike) { 
-        // [Case 2] 번외산행만 한 경우 (민트색)
-        style = "background: #00CED1;"; 
+// 3. 스타일 결정 로직
+if (activeColors.length >= 2) {
+    // [Case 1] 활동이 2개 이상인 경우 -> 그라데이션 적용
+    if (activeColors.length === 2) {
+        style = `background: linear-gradient(135deg, ${activeColors[0]} 50%, ${activeColors[1]} 50%);`;
+    } else {
+        // 3개 이상인 경우 (균등 분할)
+        style = `background: linear-gradient(135deg, ${activeColors[0]} 33.3%, ${activeColors[1]} 33.3%, ${activeColors[1]} 66.6%, ${activeColors[2]} 66.6%);`;
     }
-    else if (hasWalk) { 
-        // [Case 3] 산책만 한 경우 (주황색)
-        style = "background: #FFB347;"; 
-    } 
-    else if (hasRun) { 
-        // [Case 4] 런닝만 한 경우 (분홍색)
-        style = "background: #FFD1DC;"; 
-    } 
-    else if (hasTrek) { 
-        // [Case 5] 트레킹만 한 경우 (보라색)
-        style = "background: #E0B0FF;"; 
-    } 
-    else if (hasHike) {
-        // [Case 6] 순수 산행만 한 경우 (기본 초록색 레벨)
+} 
+else if (activeColors.length === 1) {
+    // [Case 2] 활동이 딱 하나만 있는 경우
+    if (hasHike) {
+        // 순수 산행만 한 경우 -> 기존처럼 횟수별 클래스 부여 (grass-active-1~4)
         const level = Math.min(act.hike, 4);
         cl += ` grass-active-${level}`;
+    } else {
+        // 그 외 활동(런닝, 산책 등) 하나만 한 경우 -> 해당 색상 단색 적용
+        style = `background: ${activeColors[0]};`;
     }
+}
 
 
             // HOT 멤버라면 30% 확률로 계절 꽃 추가 (정기산행이 아닐 때만)
