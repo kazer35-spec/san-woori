@@ -4442,10 +4442,32 @@ window.saveCardImage = async () => {
         pendingLevelUpCards = []; 
 
         // 2. 산 정보 업데이트 (좌표가 있을 때만 실행)
-        if(isRealHike && mName && safeCoords) {
-            await setDoc(doc(db, "mountains", mName), {
-                x: safeCoords.x, y: safeCoords.y, height, isTop100, isBAC, region
-            }, { merge: true });
+        if (isRealHike && mName) {
+            const mRef = doc(db, "mountains", mName);
+            const mSnap = await getDoc(mRef);
+
+            // 업데이트할 항목 정의
+            const mountainData = {
+                height: height,
+                isTop100: isTop100,
+                isBAC: isBAC,
+                region: region,
+                updatedAt: serverTimestamp() // 마지막 수정 시간 추가 (권장)
+            };
+
+            // 좌표는 지도를 찍었을 때만 (safeCoords가 있을 때만) 추가
+            if (safeCoords) {
+                mountainData.x = safeCoords.x;
+                mountainData.y = safeCoords.y;
+            }
+
+            if (mSnap.exists()) {
+                // 기존 데이터(코스, 시간 등)를 보존하며 업데이트
+                await updateDoc(mRef, mountainData);
+            } else {
+                // 처음 등록하는 산이면 새로 생성
+                await setDoc(mRef, mountainData);
+            }
         }
 
         // 3. 멤버별 데이터 업데이트 루프
