@@ -4393,7 +4393,8 @@ window.saveCardImage = async () => {
     }
 };
 
-window.addMultiActivity = async () => {
+
+            window.addMultiActivity = async () => {
     // 1. 기본 입력 데이터 수집
     const dateVal = document.getElementById('activityDate').value;
     const mName = document.getElementById('mountainName').value.trim();
@@ -4407,7 +4408,13 @@ window.addMultiActivity = async () => {
     const isOnlyLog = document.getElementById('isOnlyLog')?.checked || false; 
     const region = document.getElementById('adminManualRegionSelect').value;
     const isQuarterOnlyOne = document.getElementById('isQuarterCheck')?.checked || false;
+    
+    // 번외산행 판정
     const isExtraHike = isRunning && isTracking;
+    // 특수 활동 판정 (산행이 아닌 것들)
+    const isSpecial = isRunning || isTracking || isWalking || isOnlyLog || isExtraHike;
+    const isRealHike = !isSpecial; 
+    const isMultiHike = selectedMemberIds.size >= 2;
     
     if(!selectedMemberIds.size || !dateVal) return alert("대상과 날짜를 확인해주세요.");
 
@@ -4415,92 +4422,63 @@ window.addMultiActivity = async () => {
     if(!upElement) return alert("레벨업 수치를 선택해주세요.");
     const up = parseInt(upElement.value);
 
-// [수정] 번외산행을 포함하여 Special 활동 정의
-const isSpecial = isRunning || isTracking || isWalking || isOnlyLog || isExtraHike;
-
-const isRealHike = !isSpecial; 
-const isMultiHike = selectedMemberIds.size >= 2; // 2인 이상 동행 여부
-
-    const effectiveUp = isRealHike ? up : 0;
-    // 로그 생성 횟수: 정기산행/런닝/단일기록은 1개만, 일반산행은 레벨업 수치만큼 별 생성
-    const logLoopCount = (isRegular || isSpecial || isQuarterOnlyOne) ? 1 : up;
     const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
-
-    // 인연의 숲 저장용 이름 목록
     const selectedNames = [];
-    selectedMemberIds.forEach(id => {
-        const m = currentData.find(mem => mem.id === id);
-        if(m) selectedNames.push(m.name);
-    });
 
-    // 산 정보 업데이트
-    if(mName && tempCoord) {
-        await setDoc(doc(db, "mountains", mName), {
-            x: tempCoord.x, y: tempCoord.y, height, isTop100, isBAC, region
-        }, { merge: true });
-    }
+    // [에러 방지] 좌표 데이터 정리 (좌표가 없으면 null 처리)
+    const safeCoords = (tempCoord && tempCoord.x !== undefined) ? tempCoord : null;
 
     try {
         pendingLevelUpCards = []; 
 
-                // --- [멤버별 데이터 업데이트 루프 시작] ---
+        // 2. 산 정보 업데이트 (좌표가 있을 때만 실행)
+        if(isRealHike && mName && safeCoords) {
+            await setDoc(doc(db, "mountains", mName), {
+                x: safeCoords.x, y: safeCoords.y, height, isTop100, isBAC, region
+            }, { merge: true });
+        }
+
+        // 3. 멤버별 데이터 업데이트 루프
         for (const id of selectedMemberIds) {
             const member = currentData.find(m => m.id === id);
             if (!member) continue;
 
             const now = new Date();
             const qKey = `${now.getFullYear()}_q${Math.ceil((now.getMonth() + 1) / 3)}`;
-            
-            // 1. 공통 업데이트 항목 (날짜는 어떤 활동이든 갱신)
-            let updateData = { 
-                lastDate: ts 
-            };
+            let updateData = { lastDate: ts };
 
-            // 2. [Case A] 실제 산행 (isRealHike)일 때
             if (isRealHike) {
                 const oldLevel = member.level || 0;
                 const newLevel = oldLevel + up;
-
                 updateData.level = newLevel;
                 updateData.count = increment(1);
                 updateData.totalHeight = increment(height);
-                updateData.bonusDays = 0; // D-Day 풀충전
+                updateData.bonusDays = 0;
 
-                // 레벨업 카드 체크
-                if (up > 0 && typeof checkLevelUpgrade === 'function') {
-                    checkLevelUpgrade(member.name, oldLevel, newLevel);
-                }
+                if (up > 0) checkLevelUpgrade(member.name, oldLevel, newLevel);
 
-                // 2인 이상 동행 시 우정포인트 & 동행횟수 상승
                 if (isMultiHike) {
                     let pointToAdd = (isQuarterOnlyOne || isRegular) ? 100 : (100 * (up || 1));
                     updateData.buddyCount = increment(1);
                     updateData.friendshipPoint = increment(pointToAdd);
                     updateData[`fp_bins.${qKey}`] = increment(pointToAdd);
                 }
+                selectedNames.push(member.name);
             } 
-            // 3. [Case B] 특수 활동 (산책, 트래킹, 런닝 등)일 때
-            else {
-                // 수치(레벨, 횟수, 포인트)는 절대 올리지 않음
-                // 단, 2인 이상 동행 시 D-Day 15일 연장 혜택만 제공
-                if (isMultiHike && (member.level || 0) > 0) {
-                    const todayZero = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-                    const last = member.lastDate ? member.lastDate.toDate() : new Date();
-                    const lastZero = new Date(last.getFullYear(), last.getMonth(), last.getDate()).getTime();
-                    const diffDays = Math.floor((todayZero - lastZero) / (1000 * 60 * 60 * 24));
-                    
-                    const baseLimit = 122; // 나무 등급 이상 기준 (필요시 oldLevel 체크로 30/122 가변 가능)
-                    const currentDdayVal = (baseLimit + Number(member.bonusDays || 0)) - diffDays;
-                    
-                    let nextDday = Math.min(122, currentDdayVal + 15);
-                    updateData.bonusDays = nextDday - 122;
-                }
+            else if (isMultiHike && (member.level || 0) > 0) {
+                // 특수 활동 동행 시 D-Day만 15일 연장
+                const todayZero = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+                const last = member.lastDate ? member.lastDate.toDate() : new Date();
+                const lastZero = new Date(last.getFullYear(), last.getMonth(), last.getDate()).getTime();
+                const diffDays = Math.floor((todayZero - lastZero) / (1000 * 60 * 60 * 24));
+                const currentDdayVal = (122 + Number(member.bonusDays || 0)) - diffDays;
+                updateData.bonusDays = Math.min(122, currentDdayVal + 15) - 122;
             }
 
-            // DB 전송
             await updateDoc(doc(db, "sanwoori", id), updateData);
 
-            // 5. 개인 활동 로그(별) 생성
+            // 4. 개인 활동 로그 생성 (safeCoords 적용으로 에러 방지)
+            const logLoopCount = (isRegular || isSpecial || isQuarterOnlyOne) ? 1 : up;
             for(let i = 0; i < logLoopCount; i++) {
                 let starType = null;
                 if (isRegular) {
@@ -4510,39 +4488,28 @@ const isMultiHike = selectedMemberIds.size >= 2; // 2인 이상 동행 여부
                     else starType = "regular_" + (Math.floor(Math.random() * 4) + 1);
                 }
                 await addDoc(collection(db, `sanwoori/${id}/logs`), {
-                    date: ts, mountain: mName, height, coords: tempCoord,
+                    date: ts, mountain: mName || (isWalking ? "동네 산책" : "활동 기록"), 
+                    height, coords: safeCoords, // undefined 대신 null 혹은 좌표값 들어감
                     isTop100, isBAC, isRegular, isRunning, isTracking, isWalking, isExtraHike, isOnlyLog, region,
                     starType, author: member.name
                 });
             }
-        } 
-        // --- [멤버별 루프 종료] ---
+        }
 
-        // 6. 인연의 숲 공용 DB 기록 (2인 이상 산행 시 1회만 기록)
-        if (isRealHike && isMultiHike) {
+        // 5. 인연의 숲 기록 (산행 동행일 때만)
+        if (isRealHike && isMultiHike && selectedNames.length >= 2) {
             await addDoc(collection(db, "bondingForest"), {
-                mountain: mName, 
-                members: selectedNames,
-                memberCount: selectedNames.length, 
-                date: dateVal, 
-                createdAt: new Date()
+                mountain: mName, members: selectedNames, memberCount: selectedNames.length, 
+                date: dateVal, createdAt: new Date()
             });
         }
 
-                // --- [루프 종료 후 추가] ---
-        if (pendingLevelUpCards && pendingLevelUpCards.length > 0) {
-            if (typeof showCombinedLevelUpAlert === 'function') {
-                showCombinedLevelUpAlert();
-            }
-        }
+        if (pendingLevelUpCards.length > 0) showCombinedLevelUpAlert();
         
-        alert(isRealHike ? "산행 기록 및 동행 데이터 저장 완료! ✅" : "활동 기록 완료! 🏃");
-        
-        // UI 정리 및 동기화
+        alert(isRealHike ? "기록 완료! ✅" : "활동 기록 완료! 🏃");
         selectedMemberIds.clear();
-        tempCoord = null;
-        updateAdminMemberLists();
-        if (typeof startRealtimeSync === 'function') startRealtimeSync(); 
+        tempCoord = null; // 좌표 초기화
+        startRealtimeSync(); 
         
     } catch (error) {
         console.error("Error:", error);
