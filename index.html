@@ -4443,62 +4443,58 @@ const isMultiHike = selectedMemberIds.size >= 2; // 2인 이상 동행 여부
     try {
         pendingLevelUpCards = []; 
 
-        // --- [멤버별 데이터 업데이트 루프 시작] ---
+                // --- [멤버별 데이터 업데이트 루프 시작] ---
         for (const id of selectedMemberIds) {
             const member = currentData.find(m => m.id === id);
             if (!member) continue;
 
             const now = new Date();
             const qKey = `${now.getFullYear()}_q${Math.ceil((now.getMonth() + 1) / 3)}`;
-            const oldLevel = member.level || 0;
-            const newLevel = oldLevel + (isRealHike ? up : 0); // 새 레벨 미리 계산
-
-            // [추가] 레벨업 카드 생성 체크 (등급이 변하면 카드를 만듭니다)
-            if (isRealHike && up > 0) {
-                if (typeof checkLevelUpgrade === 'function') {
-                    checkLevelUpgrade(member.name, oldLevel, newLevel);
-                }
-            }
-
-            // 1. D-Day 계산 로직
-            const todayZero = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-            const last = member.lastDate ? member.lastDate.toDate() : new Date();
-            const lastZero = new Date(last.getFullYear(), last.getMonth(), last.getDate()).getTime();
-            const diffDays = Math.floor((todayZero - lastZero) / (1000 * 60 * 60 * 24));
-            const baseLimit = (oldLevel === 0 ? 30 : 122);
-            const currentDdayVal = (baseLimit + Number(member.bonusDays || 0)) - diffDays;
-
-            // 2. 업데이트 객체 생성
+            
+            // 1. 공통 업데이트 항목 (날짜는 어떤 활동이든 갱신)
             let updateData = { 
-                level: newLevel, // oldLevel + effectiveUp 대신 계산된 newLevel 사용
-                lastDate: ts, 
-                count: isRealHike ? increment(1) : increment(0),
-                totalHeight: isRealHike ? increment(height) : increment(0)
+                lastDate: ts 
             };
 
-            // 3. 산행/런닝에 따른 D-Day 처리
-if (isRealHike) {
-    updateData.bonusDays = 0; // 실제 산행은 즉시 풀충전
-} else if (oldLevel > 0) {
-    // 런닝/트래킹 등 특수 활동일 때
-    if (isMultiHike) {
-        // 2인 이상일 때만 15일 추가 로직 실행
-        let nextDday = Math.min(122, currentDdayVal + 15);
-        updateData.bonusDays = nextDday - 122;
-    } else {
-        // [중요] 1인 활동일 때는 bonusDays에 변화를 주지 않음
-        // 만약 계속 추가된다면, 필드 자체를 업데이트 데이터에서 제외해야 합니다.
-        delete updateData.bonusDays; 
-    }
-}
+            // 2. [Case A] 실제 산행 (isRealHike)일 때
+            if (isRealHike) {
+                const oldLevel = member.level || 0;
+                const newLevel = oldLevel + up;
 
-            // 4. 우정 포인트 및 동행 횟수 (실제 산행 + 2인 이상일 때만)
-            if (isRealHike && isMultiHike) {
-                // 포인트 계산: 단일 기록은 100, 일반은 100 * 레벨업수치
-                let pointToAdd = (isQuarterOnlyOne || isRegular) ? 100 : (100 * (up || 1));
-                updateData.buddyCount = increment(1); // 동행 횟수 DB 저장 (캐시 삭제 대비)
-                updateData.friendshipPoint = increment(pointToAdd);
-                updateData[`fp_bins.${qKey}`] = increment(pointToAdd);
+                updateData.level = newLevel;
+                updateData.count = increment(1);
+                updateData.totalHeight = increment(height);
+                updateData.bonusDays = 0; // D-Day 풀충전
+
+                // 레벨업 카드 체크
+                if (up > 0 && typeof checkLevelUpgrade === 'function') {
+                    checkLevelUpgrade(member.name, oldLevel, newLevel);
+                }
+
+                // 2인 이상 동행 시 우정포인트 & 동행횟수 상승
+                if (isMultiHike) {
+                    let pointToAdd = (isQuarterOnlyOne || isRegular) ? 100 : (100 * (up || 1));
+                    updateData.buddyCount = increment(1);
+                    updateData.friendshipPoint = increment(pointToAdd);
+                    updateData[`fp_bins.${qKey}`] = increment(pointToAdd);
+                }
+            } 
+            // 3. [Case B] 특수 활동 (산책, 트래킹, 런닝 등)일 때
+            else {
+                // 수치(레벨, 횟수, 포인트)는 절대 올리지 않음
+                // 단, 2인 이상 동행 시 D-Day 15일 연장 혜택만 제공
+                if (isMultiHike && (member.level || 0) > 0) {
+                    const todayZero = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+                    const last = member.lastDate ? member.lastDate.toDate() : new Date();
+                    const lastZero = new Date(last.getFullYear(), last.getMonth(), last.getDate()).getTime();
+                    const diffDays = Math.floor((todayZero - lastZero) / (1000 * 60 * 60 * 24));
+                    
+                    const baseLimit = 122; // 나무 등급 이상 기준 (필요시 oldLevel 체크로 30/122 가변 가능)
+                    const currentDdayVal = (baseLimit + Number(member.bonusDays || 0)) - diffDays;
+                    
+                    let nextDday = Math.min(122, currentDdayVal + 15);
+                    updateData.bonusDays = nextDday - 122;
+                }
             }
 
             // DB 전송
