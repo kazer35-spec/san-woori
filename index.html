@@ -4403,8 +4403,7 @@ window.saveCardImage = async () => {
     }
 };
 
-
-            window.addMultiActivity = async () => {
+window.addMultiActivity = async () => {
     // 1. 기본 입력 데이터 수집
     const dateVal = document.getElementById('activityDate').value;
     const mName = document.getElementById('mountainName').value.trim();
@@ -4419,9 +4418,8 @@ window.saveCardImage = async () => {
     const region = document.getElementById('adminManualRegionSelect').value;
     const isQuarterOnlyOne = document.getElementById('isQuarterCheck')?.checked || false;
     
-    // 번외산행 판정
+    // 🔥 번외산행 및 특수 활동 판정
     const isExtraHike = isRunning && isTracking;
-    // 특수 활동 판정 (산행이 아닌 것들)
     const isSpecial = isRunning || isTracking || isWalking || isOnlyLog || isExtraHike;
     const isRealHike = !isSpecial; 
     const isMultiHike = selectedMemberIds.size >= 2;
@@ -4435,37 +4433,33 @@ window.saveCardImage = async () => {
     const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
     const selectedNames = [];
 
-    // [에러 방지] 좌표 데이터 정리 (좌표가 없으면 null 처리)
+    // [에러 방지] 좌표 데이터 정리
     const safeCoords = (tempCoord && tempCoord.x !== undefined) ? tempCoord : null;
 
     try {
         pendingLevelUpCards = []; 
 
-        // 2. 산 정보 업데이트 (좌표가 있을 때만 실행)
+        // 2. 산 정보 업데이트
         if (isRealHike && mName) {
             const mRef = doc(db, "mountains", mName);
             const mSnap = await getDoc(mRef);
 
-            // 업데이트할 항목 정의
             const mountainData = {
                 height: height,
                 isTop100: isTop100,
                 isBAC: isBAC,
                 region: region,
-                updatedAt: serverTimestamp() // 마지막 수정 시간 추가 (권장)
+                updatedAt: new Date() // 🔥 serverTimestamp() 대신 new Date()로 통일하여 에러 방지
             };
 
-            // 좌표는 지도를 찍었을 때만 (safeCoords가 있을 때만) 추가
             if (safeCoords) {
                 mountainData.x = safeCoords.x;
                 mountainData.y = safeCoords.y;
             }
 
             if (mSnap.exists()) {
-                // 기존 데이터(코스, 시간 등)를 보존하며 업데이트
                 await updateDoc(mRef, mountainData);
             } else {
-                // 처음 등록하는 산이면 새로 생성
                 await setDoc(mRef, mountainData);
             }
         }
@@ -4497,19 +4491,22 @@ window.saveCardImage = async () => {
                 }
                 selectedNames.push(member.name);
             } 
-            else if (isMultiHike && (member.level || 0) > 0) {
-                // 특수 활동 동행 시 D-Day만 15일 연장
-                const todayZero = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-                const last = member.lastDate ? member.lastDate.toDate() : new Date();
-                const lastZero = new Date(last.getFullYear(), last.getMonth(), last.getDate()).getTime();
-                const diffDays = Math.floor((todayZero - lastZero) / (1000 * 60 * 60 * 24));
-                const currentDdayVal = (122 + Number(member.bonusDays || 0)) - diffDays;
-                updateData.bonusDays = Math.min(122, currentDdayVal + 15) - 122;
+            else {
+                // 특수 활동(런닝, 번외 등) 처리
+                // 2인 이상이면서 번외산행이 아닐 때만 D-Day 혜택 (원하시는 로직에 맞춰 조절 가능)
+                if (isMultiHike && !isExtraHike && (member.level || 0) > 0) {
+                    const todayZero = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+                    const last = member.lastDate ? member.lastDate.toDate() : new Date();
+                    const lastZero = new Date(last.getFullYear(), last.getMonth(), last.getDate()).getTime();
+                    const diffDays = Math.floor((todayZero - lastZero) / (1000 * 60 * 60 * 24));
+                    const currentDdayVal = (122 + Number(member.bonusDays || 0)) - diffDays;
+                    updateData.bonusDays = Math.min(122, currentDdayVal + 15) - 122;
+                }
             }
 
             await updateDoc(doc(db, "sanwoori", id), updateData);
 
-            // 4. 개인 활동 로그 생성 (safeCoords 적용으로 에러 방지)
+            // 4. 개인 활동 로그 생성
             const logLoopCount = (isRegular || isSpecial || isQuarterOnlyOne) ? 1 : up;
             for(let i = 0; i < logLoopCount; i++) {
                 let starType = null;
@@ -4520,8 +4517,10 @@ window.saveCardImage = async () => {
                     else starType = "regular_" + (Math.floor(Math.random() * 4) + 1);
                 }
                 await addDoc(collection(db, `sanwoori/${id}/logs`), {
-                    date: ts, mountain: mName || (isWalking ? "동네 산책" : "활동 기록"), 
-                    height, coords: safeCoords, // undefined 대신 null 혹은 좌표값 들어감
+                    date: ts, 
+                    mountain: mName || (isWalking ? "동네 산책" : (isExtraHike ? "번외 산행" : "활동 기록")), 
+                    height, 
+                    coords: safeCoords,
                     isTop100, isBAC, isRegular, isRunning, isTracking, isWalking, isExtraHike, isOnlyLog, region,
                     starType, author: member.name
                 });
@@ -4531,8 +4530,11 @@ window.saveCardImage = async () => {
         // 5. 인연의 숲 기록 (산행 동행일 때만)
         if (isRealHike && isMultiHike && selectedNames.length >= 2) {
             await addDoc(collection(db, "bondingForest"), {
-                mountain: mName, members: selectedNames, memberCount: selectedNames.length, 
-                date: dateVal, createdAt: new Date()
+                mountain: mName, 
+                members: selectedNames, 
+                memberCount: selectedNames.length, 
+                date: dateVal, 
+                createdAt: new Date() // ✅ 여기도 new Date()로 통일
             });
         }
 
@@ -4540,17 +4542,18 @@ window.saveCardImage = async () => {
         
         alert(isRealHike ? "기록 완료! ✅" : "활동 기록 완료! 🏃");
         selectedMemberIds.clear();
-        tempCoord = null; // 좌표 초기화
+        tempCoord = null; 
         startRealtimeSync(); 
         
     } catch (error) {
-        console.error("Error:", error);
+        console.error("Error 상세:", error);
         alert("저장 실패: " + error.message);
     }
 };
 
             
-        
+            
+
     
            // 관리자가 동행 횟수를 수동으로 수정하는 함수
 window.updateBuddyCountManual = async () => {
