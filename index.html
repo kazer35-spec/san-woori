@@ -3935,18 +3935,19 @@ async function calculateGrowthData(mId) {
     const labels = []; const counts = []; const heights = []; const peaks = [];
     const colors = [];
     
-    // 성분 데이터를 담을 배열
-    const rockDataArray = [];
-    const forestDataArray = [];
-    const valleyDataArray = [];
+    // 성분 데이터 배열
+    const rockDataArray = []; const forestDataArray = []; const valleyDataArray = [];
 
-    // 현재 선택된 연도와 분기 기준 (변수가 없다면 현재 날짜 기준 등으로 설정 필요)
+    // [추가] 운동 종류별 거리 데이터 배열
+    const runDistances = [];
+    const trekDistances = [];
+    const walkDistances = [];
+
     let curYear = typeof selectedYear !== 'undefined' ? selectedYear : new Date().getFullYear();
     let curQuarter = typeof selectedQuarter !== 'undefined' ? selectedQuarter : Math.floor((new Date().getMonth() + 3) / 3);
 
     for (let i = 3; i >= 0; i--) {
-        let q = curQuarter - i; 
-        let y = curYear;
+        let q = curQuarter - i; let y = curYear;
         while (q <= 0) { q += 4; y -= 1; }
         
         labels.push(`${q}Q`);
@@ -3966,16 +3967,23 @@ async function calculateGrowthData(mId) {
         
         let qH = 0; let maxH = 0; let peakName = "-";
         let qRockSum = 0; let qForestSum = 0; let qValleySum = 0;
+        
+        // [추가] 분기별 거리 합산용 변수
+        let qRunDist = 0; let qTrekDist = 0; let qWalkDist = 0;
 
         qSnap.forEach(d => {
             const logData = d.data(); 
             const h = Number(logData.height) || 0;
+            const dist = Number(logData.distance) || 0; // 로그에 저장된 distance 필드 참조
+
             qH += h;
-            if(h > maxH) { 
-                maxH = h; 
-                peakName = logData.mountain || "기록"; 
-            }
-            // 산행 로그에 저장된 성분 더하기 (없으면 0)
+            if(h > maxH) { maxH = h; peakName = logData.mountain || "기록"; }
+
+            // 운동 종류에 따른 거리 분류 합산
+            if (logData.isRunning) qRunDist += dist;
+            else if (logData.isTracking) qTrekDist += dist;
+            else if (logData.isWalking) qWalkDist += dist;
+
             qRockSum += (logData.pRock || 0);
             qForestSum += (logData.pForest || 0);
             qValleySum += (logData.pValley || 0);
@@ -3983,22 +3991,30 @@ async function calculateGrowthData(mId) {
 
         heights.push(qH);
         peaks.push(peakName);
+        
+        // [추가] 계산된 거리 push
+        runDistances.push(qRunDist.toFixed(1)); 
+        trekDistances.push(qTrekDist.toFixed(1));
+        walkDistances.push(qWalkDist.toFixed(1));
 
-        // 분기별 퍼센트 계산
         const qTotal = qRockSum + qForestSum + qValleySum || 1;
         rockDataArray.push(Math.round((qRockSum / qTotal) * 100));
         forestDataArray.push(Math.round((qForestSum / qTotal) * 100));
         valleyDataArray.push(Math.round((qValleySum / qTotal) * 100));
     }
 
-    // ✨ 중요: 여기서 함수를 정상적으로 끝내줍니다.
     return { 
         labels, counts, heights, peaks, colors,
         rockPercents: rockDataArray,
         forestPercents: forestDataArray,
-        valleyPercents: valleyDataArray
+        valleyPercents: valleyDataArray,
+        // [추가] 반환 객체에 거리 데이터 포함
+        runDistances,
+        trekDistances,
+        walkDistances
     };
-} // <-- 이 중괄호가 꼭 닫혀야 합니다!
+}
+
 
 // 2. 차트 렌더링 함수 (통합 버전)
 function renderGrowthChart(data) {
