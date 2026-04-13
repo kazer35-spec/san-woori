@@ -4065,42 +4065,45 @@ function renderGrowthChart(data) {
     plugins: {
         legend: { display: false },
         tooltip: {
-            backgroundColor: 'rgba(15, 23, 42, 0.95)', // 다크 테마 배경
-            padding: 12,
-            // 전체 툴팁 텍스트 굵게 설정
-            titleFont: { size: 14, weight: '900' }, 
-            bodyFont: { size: 12, weight: '700' },  // 본문 글씨 굵게
-            footerFont: { size: 12, weight: '700' },
-            displayColors: false, // 항목 앞의 색상 박스 제거 (깔끔함)
-            callbacks: {
-                // 1. 운동 횟수 (제목 부분)
-                label: function(context) {
-                    return `운동 횟수: ${context.raw}회`;
-                },
-                // 2. 상세 정보
-                afterLabel: function(context) {
-                    const i = context.dataIndex;
-                    
-                    const totalHeight = (data.heights[i] || 0).toLocaleString();
-                    const peakName = data.peaks[i] || "-";
-                    
-                    const runKm = data.runDistances ? data.runDistances[i] : "0.0";
-                    const trekKm = data.trekDistances ? data.trekDistances[i] : "0.0";
-                    const walkKm = data.walkDistances ? data.walkDistances[i] : "0.0";
+    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+    padding: 12,
+    titleFont: { size: 14, weight: '900' }, 
+    bodyFont: { size: 12, weight: '700' },
+    footerFont: { size: 12, weight: '700' },
+    
+    // [수정] 범례 사각형 다시 표시
+    displayColors: true, 
+    boxWidth: 10,
+    boxHeight: 10,
+    boxPadding: 6,
 
-                    const rock = data.rockPercents[i] || 0;
-                    const forest = data.forestPercents[i] || 0;
-                    const valley = data.valleyPercents[i] || 0;
+    callbacks: {
+        // [수정] 라벨 앞에 공백을 살짝 주어 사각형과 글자 간격 조정
+        label: function(context) {
+            return ` 운동 횟수: ${context.raw}회`;
+        },
+        afterLabel: function(context) {
+            const i = context.dataIndex;
+            
+            const totalHeight = (data.heights[i] || 0).toLocaleString();
+            const peakName = data.peaks[i] || "-";
+            
+            const runKm = data.runDistances ? data.runDistances[i] : "0.0";
+            const trekKm = data.trekDistances ? data.trekDistances[i] : "0.0";
+            const walkKm = data.walkDistances ? data.walkDistances[i] : "0.0";
 
-                    // 줄바꿈 배열 반환
-                    return [
-                        `⛰️ 누적: ${totalHeight}m | 🏔️ 최고: ${peakName}`,
-                        `🏃‍♂️: ${runKm}km  🧑‍🦯: ${trekKm}km  🚶‍♀️: ${walkKm}km`,
-                        `────────────────`,
-                        `성분: 🪨 ${rock}% | 🌲 ${forest}% | 🌊 ${valley}%`
-                    ];
-                }
-            }
+            const rock = data.rockPercents[i] || 0;
+            const forest = data.forestPercents[i] || 0;
+            const valley = data.valleyPercents[i] || 0;
+
+            return [
+                `⛰️ 누적: ${totalHeight}m | 🏔️ 최고: ${peakName}`,
+                `🏃‍♂️: ${runKm}km  🧑‍🦯: ${trekKm}km  🚶‍♀️: ${walkKm}km`,
+                `────────────────`,
+                `성분: 🪨 ${rock}% | 🌲 ${forest}% | 🌊 ${valley}%`
+            ];
+        }
+    }
         }
     },
     scales: {
