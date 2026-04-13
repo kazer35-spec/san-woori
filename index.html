@@ -3970,31 +3970,43 @@ async function calculateGrowthData(mId) {
         let qRunDist = 0; let qTrekDist = 0; let qWalkDist = 0;
 
         qSnap.forEach(d => {
-            const logData = d.data(); 
-            // DB의 height 필드를 수치로 가져옴
-            const hVal = Number(logData.height) || 0;
+    const logData = d.data(); 
+    const hVal = Number(logData.height) || 0;
 
-            // [수정 핵심 로직]
-            if (logData.isRunning) {
-                qRunDist += hVal; // 런닝 거리(km)로 합산
-            } else if (logData.isTracking) {
-                qTrekDist += hVal; // 트래킹 거리(km)로 합산
-            } else if (logData.isWalking) {
-                qWalkDist += hVal; // 산책 거리(km)로 합산
-            } else {
-                qH += hVal; // 셋 다 아니면 일반 등산 누적 고도(m)로 합산
-            }
+    // [수정] 번외산행 판별 (런닝과 트래킹이 동시에 true인 경우)
+    const isExtraHike = logData.isRunning && logData.isTracking;
 
-            // 최고 기록 갱신 (단위와 상관없이 가장 높은 수치 기록)
-            if(hVal > maxH) { 
-                maxH = hVal; 
-                peakName = logData.mountain || (logData.isRunning ? "런닝" : "활동"); 
-            }
+    // 1. 번외산행인 경우: 거리 합산에서 완전히 제외
+    if (isExtraHike) {
+        // 아무것도 하지 않음 (또는 필요시 별도 변수에 합산)
+    } 
+    // 2. 단독 런닝인 경우
+    else if (logData.isRunning) {
+        qRunDist += hVal;
+    } 
+    // 3. 단독 트래킹인 경우
+    else if (logData.isTracking) {
+        qTrekDist += hVal;
+    } 
+    // 4. 단독 산책인 경우
+    else if (logData.isWalking) {
+        qWalkDist += hVal;
+    } 
+    // 5. 일반 등산인 경우
+    else {
+        qH += hVal;
+    }
 
-            qRockSum += (logData.pRock || 0);
-            qForestSum += (logData.pForest || 0);
-            qValleySum += (logData.pValley || 0);
-        });
+    // 최고 기록 및 성분비 계산은 기존과 동일
+    if(hVal > maxH) { 
+        maxH = hVal; 
+        peakName = logData.mountain || (isExtraHike ? "번외산행" : "활동"); 
+    }
+    qRockSum += (logData.pRock || 0);
+    qForestSum += (logData.pForest || 0);
+    qValleySum += (logData.pValley || 0);
+});
+
 
         heights.push(qH); // 등산 누적 고도
         peaks.push(peakName);
