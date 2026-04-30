@@ -3424,13 +3424,14 @@ const currentQData = getBestInQuarter(cached.quarterlyPartners[currentQKey]);
 };
 
 /**
- * 🛠️ 분기별 포인트 및 총합 동시 차감 함수 (선입선출 적용)
+/**
+ * 🛠️ [최종 수정] 분기별 포인트 및 총합 동시 차감 함수 (선입선출 적용)
  * @param {Object} memberInfo 회원 정보 객체
  * @param {number} useAmount 사용할 포인트
  */
 window.deductFriendshipPoints = async (memberInfo, useAmount) => {
-    if (!memberInfo || !memberInfo.friendshipPoint) {
-        return alert("포인트 데이터가 없습니다.");
+    if (!memberInfo || !memberInfo.id) {
+        return alert("회원 정보가 올바르지 않습니다.");
     }
 
     // 1. 전체 포인트 값 가져오기
@@ -3445,7 +3446,7 @@ window.deductFriendshipPoints = async (memberInfo, useAmount) => {
         return alert("보유 포인트가 부족합니다.");
     }
 
-    // 2. fp_bins 데이터 깊은 복사
+    // 2. fp_bins 데이터 깊은 복사 및 정렬
     let bins = { ...memberInfo.fp_bins };
     const quarters = Object.keys(bins).filter(k => k.match(/q\d+/)).sort();
 
@@ -3463,17 +3464,19 @@ window.deductFriendshipPoints = async (memberInfo, useAmount) => {
         }
     }
 
-    // 4. 새로운 업데이트 객체 구성
+    // 4. 새로운 총 포인트 계산
     const newTotal = currentTotal - useAmount;
-    const updateData = {
-        friendshipPoint: newTotal, // 또는 객체 형태가 필요하다면 { total: newTotal, ...bins }
-        fp_bins: bins
-    };
 
     try {
-        await updateDoc(doc(db, "sanwoori", memberInfo.id), updateData);
+        // 5. DB에 전체 포인트 및 fp_bins를 동시에 업데이트
+        await updateDoc(doc(db, "sanwoori", memberInfo.id), {
+            friendshipPoint: newTotal,
+            fp_bins: bins
+        });
+        
         alert(`포인트 ${useAmount}가 차감되었습니다. 잔여 포인트: ${newTotal}`);
         
+        // 6. 화면 동기화
         if (typeof startRealtimeSync === 'function') startRealtimeSync();
         return true;
     } catch (e) {
@@ -3481,6 +3484,7 @@ window.deductFriendshipPoints = async (memberInfo, useAmount) => {
         return false;
     }
 };
+
 
 
 window.toggleHallModal = async (show) => {
