@@ -3423,53 +3423,58 @@ const currentQData = getBestInQuarter(cached.quarterlyPartners[currentQKey]);
     } catch (e) { console.error(e); }
 };
 
-    /**
- * 🛠️ 분기별 포인트 차감 함수 (선입선출 적용)
+/**
+ * 🛠️ 분기별 포인트 및 총합 동시 차감 함수 (선입선출 적용)
  * @param {Object} memberInfo 회원 정보 객체
  * @param {number} useAmount 사용할 포인트
  */
 window.deductFriendshipPoints = async (memberInfo, useAmount) => {
-    // 예외 처리: 포인트 데이터가 유효하지 않거나 부족한 경우
     if (!memberInfo || !memberInfo.friendshipPoint) {
         return alert("포인트 데이터가 없습니다.");
     }
 
-    let fpObj = memberInfo.friendshipPoint;
-    if (typeof fpObj !== 'object') {
-        fpObj = { total: fpObj };
+    // 1. 전체 포인트 값 가져오기
+    let currentTotal = memberInfo.friendshipPoint;
+    if (typeof currentTotal === 'object') {
+        currentTotal = currentTotal.total || 0;
+    } else {
+        currentTotal = parseInt(currentTotal) || 0;
     }
 
-    const total = fpObj.total || 0;
-    if (total < useAmount) {
+    if (currentTotal < useAmount) {
         return alert("보유 포인트가 부족합니다.");
     }
 
-    // 1분기, 2분기 등 분기별 속성만 추출
-    const quarters = Object.keys(fpObj).filter(k => k.match(/q\d+/));
-    // 분기별 순서대로 정렬
-    quarters.sort();
+    // 2. fp_bins 데이터 깊은 복사
+    let bins = { ...memberInfo.fp_bins };
+    const quarters = Object.keys(bins).filter(k => k.match(/q\d+/)).sort();
 
     let remainingDeduction = useAmount;
     
+    // 3. 오래된 분기부터 차감 로직 적용
     for (const q of quarters) {
         if (remainingDeduction <= 0) break;
         
-        const currentQAmount = fpObj[q] || 0;
+        const currentQAmount = bins[q] || 0;
         if (currentQAmount > 0) {
             const deduct = Math.min(currentQAmount, remainingDeduction);
-            fpObj[q] = currentQAmount - deduct;
+            bins[q] = currentQAmount - deduct;
             remainingDeduction -= deduct;
         }
     }
 
-    // 총계(Total) 갱신
-    fpObj.total = total - useAmount;
+    // 4. 새로운 업데이트 객체 구성
+    const newTotal = currentTotal - useAmount;
+    const updateData = {
+        friendshipPoint: newTotal, // 또는 객체 형태가 필요하다면 { total: newTotal, ...bins }
+        fp_bins: bins
+    };
 
     try {
-        await updateDoc(doc(db, "sanwoori", memberInfo.id), {
-            friendshipPoint: fpObj
-        });
-        console.log(`포인트 ${useAmount}가 차감되었습니다. 남은 포인트: ${fpObj.total}`);
+        await updateDoc(doc(db, "sanwoori", memberInfo.id), updateData);
+        alert(`포인트 ${useAmount}가 차감되었습니다. 잔여 포인트: ${newTotal}`);
+        
+        if (typeof startRealtimeSync === 'function') startRealtimeSync();
         return true;
     } catch (e) {
         console.error("포인트 차감 실패:", e);
