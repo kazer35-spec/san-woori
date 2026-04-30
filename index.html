@@ -3424,57 +3424,64 @@ const currentQData = getBestInQuarter(cached.quarterlyPartners[currentQKey]);
 };
 
 /**
-/**
- * 🛠️ [최종 수정] 분기별 포인트 및 총합 동시 차감 함수 (선입선출 적용)
+ * 🛠️ [정밀 수정] 1분기 우선 차감 및 전체/분기 포인트 동기화 함수
  * @param {Object} memberInfo 회원 정보 객체
- * @param {number} useAmount 사용할 포인트
+ * @param {number} useAmount 사용할 포인트 (예: 2000)
  */
 window.deductFriendshipPoints = async (memberInfo, useAmount) => {
     if (!memberInfo || !memberInfo.id) {
         return alert("회원 정보가 올바르지 않습니다.");
     }
 
-    // 1. 전체 포인트 값 가져오기
-    let currentTotal = memberInfo.friendshipPoint;
-    if (typeof currentTotal === 'object') {
-        currentTotal = currentTotal.total || 0;
+    // 1. fp_bins 데이터 복사
+    let bins = memberInfo.fp_bins ? { ...memberInfo.fp_bins } : {};
+    
+    // 2. 보유한 전체 포인트 계산 (total 필드가 없으면 q1, q2 합산)
+    let total = memberInfo.friendshipPoint;
+    if (typeof total === 'object') {
+        total = total.total || 0;
     } else {
-        currentTotal = parseInt(currentTotal) || 0;
+        total = parseInt(total) || 0;
     }
 
-    if (currentTotal < useAmount) {
+    // 예외: 사용할 포인트가 보유 총량보다 많은 경우
+    if (total < useAmount) {
         return alert("보유 포인트가 부족합니다.");
     }
 
-    // 2. fp_bins 데이터 깊은 복사 및 정렬
-    let bins = { ...memberInfo.fp_bins };
-    const quarters = Object.keys(bins).filter(k => k.match(/q\d+/)).sort();
+    // 3. 1분기(2026_q1) 포인트 우선 차감 로직
+    let remaining = useAmount;
 
-    let remainingDeduction = useAmount;
-    
-    // 3. 오래된 분기부터 차감 로직 적용
-    for (const q of quarters) {
-        if (remainingDeduction <= 0) break;
-        
-        const currentQAmount = bins[q] || 0;
-        if (currentQAmount > 0) {
-            const deduct = Math.min(currentQAmount, remainingDeduction);
-            bins[q] = currentQAmount - deduct;
-            remainingDeduction -= deduct;
+    // 1분기 포인트 확인 및 차감
+    if (bins["2026_q1"] && bins["2026_q1"] > 0) {
+        const q1Deduct = Math.min(bins["2026_q1"], remaining);
+        bins["2026_q1"] -= q1Deduct;
+        remaining -= q1Deduct;
+    }
+
+    // 1분기 차감 후에도 남은 금액이 있다면 2분기에서 차감
+    if (remaining > 0 && bins["2026_q2"] && bins["2026_q2"] > 0) {
+        const q2Deduct = Math.min(bins["2026_q2"], remaining);
+        bins["2026_q2"] -= q2Deduct;
+        remaining -= q2Deduct;
+    }
+
+    // 4. 차감 후 전체 합계(Total) 재계산
+    let newTotal = 0;
+    for (const key in bins) {
+        if (key.match(/q\d+/)) {
+            newTotal += (parseInt(bins[key]) || 0);
         }
     }
 
-    // 4. 새로운 총 포인트 계산
-    const newTotal = currentTotal - useAmount;
-
     try {
-        // 5. DB에 전체 포인트 및 fp_bins를 동시에 업데이트
+        // 5. Firestore DB 업데이트
         await updateDoc(doc(db, "sanwoori", memberInfo.id), {
             friendshipPoint: newTotal,
             fp_bins: bins
         });
-        
-        alert(`포인트 ${useAmount}가 차감되었습니다. 잔여 포인트: ${newTotal}`);
+
+        alert(`포인트 ${useAmount}가 차감되었습니다. [1분기: ${bins["2026_q1"] || 0}P, 2분기: ${bins["2026_q2"] || 0}P / 잔여 총 포인트: ${newTotal}P]`);
         
         // 6. 화면 동기화
         if (typeof startRealtimeSync === 'function') startRealtimeSync();
@@ -3484,6 +3491,7 @@ window.deductFriendshipPoints = async (memberInfo, useAmount) => {
         return false;
     }
 };
+
 
 
 
