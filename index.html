@@ -4430,18 +4430,22 @@ window.addMultiActivity = async () => {
 
         // 3. 멤버별 데이터 업데이트 루프
         for (const id of selectedMemberIds) {
-            const member = currentData.find(m => m.id === id);
-            if (!member) continue;
+    const member = currentData.find(m => m.id === id);
+    if (!member) continue;
 
-            const now = new Date();
-            const qKey = `${now.getFullYear()}_q${Math.ceil((now.getMonth() + 1) / 3)}`;
-            let updateData = { lastDate: ts };
+    const now = new Date();
+    const qKey = `${now.getFullYear()}_q${Math.ceil((now.getMonth() + 1) / 3)}`;
+    
+    // 1. 빈 객체로 시작 (조건에 맞을 때만 필드 추가)
+    let updateData = {}; 
 
-            if (isRealHike) {
-                const oldLevel = member.level || 0;
-                const newLevel = oldLevel + up;
-                updateData.level = newLevel;
-                updateData.count = increment(1);
+    if (isRealHike) {
+        // 일반 산행은 무조건 업데이트
+        updateData.lastDate = ts; 
+        const oldLevel = member.level || 0;
+        const newLevel = oldLevel + up;
+        updateData.level = newLevel;
+        updateData.count = increment(1);
                 updateData.totalHeight = increment(height);
                 updateData.bonusDays = 0;
 
@@ -4456,20 +4460,22 @@ window.addMultiActivity = async () => {
                 selectedNames.push(member.name);
             } 
             else {
-                // 특수 활동(런닝, 번외 등) 처리
-                // 2인 이상이면서 번외산행이 아닐 때만 D-Day 혜택 (원하시는 로직에 맞춰 조절 가능)
-                if (isMultiHike && !isExtraHike && (member.level || 0) > 0) {
-                    const todayZero = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-                    const last = member.lastDate ? member.lastDate.toDate() : new Date();
-                    const lastZero = new Date(last.getFullYear(), last.getMonth(), last.getDate()).getTime();
-                    const diffDays = Math.floor((todayZero - lastZero) / (1000 * 60 * 60 * 24));
-                    const currentDdayVal = (122 + Number(member.bonusDays || 0)) - diffDays;
-                    updateData.bonusDays = Math.min(122, currentDdayVal + 15) - 122;
-                }
-            }
+        // 🔥 핵심 수정: 특수 활동(런닝 등)은 2인 이상일 때만 데이터 업데이트 객체 구성
+        if (isMultiHike && !isExtraHike && (member.level || 0) > 0) {
+            updateData.lastDate = ts; // 2인 이상일 때만 날짜 갱신
+            const todayZero = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+            const last = member.lastDate ? member.lastDate.toDate() : new Date();
+            const lastZero = new Date(last.getFullYear(), last.getMonth(), last.getDate()).getTime();
+            const diffDays = Math.floor((todayZero - lastZero) / (1000 * 60 * 60 * 24));
+            const currentDdayVal = (122 + Number(member.bonusDays || 0)) - diffDays;
+            updateData.bonusDays = Math.min(122, currentDdayVal + 15) - 122;
+        }
+    }
 
-            await updateDoc(doc(db, "sanwoori", id), updateData);
-
+    // 2. 업데이트할 내용이 있을 때만 DB 호출 (1인 특수활동이면 updateData가 비어있어 실행 안됨)
+    if (Object.keys(updateData).length > 0) {
+        await updateDoc(doc(db, "sanwoori", id), updateData);
+    }
             // 4. 개인 활동 로그 생성
             const logLoopCount = (isRegular || isSpecial || isQuarterOnlyOne) ? 1 : up;
             for(let i = 0; i < logLoopCount; i++) {
