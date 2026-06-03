@@ -4699,44 +4699,24 @@ if (snap.exists() && pw === String(snap.data().admin_pw)) { isAdminLoggedIn = tr
 window.logoutAdmin = () => { isAdminLoggedIn = false; showView('status'); };
 
 
-    window.addMember = async () => {
-    const nameInput = document.getElementById('newName');
-    const dateInput = document.getElementById('regDate');
-    const genderChecked = document.querySelector('input[name="newGender"]:checked');
+    Window.addMember = async () => {
+  const name = document.getElementById('newName').value.trim();
+  const dateStr = document.getElementById('regDate').value;
+  const gender = document.querySelector('input[name="newGender"]:checked').value;
 
-    const name = nameInput.value.trim();
-    const dateStr = dateInput.value;
-
-    // 1. 입력값 검증 (성별 선택 확인 추가)
-    if (!name || !dateStr || !genderChecked) {
-        alert("이름, 가입일, 성별을 모두 입력/선택해주세요.");
-        return;
-    }
-
-    try {
-        // 2. 날짜 객체 생성 (유효성 검사 포함)
-        const dateObj = new Date(dateStr + "T00:00:00");
-        if (isNaN(dateObj.getTime())) {
-            throw new Error("올바른 날짜 형식이 아닙니다.");
-        }
-
-        // 3. Firestore 데이터 저장
-        await addDoc(collection(db, "sanwoori"), {
-            name: name,
-            level: 0,
-            gender: genderChecked.value,
-            lastDate: Timestamp.fromDate(dateObj),
-            regDate: serverTimestamp(),
-            isHidden: false,
-            bonusDays: 0
-        });
-        
-        alert("등록 완료");
-        // 입력창 초기화 로직을 여기에 추가하면 더 편리합니다.
-    } catch (error) {
-        console.error("회원 등록 실패:", error);
-        alert("등록 중 오류가 발생했습니다: " + error.message);
-    }
+  if (name && dateStr) {
+    await addDoc(collection(db, "sanwoori"), {
+      name,
+      level: 0,
+      gender,
+      lastDate: Timestamp.fromDate(new Date(dateStr + "T00:00:00")),
+      // 등록일자(가입일) 필드 추가: 입력받은 dateStr을 저장하거나 서버 시간을 사용
+      joinDate: Timestamp.fromDate(new Date(dateStr + "T00:00:00")), 
+      isHidden: false,
+      bonusDays: 0
+    });
+    alert("등록 완료");
+  }
 };
 
 window.exportAllData = async () => {
