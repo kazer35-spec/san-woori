@@ -3910,7 +3910,6 @@ async function calculateGrowthData(mId) {
 
 
 // 2. 차트 렌더링 함수 (통합 버전)
-
 function renderGrowthChart(data) {
     const canvas = document.getElementById('growthChart');
     if (!canvas) return;
@@ -3918,12 +3917,10 @@ function renderGrowthChart(data) {
     const ctx = canvas.getContext('2d');
     if (window.growthChartInstance) window.growthChartInstance.destroy();
     
-    // 1. 데이터 통합을 위한 스케일 계산 (선 그래프가 막대 위에 안착하도록 보정)
+    // 막대 그래프(y축)의 최대값 계산
     const maxCount = Math.max(...data.counts);
-    const maxHeight = Math.max(...data.heights);
-    // 고도와 횟수의 스케일 차이가 크면 선이 너무 위/아래로 쏠리므로 
-    // 동일한 스케일 기준을 잡거나, 최대값을 맞춰줍니다.
-    const suggestedMax = Math.max(maxCount, maxHeight / 20); // 필요 시 비율 조정
+    // 넉넉하게 최대값의 1.2배를 축의 한계점으로 설정
+    const yMax = Math.ceil(maxCount * 1.2);
 
     window.growthChartInstance = new Chart(ctx, {
         type: 'bar',
@@ -3947,7 +3944,7 @@ function renderGrowthChart(data) {
                     pointBackgroundColor: '#ef4444', 
                     pointRadius: 4, 
                     tension: 0.4, 
-                    yAxisID: 'y', // [수정] y1에서 y로 변경하여 축 통합
+                    yAxisID: 'y1', // y1 축 사용 유지
                     order: 1 
                 }
             ]
@@ -3961,19 +3958,22 @@ function renderGrowthChart(data) {
                 tooltip: {
                     backgroundColor: 'rgba(15, 23, 42, 0.95)',
                     padding: 12,
-                    // ... 기존 툴팁 설정 동일
+                    displayColors: true, 
+                    boxWidth: 10,
+                    boxHeight: 10,
+                    boxPadding: 6,
                     callbacks: {
                         label: function(context) {
                             return ` 운동 횟수: ${context.raw}회`;
                         },
                         afterLabel: function(context) {
-                            // ... 기존 콜백 동일
                             const i = context.dataIndex;
+                            const totalHeight = (data.heights[i] || 0).toLocaleString();
                             return [
-                                `⛰️ 누적: ${(data.heights[i] || 0).toLocaleString()}m | 🏔️ 최고: ${data.peaks[i] || "-"}`,
-                                `🏃‍♂️: ${data.runDistances[i]}km  🧑‍🦯: ${data.trekDistances[i]}km  🚶‍♀️: ${data.walkDistances[i]}km`,
+                                `⛰️ 누적: ${totalHeight}m | 🏔️ 최고: ${data.peaks[i] || "-"}`,
+                                `🏃‍♂️: ${data.runDistances ? data.runDistances[i] : "0.0"}km  🧑‍🦯: ${data.trekDistances ? data.trekDistances[i] : "0.0"}km  🚶‍♀️: ${data.walkDistances ? data.walkDistances[i] : "0.0"}km`,
                                 `────────────────`,
-                                `산 성분: 🪨 ${data.rockPercents[i]}% | 🌲 ${data.forestPercents[i]}% | 🌊 ${data.valleyPercents[i]}%`
+                                `산 성분: 🪨 ${data.rockPercents[i] || 0}% | 🌲 ${data.forestPercents[i] || 0}% | 🌊 ${data.valleyPercents[i] || 0}%`
                             ];
                         }
                     }
@@ -3984,15 +3984,18 @@ function renderGrowthChart(data) {
                 y: { 
                     beginAtZero: true, 
                     position: 'left',
-                    suggestedMax: suggestedMax // 막대 위에 점이 찍히도록 범위 자동 설정
+                    suggestedMax: yMax // 막대 그래프의 높이 제한
                 },
-                y1: { display: false } // y1은 이제 사용하지 않음
+                y1: { 
+                    beginAtZero: true, 
+                    position: 'right', 
+                    display: false,
+                    suggestedMax: yMax // [핵심] y축과 동일한 최대값을 주어 선을 막대 위에 정렬
+                }
             }
         }
     });
 }
-
-
     window.toggleMapView = () => {
 const main = document.getElementById('mapViewMain');
 const stats = document.getElementById('mapViewStats');
