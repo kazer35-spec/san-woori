@@ -4700,24 +4700,29 @@ window.logoutAdmin = () => { isAdminLoggedIn = false; showView('status'); };
 
 
     Window.addMember = async () => {
-  const name = document.getElementById('newName').value.trim();
-  const dateStr = document.getElementById('regDate').value;
-  const gender = document.querySelector('input[name="newGender"]:checked').value;
+    const name = document.getElementById('newName').value.trim();
+    const dateStr = document.getElementById('regDate').value;
+    const gender = document.querySelector('input[name="newGender"]:checked').value;
 
-  if (name && dateStr) {
-    await addDoc(collection(db, "sanwoori"), {
-      name,
-      level: 0,
-      gender,
-      lastDate: Timestamp.fromDate(new Date(dateStr + "T00:00:00")),
-      // 등록일자(가입일) 필드 추가: 입력받은 dateStr을 저장하거나 서버 시간을 사용
-      joinDate: Timestamp.fromDate(new Date(dateStr + "T00:00:00")), 
-      isHidden: false,
-      bonusDays: 0
-    });
-    alert("등록 완료");
-  }
+    if (name && dateStr) {
+        // 날짜 객체 생성
+        const regDate = new Date(dateStr + "T00:00:00");
+        
+        await addDoc(collection(db, "sanwoori"), {
+            name: name,
+            level: 0,
+            gender: gender,
+            lastDate: Timestamp.fromDate(regDate),
+            createdAt: Timestamp.fromDate(new Date()), // 현재 시간(등록 시간) 저장
+            regDate: Timestamp.fromDate(regDate),      // 신규 등록일 저장
+            isHidden: false,
+            bonusDays: 0
+        });
+        
+        alert("등록 완료");
+    }
 };
+
 
 window.exportAllData = async () => {
     if (!confirm("데이터베이스의 전체 내용을 백업하시겠습니까?")) return;
