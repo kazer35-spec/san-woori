@@ -3917,18 +3917,13 @@ function renderGrowthChart(data) {
     const ctx = canvas.getContext('2d');
     if (window.growthChartInstance) window.growthChartInstance.destroy();
     
-    // 막대 그래프(y축)의 최대값 계산
-    const maxCount = Math.max(...data.counts);
-    // 넉넉하게 최대값의 1.2배를 축의 한계점으로 설정
-    const yMax = Math.ceil(maxCount * 1.2);
-
     window.growthChartInstance = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: data.labels,
             datasets: [
                 { 
-                    label: '운동 횟수', 
+                    label: '운동 횟수', // '산행 횟수'에서 변경
                     data: data.counts, 
                     backgroundColor: data.colors, 
                     borderRadius: 5, 
@@ -3944,58 +3939,70 @@ function renderGrowthChart(data) {
                     pointBackgroundColor: '#ef4444', 
                     pointRadius: 4, 
                     tension: 0.4, 
-                    yAxisID: 'y1', // y1 축 사용 유지
+                    yAxisID: 'y1', 
                     order: 1 
                 }
             ]
         },
 
         options: {
-            responsive: true, 
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                    padding: 12,
-                    displayColors: true, 
-                    boxWidth: 10,
-                    boxHeight: 10,
-                    boxPadding: 6,
-                    callbacks: {
-                        label: function(context) {
-                            return ` 운동 횟수: ${context.raw}회`;
-                        },
-                        afterLabel: function(context) {
-                            const i = context.dataIndex;
-                            const totalHeight = (data.heights[i] || 0).toLocaleString();
-                            return [
-                                `⛰️ 누적: ${totalHeight}m | 🏔️ 최고: ${data.peaks[i] || "-"}`,
-                                `🏃‍♂️: ${data.runDistances ? data.runDistances[i] : "0.0"}km  🧑‍🦯: ${data.trekDistances ? data.trekDistances[i] : "0.0"}km  🚶‍♀️: ${data.walkDistances ? data.walkDistances[i] : "0.0"}km`,
-                                `────────────────`,
-                                `산 성분: 🪨 ${data.rockPercents[i] || 0}% | 🌲 ${data.forestPercents[i] || 0}% | 🌊 ${data.valleyPercents[i] || 0}%`
-                            ];
-                        }
-                    }
-                }
-            },
-            scales: {
-                x: { grid: { display: false }, ticks: { font: { size: 11, weight: '800' } } },
-                y: { 
-                    beginAtZero: true, 
-                    position: 'left',
-                    suggestedMax: yMax // 막대 그래프의 높이 제한
-                },
-                y1: { 
-                    beginAtZero: true, 
-                    position: 'right', 
-                    display: false,
-                    suggestedMax: yMax // [핵심] y축과 동일한 최대값을 주어 선을 막대 위에 정렬
-                }
-            }
+    responsive: true, 
+    maintainAspectRatio: false,
+    plugins: {
+        legend: { display: false },
+        tooltip: {
+    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+    padding: 12,
+    titleFont: { size: 14, weight: '900' }, 
+    bodyFont: { size: 12, weight: '700' },
+    footerFont: { size: 12, weight: '700' },
+    
+    // [수정] 범례 사각형 다시 표시
+    displayColors: true, 
+    boxWidth: 10,
+    boxHeight: 10,
+    boxPadding: 6,
+
+    callbacks: {
+        // [수정] 라벨 앞에 공백을 살짝 주어 사각형과 글자 간격 조정
+        label: function(context) {
+            return ` 운동 횟수: ${context.raw}회`;
+        },
+        afterLabel: function(context) {
+            const i = context.dataIndex;
+            
+            const totalHeight = (data.heights[i] || 0).toLocaleString();
+            const peakName = data.peaks[i] || "-";
+            
+            const runKm = data.runDistances ? data.runDistances[i] : "0.0";
+            const trekKm = data.trekDistances ? data.trekDistances[i] : "0.0";
+            const walkKm = data.walkDistances ? data.walkDistances[i] : "0.0";
+
+            const rock = data.rockPercents[i] || 0;
+            const forest = data.forestPercents[i] || 0;
+            const valley = data.valleyPercents[i] || 0;
+
+            return [
+                `⛰️ 누적: ${totalHeight}m | 🏔️ 최고: ${peakName}`,
+                `🏃‍♂️: ${runKm}km  🧑‍🦯: ${trekKm}km  🚶‍♀️: ${walkKm}km`,
+                `────────────────`,
+                `산 성분: 🪨 ${rock}% | 🌲 ${forest}% | 🌊 ${valley}%`
+            ];
         }
+    }
+        }
+    },
+    scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 11, weight: '800' } } }, // X축 라벨도 굵게
+        y: { beginAtZero: true, position: 'left' },
+        y1: { beginAtZero: true, position: 'right', display: false }
+    }
+}
+
     });
 }
+
+
     window.toggleMapView = () => {
 const main = document.getElementById('mapViewMain');
 const stats = document.getElementById('mapViewStats');
