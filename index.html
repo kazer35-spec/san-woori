@@ -4705,24 +4705,21 @@ window.logoutAdmin = () => { isAdminLoggedIn = false; showView('status'); };
     const gender = document.querySelector('input[name="newGender"]:checked').value;
 
     if (name && dateStr) {
-        // 날짜 객체 생성
-        const regDate = new Date(dateStr + "T00:00:00");
-        
+        // 입력받은 dateStr을 사용하여 Firestore Timestamp 생성
+        const regDate = Timestamp.fromDate(new Date(dateStr + "T00:00:00"));
+
         await addDoc(collection(db, "sanwoori"), {
-            name: name,
+            name,
             level: 0,
-            gender: gender,
-            lastDate: Timestamp.fromDate(regDate),
-            createdAt: Timestamp.fromDate(new Date()), // 현재 시간(등록 시간) 저장
-            regDate: Timestamp.fromDate(regDate),      // 신규 등록일 저장
+            gender,
+            lastDate: regDate,
+            joinDate: regDate, // 신입회원 등록일 추가
             isHidden: false,
             bonusDays: 0
         });
-        
         alert("등록 완료");
     }
 };
-
 
 window.exportAllData = async () => {
     if (!confirm("데이터베이스의 전체 내용을 백업하시겠습니까?")) return;
@@ -5231,40 +5228,24 @@ window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
         container.appendChild(star);
     }
 
-        // [3] 날짜 및 나이테 개수 계산 (만 개월수 로직 통합)
+    // [3] 날짜 및 나이테 개수 계산 (만 개월수 로직 통합)
     const fixedList = ["오즈","나스","해수","용삼","지니","아랑","민이","몰랑","길치","등초","무니","식이","구름","뚜벅","윤윤","햄찌","이구","후후","튜브","피치","송돌","호프","애플","얌얌","태리","희야","멸치","성민","섭섭","하트"];
+    
+    // 가입일 설정 (고정 리스트는 25년 11월 24일 고정)
+    let jDate = fixedList.includes(memberName) 
+        ? new Date('2025-11-24T00:00:00') 
+        : (regDate?.toDate ? regDate.toDate() : new Date());
+    
     const now = new Date();
-    let jDate;
 
-    // A. 가입일 설정 로직
-    if (fixedList.includes(memberName)) {
-        jDate = new Date('2025-11-24T00:00:00');
-    } else if (regDate?.toDate) {
-        // regDate가 있으면 사용
-        jDate = regDate.toDate();
-    } else {
-        // B. regDate가 없으면? 첫 로그 날짜를 조회 (통합 로직)
-        try {
-            const logsSnap = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "asc"), limit(1)));
-            if (!logsSnap.empty) {
-                jDate = logsSnap.docs[0].data().date.toDate();
-            } else {
-                jDate = new Date(); // 로그도 없으면 오늘 날짜
-            }
-        } catch (e) {
-            console.error("가입일 자동 산출 에러:", e);
-            jDate = new Date();
-        }
-    }
-
-    // 만 개월 수 계산 함수
+    // 만 개월 수 계산 함수 (1월 5일 가입 -> 2월 5일이 되어야 1개월 경과)
     function getFullMonths(start, end) {
         let months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
         // 오늘 일자가 가입일보다 작으면 한 달이 아직 안 찬 것이므로 -1
         if (end.getDate() < start.getDate()) {
             months--;
         }
-        return Math.max(0, months); // 음수 방지
+        return months;
     }
 
     const elapsedMonths = getFullMonths(jDate, now);
@@ -5929,7 +5910,4 @@ document.addEventListener('touchstart', (e) => {
 </script>
 </body>
     </html>
-    
-    
-    
     
