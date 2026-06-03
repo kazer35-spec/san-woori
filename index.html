@@ -3989,16 +3989,84 @@ function renderGrowthChart(data) {
                 `산 성분: 🪨 ${rock}% | 🌲 ${forest}% | 🌊 ${valley}%`
             ];
         }
-    }
-        }
-    },
-    scales: {
-        x: { grid: { display: false }, ticks: { font: { size: 11, weight: '800' } } }, // X축 라벨도 굵게
-        y: { beginAtZero: true, position: 'left' },
-        y1: { beginAtZero: true, position: 'right', display: false }
-    }
-}
+function renderGrowthChart(data) {
+    const canvas = document.getElementById('growthChart');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    if (window.growthChartInstance) window.growthChartInstance.destroy();
+    
+    // 1. 데이터 통합을 위한 스케일 계산 (선 그래프가 막대 위에 안착하도록 보정)
+    const maxCount = Math.max(...data.counts);
+    const maxHeight = Math.max(...data.heights);
+    // 고도와 횟수의 스케일 차이가 크면 선이 너무 위/아래로 쏠리므로 
+    // 동일한 스케일 기준을 잡거나, 최대값을 맞춰줍니다.
+    const suggestedMax = Math.max(maxCount, maxHeight / 20); // 필요 시 비율 조정
 
+    window.growthChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: data.labels,
+            datasets: [
+                { 
+                    label: '운동 횟수', 
+                    data: data.counts, 
+                    backgroundColor: data.colors, 
+                    borderRadius: 5, 
+                    yAxisID: 'y', 
+                    order: 2 
+                },
+                { 
+                    label: '누적 고도', 
+                    data: data.heights, 
+                    type: 'line', 
+                    borderColor: '#ef4444', 
+                    borderWidth: 2, 
+                    pointBackgroundColor: '#ef4444', 
+                    pointRadius: 4, 
+                    tension: 0.4, 
+                    yAxisID: 'y', // [수정] y1에서 y로 변경하여 축 통합
+                    order: 1 
+                }
+            ]
+        },
+
+        options: {
+            responsive: true, 
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                    padding: 12,
+                    // ... 기존 툴팁 설정 동일
+                    callbacks: {
+                        label: function(context) {
+                            return ` 운동 횟수: ${context.raw}회`;
+                        },
+                        afterLabel: function(context) {
+                            // ... 기존 콜백 동일
+                            const i = context.dataIndex;
+                            return [
+                                `⛰️ 누적: ${(data.heights[i] || 0).toLocaleString()}m | 🏔️ 최고: ${data.peaks[i] || "-"}`,
+                                `🏃‍♂️: ${data.runDistances[i]}km  🧑‍🦯: ${data.trekDistances[i]}km  🚶‍♀️: ${data.walkDistances[i]}km`,
+                                `────────────────`,
+                                `산 성분: 🪨 ${data.rockPercents[i]}% | 🌲 ${data.forestPercents[i]}% | 🌊 ${data.valleyPercents[i]}%`
+                            ];
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { grid: { display: false }, ticks: { font: { size: 11, weight: '800' } } },
+                y: { 
+                    beginAtZero: true, 
+                    position: 'left',
+                    suggestedMax: suggestedMax // 막대 위에 점이 찍히도록 범위 자동 설정
+                },
+                y1: { display: false } // y1은 이제 사용하지 않음
+            }
+        }
     });
 }
 
