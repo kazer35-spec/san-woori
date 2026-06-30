@@ -3423,41 +3423,36 @@ const currentQData = getBestInQuarter(cached.quarterlyPartners[currentQKey]);
     } catch (e) { console.error(e); }
 };
 
- class="hall-card ${isCurrent ? 'border-blue-100 bg-blue-50/30' : ''}">
- window.toggleHallModal = async (show) => { // Window -> window 소문자 수정 (오작동 방지)
+// 1. 대소문자 수정: Window.toggleHallModal -> window.toggleHallModal
+window.toggleHallModal = async (show) => {
     const modal = document.getElementById('hallModal');
-    if (!modal) return;
+    if (!modal) return; // 모달 엘리먼트가 없으면 중단
     
     modal.style.display = show ? 'flex' : 'none';
     
     if (show) {
         const listArea = document.getElementById('hallListArea');
-        if (!listArea) return;
+        if (!listArea) return; // 출력 영역이 없으면 중단
         
         let combinedHtml = "";
         
-        // 1. 현재 날짜 기준으로 LIVE 여부 판단
+        // 현재 날짜 기준으로 실시간 연도 및 분기 계산
         const now = new Date();
         const currentYear = now.getFullYear();
         const currentQuarter = Math.ceil((now.getMonth() + 1) / 3);
         
-        // 2. [자동화] 시즌 리스트 (현재 분기부터 시즌 1인 2025년 4분기까지 최신순 자동 생성)
+        // 기준점(시즌 1: 2025년 4분기)부터 현재 분기까지 역순으로 자동 생성
         const seasons = [];
         let loopYear = currentYear;
         let loopQuarter = currentQuarter;
         
         while (true) {
-            // 시즌 1(2025년 4분기) 이전으로 내려가면 반복문 종료
             if (loopYear < 2025 || (loopYear === 2025 && loopQuarter < 4)) {
                 break;
             }
-            
-            // 2025년 4분기(시즌 1) 기준 기수(Season Number) 계산
             const seasonNum = ((loopYear - 2025) * 4) + loopQuarter - 3;
-            
             seasons.push({ year: loopYear, quarter: loopQuarter, seasonNum: seasonNum });
             
-            // 이전 분기로 차감
             loopQuarter--;
             if (loopQuarter === 0) {
                 loopQuarter = 4;
@@ -3471,28 +3466,27 @@ const currentQData = getBestInQuarter(cached.quarterlyPartners[currentQKey]);
             
             // --- [데이터 매칭] ---
             if (isCurrent) {
-                // [자동] 현재 진행 중인 실시간 시즌 (3분기가 되면 3분기가 LIVE로 뜸)
+                // [방어 코드] currentData가 선언되지 않았거나 비어있을 때 에러 방지
                 if (typeof currentData !== 'undefined' && Array.isArray(currentData)) {
                     top3 = [...currentData]
                         .filter(m => !m.isHidden && m.name !== "오즈" && m.qCount > 0)
                         .sort((a, b) => b.qCount - a.qCount || b.level - a.level)
                         .slice(0, 3);
+                } else {
+                    top3 = []; // 데이터가 없으면 에러 내지 말고 빈 배열 처리
                 }
             } 
             else if (s.year === 2026 && s.quarter === 2) {
-                // 2026년 2분기 (요청하신 데이터 고정 및 종료 분기로 자동 전환)
                 top3 = [{ name: "유스" }, { name: "하트" }, { name: "아랑" }];
             }
             else if (s.year === 2026 && s.quarter === 1) {
-                // 2026년 1분기 (고정)
                 top3 = [{ name: "지니" }, { name: "나스" }, { name: "해수" }];
             }
             else if (s.year === 2025 && s.quarter === 4) {
-                // 2025년 4분기 (시즌 1 고정)
                 top3 = [{ name: "아랑" }, { name: "용삼" }, { name: "우진" }];
             }
 
-            // --- [HTML 생성: 기존 디자인 코드 그대로 유지] ---
+            // --- [HTML 생성] ---
             if (top3.length > 0) {
                 combinedHtml += `
                 <div class="hall-card ${isCurrent ? 'border-blue-100 bg-blue-50/30' : ''}">
