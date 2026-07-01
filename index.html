@@ -4481,7 +4481,8 @@ window.addMultiActivity = async () => {
                 updateData.totalHeight = increment(height);
                 updateData.bonusDays = 0;
                 
-                const finalQIncrement = Math.min(3, selectedMemberIds.size); 
+                // 🛠️ [로직 수정] 최소 1회 보장하며 동행 인원에 따라 최대 3까지 qCount 증가
+                const finalQIncrement = Math.max(1, Math.min(3, selectedMemberIds.size)); 
                 updateData.qCount = increment(finalQIncrement); 
 
                 if (up > 0) checkLevelUpgrade(member.name, oldLevel, newLevel);
@@ -4493,6 +4494,7 @@ window.addMultiActivity = async () => {
                 }
                 selectedNames.push(member.name);
             } else {
+                // 혼자 활동(1인) 기록일 때는 Extension 보너스 일수(D-Day)를 변동시키지 않음 (기존 규칙 유지)
                 if (isMultiHike && !isExtraHike && (member.level || 0) > 0) {
                     updateData.lastDate = ts;
                     const todayZero = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
@@ -4723,7 +4725,8 @@ window.addMember = async () => {
                 regDate: Timestamp.fromDate(dateObj), 
                 lastDate: Timestamp.fromDate(dateObj), 
                 isHidden: false,
-                bonusDays: 0
+                bonusDays: 0,
+                qCount: 0 // 🛠️ 회원 등록 시 기본 분기횟수 필드 강제 바인딩 (increment 에러 방지)
             });
             
             alert("등록 완료");
@@ -4790,7 +4793,7 @@ window.updateFriendshipPoint = async () => {
     }
 
     try {
-        const memberDoc = await getDoc(doc(db, "sanwoori", id));
+        const memberDoc = await getDoc(doc(doc(db, "sanwoori", id)));
         if (!memberDoc.exists()) return alert("회원 정보를 찾을 수 없습니다.");
         const memberData = memberDoc.data();
 
@@ -4850,7 +4853,6 @@ window.deleteMember = async () => {
     }
 };
 
-// 레벨 임의 수정 기능
 window.updateManualLevel = async () => {
     const id = document.getElementById('memberSelectEdit').value; 
     const newLevel = parseInt(document.getElementById('manualLevelInput').value);
@@ -4871,9 +4873,7 @@ window.updateManualLevel = async () => {
     }
 };
 
-// 🔥 [신규 추가] 분기별 분기 횟수(qCount) 임의 수정 기능
 window.updateManualQCount = async () => {
-    // memberSelectEdit에서 선택된 회원 ID 가져오기
     const id = document.getElementById('memberSelectEdit').value; 
     const newQCount = parseInt(document.getElementById('manualQCountInput').value);
 
@@ -4882,11 +4882,10 @@ window.updateManualQCount = async () => {
 
     if(confirm(`선택한 회원의 이번 분기 횟수를 ${newQCount}회로 변경하시겠습니까?`)) {
         try {
-            // DB 업데이트 (qCount 필드를 직접 변경)
             await updateDoc(doc(db, "sanwoori", id), { qCount: newQCount });
             alert("분기 횟수 변경 완료! ✅");
-            document.getElementById('manualQCountInput').value = ""; // 입력창 비우기
-            if (typeof startRealtimeSync === 'function') startRealtimeSync(); // 화면 동기화
+            document.getElementById('manualQCountInput').value = ""; 
+            if (typeof startRealtimeSync === 'function') startRealtimeSync(); 
         } catch (e) {
             console.error(e);
             alert("변경 실패: " + e.message);
@@ -4894,7 +4893,6 @@ window.updateManualQCount = async () => {
     }
 };
 
-// 초기 실행 로직 정리
 if (!sessionStorage.getItem('visited')) { 
     if (typeof updateVisitorCount === 'function') updateVisitorCount(); 
     sessionStorage.setItem('visited', 'true'); 
@@ -4933,6 +4931,9 @@ function updateAdminMemberLists() {
     document.getElementById('countMale').innerText = visibleMembers.filter(m => m.gender === '남').length;
     document.getElementById('countFemale').innerText = visibleMembers.filter(m => m.gender === '여').length;
 }
+
+         
+
 
             
 
