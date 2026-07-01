@@ -4871,7 +4871,7 @@ window.updateManualLevel = async () => {
     }
 };
 
-// 🔥 [최종 진화형] 화면에서 선택된 연도/분기에 맞춰 등산 카운트를 밀어넣는 함수
+// 🔥 [해결책] 진짜 등산 시스템 로직을 100% 똑같이 수행하되, 최근 운동 일지만 안 남기는 마스터 함수
 window.updateManualQCount = async () => {
     const id = document.getElementById('memberSelectEdit').value; 
     const newQCount = parseInt(document.getElementById('manualQCountInput').value);
@@ -4879,38 +4879,46 @@ window.updateManualQCount = async () => {
     if(!id) return alert("대상 회원을 먼저 선택해주세요.");
     if(isNaN(newQCount) || newQCount < 0) return alert("변경할 올바른 분기 횟수 숫자를 입력해주세요.");
 
-    // 화면에 정의되어 있는 selectedYear(연도)와 selectedQuarter(분기) 변수값 가져오기
-    // 만약 전역 변수가 없다면 현재 날짜 기준으로 안전빵(Fallback) 계산
-    const targetYear = (typeof selectedYear !== 'undefined' && selectedYear) ? selectedYear : new Date().getFullYear();
-    const targetQuarter = (typeof selectedQuarter !== 'undefined' && selectedQuarter) ? selectedQuarter : Math.ceil((new Date().getMonth() + 1) / 3);
-    
-    // 최종 매칭될 분기 키 생성 (예: 2026_q2, 2026_q3 등 화면 선택에 따라 가변됨)
-    const qKey = `${targetYear}_q${targetQuarter}`;
-
-    if(confirm(`선택된 [${targetYear}년 ${targetQuarter}분기]에 횟수 ${newQCount}회를 적용하시겠습니까?\n(최근 기록 일지에는 남지 않습니다)`)) {
+    if(confirm(`선택한 회원의 분기 카운트를 진짜 등산한 것처럼 ${newQCount}회 누적하시겠습니까?\n(최근 기록 일지 목록에는 남지 않습니다)`)) {
         try {
-            let updateData = {};
-            
-            // 1. 단순 전체 qCount 필드를 쓰는 경우 대응
-            updateData.qCount = newQCount; 
-            
-            // 2. 만약 분기별로 세분화된 필드(예: qCount_bins.2026_q3 등)를 쓰는 시스템일 경우까지 대비해서 동시 주입
-            updateData[`qCount_bins.${qKey}`] = newQCount;
+            // 1. 현재 선택된 멤버의 데이터 가져오기
+            const member = currentData.find(m => m.id === id);
+            if (!member) return alert("회원 데이터를 찾을 수 없습니다.");
 
-            // DB 업데이트
+            const now = new Date();
+            // 시스템이 인식하는 고유 분기 키 생성 (예: 2026_q3)
+            const qKey = `${now.getFullYear()}_q${Math.ceil((now.getMonth() + 1) / 3)}`;
+            
+            // 날짜 입력창이 있으면 그 날짜를 쓰고, 없으면 오늘 날짜로 타임스탬프 생성
+            const dateInput = document.getElementById('activityDate');
+            const dateVal = dateInput ? dateInput.value : now.toISOString().split('T')[0];
+            const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
+
+            // 2. 메인 등산 기록(addMultiActivity)과 완전히 동일한 데이터 필드 구조 세팅
+            let updateData = {
+                lastDate: ts,                         // 최근 출석일 갱신
+                qCount: increment(newQCount),         // 핵심: 분기 횟수를 입력한 만큼 증가 (increment)
+                count: increment(newQCount)           // 개인 총 산행 횟수도 똑같이 증가
+            }; 
+
+            // 3. sanwoori 컬렉션의 회원 문서 업데이트
             await updateDoc(doc(db, "sanwoori", id), updateData);
             
-            alert(`${targetYear}년 ${targetQuarter}분기 횟수 반영 완료! ✅`);
+            // 4. 후처리 (입력창 초기화 및 화면 강제 동기화)
+            alert("분기 카운트 정상 반영 완료! ✅");
             document.getElementById('manualQCountInput').value = ""; 
             
-            // 실시간 화면 새로고침 호출
-            if (typeof startRealtimeSync === 'function') startRealtimeSync(); 
+            // 전역 동기화 및 렌더링 함수가 존재하면 강제 구동
+            if (typeof startRealtimeSync === 'function') startRealtimeSync();
+            if (typeof renderStatusTable === 'function') renderStatusTable();
+            
         } catch (e) {
-            console.error(e);
+            console.error("분기 수동 조작 오류 상세:", e);
             alert("변경 실패: " + e.message);
         }
     }
 };
+
 
 // 초기 실행 로직 정리
 if (!sessionStorage.getItem('visited')) { 
