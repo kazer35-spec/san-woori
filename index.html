@@ -3531,7 +3531,7 @@ window.toggleHallModal = async (show) => { // Window -> window 소문자 수정 
     
 window.toggleVibeModal = (show) => { document.getElementById('vibeModal').style.display = show ? 'flex' : 'none'; };
 
-window.showMemberTimeline = async (mId, mName) => {
+ window.showMemberTimeline = async (mId, mName) => {
     toggleTimelineModal(true);
     const modalContent = document.getElementById('timelineModalContent');
     modalContent.scrollTop = 0;
@@ -3804,8 +3804,7 @@ async function calculateGrowthData(mId, memberInfo, logsQuarter) {
     };
 }
 
-
-        
+    
 
 // 1. 계절 색상 판별 함수 (파일 상단에 위치)
 window.getSeasonColor = (month) => {
@@ -4405,7 +4404,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const currentQuarter = Math.ceil((now.getMonth() + 1) / 3);
     const qKey = `${currentYear}_q${currentQuarter}`;
 
-    // [첫번째~네번째 소스 기반] 입력 데이터 추출부 완벽 유지
+    // [첫번째~네번째 코드 기반] 모든 상단 DOM 입력값 추출 완벽 유지
     const mName = document.getElementById('mountainName')?.value.trim() || "";
     const height = parseInt(document.getElementById('mountainHeight')?.value) || 0;
     const isTop100 = document.getElementById('isTop100Check')?.checked || false;
@@ -4427,7 +4426,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     const upElement = document.querySelector('input[name="upAmount"]:checked');
     if(!upElement) return alert("레벨업 수치를 선택해주세요.");
-    const up = parseInt(upElement.value); 
+    const up = parseInt(upElement.value);
 
     const selectedNames = [];
     const safeCoords = (typeof tempCoord !== 'undefined' && tempCoord && tempCoord.x !== undefined) ? tempCoord : null;
@@ -4435,7 +4434,7 @@ window.addEventListener('DOMContentLoaded', () => {
     try {
         pendingLevelUpCards = []; 
 
-        // [1] 산 마스터 데이터 동기화
+        // [1] 산 데이터 마스터 테이블 동기화 (순수산행일 때만)
         if (isRealHike && mName) {
             const mRef = doc(db, "mountains", mName);
             const mSnap = await getDoc(mRef);
@@ -4450,15 +4449,14 @@ window.addEventListener('DOMContentLoaded', () => {
             else await setDoc(mRef, mountainData);
         }
 
-        // [2] 선택된 회원별 루프 데이터 빌드 및 전송
+        // [2] 선택된 회원들 루프 돌며 데이터 정산 및 저장
         for (const id of selectedMemberIds) {
-            // Logs 컬렉션을 전혀 긁지 않고 메모리에 이미 받아둔 currentData만 참조 (할당량 세이브)
             const member = currentData.find(m => m.id === id);
             if (!member) continue;
 
             let updateData = {}; 
 
-            // 💡 [실시간 버그 해결] 로컬 캐시 객체가 부서지지 않도록 안전하게 분기 맵(Map) 데이터 보호
+            // 💡 폰 관리용: 회원 문서에 새 구조가 없다면 최초 1회 과거 3개 분기 자동 주입
             if (!member.quarterlyStats) {
                 const pastCount = member.qCount || member.count || 0;
                 updateData["quarterlyStats.2025_q4"] = { hike: pastCount, total: pastCount };
@@ -4466,12 +4464,12 @@ window.addEventListener('DOMContentLoaded', () => {
                 updateData["quarterlyStats.2026_q2"] = { hike: pastCount, total: pastCount };
             }
 
-            // 공통 스펙 수정 수치 적용
+            // 🌟 [핵심 변경] 순수산행이든 기타활동이든 상관없이 관리자가 입력한 공통 스펙 변경점은 "무조건 반영"
             updateData.lastDate = ts; 
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + up;
             updateData.level = newLevel;
-            updateData.count = _increment(up > 0 ? up : 1); 
+            updateData.count = _increment(1); 
             updateData.totalHeight = _increment(height);
 
             if (up > 0) checkLevelUpgrade(member.name, oldLevel, newLevel);
@@ -4481,11 +4479,11 @@ window.addEventListener('DOMContentLoaded', () => {
             if (isRealHike && !isExtraHike) {
                 const qIncrementValue = Math.min(3, selectedMemberIds.size); 
                 
-                // 파이어베이스에 깨짐 없이 증감 연산 매핑
+                // 분기 통계 객체의 hike와 total을 동시에 채워줌
                 updateData[`quarterlyStats.${qKey}.hike`] = _increment(qIncrementValue);
                 updateData[`quarterlyStats.${qKey}.total`] = _increment(qIncrementValue);
                 updateData.bonusDays = 0;
-                updateData.qCount = _increment(qIncrementValue); 
+                updateData.qCount = _increment(qIncrementValue); // 레거시 백업
 
                 if (isMultiHike) {
                     let pointToAdd = (isQuarterOnlyOne || isRegular) ? 100 : (100 * (up || 1));
@@ -4494,12 +4492,13 @@ window.addEventListener('DOMContentLoaded', () => {
                     updateData[`fp_bins.${qKey}`] = _increment(pointToAdd);
                 }
 
-            // ─── 🅱️ 번외산행 / 러닝 / 트레킹 / 산책일 때 ───
+            // ─── 🅱️ 번외산행 / 러닝 / 트레킹 / 산책 묶음일 때 ───
             } else {
-                const activityCount = up > 0 ? up : 1;
-                updateData[`quarterlyStats.${qKey}.total`] = _increment(activityCount);
+                // 분기 hike는 건들지 않도록 0 가산(또는 기존 유지), total만 1 가산
+                updateData[`quarterlyStats.${qKey}.total`] = _increment(1);
                 updateData[`quarterlyStats.${qKey}.hike`] = _increment(0); 
 
+                // 2인 이상 동행 활동일 때 D-Day 15일 연장 룰 (단, 등산 데이터가 이미 쌓인 회원만)
                 if (isMultiHike && oldLevel > 0) {
                     const todayZero = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
                     const last = member.lastDate ? member.lastDate.toDate() : new Date();
@@ -4510,12 +4509,12 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            // DB에 수정한 데이터 즉시 반영
+            // DB 파이어스토어 전송
             if (Object.keys(updateData).length > 0) {
                 await updateDoc(doc(db, "sanwoori", id), updateData);
             }
             
-            // [3] 서브 로그 백업 (조회용 연산에는 쓰이지 않고 순수 히스토리용으로만 가볍게 적재)
+            // [3] 세부 로그 및 별자리 확률 적재 (원본 완벽 유지)
             const logLoopCount = (isRegular || isSpecial || isQuarterOnlyOne) ? 1 : up;
             for(let i = 0; i < logLoopCount; i++) {
                 let starType = null;
@@ -4535,7 +4534,7 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // [4] 동행의 숲 기록 적재
+        // [4] 동행의 숲(bondingForest) 기록 적재
         if (isRealHike && isMultiHike && selectedNames.length >= 2) {
             await addDoc(collection(db, "bondingForest"), {
                 mountain: mName, members: selectedNames, memberCount: selectedNames.length, date: dateVal, createdAt: new Date()
@@ -4546,7 +4545,7 @@ window.addEventListener('DOMContentLoaded', () => {
         
         alert((isRealHike && !isExtraHike) ? "순수산행 기록 완료! ✅" : "일반 활동(번외/러닝/트레킹/산책) 기록 완료! 🏃");
         
-        // 입력 폼 초기화
+        // [5] 입력 폼 초기화
         selectedMemberIds.clear();
         tempCoord = null; 
         const kstDate = new Date(new Date().getTime() + (9 * 60 * 60 * 1000));
@@ -4554,18 +4553,36 @@ window.addEventListener('DOMContentLoaded', () => {
             dateInput.value = kstDate.toISOString().split('T')[0];
         }
         
-        // 💡 실시간 새로고침 시 저장된 메인 도큐먼트 통계객체만 쏙 빼와 화면에 완벽 동기화 처리!
         startRealtimeSync(); 
     } catch (error) {
         console.error("Error 상세:", error);
         alert("저장 실패: " + error.message);
     }
 };
-
-
+    
             
+// 관리자가 동행 횟수를 수동으로 수정하는 함수
+window.updateBuddyCountManual = async () => {
+    const mId = document.getElementById('memberSelectManage').value; 
+    const newCount = parseInt(document.getElementById('buddyCountInput').value);
 
-        
+    if (!mId) return alert("대상을 선택해주세요.");
+    if (isNaN(newCount)) return alert("수정할 횟수를 입력해주세요.");
+
+    if (!confirm(`선택한 회원의 동행 횟수를 ${newCount}회로 변경하시겠습니까?`)) return;
+
+    try {
+        await updateDoc(doc(db, "sanwoori", mId), {
+            buddyCount: newCount
+        });
+        alert("동행 횟수가 수정되었습니다!");
+        document.getElementById('buddyCountInput').value = ""; 
+        if (typeof startRealtimeSync === 'function') startRealtimeSync(); 
+    } catch (e) {
+        console.error(e);
+        alert("수정 실패: " + e.message);
+    }
+};
  
 window.loadMemberLogs = async () => {
     const id = document.getElementById('memberSelectEdit').value;
