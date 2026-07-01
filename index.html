@@ -4217,23 +4217,24 @@ async function startRealtimeSync() {
     
     // [수정] 분기 횟수 계산 시 산책(isWalking)도 제외
     m.qCount = qSnap.docs.filter(l => {
-    m.qCount = qSnap.docs.reduce((acc, l) => {
-                const d = l.data();
-                
-                // 순수 산행 조건 (기존 필터와 동일)
-                const isRealHike = !d.isRunning && !d.isTracking && !d.isWalking && !d.isExtraHike;
-                
-                if (isRealHike) {
-                    // memberCount 필드가 존재하고 2명 이상인 경우 동행 산행으로 인정
-                    const isBuddyHike = d.memberCount ? (d.memberCount >= 2) : false; 
-                    
-                    // 동행이면 3회, 혼자면 1회 추가
-                    return acc + (isBuddyHike ? 3 : 1);
-                }
-                
-                return acc;
-            }, 0);
-        
+    const d = l.data();
+    // 런닝, 트레킹, 산책, 그리고 번외산행까지 모두 제외해야 순수 산행 횟수가 나옵니다.
+    return !d.isRunning && !d.isTracking && !d.isWalking && !d.isExtraHike;
+}).length;
+
+    const allLogsSnap = await getDocs(collection(db, `sanwoori/${m.id}/logs`));
+    
+    // [추가 팁] 전체 높이 합산에서도 산책/런닝/트래킹 높이를 제외하고 싶다면?
+    m.totalHeight = allLogsSnap.docs.reduce((acc, l) => {
+        const d = l.data();
+        // 순수 산행일 때만 높이를 더함 (필요 시 적용)
+        const isRealHike = !d.isRunning && !d.isTracking && !d.isWalking;
+        return acc + (isRealHike ? (d.height || 0) : 0);
+    }, 0);
+    
+    return m;
+}));
+
         // 4. 화면 업데이트 및 테마 적용
         currentData = results;
         if(typeof updateAdminMemberLists === 'function') updateAdminMemberLists();
@@ -4496,26 +4497,24 @@ window.addMultiActivity = async () => {
             if (Object.keys(updateData).length > 0) await updateDoc(doc(db, "sanwoori", id), updateData);
             
             const logLoopCount = (isRegular || isSpecial || isQuarterOnlyOne) ? 1 : up;
-for(let i = 0; i < logLoopCount; i++) {
-    let starType = null;
-    if (isRegular) {
-        const rand = Math.random() * 100;
-        if (rand <= 3) starType = "super";
-        else if (rand <= 10) starType = "special";
-        else starType = "regular_" + (Math.floor(Math.random() * 4) + 1);
-    }
-    
-    // 🔥 핵심 수정: memberCount 항목을 추가하여 동행 인원수를 로그에 박아줍니다.
-    await addDoc(collection(db, `sanwoori/${id}/logs`), {
-        date: ts, 
-        mountain: mName || (isWalking ? "동네 산책" : (isExtraHike ? "번외 산행" : "활동 기록")), 
-        height, 
-        coords: safeCoords,
-        isTop100, isBAC, isRegular, isRunning, isTracking, isWalking, isExtraHike, isOnlyLog, region,
-        starType, author: member.name,
-        memberCount: selectedMemberIds.size // 👈 이 코드를 새로 추가합니다! (2인이상이면 2 이상의 값 저장)
-    });
-}
+            for(let i = 0; i < logLoopCount; i++) {
+                let starType = null;
+                if (isRegular) {
+                    const rand = Math.random() * 100;
+                    if (rand <= 3) starType = "super";
+                    else if (rand <= 10) starType = "special";
+                    else starType = "regular_" + (Math.floor(Math.random() * 4) + 1);
+                }
+                await addDoc(collection(db, `sanwoori/${id}/logs`), {
+                    date: ts, 
+                    mountain: mName || (isWalking ? "동네 산책" : (isExtraHike ? "번외 산행" : "활동 기록")), 
+                    height, 
+                    coords: safeCoords,
+                    isTop100, isBAC, isRegular, isRunning, isTracking, isWalking, isExtraHike, isOnlyLog, region,
+                    starType, author: member.name
+                });
+            }
+        }
 
         if (isRealHike && isMultiHike && selectedNames.length >= 2) {
             await addDoc(collection(db, "bondingForest"), {
