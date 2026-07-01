@@ -4919,6 +4919,41 @@ window.updateManualLevel = async () => {
     }
 };
 
+    // [신규 추가] 활동 횟수(count) 임의 수정 기능
+window.updateManualCount = async () => {
+    // memberSelectEdit에서 선택된 회원 ID 가져오기
+    const id = document.getElementById('memberSelectEdit').value; 
+    const newCount = parseInt(document.getElementById('manualCountInput').value);
+
+    if(!id) return alert("대상 회원을 먼저 선택해주세요.");
+    if(isNaN(newCount) || newCount < 0) return alert("변경할 올바른 횟수 숫자를 입력해주세요.");
+
+    if(confirm(`선택한 회원의 총 활동 횟수(count)를 ${newCount}회로 변경하시겠습니까?`)) {
+        try {
+            // DB 업데이트
+            await updateDoc(doc(db, "sanwoori", id), { count: newCount });
+            alert("활동 횟수 변경 완료! ✅");
+            document.getElementById('manualCountInput').value = ""; // 입력창 비우기
+            
+            if (typeof startRealtimeSync === 'function') startRealtimeSync(); // 화면 갱신
+        } catch (e) {
+            console.error(e);
+            alert("변경 실패: " + e.message);
+        }
+    }
+};
+
+    <div>
+    <input type="number" id="manualLevelInput" placeholder="변경할 레벨">
+    <button onclick="window.updateManualLevel()">레벨 변경</button>
+</div>
+
+<div class="mt-2">
+    <input type="number" id="manualCountInput" placeholder="변경할 활동 횟수" class="border rounded-md px-2 py-1 text-sm">
+    <button onclick="window.updateManualCount()" class="bg-blue-500 text-white px-2 py-1 rounded text-sm ml-1">횟수 변경</button>
+</div>
+
+
 // 초기 실행 로직 정리
 if (!sessionStorage.getItem('visited')) { 
     if (typeof updateVisitorCount === 'function') updateVisitorCount(); 
