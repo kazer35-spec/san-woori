@@ -4467,22 +4467,18 @@ window.addMultiActivity = async () => {
             let updateData = {}; 
 
             if (isRealHike) {
-    updateData.lastDate = ts; 
-    const oldLevel = member.level || 0;
-    const newLevel = oldLevel + up;
-    updateData.level = newLevel;
-    updateData.count = increment(1);
-    updateData.totalHeight = increment(height);
-    updateData.bonusDays = 0;
-    
-    // 🔥 참여 인원수(size)대로 올라가되, 최대 3까지만 허용합니다.
-    // 1명=1, 2명=2, 3명=3, 4명 이상=3
-    const finalQIncrement = Math.min(3, selectedMemberIds.size); 
+                updateData.lastDate = ts; 
+                const oldLevel = member.level || 0;
+                const newLevel = oldLevel + up;
+                updateData.level = newLevel;
+                updateData.count = increment(1);
+                updateData.totalHeight = increment(height);
+                updateData.bonusDays = 0;
+                
+                const finalQIncrement = Math.min(3, selectedMemberIds.size); 
+                updateData.qCount = increment(finalQIncrement); 
 
-    // DB의 qCount 필드에 finalQIncrement만큼 더해줍니다.
-    updateData.qCount = increment(finalQIncrement); 
-
-    if (up > 0) checkLevelUpgrade(member.name, oldLevel, newLevel);
+                if (up > 0) checkLevelUpgrade(member.name, oldLevel, newLevel);
                 if (isMultiHike) {
                     let pointToAdd = (isQuarterOnlyOne || isRegular) ? 100 : (100 * (up || 1));
                     updateData.buddyCount = increment(1);
@@ -4546,13 +4542,9 @@ window.addMultiActivity = async () => {
     }
 };
 
-
-
-
-    
-           // 관리자가 동행 횟수를 수동으로 수정하는 함수
+// 관리자가 동행 횟수를 수동으로 수정하는 함수
 window.updateBuddyCountManual = async () => {
-    const mId = document.getElementById('memberSelectManage').value; // 선택된 멤버 ID
+    const mId = document.getElementById('memberSelectManage').value; 
     const newCount = parseInt(document.getElementById('buddyCountInput').value);
 
     if (!mId) return alert("대상을 선택해주세요.");
@@ -4565,83 +4557,79 @@ window.updateBuddyCountManual = async () => {
             buddyCount: newCount
         });
         alert("동행 횟수가 수정되었습니다!");
-        document.getElementById('buddyCountInput').value = ""; // 입력칸 비우기
-        if (typeof startRealtimeSync === 'function') startRealtimeSync(); // 화면 새로고침
+        document.getElementById('buddyCountInput').value = ""; 
+        if (typeof startRealtimeSync === 'function') startRealtimeSync(); 
     } catch (e) {
         console.error(e);
         alert("수정 실패: " + e.message);
     }
 };
  
-
-    window.loadMemberLogs = async () => {
-const id = document.getElementById('memberSelectEdit').value;
-const area = document.getElementById('logListArea'); area.innerHTML = ""; if(!id) return;
-const snap = await getDocs(query(collection(db, `sanwoori/${id}/logs`), orderBy("date", "desc"), limit(20)));
-snap.forEach(ld => {
-const logData = ld.data(); const d = logData.date.toDate(); const dateStr = `${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()}`;
-const logJson = JSON.stringify({ mountain: logData.mountain || '', height: logData.height || 0, coords: logData.coords || null, isTop100: logData.isTop100 || false, isBAC: logData.isBAC || false, region: logData.region || '기타' }).replace(/"/g, '&quot;');
-area.innerHTML += `<div class="log-item-box" onclick="selectLogToMap('${logJson}')">
-<div class="log-info-group"><span class="log-date-txt">${dateStr}</span><span class="log-mt-txt">${logData.isBAC ? '<span class="bac-txt">BAC</span>' : ''}${logData.mountain || '기록'}</span>
-<div class="flex items-center gap-1"><input type="number" id="h-${ld.id}" value="${logData.height || 0}" class="log-height-input border rounded-md" onclick="event.stopPropagation()">
-<button onclick="event.stopPropagation(); updateLogHeight('${id}', '${ld.id}')" class="text-[9px] bg-slate-200 px-1 py-1 rounded">높이수정</button>
-<button onclick="event.stopPropagation(); updateLogCoord('${id}', '${ld.id}')" class="text-[9px] bg-emerald-500 text-white px-1 py-1 rounded">좌표수정</button></div></div>
-<div class="log-btn-group" onclick="event.stopPropagation()"><button class="del-btn-mini" onclick="deleteLog('${id}', '${ld.id}', true)">레벨-1 삭제</button>
-<button class="del-only-btn-mini" onclick="deleteLog('${id}', '${ld.id}', false)">기록만 삭제</button></div></div>`;
-});
+window.loadMemberLogs = async () => {
+    const id = document.getElementById('memberSelectEdit').value;
+    const area = document.getElementById('logListArea'); area.innerHTML = ""; if(!id) return;
+    const snap = await getDocs(query(collection(db, `sanwoori/${id}/logs`), orderBy("date", "desc"), limit(20)));
+    snap.forEach(ld => {
+        const logData = ld.data(); const d = logData.date.toDate(); const dateStr = `${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()}`;
+        const logJson = JSON.stringify({ mountain: logData.mountain || '', height: logData.height || 0, coords: logData.coords || null, isTop100: logData.isTop100 || false, isBAC: logData.isBAC || false, region: logData.region || '기타' }).replace(/"/g, '&quot;');
+        area.innerHTML += `<div class="log-item-box" onclick="selectLogToMap('${logJson}')">
+        <div class="log-info-group"><span class="log-date-txt">${dateStr}</span><span class="log-mt-txt">${logData.isBAC ? '<span class="bac-txt">BAC</span>' : ''}${logData.mountain || '기록'}</span>
+        <div class="flex items-center gap-1"><input type="number" id="h-${ld.id}" value="${logData.height || 0}" class="log-height-input border rounded-md" onclick="event.stopPropagation()">
+        <button onclick="event.stopPropagation(); updateLogHeight('${id}', '${ld.id}')" class="text-[9px] bg-slate-200 px-1 py-1 rounded">높이수정</button>
+        <button onclick="event.stopPropagation(); updateLogCoord('${id}', '${ld.id}')" class="text-[9px] bg-emerald-500 text-white px-1 py-1 rounded">좌표수정</button></div></div>
+        <div class="log-btn-group" onclick="event.stopPropagation()"><button class="del-btn-mini" onclick="deleteLog('${id}', '${ld.id}', true)">레벨-1 삭제</button>
+        <button class="del-only-btn-mini" onclick="deleteLog('${id}', '${ld.id}', false)">기록만 삭제</button></div></div>`;
+    });
 };
 
 window.selectLogToMap = (logDataStr) => {
-const log = JSON.parse(logDataStr.replace(/&quot;/g, '"'));
-document.getElementById('mountainName').value = log.mountain;
-document.getElementById('mountainHeight').value = log.height;
-document.getElementById('isTop100Check').checked = log.isTop100;
-document.getElementById('isBACCheck').checked = log.isBAC || false;
-document.getElementById('adminManualRegionSelect').value = log.region || '기타';
-toggleMarkerStyle();
-if (log.coords) {
-tempCoord = log.coords; const marker = document.getElementById('adminMapMarker');
-marker.style.left = log.coords.x + "%"; marker.style.top = log.coords.y + "%"; marker.classList.remove('hidden');
-}
+    const log = JSON.parse(logDataStr.replace(/&quot;/g, '"'));
+    document.getElementById('mountainName').value = log.mountain;
+    document.getElementById('mountainHeight').value = log.height;
+    document.getElementById('isTop100Check').checked = log.isTop100;
+    document.getElementById('isBACCheck').checked = log.isBAC || false;
+    document.getElementById('adminManualRegionSelect').value = log.region || '기타';
+    toggleMarkerStyle();
+    if (log.coords) {
+        tempCoord = log.coords; const marker = document.getElementById('adminMapMarker');
+        marker.style.left = log.coords.x + "%"; marker.style.top = log.coords.y + "%"; marker.classList.remove('hidden');
+    }
 };
 
 window.updateLogHeight = async (mId, logId) => {
-await updateDoc(doc(db, `sanwoori/${mId}/logs`, logId), { height: parseInt(document.getElementById(`h-${logId}`).value) || 0 });
-alert("높이 수정 완료"); startRealtimeSync();
+    await updateDoc(doc(db, `sanwoori/${mId}/logs`, logId), { height: parseInt(document.getElementById(`h-${logId}`).value) || 0 });
+    alert("높이 수정 완료"); startRealtimeSync();
 };
 
 window.updateLogCoord = async (mId, logId) => {
-if(!tempCoord) return alert("지도 클릭 필수");
-await updateDoc(doc(db, `sanwoori/${mId}/logs`, logId), { coords: tempCoord, region: document.getElementById('adminManualRegionSelect').value });
-alert("좌표 수정 완료"); loadMemberLogs();
+    if(!tempCoord) return alert("지도 클릭 필수");
+    await updateDoc(doc(db, `sanwoori/${mId}/logs`, logId), { coords: tempCoord, region: document.getElementById('adminManualRegionSelect').value });
+    alert("좌표 수정 완료"); loadMemberLogs();
 };
 
 window.syncLastDateAfterDelete = async (mId) => {
     try {
-        // 런닝(isRunning)과 트레킹(isTracking)이 모두 false인 '산행' 기록만 필터링
         const lastHikeQuery = query(
-    collection(db, `sanwoori/${mId}/logs`),
-    where("isRunning", "==", false),
-    where("isTracking", "==", false),
-    where("isWalking", "==", false),
-    where("isExtraHike", "==", false), // 번외산행 제외
-    orderBy("date", "desc"),
-    limit(1)
-);
+            collection(db, `sanwoori/${mId}/logs`),
+            where("isRunning", "==", false),
+            where("isTracking", "==", false),
+            where("isWalking", "==", false),
+            where("isExtraHike", "==", false), 
+            orderBy("date", "desc"),
+            limit(1)
+        );
         const lastHikeSnap = await getDocs(lastHikeQuery);
 
         if (!lastHikeSnap.empty) {
-            // 남은 '산행' 기록이 있으면 그 날짜로 D-Day 복구
             const latestHikeDate = lastHikeSnap.docs[0].data().date;
             await updateDoc(doc(db, "sanwoori", mId), { lastDate: latestHikeDate });
         }
-        // 산행 기록이 아예 없으면 lastDate를 건드리지 않거나 가입일로 유지됩니다.
     } catch (e) {
         console.error("D-Day 복구 실패:", e);
     }
 };
     
-    window.deleteLog = async (mId, logId, shouldDownLevel) => {
+window.deleteLog = async (mId, logId, shouldDownLevel) => {
     if(!confirm("기록을 삭제하시겠습니까?")) return;
     
     try {
@@ -4652,41 +4640,33 @@ window.syncLastDateAfterDelete = async (mId) => {
         const logData = logSnap.data();
         const mName = logData.author || (typeof currentData !== 'undefined' ? currentData.find(m => m.id === mId)?.name : "") || "";
 
-        // 1. 산행 여부 및 동행 여부 판별
         const isHike = !logData.isRunning && !logData.isTracking;
         const isBuddyHike = isHike && (logData.memberCount >= 2);
 
-        // 2. 파이어베이스 서버 삭제
         await deleteDoc(logRef);
         
-        // 3. 서버 수치 차감
         if(shouldDownLevel && isHike) {
             const updateFields = { 
                 level: increment(-1),
-                count: increment(-1) // 혼자 산행도 총횟수는 차감
+                count: increment(-1) 
             };
             if(isBuddyHike) updateFields.buddyCount = increment(-1);
             
             await updateDoc(doc(db, "sanwoori", mId), updateFields);
         }
 
-        // 4. 🔥 [핵심] 로컬 캐시 실시간 강제 동기화
         if (mName) {
             const STORAGE_KEY = `forest_v5_final_${mName}`;
             const cachedData = localStorage.getItem(STORAGE_KEY);
             
             if (cachedData) {
                 let cached = JSON.parse(cachedData);
-                // 동행 기록 삭제 시에만 캐시 숫자(extraHikes) 차감
                 if (isBuddyHike && cached.extraHikes > 0) cached.extraHikes -= 1;
-                
-                // ⭐ 중요: 목록을 비워야 '인연의 숲' 열 때 DB에서 최신 데이터를 새로 가져옵니다.
                 cached.processedIds = []; 
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
             }
         }
 
-        // 5. 화면 즉시 반영
         if (typeof loadMemberLogs === 'function') loadMemberLogs(); 
         if (typeof updateVibeTemp === 'function') updateVibeTemp();
         
@@ -4696,57 +4676,51 @@ window.syncLastDateAfterDelete = async (mId) => {
     }
 };
 
-
-
 window.updateMemberName = async () => {
-const id = document.getElementById('memberSelectEdit').value;
-const newName = document.getElementById('editMemberNameInput').value.trim();
-if(id && newName) { await updateDoc(doc(db, "sanwoori", id), { name: newName }); alert("변경 완료"); }
+    const id = document.getElementById('memberSelectEdit').value;
+    const newName = document.getElementById('editMemberNameInput').value.trim();
+    if(id && newName) { await updateDoc(doc(db, "sanwoori", id), { name: newName }); alert("변경 완료"); }
 };
 
 window.changeQuarter = (q) => { selectedQuarter = q; document.querySelectorAll('.q-btn').forEach((btn, idx) => btn.classList.toggle('active-q', idx + 1 === q)); startRealtimeSync(); };
 window.changeYear = () => { selectedYear = parseInt(document.getElementById('yearSelect').value); startRealtimeSync(); };
 window.showView = (v) => {
-document.querySelectorAll('.view-content').forEach(e => e.classList.add('hidden'));
-document.getElementById('view'+v.charAt(0).toUpperCase()+v.slice(1)).classList.remove('hidden');
-document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active-tab'));
-if(v === 'status') document.getElementById('tabStatus').classList.add('active-tab');
-if(v === 'admin' || v === 'login') document.getElementById('tabAdmin').classList.add('active-tab');
-renderStatusTable();
+    document.querySelectorAll('.view-content').forEach(e => e.classList.add('hidden'));
+    document.getElementById('view'+v.charAt(0).toUpperCase()+v.slice(1)).classList.remove('hidden');
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active-tab'));
+    if(v === 'status') document.getElementById('tabStatus').classList.add('active-tab');
+    if(v === 'admin' || v === 'login') document.getElementById('tabAdmin').classList.add('active-tab');
+    renderStatusTable();
 };
 window.handleAdminTab = () => isAdminLoggedIn ? showView('admin') : showView('login');
 
 window.loginAdmin = async () => {
-const pw = document.getElementById('adminPassword').value;
-const snap = await getDoc(doc(db, "admin_settings", "config"));
-if (snap.exists() && pw === String(snap.data().admin_pw)) { isAdminLoggedIn = true; showView('admin'); } else alert("비밀번호 불일치");
+    const pw = document.getElementById('adminPassword').value;
+    const snap = await getDoc(doc(db, "admin_settings", "config"));
+    if (snap.exists() && pw === String(snap.data().admin_pw)) { isAdminLoggedIn = true; showView('admin'); } else alert("비밀번호 불일치");
 };
 window.logoutAdmin = () => { isAdminLoggedIn = false; showView('status'); };
 
-
-    window.addMember = async () => {
+window.addMember = async () => {
     const name = document.getElementById('newName').value.trim();
-    const dateStr = document.getElementById('regDate').value; // 'YYYY-MM-DD' 형태
+    const dateStr = document.getElementById('regDate').value; 
     const gender = document.querySelector('input[name="newGender"]:checked')?.value;
 
     if (name && dateStr && gender) {
         try {
-            // 날짜 문자열을 Date 객체로 변환
             const dateObj = new Date(dateStr + "T00:00:00");
             
             await addDoc(collection(db, "sanwoori"), {
                 name: name,
                 level: 0,
                 gender: gender,
-                regDate: Timestamp.fromDate(dateObj), // 신규 등록 날짜 추가
-                lastDate: Timestamp.fromDate(dateObj), // 초기 마지막 출석일 설정
+                regDate: Timestamp.fromDate(dateObj), 
+                lastDate: Timestamp.fromDate(dateObj), 
                 isHidden: false,
                 bonusDays: 0
             });
             
             alert("등록 완료");
-            
-            // 입력창 초기화 (선택 사항)
             document.getElementById('newName').value = '';
         } catch (error) {
             console.error("등록 중 오류 발생:", error);
@@ -4766,23 +4740,20 @@ window.exportAllData = async () => {
             data: []
         };
 
-        // 1. 멤버 명단 가져오기
         const memberSnap = await getDocs(collection(db, "sanwoori"));
         
-        // 2. 멤버별로 기록(logs)까지 싹 다 긁어모으기
         for (const mDoc of memberSnap.docs) {
             const memberInfo = { id: mDoc.id, ...mDoc.data() };
             const logsSnap = await getDocs(collection(db, `sanwoori/${mDoc.id}/logs`));
             const logs = logsSnap.docs.map(lDoc => ({
                 id: lDoc.id,
                 ...lDoc.data(),
-                date: lDoc.data().date?.toDate().toISOString() // 날짜 형식 변환
+                date: lDoc.data().date?.toDate().toISOString() 
             }));
             
             backupData.data.push({ ...memberInfo, logs });
         }
 
-        // 3. 파일로 만들어서 다운로드 시키기
         const jsonBlob = new Blob([JSON.stringify(backupData, null, 2)], { type: "application/json" });
         const url = URL.createObjectURL(jsonBlob);
         const a = document.createElement('a');
@@ -4798,18 +4769,12 @@ window.exportAllData = async () => {
     }
 };
 
-    window.updateBonusDays = async () => {
-const id = document.getElementById('memberSelectManage').value;
-const bonus = parseInt(document.getElementById('bonusDaysInput').value);
-if(id && !isNaN(bonus)) { await updateDoc(doc(db, "sanwoori", id), { bonusDays: increment(bonus) }); alert("적용 완료"); }
-};
 window.updateBonusDays = async () => {
-const id = document.getElementById('memberSelectManage').value;
-const bonus = parseInt(document.getElementById('bonusDaysInput').value);
-if(id && !isNaN(bonus)) { await updateDoc(doc(db, "sanwoori", id), { bonusDays: increment(bonus) }); alert("적용 완료"); }
+    const id = document.getElementById('memberSelectManage').value;
+    const bonus = parseInt(document.getElementById('bonusDaysInput').value);
+    if(id && !isNaN(bonus)) { await updateDoc(doc(db, "sanwoori", id), { bonusDays: increment(bonus) }); alert("적용 완료"); }
 };
 
-// [수정된 우정 포인트 관리 명령어]
 window.updateFriendshipPoint = async () => {
     const id = document.getElementById('memberSelectManage').value;
     const point = parseInt(document.getElementById('friendshipPointInput').value);
@@ -4819,22 +4784,16 @@ window.updateFriendshipPoint = async () => {
     }
 
     try {
-        // 1. 멤버 현재 데이터 가져오기
         const memberDoc = await getDoc(doc(db, "sanwoori", id));
         if (!memberDoc.exists()) return alert("회원 정보를 찾을 수 없습니다.");
         const memberData = memberDoc.data();
 
         let bins = memberData.fp_bins ? { ...memberData.fp_bins } : {};
-        let currentTotal = typeof memberData.friendshipPoint === 'object' 
-            ? (memberData.friendshipPoint.total || 0) 
-            : (parseInt(memberData.friendshipPoint) || 0);
 
-        // 2. 입력된 값이 음수일 경우 (포인트 차감 시)
         if (point < 0) {
             let remaining = Math.abs(point);
             const quarters = Object.keys(bins).filter(k => k.match(/q\d+/)).sort();
 
-            // 오래된 분기부터 차감
             for (const q of quarters) {
                 if (remaining <= 0) break;
                 const currentQAmount = bins[q] || 0;
@@ -4845,14 +4804,11 @@ window.updateFriendshipPoint = async () => {
                 }
             }
         } else {
-            // 3. 양수일 경우 (포인트 적립 시)
-            // 현재 연도의 분기(예: 2026_q1 또는 2026_q2)에 추가
             const now = new Date();
             const qKey = `${now.getFullYear()}_q${Math.ceil((now.getMonth() + 1) / 3)}`;
             bins[qKey] = (bins[qKey] || 0) + point;
         }
 
-        // 4. 새로운 전체 포인트 재계산
         let newTotal = 0;
         for (const key in bins) {
             if (key.match(/q\d+/)) {
@@ -4860,7 +4816,6 @@ window.updateFriendshipPoint = async () => {
             }
         }
 
-        // 5. DB에 동시 업데이트
         await updateDoc(doc(db, "sanwoori", id), {
             friendshipPoint: newTotal,
             fp_bins: bins
@@ -4870,7 +4825,6 @@ window.updateFriendshipPoint = async () => {
         document.getElementById('friendshipPointInput').value = "";
 
         if (typeof startRealtimeSync === 'function') startRealtimeSync(); 
-        startRealtimeSync();
     } catch (e) {
         console.error("포인트 수정 실패:", e);
         alert("수정 실패: " + e.message);
@@ -4878,10 +4832,10 @@ window.updateFriendshipPoint = async () => {
 };
 
 window.toggleHideMember = async () => {
-const id = document.getElementById('memberSelectManage').value;
-if(id){ const m = currentData.find(x => x.id === id); await updateDoc(doc(db, "sanwoori", id), { isHidden: !m.isHidden }); alert("변경 완료"); }
+    const id = document.getElementById('memberSelectManage').value;
+    if(id){ const m = currentData.find(x => x.id === id); await updateDoc(doc(db, "sanwoori", id), { isHidden: !m.isHidden }); alert("변경 완료"); }
 };
-// 1. 영구 삭제 기능 (기존 기능 유지)
+
 window.deleteMember = async () => {
     const id = document.getElementById('memberSelectManage').value;
     if(id && confirm("정말로 삭제하시겠습니까? 회원이 영구히 삭제됩니다.")) { 
@@ -4892,7 +4846,6 @@ window.deleteMember = async () => {
 
 // 레벨 임의 수정 기능
 window.updateManualLevel = async () => {
-    // memberSelectEdit에서 선택된 회원 ID 가져오기
     const id = document.getElementById('memberSelectEdit').value; 
     const newLevel = parseInt(document.getElementById('manualLevelInput').value);
 
@@ -4901,12 +4854,33 @@ window.updateManualLevel = async () => {
 
     if(confirm(`선택한 회원의 레벨을 ${newLevel}(으)로 변경하시겠습니까?`)) {
         try {
-            // DB 업데이트
             await updateDoc(doc(db, "sanwoori", id), { level: newLevel });
             alert("레벨 변경 완료! ✅");
-            document.getElementById('manualLevelInput').value = ""; // 입력창 비우기
-            
-            // 화면 갱신 (실시간 리스너가 있다면 자동으로 반영됨)
+            document.getElementById('manualLevelInput').value = ""; 
+            if (typeof startRealtimeSync === 'function') startRealtimeSync();
+        } catch (e) {
+            console.error(e);
+            alert("변경 실패: " + e.message);
+        }
+    }
+};
+
+// 🔥 [신규 추가] 분기별 분기 횟수(qCount) 임의 수정 기능
+window.updateManualQCount = async () => {
+    // memberSelectEdit에서 선택된 회원 ID 가져오기
+    const id = document.getElementById('memberSelectEdit').value; 
+    const newQCount = parseInt(document.getElementById('manualQCountInput').value);
+
+    if(!id) return alert("대상 회원을 먼저 선택해주세요.");
+    if(isNaN(newQCount) || newQCount < 0) return alert("변경할 올바른 분기 횟수 숫자를 입력해주세요.");
+
+    if(confirm(`선택한 회원의 이번 분기 횟수를 ${newQCount}회로 변경하시겠습니까?`)) {
+        try {
+            // DB 업데이트 (qCount 필드를 직접 변경)
+            await updateDoc(doc(db, "sanwoori", id), { qCount: newQCount });
+            alert("분기 횟수 변경 완료! ✅");
+            document.getElementById('manualQCountInput').value = ""; // 입력창 비우기
+            if (typeof startRealtimeSync === 'function') startRealtimeSync(); // 화면 동기화
         } catch (e) {
             console.error(e);
             alert("변경 실패: " + e.message);
@@ -4920,42 +4894,52 @@ if (!sessionStorage.getItem('visited')) {
     sessionStorage.setItem('visited', 'true'); 
 }
 
-// 기본 리스너 및 데이터 동기화 시작
 listenVisitors(); 
 initAutoSelection(); 
 startRealtimeSync(); 
 listenSubRooms();
 
-// 데이터 로딩 시간을 고려하여 2초 후 첫 온도 체크 실행
 setTimeout(() => {
     updateVibeTemp();
 }, 2000);
 
-// 날짜 입력 칸 기본값 설정
 if (document.getElementById('regDate')) document.getElementById('regDate').valueAsDate = new Date();
 if (document.getElementById('activityDate')) document.getElementById('activityDate').valueAsDate = new Date();
 
 window.toggleSelectMember = (id, el) => {
-if(selectedMemberIds.has(id)){ selectedMemberIds.delete(id); el.classList.remove('selected'); }
-else { selectedMemberIds.add(id); el.classList.add('selected'); }
+    if(selectedMemberIds.has(id)){ selectedMemberIds.delete(id); el.classList.remove('selected'); }
+    else { selectedMemberIds.add(id); el.classList.add('selected'); }
 };
 
 function updateAdminMemberLists() {
-const alpha = [...currentData].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
-const multi = document.getElementById('multiMemberList');
-const edit = document.getElementById('memberSelectEdit');
-const manage = document.getElementById('memberSelectManage');
-if(!multi) return; multi.innerHTML = ""; edit.innerHTML = manage.innerHTML = '<option value="">대상 회원 선택</option>';
-alpha.forEach(m => {
-multi.innerHTML += `<div class="member-chip ${selectedMemberIds.has(m.id)?'selected':''} ${m.isHidden?'opacity-50':''}" onclick="toggleSelectMember('${m.id}', this)"><span class="gender-dot ${m.gender==='여'?'dot-pink':'dot-blue'}">●</span>${m.name}</div> `;
-edit.innerHTML += `<option value="${m.id}">${m.name} </option> `;
-manage.innerHTML += `<option value="${m.id}">${m.name} (${m.buddyCount || 0}회)</option> `;
-});
-const visibleMembers = currentData.filter(m => !m.isHidden);
-document.getElementById('countTotal').innerText = visibleMembers.length;
-document.getElementById('countMale').innerText = visibleMembers.filter(m => m.gender === '남').length;
-document.getElementById('countFemale').innerText = visibleMembers.filter(m => m.gender === '여').length;
+    const alpha = [...currentData].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+    const multi = document.getElementById('multiMemberList');
+    const edit = document.getElementById('memberSelectEdit');
+    const manage = document.getElementById('memberSelectManage');
+    if(!multi) return; multi.innerHTML = ""; edit.innerHTML = manage.innerHTML = '<option value="">대상 회원 선택</option>';
+    alpha.forEach(m => {
+        multi.innerHTML += `<div class="member-chip ${selectedMemberIds.has(m.id)?'selected':''} ${m.isHidden?'opacity-50':''}" onclick="toggleSelectMember('${m.id}', this)"><span class="gender-dot ${m.gender==='여'?'dot-pink':'dot-blue'}">●</span>${m.name}</div> `;
+        edit.innerHTML += `<option value="${m.id}">${m.name} </option> `;
+        manage.innerHTML += `<option value="${m.id}">${m.name} (${m.buddyCount || 0}회)</option> `;
+    });
+    const visibleMembers = currentData.filter(m => !m.isHidden);
+    document.getElementById('countTotal').innerText = visibleMembers.length;
+    document.getElementById('countMale').innerText = visibleMembers.filter(m => m.gender === '남').length;
+    document.getElementById('countFemale').innerText = visibleMembers.filter(m => m.gender === '여').length;
 }
+
+            
+
+
+
+
+
+
+
+
+
+
+
 
 window.toggleModal = (show) => {
   document.getElementById('levelModal').style.display = show ? 'flex' : 'none';
