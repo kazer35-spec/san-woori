@@ -2954,23 +2954,35 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 };
 
     
-    window.showBondingForestModal = async () => {
+    Window.showBondingForestModal = async () => {
     // 1. 기본 UI 요소 및 이름 추출 (중복 제거 및 통합)
     const fpElement = document.getElementById('memberFriendshipPoint');
     const currentFP = fpElement ? parseInt(fpElement.innerText.replace(/[^0-9]/g, '')) : 0;
 
-        
-        
     let mName = "";
-    // 기존에 사용하시던 이름 찾기 로직으로 통합
-    const nameTags = Array.from(document.querySelectorAll('h2, .text-blue-600, .font-bold, .member-name'));
-    const foundTag = nameTags.find(el => el.innerText.includes('님') && !el.innerText.includes('산행'));
+    
+    // [보안 및 개선된 이름 찾기]
+    // 1) 화면에서 '님'이 포함된 모든 태그를 가져옵니다.
+    const nameTags = Array.from(document.querySelectorAll('h2, .text-blue-600, .font-bold, .member-name, .profile-name'));
+    
+    // 2) '산행', '인연', '환영' 같은 시스템 문구를 제외하고, 순수하게 '이름님' 혹은 '이름 님' 형태만 필터링합니다.
+    const foundTag = nameTags.find(el => {
+        const text = el.innerText.trim();
+        // '님'을 포함하되, 모달창 타이틀('~님의 인연')이나 공통 문구는 제외
+        return text.includes('님') && !text.includes('산행') && !text.includes('인연의') && !text.includes('반경');
+    });
     
     if (foundTag) {
-        mName = foundTag.innerText.split(' ')[0].replace('님', '').trim();
+        // '오즈 님' 또는 '오즈님'에서 공백과 '님'을 제거하고 순수 이름만 추출
+        mName = foundTag.innerText.split('님')[0].split(' ')[0].trim();
     }
 
+    // 디버깅용 콘솔: 지금 추출된 이름이 누구인지 개발자 도구에서 확인할 수 있습니다.
+    console.log("현재 인연의 숲 모달이 인식한 유저 이름:", mName);
+
     if (!mName) return alert("회원 이름을 찾을 수 없습니다.");
+    
+    // ... (이후 2번 DB 정보 가져오기 로직으로 계속)
 
     // 2. 초기 데이터 및 DB 정보 가져오기
     const initialHikes = {
@@ -4906,41 +4918,6 @@ window.updateManualLevel = async () => {
         }
     }
 };
-
-    // [신규 추가] 활동 횟수(count) 임의 수정 기능
-window.updateManualCount = async () => {
-    // memberSelectEdit에서 선택된 회원 ID 가져오기
-    const id = document.getElementById('memberSelectEdit').value; 
-    const newCount = parseInt(document.getElementById('manualCountInput').value);
-
-    if(!id) return alert("대상 회원을 먼저 선택해주세요.");
-    if(isNaN(newCount) || newCount < 0) return alert("변경할 올바른 횟수 숫자를 입력해주세요.");
-
-    if(confirm(`선택한 회원의 총 활동 횟수(count)를 ${newCount}회로 변경하시겠습니까?`)) {
-        try {
-            // DB 업데이트
-            await updateDoc(doc(db, "sanwoori", id), { count: newCount });
-            alert("활동 횟수 변경 완료! ✅");
-            document.getElementById('manualCountInput').value = ""; // 입력창 비우기
-            
-            if (typeof startRealtimeSync === 'function') startRealtimeSync(); // 화면 갱신
-        } catch (e) {
-            console.error(e);
-            alert("변경 실패: " + e.message);
-        }
-    }
-};
-
-    <div>
-    <input type="number" id="manualLevelInput" placeholder="변경할 레벨">
-    <button onclick="window.updateManualLevel()">레벨 변경</button>
-</div>
-
-<div class="mt-2">
-    <input type="number" id="manualCountInput" placeholder="변경할 활동 횟수" class="border rounded-md px-2 py-1 text-sm">
-    <button onclick="window.updateManualCount()" class="bg-blue-500 text-white px-2 py-1 rounded text-sm ml-1">횟수 변경</button>
-</div>
-
 
 // 초기 실행 로직 정리
 if (!sessionStorage.getItem('visited')) { 
