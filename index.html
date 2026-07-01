@@ -4200,8 +4200,7 @@ window.globalSyncMountainInfo = async () => {
     } catch (e) { alert("저장 실패: " + e.message); }
 };
 
-    
-// [3] 알뜰 모드 데이터 실시간 동기화 함수 (완벽 수정본)
+// [3] 알뜰 모드 데이터 실시간 동기화 함수
 async function startRealtimeSync() {
     console.log("데이터 불러오기 시작...");
     try {
@@ -4214,48 +4213,37 @@ async function startRealtimeSync() {
 
         // 3. 각 멤버별 데이터 정리
         const results = await Promise.all(snapshot.docs.map(async (docSnap) => {
-            const m = { id: docSnap.id, ...docSnap.data() };
-            
-            // 해당 멤버의 이번 분기 로그들 가져오기
-            const qLogsQuery = query(
-                collection(db, `sanwoori/${m.id}/logs`),
-                where("date", ">=", start),
-                where("date", "<", end)
-            );
-            const qSnap = await getDocs(qLogsQuery);
-            
-            // 🔥 [분기 횟수 계산] 할당량 절약형 수동 점수 반영 + 순수 산행 계산
-            m.qCount = qSnap.docs.reduce((acc, l) => {
-                const d = l.data();
-                
-                // 관리자가 임의로 넣은 알뜰형 점수 로그라면 지정된 점수를 그대로 합산!
-                if (d.isManualScore === true) {
-                    return acc + (d.manualScoreValue || 0);
-                }
-                
-                // 기존 순수 산행 조건 (런닝, 트래킹, 산책, 번외 제외)
-                const isRealHike = !d.isRunning && !d.isTracking && !d.isWalking && !d.isExtraHike;
-                if (isRealHike) {
-                    // memberCount 필드가 존재하고 2명 이상인 경우 동행 산행(+3점), 혼자면 (+1점)
-                    const isBuddyHike = d.memberCount ? (d.memberCount >= 2) : false; 
-                    return acc + (isBuddyHike ? 3 : 1);
-                }
-                
-                return acc;
-            }, 0);
+    const m = { id: docSnap.id, ...docSnap.data() };
+    const qLogsQuery = query(
+        collection(db, `sanwoori/${m.id}/logs`),
+        where("date", ">=", start),
+        where("date", "<", end)
+    );
+    const qSnap = await getDocs(qLogsQuery);
+    
+    // [수정] 분기 횟수 계산 시 산책(isWalking)도 제외
+// 🔍 startRealtimeSync 함수 내의 m.qCount = qSnap.docs.reduce((acc, l) => { ... } 이 부분을 찾아서 아래로 덮어쓰기!
 
-            // 전체 누적 높이 계산 (산책, 런닝, 트래킹 제외하고 순수 산행 높이만 합산)
-            const allLogsSnap = await getDocs(collection(db, `sanwoori/${m.id}/logs`));
-            m.totalHeight = allLogsSnap.docs.reduce((acc, l) => {
-                const d = l.data();
-                const isRealHike = !d.isRunning && !d.isTracking && !d.isWalking && !d.isExtraHike;
-                return acc + (isRealHike ? (d.height || 0) : 0);
-            }, 0);
-            
-            return m;
-        }));
-        
-        // 4. 🔥 [괄호 위치 수정] 모든 멤버 데이터 조립이 끝난 후 화면 업데이트 및 테마 적용
+m.qCount = qSnap.docs.reduce((acc, l) => {
+    const d = l.data();
+    
+    // 🔥 [1순위 예외 처리] 관리자가 넣은 할당량 절약형 수동 점수 로그라면 지정된 점수를 통째로 가산!
+    if (d.isManualScore === true) {
+        return acc + (d.manualScoreValue || 0);
+    }
+    
+    // 2. 기존 순수 산행 조건 및 계산 로직 (기존 코드 그대로 유지)
+    const isRealHike = !d.isRunning && !d.isTracking && !d.isWalking && !d.isExtraHike;
+    if (isRealHike) {
+        const isBuddyHike = d.memberCount ? (d.memberCount >= 2) : false; 
+        return acc + (isBuddyHike ? 3 : 1);
+    }
+    
+    return acc;
+}, 0);
+
+
+        // 4. 화면 업데이트 및 테마 적용
         currentData = results;
         if(typeof updateAdminMemberLists === 'function') updateAdminMemberLists();
         if(typeof renderStatusTable === 'function') renderStatusTable();
@@ -4265,10 +4253,8 @@ async function startRealtimeSync() {
         const sColor = window.getSeasonColor ? window.getSeasonColor(new Date().getMonth() + 1) : '#4ade80';
         root.style.setProperty('--season-theme-color', sColor);
         console.log("🌸🌿 테마 적용 완료:", sColor);
-
-    } catch (e) { 
-        console.error("동기화 오류:", e); 
-    }
+    } catch (e) { console.error("동기화 오류:", e); }
+}
 
 let pendingLevelUpCards = [];
 
