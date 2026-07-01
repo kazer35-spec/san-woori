@@ -2422,6 +2422,12 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 <button onclick="window.updateManualLevel()" class="bg-indigo-500 text-white px-3 rounded-xl text-xs font-bold whitespace-nowrap">레벨 적용</button>
 </div>
 
+    <div class="flex items-center gap-2 mt-3">
+    <input type="number" id="manualQCountInput" placeholder="분기 횟수 입력" class="flex-1 p-3 border border-gray-200 rounded-xl outline-none" />
+    <button onclick="updateManualQCount()" class="bg-[#5C6BC0] text-white px-4 py-3 rounded-xl font-bold whitespace-nowrap min-w-[80px]">횟수 적용</button>
+</div>
+
+
 <div id="logListArea" class="log-grid"></div>
 </div>
 
@@ -4865,28 +4871,47 @@ window.updateManualLevel = async () => {
     }
 };
 
-// 🔥 [신규 추가] 분기별 분기 횟수(qCount) 임의 수정 기능
+// 🔥 [최종 진화형] 화면에서 선택된 연도/분기에 맞춰 등산 카운트를 밀어넣는 함수
 window.updateManualQCount = async () => {
-    // memberSelectEdit에서 선택된 회원 ID 가져오기
     const id = document.getElementById('memberSelectEdit').value; 
     const newQCount = parseInt(document.getElementById('manualQCountInput').value);
 
     if(!id) return alert("대상 회원을 먼저 선택해주세요.");
     if(isNaN(newQCount) || newQCount < 0) return alert("변경할 올바른 분기 횟수 숫자를 입력해주세요.");
 
-    if(confirm(`선택한 회원의 이번 분기 횟수를 ${newQCount}회로 변경하시겠습니까?`)) {
+    // 화면에 정의되어 있는 selectedYear(연도)와 selectedQuarter(분기) 변수값 가져오기
+    // 만약 전역 변수가 없다면 현재 날짜 기준으로 안전빵(Fallback) 계산
+    const targetYear = (typeof selectedYear !== 'undefined' && selectedYear) ? selectedYear : new Date().getFullYear();
+    const targetQuarter = (typeof selectedQuarter !== 'undefined' && selectedQuarter) ? selectedQuarter : Math.ceil((new Date().getMonth() + 1) / 3);
+    
+    // 최종 매칭될 분기 키 생성 (예: 2026_q2, 2026_q3 등 화면 선택에 따라 가변됨)
+    const qKey = `${targetYear}_q${targetQuarter}`;
+
+    if(confirm(`선택된 [${targetYear}년 ${targetQuarter}분기]에 횟수 ${newQCount}회를 적용하시겠습니까?\n(최근 기록 일지에는 남지 않습니다)`)) {
         try {
-            // DB 업데이트 (qCount 필드를 직접 변경)
-            await updateDoc(doc(db, "sanwoori", id), { qCount: newQCount });
-            alert("분기 횟수 변경 완료! ✅");
-            document.getElementById('manualQCountInput').value = ""; // 입력창 비우기
-            if (typeof startRealtimeSync === 'function') startRealtimeSync(); // 화면 동기화
+            let updateData = {};
+            
+            // 1. 단순 전체 qCount 필드를 쓰는 경우 대응
+            updateData.qCount = newQCount; 
+            
+            // 2. 만약 분기별로 세분화된 필드(예: qCount_bins.2026_q3 등)를 쓰는 시스템일 경우까지 대비해서 동시 주입
+            updateData[`qCount_bins.${qKey}`] = newQCount;
+
+            // DB 업데이트
+            await updateDoc(doc(db, "sanwoori", id), updateData);
+            
+            alert(`${targetYear}년 ${targetQuarter}분기 횟수 반영 완료! ✅`);
+            document.getElementById('manualQCountInput').value = ""; 
+            
+            // 실시간 화면 새로고침 호출
+            if (typeof startRealtimeSync === 'function') startRealtimeSync(); 
         } catch (e) {
             console.error(e);
             alert("변경 실패: " + e.message);
         }
     }
 };
+
 
 // 초기 실행 로직 정리
 if (!sessionStorage.getItem('visited')) { 
