@@ -2418,11 +2418,17 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 </div>
 
 <div class="flex gap-2 mb-3">
-<input type="number" id="manualLevelInput" placeholder="레벨(Lv) 입력" class="h-10 text-sm flex-1 border rounded-xl px-3 outline-none">
-<button onclick="window.updateManualLevel()" class="bg-indigo-500 text-white px-3 rounded-xl text-xs font-bold whitespace-nowrap">레벨 적용</button>
+    <input type="number" id="manualLevelInput" placeholder="레벨(Lv) 입력" class="h-10 text-sm flex-1 border rounded-xl px-3 outline-none">
+    <button onclick="window.updateManualLevel()" class="bg-indigo-500 text-white px-3 rounded-xl text-xs font-bold whitespace-nowrap">레벨 적용</button>
+</div>
+
+<div class="flex gap-2 mb-3">
+    <input type="number" id="manualQCountInput" placeholder="분기 횟수 입력" class="h-10 text-sm flex-1 border rounded-xl px-3 outline-none">
+    <button onclick="window.updateManualQCount()" class="bg-indigo-500 text-white px-3 rounded-xl text-xs font-bold whitespace-nowrap">횟수 적용</button>
 </div>
 
 <div id="logListArea" class="log-grid"></div>
+
 </div>
 
 <div class="card" style="background-color: #fff5f5; border: 1px solid #ffe3e3;">
@@ -2550,8 +2556,8 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 <span id="memberFriendshipPoint">0</span>
 </div>
 
-<button onclick="showBondingForestModal()" class="bonding-forest-btn animate-side-glow">
-🌳 인연의 숲
+<button onclick="showBondingForestModal(document.getElementById('timelineMemberName')?.innerText || '')" class="bonding-forest-btn animate-side-glow">
+    🌳 인연의 숲
 </button>
 </div>
 
@@ -2953,32 +2959,26 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 });
 };
 
-    window.showBondingForestModal = async () => {
-    // 1. 기본 UI 요소 및 이름 추출 (중복 제거 및 통합)
+    
+// ⭐ 이름을 화면에서 긁어오지 않고, 클릭한 대상의 이름과 ID를 직접 매개변수로 받습니다.
+window.showBondingForestModal = async (targetName, targetId) => {
+    if (!targetName) return alert("회원 이름이 지정되지 않았습니다.");
+    
+    const mName = targetName.trim();
+
+    // 1. 기본 UI 요소 세팅 (내 화면의 FP 엘리먼트가 있다면 가져옴)
     const fpElement = document.getElementById('memberFriendshipPoint');
     const currentFP = fpElement ? parseInt(fpElement.innerText.replace(/[^0-9]/g, '')) : 0;
 
-        
-        
-    let mName = "";
-    // 기존에 사용하시던 이름 찾기 로직으로 통합
-    const nameTags = Array.from(document.querySelectorAll('h2, .text-blue-600, .font-bold, .member-name'));
-    const foundTag = nameTags.find(el => el.innerText.includes('님') && !el.innerText.includes('산행'));
-    
-    if (foundTag) {
-        mName = foundTag.innerText.split(' ')[0].replace('님', '').trim();
-    }
-
-    if (!mName) return alert("회원 이름을 찾을 수 없습니다.");
-
     // 2. 초기 데이터 및 DB 정보 가져오기
-    const initialHikes = {
-         "성민": 0, 
-    };
+    const initialHikes = { "성민": 0 };
+    
+    // 타겟 ID가 넘어왔다면 ID로 찾고, 없으면 이름으로 찾기 (안전장치)
+    const memberInfo = (typeof currentData !== 'undefined') 
+        ? currentData.find(m => targetId ? m.id === targetId : m.name === mName) 
+        : null;
 
-    const memberInfo = (typeof currentData !== 'undefined') ? currentData.find(m => m.name === mName) : null;
-
-            if (memberInfo && memberInfo.fp_bins) {
+    if (memberInfo && memberInfo.fp_bins) {
         const now = new Date();
         const curY = now.getFullYear();
         const curQ = Math.ceil((now.getMonth() + 1) / 3);
@@ -2986,103 +2986,83 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 
         if (memberInfo.fp_bins[lastYearQKey] > 0) {
             const expiredP = memberInfo.fp_bins[lastYearQKey];
-            
-            // DB 업데이트
             await updateDoc(doc(db, "sanwoori", memberInfo.id), {
                 friendshipPoint: increment(-expiredP),
                 [`fp_bins.${lastYearQKey}`]: 0
             });
-            
             console.log(`만료된 ${lastYearQKey} 포인트 ${expiredP}P가 소멸되었습니다.`);
-            
-            // 변수 업데이트 (이후 계산에 반영되도록)
-            // currentFP는 상단에서 이미 선언했으므로 여기서 재할당합니다.
-            // currentFP = Math.max(0, currentFP - expiredP); 
-            // if(fpElement) fpElement.innerText = currentFP.toLocaleString();
         }
-            }
+    }
         
     const realBuddyCount = memberInfo ? (memberInfo.buddyCount ?? memberInfo.count ?? 0) : 0;
     const STORAGE_KEY = `forest_v5_final_${mName}`;
 
-    // 3. [신입 청소 로직] 포인트 0, 동행 0이면 옛날 기억 삭제
     if (currentFP === 0 && realBuddyCount === 0) {
         localStorage.removeItem(STORAGE_KEY);
-        console.log(`${mName}님 신입 확인: 유령 데이터를 청소했습니다.`);
     }
 
     try {
-// --- [4 & 5 통합 수정 버전] ---
+        // 4. 캐시 데이터 로드 
+        let cached = JSON.parse(localStorage.getItem(STORAGE_KEY));
 
-// 4. 캐시 데이터 로드 및 구조 초기화
-let cached = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { 
-    processedIds: [], extraHikes: 0, partnersMap: {}, uniquePartners: [],
-    quarterlyPartners: { q1: {}, q2: {}, q3: {}, q4: {} } 
-};
+        // 캐시가 유효한지 검증 (내부 데이터 구조 확인)
+        if (cached && cached.processedIds && cached.processedIds.length > 0 && cached.quarterlyPartners) {
+            console.log(`⚡ ${mName}님의 로컬 캐시 데이터를 사용합니다.`);
+        } else {
+            console.log(`🔄 ${mName}님의 데이터가 없어 DB에서 새로 매칭합니다.`);
+            
+            cached = { 
+                processedIds: [], extraHikes: 0, partnersMap: {}, uniquePartners: [],
+                quarterlyPartners: { q1: {}, q2: {}, q3: {}, q4: {} } 
+            };
 
-// [중요] 만약 기존 캐시에 분기 데이터 바구니가 없으면 강제로 새로 만듭니다.
-if (!cached.quarterlyPartners) {
-    cached.quarterlyPartners = { q1: {}, q2: {}, q3: {}, q4: {} };
-    cached.processedIds = []; // 분기 계산을 위해 ID 목록을 비워 DB에서 다시 읽게 합니다.
-    console.log("분기별 데이터 구조를 생성했습니다.");
-}
+            const bondingSnap = await getDocs(collection(db, "bondingForest"));
+            const currentYear = new Date().getFullYear();
 
-// 5. DB에서 인연의 숲 기록 가져오기 및 분기 계산
-const bondingSnap = await getDocs(collection(db, "bondingForest"));
+            bondingSnap.forEach(doc => {
+                const data = doc.data();
+                const members = data.members || [];
+                
+                // 정밀하게 전달받은 진짜 이름(mName)이 포함되어 있는지 검사
+                if (members.includes(mName)) {
+                    cached.processedIds.push(doc.id);
+                    
+                    const dateStr = data.date || ""; 
+                    const dateParts = dateStr.split('-'); 
+                    const year = parseInt(dateParts[0]);
+                    const month = parseInt(dateParts[1]);
+                    
+                    members.forEach(p => {
+                        if (p !== mName) {
+                            cached.partnersMap[p] = (cached.partnersMap[p] || 0) + 1;
+                            if (!cached.uniquePartners.includes(p)) cached.uniquePartners.push(p);
+                        }
+                    });
 
-// [초기화] 정확한 계산을 위해 기존 데이터를 비우고 다시 훑습니다.
-cached.quarterlyPartners = { q1: {}, q2: {}, q3: {}, q4: {} };
-cached.partnersMap = {}; 
-cached.uniquePartners = [];
-cached.processedIds = []; 
+                    if (year === currentYear) {
+                        let qKey = "";
+                        if (month >= 1 && month <= 3) qKey = "q1";
+                        else if (month >= 4 && month <= 6) qKey = "q2";
+                        else if (month >= 7 && month <= 9) qKey = "q3";
+                        else if (month >= 10 && month <= 12) qKey = "q4";
 
-// 현재 연도 확인 (예: 2026)
-const currentYear = new Date().getFullYear();
-
-bondingSnap.forEach(doc => {
-    const data = doc.data();
-    const members = data.members || [];
-    
-    // 유저 본인이 포함된 산행인지 확인
-    if (members.includes(mName)) {
-        cached.processedIds.push(doc.id);
-        
-        // 날짜 분석 (예: "2026-01-23")
-        const dateStr = data.date || ""; 
-        const dateParts = dateStr.split('-'); // ["2026", "01", "23"]
-        
-        const year = parseInt(dateParts[0]);
-        const month = parseInt(dateParts[1]);
-        
-        // 1. 역대 합산 (연도 상관 없이 모든 파트너 기록)
-        members.forEach(p => {
-            if (p !== mName) {
-                cached.partnersMap[p] = (cached.partnersMap[p] || 0) + 1;
-                if (!cached.uniquePartners.includes(p)) cached.uniquePartners.push(p);
-            }
-        });
-
-        // 2. 분기별 합산 (오직 "올해(currentYear)" 데이터만 분류)
-        if (year === currentYear) {
-            let qKey = "";
-            if (month >= 1 && month <= 3) qKey = "q1";
-            else if (month >= 4 && month <= 6) qKey = "q2";
-            else if (month >= 7 && month <= 9) qKey = "q3";
-            else if (month >= 10 && month <= 12) qKey = "q4";
-
-            if (qKey) {
-                members.forEach(p => {
-                    if (p !== mName) {
-                        cached.quarterlyPartners[qKey][p] = (cached.quarterlyPartners[qKey][p] || 0) + 1;
+                        if (qKey) {
+                            members.forEach(p => {
+                                if (p !== mName) {
+                                    cached.quarterlyPartners[qKey][p] = (cached.quarterlyPartners[qKey][p] || 0) + 1;
+                                }
+                            });
+                        }
                     }
-                });
-            }
-        }
-    }
-});
+                }
+            });
 
-// 결과 저장
-localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
+        }
+
+        // --- 이후 렌더링 스크립트는 기존과 동일하게 작동 ---
+
+            
 
         // --- [6 & 7 규칙 반영 수정 버전] ---
 
@@ -3332,9 +3312,9 @@ const currentMonth = now.getMonth() + 1; // 1~12월
 let currentQKey = "q1";
 let qName = "1st Bestie";
 
-if (currentMonth >= 4 && currentMonth <= 6) { currentQKey = "q2"; qName = "2st Bestie"; }
-else if (currentMonth >= 7 && currentMonth <= 9) { currentQKey = "q3"; qName = "3st Bestie"; }
-else if (currentMonth >= 10 && currentMonth <= 12) { currentQKey = "q4"; qName = "4st Bestie"; }
+if (currentMonth >= 4 && currentMonth <= 6) { currentQKey = "q2"; qName = "2nd Bestie"; }
+else if (currentMonth >= 7 && currentMonth <= 9) { currentQKey = "q3"; qName = "3rd Bestie"; }
+else if (currentMonth >= 10 && currentMonth <= 12) { currentQKey = "q4"; qName = "4th Bestie"; }
 
 // 3. 이번 분기 베스트 추출
 const currentQData = getBestInQuarter(cached.quarterlyPartners[currentQKey]);
@@ -3423,12 +3403,16 @@ const currentQData = getBestInQuarter(cached.quarterlyPartners[currentQKey]);
     } catch (e) { console.error(e); }
 };
 
-window.toggleHallModal = async (show) => {
+window.toggleHallModal = async (show) => { // Window -> window 소문자 수정 (오작동 방지)
     const modal = document.getElementById('hallModal');
+    if (!modal) return;
+    
     modal.style.display = show ? 'flex' : 'none';
     
     if (show) {
         const listArea = document.getElementById('hallListArea');
+        if (!listArea) return;
+        
         let combinedHtml = "";
         
         // 1. 현재 날짜 기준으로 LIVE 여부 판단
@@ -3436,12 +3420,29 @@ window.toggleHallModal = async (show) => {
         const currentYear = now.getFullYear();
         const currentQuarter = Math.ceil((now.getMonth() + 1) / 3);
         
-        // 2. 시즌 리스트 (최신순)
-        const seasons = [
-            { year: 2026, quarter: 2, seasonNum: 3 }, // 현재 진행 중인 시즌
-            { year: 2026, quarter: 1, seasonNum: 2 }, // 종료된 1분기 (고정)
-            { year: 2025, quarter: 4, seasonNum: 1 }  // 시즌 1 (고정)
-        ];
+        // 2. [자동화] 시즌 리스트 (현재 분기부터 시즌 1인 2025년 4분기까지 최신순 자동 생성)
+        const seasons = [];
+        let loopYear = currentYear;
+        let loopQuarter = currentQuarter;
+        
+        while (true) {
+            // 시즌 1(2025년 4분기) 이전으로 내려가면 반복문 종료
+            if (loopYear < 2025 || (loopYear === 2025 && loopQuarter < 4)) {
+                break;
+            }
+            
+            // 2025년 4분기(시즌 1) 기준 기수(Season Number) 계산
+            const seasonNum = ((loopYear - 2025) * 4) + loopQuarter - 3;
+            
+            seasons.push({ year: loopYear, quarter: loopQuarter, seasonNum: seasonNum });
+            
+            // 이전 분기로 차감
+            loopQuarter--;
+            if (loopQuarter === 0) {
+                loopQuarter = 4;
+                loopYear--;
+            }
+        }
 
         for (const s of seasons) {
             let top3 = [];
@@ -3449,18 +3450,24 @@ window.toggleHallModal = async (show) => {
             
             // --- [데이터 매칭] ---
             if (isCurrent) {
-                // 현재 실시간 시즌 (2분기)
-                top3 = [...currentData]
-                    .filter(m => !m.isHidden && m.name !== "오즈" && m.qCount > 0)
-                    .sort((a, b) => b.qCount - a.qCount || b.level - a.level)
-                    .slice(0, 3);
+                // [자동] 현재 진행 중인 실시간 시즌 (3분기가 되면 3분기가 LIVE로 뜸)
+                if (typeof currentData !== 'undefined' && Array.isArray(currentData)) {
+                    top3 = [...currentData]
+                        .filter(m => !m.isHidden && m.name !== "오즈" && m.qCount > 0)
+                        .sort((a, b) => b.qCount - a.qCount || b.level - a.level)
+                        .slice(0, 3);
+                }
             } 
+            else if (s.year === 2026 && s.quarter === 2) {
+                // 2026년 2분기 (요청하신 데이터 고정 및 종료 분기로 자동 전환)
+                top3 = [{ name: "유스" }, { name: "하트" }, { name: "아랑" }];
+            }
             else if (s.year === 2026 && s.quarter === 1) {
-                // 2026년 1분기 (요청하신 데이터 고정)
+                // 2026년 1분기 (고정)
                 top3 = [{ name: "지니" }, { name: "나스" }, { name: "해수" }];
             }
             else if (s.year === 2025 && s.quarter === 4) {
-                // 2025년 4분기 (기존 데이터 고정)
+                // 2025년 4분기 (시즌 1 고정)
                 top3 = [{ name: "아랑" }, { name: "용삼" }, { name: "우진" }];
             }
 
@@ -4168,60 +4175,89 @@ window.globalSyncMountainInfo = async () => {
 };
 
 // [3] 알뜰 모드 데이터 실시간 동기화 함수
+// [최종 완성] 26년 1·2분기는 로그 실시간 연산 / 3분기부터는 마스터 필드(임의수정) 매핑
 async function startRealtimeSync() {
-    console.log("데이터 불러오기 시작...");
+    const now = new Date();
+    const currentRealYear = now.getFullYear();
+    const currentRealQuarter = Math.ceil((now.getMonth() + 1) / 3);
+    
+    console.log(`⚡ [하이브리드 세팅] 선택된 분기: ${selectedYear}년 ${selectedQuarter}분기 (현재 실제: ${currentRealYear}년 ${currentRealQuarter}분기)`);
+    
     try {
-        // 1. 전체 멤버 명단 가져오기
+        // 1. 전체 멤버 명단 딱 '1번'만 가져옵니다.
         const snapshot = await getDocs(collection(db, "sanwoori"));
         
-        // 2. 현재 분기 날짜 계산
+        // 2. 1, 2분기 조회를 위한 실시간 기준 날짜 계산
         const start = Timestamp.fromDate(new Date(selectedYear, (selectedQuarter - 1) * 3, 1));
         const end = Timestamp.fromDate(new Date(selectedYear, selectedQuarter * 3, 1));
 
-        // 3. 각 멤버별 데이터 정리
+        const targetQKey = `${selectedYear}_q${selectedQuarter}`;
+
+        // 3. 각 멤버별 데이터 매핑
         const results = await Promise.all(snapshot.docs.map(async (docSnap) => {
-    const m = { id: docSnap.id, ...docSnap.data() };
-    const qLogsQuery = query(
-        collection(db, `sanwoori/${m.id}/logs`),
-        where("date", ">=", start),
-        where("date", "<", end)
-    );
-    const qSnap = await getDocs(qLogsQuery);
-    
-    // [수정] 분기 횟수 계산 시 산책(isWalking)도 제외
-    m.qCount = qSnap.docs.filter(l => {
-    const d = l.data();
-    // 런닝, 트레킹, 산책, 그리고 번외산행까지 모두 제외해야 순수 산행 횟수가 나옵니다.
-    return !d.isRunning && !d.isTracking && !d.isWalking && !d.isExtraHike;
-}).length;
+            const data = docSnap.data();
+            const m = { id: docSnap.id, ...data };
+            
+            // 💡 [규칙 1] 딱 '2026년 1분기'와 '2026년 2분기' 버튼을 눌렀을 때만 하위 로그 실시간 연산
+            if (selectedYear === 2026 && (selectedQuarter === 1 || selectedQuarter === 2)) {
+                const qLogsQuery = query(
+                    collection(db, `sanwoori/${m.id}/logs`),
+                    where("date", ">=", start),
+                    where("date", "<", end)
+                );
+                const qSnap = await getDocs(qLogsQuery);
+                
+                // 순수 산행 횟수 실시간 계산 (런닝, 트레킹, 산책, 번외 제외)
+                m.qCount = qSnap.docs.filter(l => {
+                    const d = l.data();
+                    return !d.isRunning && !d.isTracking && !d.isWalking && !d.isExtraHike;
+                }).length;
+                
+            } 
+            // 💡 [규칙 2] 2026년 3분기부터 그 이후의 미래 분기들 (초절약 + 임의수정 활성화 모드)
+            else {
+                // 선택한 분기가 '현재 진짜 진행 중인 분기'라면 임의 수정창 수치(qCount)를 최우선으로 보여줍니다.
+                if (selectedYear === currentRealYear && selectedQuarter === currentRealQuarter) {
+                    m.qCount = data.qCount || 0;
+                } 
+                // 선택한 분기가 이미 끝나서 과거가 된 미래 분기라면(예: 나중에 4분기가 되었을 때의 3분기) 
+                // 데이터베이스 quarterlyStats 객체에 백업된 수치를 가져옵니다.
+                else {
+                    if (data.quarterlyStats && data.quarterlyStats[targetQKey]) {
+                        m.qCount = data.quarterlyStats[targetQKey].hike ?? 0;
+                    } else {
+                        m.qCount = 0;
+                    }
+                }
+            }
 
-    const allLogsSnap = await getDocs(collection(db, `sanwoori/${m.id}/logs`));
-    
-    // [추가 팁] 전체 높이 합산에서도 산책/런닝/트래킹 높이를 제외하고 싶다면?
-    m.totalHeight = allLogsSnap.docs.reduce((acc, l) => {
-        const d = l.data();
-        // 순수 산행일 때만 높이를 더함 (필요 시 적용)
-        const isRealHike = !d.isRunning && !d.isTracking && !d.isWalking;
-        return acc + (isRealHike ? (d.height || 0) : 0);
-    }, 0);
-    
-    return m;
-}));
+            // 전체 높이는 누적값이므로 그대로 유지합니다.
+            m.totalHeight = data.totalHeight || 0;
+            
+            return m;
+        }));
 
-        // 4. 화면 업데이트 및 테마 적용
+        // 4. 화면 업데이트 및 테마 적용 (기존 UI 로직 완벽 유지)
         currentData = results;
         if(typeof updateAdminMemberLists === 'function') updateAdminMemberLists();
         if(typeof renderStatusTable === 'function') renderStatusTable();
         if(typeof updateVibeTemp === 'function') updateVibeTemp();
 
         const root = document.documentElement;
-        const sColor = window.getSeasonColor ? window.getSeasonColor(new Date().getMonth() + 1) : '#4ade80';
+        const sColor = window.getSeasonColor ? window.getSeasonColor(now.getMonth() + 1) : '#4ade80';
         root.style.setProperty('--season-theme-color', sColor);
-        console.log("🌸🌿 테마 적용 완료:", sColor);
-    } catch (e) { console.error("동기화 오류:", e); }
+        console.log(`🌸🌿 동기화 완료! (26년 1,2분기만 로그 연산 모드)`);
+    } catch (e) { 
+        console.error("동기화 오류:", e); 
+    }
 }
 
+// 레벨업 알림 카드 대기열 배열 (기존 위치 유지)
 let pendingLevelUpCards = [];
+
+
+
+
 
         
 
@@ -4378,11 +4414,23 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 // 2. 기록 저장 핵심 로직
-window.addMultiActivity = async () => {
+        window.addMultiActivity = async () => {
     const dateInput = document.getElementById('activityDate');
     if (!dateInput) return alert("날짜 입력창을 찾을 수 없습니다.");
     
     const dateVal = dateInput.value;
+    
+    // 파이어베이스 내장 객체 안전장치
+    const _Timestamp = (typeof Timestamp !== 'undefined') ? Timestamp : { fromDate: (d) => d };
+    const _increment = (typeof increment !== 'undefined') ? increment : (val) => val;
+
+    const now = new Date(dateVal + "T00:00:00");
+    const ts = _Timestamp.fromDate(now); 
+    const currentYear = now.getFullYear();
+    const currentQuarter = Math.ceil((now.getMonth() + 1) / 3);
+    const qKey = `${currentYear}_q${currentQuarter}`;
+
+    // [첫번째~네번째 코드 기반] 모든 상단 DOM 입력값 추출 완벽 유지
     const mName = document.getElementById('mountainName')?.value.trim() || "";
     const height = parseInt(document.getElementById('mountainHeight')?.value) || 0;
     const isTop100 = document.getElementById('isTop100Check')?.checked || false;
@@ -4399,29 +4447,25 @@ window.addMultiActivity = async () => {
     const isSpecial = isRunning || isTracking || isWalking || isOnlyLog || isExtraHike;
     const isRealHike = !isSpecial; 
     const isMultiHike = typeof selectedMemberIds !== 'undefined' && selectedMemberIds.size >= 2;
-    
+
     if(!selectedMemberIds || selectedMemberIds.size === 0 || !dateVal) return alert("대상과 날짜를 확인해주세요.");
 
     const upElement = document.querySelector('input[name="upAmount"]:checked');
     if(!upElement) return alert("레벨업 수치를 선택해주세요.");
     const up = parseInt(upElement.value);
 
-    const ts = Timestamp.fromDate(new Date(dateVal + "T00:00:00"));
     const selectedNames = [];
     const safeCoords = (typeof tempCoord !== 'undefined' && tempCoord && tempCoord.x !== undefined) ? tempCoord : null;
 
     try {
         pendingLevelUpCards = []; 
 
+        // [1] 산 데이터 마스터 테이블 동기화 (순수산행일 때만)
         if (isRealHike && mName) {
             const mRef = doc(db, "mountains", mName);
             const mSnap = await getDoc(mRef);
             const mountainData = {
-                height: height,
-                isTop100: isTop100,
-                isBAC: isBAC,
-                region: region,
-                updatedAt: new Date()
+                height: height, isTop100: isTop100, isBAC: isBAC, region: region, updatedAt: new Date()
             };
             if (safeCoords) {
                 mountainData.x = safeCoords.x;
@@ -4431,33 +4475,61 @@ window.addMultiActivity = async () => {
             else await setDoc(mRef, mountainData);
         }
 
+        // [2] 선택된 회원들 루프 돌며 데이터 정산 및 저장
         for (const id of selectedMemberIds) {
             const member = currentData.find(m => m.id === id);
             if (!member) continue;
 
-            const now = new Date();
-            const qKey = `${now.getFullYear()}_q${Math.ceil((now.getMonth() + 1) / 3)}`;
             let updateData = {}; 
 
-            if (isRealHike) {
-                updateData.lastDate = ts; 
-                const oldLevel = member.level || 0;
-                const newLevel = oldLevel + up;
-                updateData.level = newLevel;
-                updateData.count = increment(1);
-                updateData.totalHeight = increment(height);
+            // 💡 폰 관리용: 회원 문서에 새 구조가 없다면 최초 1회 과거 3개 분기 자동 주입
+            if (!member.quarterlyStats) {
+                const pastCount = member.qCount || member.count || 0;
+                updateData["quarterlyStats.2025_q4"] = { hike: pastCount, total: pastCount };
+                updateData["quarterlyStats.2026_q1"] = { hike: pastCount, total: pastCount };
+                updateData["quarterlyStats.2026_q2"] = { hike: pastCount, total: pastCount };
+            }
+
+            // 🌟 [핵심 변경] 순수산행이든 기타활동이든 상관없이 관리자가 입력한 공통 스펙 변경점은 "무조건 반영"
+            updateData.lastDate = ts; 
+            const oldLevel = member.level || 0;
+            const newLevel = oldLevel + up;
+            updateData.level = newLevel;
+            updateData.count = _increment(1); 
+            updateData.totalHeight = _increment(height);
+
+            if (up > 0) checkLevelUpgrade(member.name, oldLevel, newLevel);
+            selectedNames.push(member.name);
+            // ─── 🅰️ 오직 '정식 순수산행'일 때 (번외산행은 자동으로 제외됨) ───
+            if (isRealHike && !isExtraHike) {
+                // 1. [분기 통계 데이터] 인원수 상관없이 "실제 산행 사실" 자체인 1회만 정직하게 누적
+                updateData[`quarterlyStats.${qKey}.hike`] = _increment(1);
+                updateData[`quarterlyStats.${qKey}.total`] = _increment(1);
                 updateData.bonusDays = 0;
-                if (up > 0) checkLevelUpgrade(member.name, oldLevel, newLevel);
+                
+                // 2. [메인 화면 분기 횟수] 2인 이상 동행 시 버프 적용 (1인=1회, 2인=2회, 3인이상=최대 3회)
+                const groupSize = selectedMemberIds.size;
+                const qCountIncrement = groupSize >= 3 ? 3 : groupSize; 
+                
+                updateData.qCount = _increment(qCountIncrement); // 메인 횟수 필드만 2회/3회 뻥튀기!
+
+                // 3. 2인 이상 동행 시 우정 포인트(FP) 및 동행 횟수 적재
                 if (isMultiHike) {
                     let pointToAdd = (isQuarterOnlyOne || isRegular) ? 100 : (100 * (up || 1));
-                    updateData.buddyCount = increment(1);
-                    updateData.friendshipPoint = increment(pointToAdd);
-                    updateData[`fp_bins.${qKey}`] = increment(pointToAdd);
+                    updateData.buddyCount = _increment(1);
+                    updateData.friendshipPoint = _increment(pointToAdd);
+                    updateData[`fp_bins.${qKey}`] = _increment(pointToAdd);
                 }
-                selectedNames.push(member.name);
+
+        
+            // ─── 🅱️ 번외산행 / 러닝 / 트레킹 / 산책 묶음일 때 ───
             } else {
-                if (isMultiHike && !isExtraHike && (member.level || 0) > 0) {
-                    updateData.lastDate = ts;
+                // 분기 hike는 건들지 않도록 0 가산(또는 기존 유지), total만 1 가산
+                updateData[`quarterlyStats.${qKey}.total`] = _increment(1);
+                updateData[`quarterlyStats.${qKey}.hike`] = _increment(0); 
+
+                // 2인 이상 동행 활동일 때 D-Day 15일 연장 룰 (단, 등산 데이터가 이미 쌓인 회원만)
+                if (isMultiHike && oldLevel > 0) {
                     const todayZero = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
                     const last = member.lastDate ? member.lastDate.toDate() : new Date();
                     const lastZero = new Date(last.getFullYear(), last.getMonth(), last.getDate()).getTime();
@@ -4467,8 +4539,12 @@ window.addMultiActivity = async () => {
                 }
             }
 
-            if (Object.keys(updateData).length > 0) await updateDoc(doc(db, "sanwoori", id), updateData);
+            // DB 파이어스토어 전송
+            if (Object.keys(updateData).length > 0) {
+                await updateDoc(doc(db, "sanwoori", id), updateData);
+            }
             
+            // [3] 세부 로그 및 별자리 확률 적재 (원본 완벽 유지)
             const logLoopCount = (isRegular || isSpecial || isQuarterOnlyOne) ? 1 : up;
             for(let i = 0; i < logLoopCount; i++) {
                 let starType = null;
@@ -4480,15 +4556,15 @@ window.addMultiActivity = async () => {
                 }
                 await addDoc(collection(db, `sanwoori/${id}/logs`), {
                     date: ts, 
-                    mountain: mName || (isWalking ? "동네 산책" : (isExtraHike ? "번외 산행" : "활동 기록")), 
-                    height, 
-                    coords: safeCoords,
+                    mountain: mName || (isWalking ? "동네 산책" : (isExtraHike ? "번외 산행" : (isRunning ? "러닝 활동" : "트레킹 활동"))), 
+                    height, coords: safeCoords,
                     isTop100, isBAC, isRegular, isRunning, isTracking, isWalking, isExtraHike, isOnlyLog, region,
                     starType, author: member.name
                 });
             }
         }
 
+        // [4] 동행의 숲(bondingForest) 기록 적재
         if (isRealHike && isMultiHike && selectedNames.length >= 2) {
             await addDoc(collection(db, "bondingForest"), {
                 mountain: mName, members: selectedNames, memberCount: selectedNames.length, date: dateVal, createdAt: new Date()
@@ -4497,12 +4573,15 @@ window.addMultiActivity = async () => {
 
         if (pendingLevelUpCards.length > 0) showCombinedLevelUpAlert();
         
-        alert(isRealHike ? "기록 완료! ✅" : "활동 기록 완료! 🏃");
+        alert((isRealHike && !isExtraHike) ? "순수산행 기록 완료! ✅" : "일반 활동(번외/러닝/트레킹/산책) 기록 완료! 🏃");
         
+        // [5] 입력 폼 초기화
         selectedMemberIds.clear();
         tempCoord = null; 
         const kstDate = new Date(new Date().getTime() + (9 * 60 * 60 * 1000));
-        dateInput.value = kstDate.toISOString().split('T')[0];
+        if (typeof dateInput !== 'undefined' && dateInput) {
+            dateInput.value = kstDate.toISOString().split('T')[0];
+        }
         
         startRealtimeSync(); 
     } catch (error) {
@@ -4510,14 +4589,11 @@ window.addMultiActivity = async () => {
         alert("저장 실패: " + error.message);
     }
 };
-
-
-
-
     
-           // 관리자가 동행 횟수를 수동으로 수정하는 함수
+            
+// 관리자가 동행 횟수를 수동으로 수정하는 함수
 window.updateBuddyCountManual = async () => {
-    const mId = document.getElementById('memberSelectManage').value; // 선택된 멤버 ID
+    const mId = document.getElementById('memberSelectManage').value; 
     const newCount = parseInt(document.getElementById('buddyCountInput').value);
 
     if (!mId) return alert("대상을 선택해주세요.");
@@ -4530,83 +4606,79 @@ window.updateBuddyCountManual = async () => {
             buddyCount: newCount
         });
         alert("동행 횟수가 수정되었습니다!");
-        document.getElementById('buddyCountInput').value = ""; // 입력칸 비우기
-        if (typeof startRealtimeSync === 'function') startRealtimeSync(); // 화면 새로고침
+        document.getElementById('buddyCountInput').value = ""; 
+        if (typeof startRealtimeSync === 'function') startRealtimeSync(); 
     } catch (e) {
         console.error(e);
         alert("수정 실패: " + e.message);
     }
 };
  
-
-    window.loadMemberLogs = async () => {
-const id = document.getElementById('memberSelectEdit').value;
-const area = document.getElementById('logListArea'); area.innerHTML = ""; if(!id) return;
-const snap = await getDocs(query(collection(db, `sanwoori/${id}/logs`), orderBy("date", "desc"), limit(20)));
-snap.forEach(ld => {
-const logData = ld.data(); const d = logData.date.toDate(); const dateStr = `${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()}`;
-const logJson = JSON.stringify({ mountain: logData.mountain || '', height: logData.height || 0, coords: logData.coords || null, isTop100: logData.isTop100 || false, isBAC: logData.isBAC || false, region: logData.region || '기타' }).replace(/"/g, '&quot;');
-area.innerHTML += `<div class="log-item-box" onclick="selectLogToMap('${logJson}')">
-<div class="log-info-group"><span class="log-date-txt">${dateStr}</span><span class="log-mt-txt">${logData.isBAC ? '<span class="bac-txt">BAC</span>' : ''}${logData.mountain || '기록'}</span>
-<div class="flex items-center gap-1"><input type="number" id="h-${ld.id}" value="${logData.height || 0}" class="log-height-input border rounded-md" onclick="event.stopPropagation()">
-<button onclick="event.stopPropagation(); updateLogHeight('${id}', '${ld.id}')" class="text-[9px] bg-slate-200 px-1 py-1 rounded">높이수정</button>
-<button onclick="event.stopPropagation(); updateLogCoord('${id}', '${ld.id}')" class="text-[9px] bg-emerald-500 text-white px-1 py-1 rounded">좌표수정</button></div></div>
-<div class="log-btn-group" onclick="event.stopPropagation()"><button class="del-btn-mini" onclick="deleteLog('${id}', '${ld.id}', true)">레벨-1 삭제</button>
-<button class="del-only-btn-mini" onclick="deleteLog('${id}', '${ld.id}', false)">기록만 삭제</button></div></div>`;
-});
+window.loadMemberLogs = async () => {
+    const id = document.getElementById('memberSelectEdit').value;
+    const area = document.getElementById('logListArea'); area.innerHTML = ""; if(!id) return;
+    const snap = await getDocs(query(collection(db, `sanwoori/${id}/logs`), orderBy("date", "desc"), limit(20)));
+    snap.forEach(ld => {
+        const logData = ld.data(); const d = logData.date.toDate(); const dateStr = `${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()}`;
+        const logJson = JSON.stringify({ mountain: logData.mountain || '', height: logData.height || 0, coords: logData.coords || null, isTop100: logData.isTop100 || false, isBAC: logData.isBAC || false, region: logData.region || '기타' }).replace(/"/g, '&quot;');
+        area.innerHTML += `<div class="log-item-box" onclick="selectLogToMap('${logJson}')">
+        <div class="log-info-group"><span class="log-date-txt">${dateStr}</span><span class="log-mt-txt">${logData.isBAC ? '<span class="bac-txt">BAC</span>' : ''}${logData.mountain || '기록'}</span>
+        <div class="flex items-center gap-1"><input type="number" id="h-${ld.id}" value="${logData.height || 0}" class="log-height-input border rounded-md" onclick="event.stopPropagation()">
+        <button onclick="event.stopPropagation(); updateLogHeight('${id}', '${ld.id}')" class="text-[9px] bg-slate-200 px-1 py-1 rounded">높이수정</button>
+        <button onclick="event.stopPropagation(); updateLogCoord('${id}', '${ld.id}')" class="text-[9px] bg-emerald-500 text-white px-1 py-1 rounded">좌표수정</button></div></div>
+        <div class="log-btn-group" onclick="event.stopPropagation()"><button class="del-btn-mini" onclick="deleteLog('${id}', '${ld.id}', true)">레벨-1 삭제</button>
+        <button class="del-only-btn-mini" onclick="deleteLog('${id}', '${ld.id}', false)">기록만 삭제</button></div></div>`;
+    });
 };
 
 window.selectLogToMap = (logDataStr) => {
-const log = JSON.parse(logDataStr.replace(/&quot;/g, '"'));
-document.getElementById('mountainName').value = log.mountain;
-document.getElementById('mountainHeight').value = log.height;
-document.getElementById('isTop100Check').checked = log.isTop100;
-document.getElementById('isBACCheck').checked = log.isBAC || false;
-document.getElementById('adminManualRegionSelect').value = log.region || '기타';
-toggleMarkerStyle();
-if (log.coords) {
-tempCoord = log.coords; const marker = document.getElementById('adminMapMarker');
-marker.style.left = log.coords.x + "%"; marker.style.top = log.coords.y + "%"; marker.classList.remove('hidden');
-}
+    const log = JSON.parse(logDataStr.replace(/&quot;/g, '"'));
+    document.getElementById('mountainName').value = log.mountain;
+    document.getElementById('mountainHeight').value = log.height;
+    document.getElementById('isTop100Check').checked = log.isTop100;
+    document.getElementById('isBACCheck').checked = log.isBAC || false;
+    document.getElementById('adminManualRegionSelect').value = log.region || '기타';
+    toggleMarkerStyle();
+    if (log.coords) {
+        tempCoord = log.coords; const marker = document.getElementById('adminMapMarker');
+        marker.style.left = log.coords.x + "%"; marker.style.top = log.coords.y + "%"; marker.classList.remove('hidden');
+    }
 };
 
 window.updateLogHeight = async (mId, logId) => {
-await updateDoc(doc(db, `sanwoori/${mId}/logs`, logId), { height: parseInt(document.getElementById(`h-${logId}`).value) || 0 });
-alert("높이 수정 완료"); startRealtimeSync();
+    await updateDoc(doc(db, `sanwoori/${mId}/logs`, logId), { height: parseInt(document.getElementById(`h-${logId}`).value) || 0 });
+    alert("높이 수정 완료"); startRealtimeSync();
 };
 
 window.updateLogCoord = async (mId, logId) => {
-if(!tempCoord) return alert("지도 클릭 필수");
-await updateDoc(doc(db, `sanwoori/${mId}/logs`, logId), { coords: tempCoord, region: document.getElementById('adminManualRegionSelect').value });
-alert("좌표 수정 완료"); loadMemberLogs();
+    if(!tempCoord) return alert("지도 클릭 필수");
+    await updateDoc(doc(db, `sanwoori/${mId}/logs`, logId), { coords: tempCoord, region: document.getElementById('adminManualRegionSelect').value });
+    alert("좌표 수정 완료"); loadMemberLogs();
 };
 
 window.syncLastDateAfterDelete = async (mId) => {
     try {
-        // 런닝(isRunning)과 트레킹(isTracking)이 모두 false인 '산행' 기록만 필터링
         const lastHikeQuery = query(
-    collection(db, `sanwoori/${mId}/logs`),
-    where("isRunning", "==", false),
-    where("isTracking", "==", false),
-    where("isWalking", "==", false),
-    where("isExtraHike", "==", false), // 번외산행 제외
-    orderBy("date", "desc"),
-    limit(1)
-);
+            collection(db, `sanwoori/${mId}/logs`),
+            where("isRunning", "==", false),
+            where("isTracking", "==", false),
+            where("isWalking", "==", false),
+            where("isExtraHike", "==", false), 
+            orderBy("date", "desc"),
+            limit(1)
+        );
         const lastHikeSnap = await getDocs(lastHikeQuery);
 
         if (!lastHikeSnap.empty) {
-            // 남은 '산행' 기록이 있으면 그 날짜로 D-Day 복구
             const latestHikeDate = lastHikeSnap.docs[0].data().date;
             await updateDoc(doc(db, "sanwoori", mId), { lastDate: latestHikeDate });
         }
-        // 산행 기록이 아예 없으면 lastDate를 건드리지 않거나 가입일로 유지됩니다.
     } catch (e) {
         console.error("D-Day 복구 실패:", e);
     }
 };
     
-    window.deleteLog = async (mId, logId, shouldDownLevel) => {
+window.deleteLog = async (mId, logId, shouldDownLevel) => {
     if(!confirm("기록을 삭제하시겠습니까?")) return;
     
     try {
@@ -4617,41 +4689,33 @@ window.syncLastDateAfterDelete = async (mId) => {
         const logData = logSnap.data();
         const mName = logData.author || (typeof currentData !== 'undefined' ? currentData.find(m => m.id === mId)?.name : "") || "";
 
-        // 1. 산행 여부 및 동행 여부 판별
         const isHike = !logData.isRunning && !logData.isTracking;
         const isBuddyHike = isHike && (logData.memberCount >= 2);
 
-        // 2. 파이어베이스 서버 삭제
         await deleteDoc(logRef);
         
-        // 3. 서버 수치 차감
         if(shouldDownLevel && isHike) {
             const updateFields = { 
                 level: increment(-1),
-                count: increment(-1) // 혼자 산행도 총횟수는 차감
+                count: increment(-1) 
             };
             if(isBuddyHike) updateFields.buddyCount = increment(-1);
             
             await updateDoc(doc(db, "sanwoori", mId), updateFields);
         }
 
-        // 4. 🔥 [핵심] 로컬 캐시 실시간 강제 동기화
         if (mName) {
             const STORAGE_KEY = `forest_v5_final_${mName}`;
             const cachedData = localStorage.getItem(STORAGE_KEY);
             
             if (cachedData) {
                 let cached = JSON.parse(cachedData);
-                // 동행 기록 삭제 시에만 캐시 숫자(extraHikes) 차감
                 if (isBuddyHike && cached.extraHikes > 0) cached.extraHikes -= 1;
-                
-                // ⭐ 중요: 목록을 비워야 '인연의 숲' 열 때 DB에서 최신 데이터를 새로 가져옵니다.
                 cached.processedIds = []; 
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
             }
         }
 
-        // 5. 화면 즉시 반영
         if (typeof loadMemberLogs === 'function') loadMemberLogs(); 
         if (typeof updateVibeTemp === 'function') updateVibeTemp();
         
@@ -4661,57 +4725,51 @@ window.syncLastDateAfterDelete = async (mId) => {
     }
 };
 
-
-
 window.updateMemberName = async () => {
-const id = document.getElementById('memberSelectEdit').value;
-const newName = document.getElementById('editMemberNameInput').value.trim();
-if(id && newName) { await updateDoc(doc(db, "sanwoori", id), { name: newName }); alert("변경 완료"); }
+    const id = document.getElementById('memberSelectEdit').value;
+    const newName = document.getElementById('editMemberNameInput').value.trim();
+    if(id && newName) { await updateDoc(doc(db, "sanwoori", id), { name: newName }); alert("변경 완료"); }
 };
 
 window.changeQuarter = (q) => { selectedQuarter = q; document.querySelectorAll('.q-btn').forEach((btn, idx) => btn.classList.toggle('active-q', idx + 1 === q)); startRealtimeSync(); };
 window.changeYear = () => { selectedYear = parseInt(document.getElementById('yearSelect').value); startRealtimeSync(); };
 window.showView = (v) => {
-document.querySelectorAll('.view-content').forEach(e => e.classList.add('hidden'));
-document.getElementById('view'+v.charAt(0).toUpperCase()+v.slice(1)).classList.remove('hidden');
-document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active-tab'));
-if(v === 'status') document.getElementById('tabStatus').classList.add('active-tab');
-if(v === 'admin' || v === 'login') document.getElementById('tabAdmin').classList.add('active-tab');
-renderStatusTable();
+    document.querySelectorAll('.view-content').forEach(e => e.classList.add('hidden'));
+    document.getElementById('view'+v.charAt(0).toUpperCase()+v.slice(1)).classList.remove('hidden');
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active-tab'));
+    if(v === 'status') document.getElementById('tabStatus').classList.add('active-tab');
+    if(v === 'admin' || v === 'login') document.getElementById('tabAdmin').classList.add('active-tab');
+    renderStatusTable();
 };
 window.handleAdminTab = () => isAdminLoggedIn ? showView('admin') : showView('login');
 
 window.loginAdmin = async () => {
-const pw = document.getElementById('adminPassword').value;
-const snap = await getDoc(doc(db, "admin_settings", "config"));
-if (snap.exists() && pw === String(snap.data().admin_pw)) { isAdminLoggedIn = true; showView('admin'); } else alert("비밀번호 불일치");
+    const pw = document.getElementById('adminPassword').value;
+    const snap = await getDoc(doc(db, "admin_settings", "config"));
+    if (snap.exists() && pw === String(snap.data().admin_pw)) { isAdminLoggedIn = true; showView('admin'); } else alert("비밀번호 불일치");
 };
 window.logoutAdmin = () => { isAdminLoggedIn = false; showView('status'); };
 
-
-    window.addMember = async () => {
+window.addMember = async () => {
     const name = document.getElementById('newName').value.trim();
-    const dateStr = document.getElementById('regDate').value; // 'YYYY-MM-DD' 형태
+    const dateStr = document.getElementById('regDate').value; 
     const gender = document.querySelector('input[name="newGender"]:checked')?.value;
 
     if (name && dateStr && gender) {
         try {
-            // 날짜 문자열을 Date 객체로 변환
             const dateObj = new Date(dateStr + "T00:00:00");
             
             await addDoc(collection(db, "sanwoori"), {
                 name: name,
                 level: 0,
                 gender: gender,
-                regDate: Timestamp.fromDate(dateObj), // 신규 등록 날짜 추가
-                lastDate: Timestamp.fromDate(dateObj), // 초기 마지막 출석일 설정
+                regDate: Timestamp.fromDate(dateObj), 
+                lastDate: Timestamp.fromDate(dateObj), 
                 isHidden: false,
                 bonusDays: 0
             });
             
             alert("등록 완료");
-            
-            // 입력창 초기화 (선택 사항)
             document.getElementById('newName').value = '';
         } catch (error) {
             console.error("등록 중 오류 발생:", error);
@@ -4731,23 +4789,20 @@ window.exportAllData = async () => {
             data: []
         };
 
-        // 1. 멤버 명단 가져오기
         const memberSnap = await getDocs(collection(db, "sanwoori"));
         
-        // 2. 멤버별로 기록(logs)까지 싹 다 긁어모으기
         for (const mDoc of memberSnap.docs) {
             const memberInfo = { id: mDoc.id, ...mDoc.data() };
             const logsSnap = await getDocs(collection(db, `sanwoori/${mDoc.id}/logs`));
             const logs = logsSnap.docs.map(lDoc => ({
                 id: lDoc.id,
                 ...lDoc.data(),
-                date: lDoc.data().date?.toDate().toISOString() // 날짜 형식 변환
+                date: lDoc.data().date?.toDate().toISOString() 
             }));
             
             backupData.data.push({ ...memberInfo, logs });
         }
 
-        // 3. 파일로 만들어서 다운로드 시키기
         const jsonBlob = new Blob([JSON.stringify(backupData, null, 2)], { type: "application/json" });
         const url = URL.createObjectURL(jsonBlob);
         const a = document.createElement('a');
@@ -4763,18 +4818,12 @@ window.exportAllData = async () => {
     }
 };
 
-    window.updateBonusDays = async () => {
-const id = document.getElementById('memberSelectManage').value;
-const bonus = parseInt(document.getElementById('bonusDaysInput').value);
-if(id && !isNaN(bonus)) { await updateDoc(doc(db, "sanwoori", id), { bonusDays: increment(bonus) }); alert("적용 완료"); }
-};
 window.updateBonusDays = async () => {
-const id = document.getElementById('memberSelectManage').value;
-const bonus = parseInt(document.getElementById('bonusDaysInput').value);
-if(id && !isNaN(bonus)) { await updateDoc(doc(db, "sanwoori", id), { bonusDays: increment(bonus) }); alert("적용 완료"); }
+    const id = document.getElementById('memberSelectManage').value;
+    const bonus = parseInt(document.getElementById('bonusDaysInput').value);
+    if(id && !isNaN(bonus)) { await updateDoc(doc(db, "sanwoori", id), { bonusDays: increment(bonus) }); alert("적용 완료"); }
 };
 
-// [수정된 우정 포인트 관리 명령어]
 window.updateFriendshipPoint = async () => {
     const id = document.getElementById('memberSelectManage').value;
     const point = parseInt(document.getElementById('friendshipPointInput').value);
@@ -4784,22 +4833,16 @@ window.updateFriendshipPoint = async () => {
     }
 
     try {
-        // 1. 멤버 현재 데이터 가져오기
         const memberDoc = await getDoc(doc(db, "sanwoori", id));
         if (!memberDoc.exists()) return alert("회원 정보를 찾을 수 없습니다.");
         const memberData = memberDoc.data();
 
         let bins = memberData.fp_bins ? { ...memberData.fp_bins } : {};
-        let currentTotal = typeof memberData.friendshipPoint === 'object' 
-            ? (memberData.friendshipPoint.total || 0) 
-            : (parseInt(memberData.friendshipPoint) || 0);
 
-        // 2. 입력된 값이 음수일 경우 (포인트 차감 시)
         if (point < 0) {
             let remaining = Math.abs(point);
             const quarters = Object.keys(bins).filter(k => k.match(/q\d+/)).sort();
 
-            // 오래된 분기부터 차감
             for (const q of quarters) {
                 if (remaining <= 0) break;
                 const currentQAmount = bins[q] || 0;
@@ -4810,14 +4853,11 @@ window.updateFriendshipPoint = async () => {
                 }
             }
         } else {
-            // 3. 양수일 경우 (포인트 적립 시)
-            // 현재 연도의 분기(예: 2026_q1 또는 2026_q2)에 추가
             const now = new Date();
             const qKey = `${now.getFullYear()}_q${Math.ceil((now.getMonth() + 1) / 3)}`;
             bins[qKey] = (bins[qKey] || 0) + point;
         }
 
-        // 4. 새로운 전체 포인트 재계산
         let newTotal = 0;
         for (const key in bins) {
             if (key.match(/q\d+/)) {
@@ -4825,7 +4865,6 @@ window.updateFriendshipPoint = async () => {
             }
         }
 
-        // 5. DB에 동시 업데이트
         await updateDoc(doc(db, "sanwoori", id), {
             friendshipPoint: newTotal,
             fp_bins: bins
@@ -4835,7 +4874,6 @@ window.updateFriendshipPoint = async () => {
         document.getElementById('friendshipPointInput').value = "";
 
         if (typeof startRealtimeSync === 'function') startRealtimeSync(); 
-        startRealtimeSync();
     } catch (e) {
         console.error("포인트 수정 실패:", e);
         alert("수정 실패: " + e.message);
@@ -4843,10 +4881,10 @@ window.updateFriendshipPoint = async () => {
 };
 
 window.toggleHideMember = async () => {
-const id = document.getElementById('memberSelectManage').value;
-if(id){ const m = currentData.find(x => x.id === id); await updateDoc(doc(db, "sanwoori", id), { isHidden: !m.isHidden }); alert("변경 완료"); }
+    const id = document.getElementById('memberSelectManage').value;
+    if(id){ const m = currentData.find(x => x.id === id); await updateDoc(doc(db, "sanwoori", id), { isHidden: !m.isHidden }); alert("변경 완료"); }
 };
-// 1. 영구 삭제 기능 (기존 기능 유지)
+
 window.deleteMember = async () => {
     const id = document.getElementById('memberSelectManage').value;
     if(id && confirm("정말로 삭제하시겠습니까? 회원이 영구히 삭제됩니다.")) { 
@@ -4857,7 +4895,6 @@ window.deleteMember = async () => {
 
 // 레벨 임의 수정 기능
 window.updateManualLevel = async () => {
-    // memberSelectEdit에서 선택된 회원 ID 가져오기
     const id = document.getElementById('memberSelectEdit').value; 
     const newLevel = parseInt(document.getElementById('manualLevelInput').value);
 
@@ -4866,12 +4903,33 @@ window.updateManualLevel = async () => {
 
     if(confirm(`선택한 회원의 레벨을 ${newLevel}(으)로 변경하시겠습니까?`)) {
         try {
-            // DB 업데이트
             await updateDoc(doc(db, "sanwoori", id), { level: newLevel });
             alert("레벨 변경 완료! ✅");
-            document.getElementById('manualLevelInput').value = ""; // 입력창 비우기
-            
-            // 화면 갱신 (실시간 리스너가 있다면 자동으로 반영됨)
+            document.getElementById('manualLevelInput').value = ""; 
+            if (typeof startRealtimeSync === 'function') startRealtimeSync();
+        } catch (e) {
+            console.error(e);
+            alert("변경 실패: " + e.message);
+        }
+    }
+};
+
+// 🔥 [신규 추가] 분기별 분기 횟수(qCount) 임의 수정 기능
+window.updateManualQCount = async () => {
+    // memberSelectEdit에서 선택된 회원 ID 가져오기
+    const id = document.getElementById('memberSelectEdit').value; 
+    const newQCount = parseInt(document.getElementById('manualQCountInput').value);
+
+    if(!id) return alert("대상 회원을 먼저 선택해주세요.");
+    if(isNaN(newQCount) || newQCount < 0) return alert("변경할 올바른 분기 횟수 숫자를 입력해주세요.");
+
+    if(confirm(`선택한 회원의 이번 분기 횟수를 ${newQCount}회로 변경하시겠습니까?`)) {
+        try {
+            // DB 업데이트 (qCount 필드를 직접 변경)
+            await updateDoc(doc(db, "sanwoori", id), { qCount: newQCount });
+            alert("분기 횟수 변경 완료! ✅");
+            document.getElementById('manualQCountInput').value = ""; // 입력창 비우기
+            if (typeof startRealtimeSync === 'function') startRealtimeSync(); // 화면 동기화
         } catch (e) {
             console.error(e);
             alert("변경 실패: " + e.message);
@@ -4885,42 +4943,52 @@ if (!sessionStorage.getItem('visited')) {
     sessionStorage.setItem('visited', 'true'); 
 }
 
-// 기본 리스너 및 데이터 동기화 시작
 listenVisitors(); 
 initAutoSelection(); 
 startRealtimeSync(); 
 listenSubRooms();
 
-// 데이터 로딩 시간을 고려하여 2초 후 첫 온도 체크 실행
 setTimeout(() => {
     updateVibeTemp();
 }, 2000);
 
-// 날짜 입력 칸 기본값 설정
 if (document.getElementById('regDate')) document.getElementById('regDate').valueAsDate = new Date();
 if (document.getElementById('activityDate')) document.getElementById('activityDate').valueAsDate = new Date();
 
 window.toggleSelectMember = (id, el) => {
-if(selectedMemberIds.has(id)){ selectedMemberIds.delete(id); el.classList.remove('selected'); }
-else { selectedMemberIds.add(id); el.classList.add('selected'); }
+    if(selectedMemberIds.has(id)){ selectedMemberIds.delete(id); el.classList.remove('selected'); }
+    else { selectedMemberIds.add(id); el.classList.add('selected'); }
 };
 
 function updateAdminMemberLists() {
-const alpha = [...currentData].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
-const multi = document.getElementById('multiMemberList');
-const edit = document.getElementById('memberSelectEdit');
-const manage = document.getElementById('memberSelectManage');
-if(!multi) return; multi.innerHTML = ""; edit.innerHTML = manage.innerHTML = '<option value="">대상 회원 선택</option>';
-alpha.forEach(m => {
-multi.innerHTML += `<div class="member-chip ${selectedMemberIds.has(m.id)?'selected':''} ${m.isHidden?'opacity-50':''}" onclick="toggleSelectMember('${m.id}', this)"><span class="gender-dot ${m.gender==='여'?'dot-pink':'dot-blue'}">●</span>${m.name}</div> `;
-edit.innerHTML += `<option value="${m.id}">${m.name} </option> `;
-manage.innerHTML += `<option value="${m.id}">${m.name} (${m.buddyCount || 0}회)</option> `;
-});
-const visibleMembers = currentData.filter(m => !m.isHidden);
-document.getElementById('countTotal').innerText = visibleMembers.length;
-document.getElementById('countMale').innerText = visibleMembers.filter(m => m.gender === '남').length;
-document.getElementById('countFemale').innerText = visibleMembers.filter(m => m.gender === '여').length;
+    const alpha = [...currentData].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+    const multi = document.getElementById('multiMemberList');
+    const edit = document.getElementById('memberSelectEdit');
+    const manage = document.getElementById('memberSelectManage');
+    if(!multi) return; multi.innerHTML = ""; edit.innerHTML = manage.innerHTML = '<option value="">대상 회원 선택</option>';
+    alpha.forEach(m => {
+        multi.innerHTML += `<div class="member-chip ${selectedMemberIds.has(m.id)?'selected':''} ${m.isHidden?'opacity-50':''}" onclick="toggleSelectMember('${m.id}', this)"><span class="gender-dot ${m.gender==='여'?'dot-pink':'dot-blue'}">●</span>${m.name}</div> `;
+        edit.innerHTML += `<option value="${m.id}">${m.name} </option> `;
+        manage.innerHTML += `<option value="${m.id}">${m.name} (${m.buddyCount || 0}회)</option> `;
+    });
+    const visibleMembers = currentData.filter(m => !m.isHidden);
+    document.getElementById('countTotal').innerText = visibleMembers.length;
+    document.getElementById('countMale').innerText = visibleMembers.filter(m => m.gender === '남').length;
+    document.getElementById('countFemale').innerText = visibleMembers.filter(m => m.gender === '여').length;
 }
+
+            
+
+
+
+
+
+
+
+
+
+
+
 
 window.toggleModal = (show) => {
   document.getElementById('levelModal').style.display = show ? 'flex' : 'none';
@@ -4942,93 +5010,176 @@ window.toggleModal = (show) => {
   }
 };
 
+
+if (status) status.innerText = "EXPLOSIVE PASSION";
 window.filterAdminMemberList = () => {
-const q = document.getElementById('adminSearchInput').value.toLowerCase();
-document.querySelectorAll('.member-chip').forEach(c => { c.style.display = c.innerText.toLowerCase().includes(q) ? "block" : "none"; });
+  const q = document.getElementById('adminSearchInput').value.toLowerCase();
+  document.querySelectorAll('.member-chip').forEach(c => { 
+    c.style.display = c.innerText.toLowerCase().includes(q) ? "block" : "none"; 
+  });
 };
 
-// [통합] 활동지수 계산 및 UI 업데이트 함수
+// [내부 전용] 지정된 정산 타임 목록 (시 0~23 기준)
+const TARGET_HOURS = [0, 9, 12, 15, 18, 21];
+
+/**
+ * [내부 전용] 마지막 정산 시간 이후로 새로운 정산 타임이 지났는지 체크하는 함수
+ * @param {Date} lastUpdateDate - 파이어베이스에 기록된 마지막 정산 시간
+ * @returns {boolean} - 정산을 새로 해야 하면 true, 아니면 false
+ */
+function checkIfNeedUpdate(lastUpdateDate) {
+  const now = new Date();
+  
+  // 두 시간의 날짜가 다르거나, 날짜가 같더라도 타겟 시간대를 지났는지 확인
+  // 가장 단순하고 확실한 방법은 "마지막 정산 시간"과 "현재 시간" 사이에 TARGET_HOURS가 포함되어 있는지 보는 것입니다.
+  const lastHour = lastUpdateDate.getHours();
+  const currentHour = now.getHours();
+
+  // 날짜가 바뀌었으면 무조건 업데이트
+  if (now.getDate() !== lastUpdateDate.getDate() || now.getMonth() !== lastUpdateDate.getMonth()) {
+    return true;
+  }
+
+  // 같은 날짜라면, 마지막 정산 시간의 '시'와 현재 '시' 사이에 정산 타겟 시간이 존재하는지 체크
+  for (const hour of TARGET_HOURS) {
+    if (lastHour < hour && currentHour >= hour) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+/**
+ * [실제 계산 및 파이어베이스 기록 함수]
+ */
+async function runCalculation() {
+  // 1. 데이터 준비 (전체 로그 점수)
+  let totalLogsCount = 0;
+  if (window.currentData) {
+    totalLogsCount = currentData.reduce((acc, m) => acc + (m.qCount || 0), 0);
+  }
+
+  // 2. 최근 24시간 방문자 조회 (할당량 보호)
+  const twentyFourHoursAgo = Timestamp.fromMillis(Date.now() - 86400000);
+  let recentVisitorCount = 0;
+  
+  try {
+    const visitorSnap = await getDocs(query(
+      collection(db, "visitor_logs"),
+      where("timestamp", ">=", twentyFourHoursAgo),
+      limit(25)
+    )).catch(() => ({ size: 0 }));
+    
+    recentVisitorCount = visitorSnap.size;
+  } catch (e) {
+    console.error("방문자 조회 실패:", e);
+  }
+
+  // 3. 점수 계산
+  let visitorScore = (recentVisitorCount / 5) * 20;
+  let logScore = totalLogsCount * 12;
+  let tempPercent = Math.max(10, Math.min(visitorScore + logScore, 100));
+
+  // 4. 파이어베이스에 덮어쓰기 저장
+  await setDoc(doc(db, "system_status", "vibe_score"), {
+    tempPercent: tempPercent,
+    updatedAt: Timestamp.now()
+  });
+
+  return tempPercent;
+}
+
+
+/**
+ * 🔥 [통합 자동화 버전] 활동지수 갱신 함수
+ * 누군가 접속하면 이 함수가 실행되면서 정산 필요 여부를 판단합니다.
+ */
 async function updateVibeTemp() {
-try {
-console.log("활동지수(온도) 갱신 시작...");
+  try {
+    console.log("📱 활동지수 체크 시작...");
 
-// 1. 데이터 준비
-let totalLogsCount = 0;
-if (window.currentData) {
-// 이미 불러온 멤버들의 이번 분기 산행 횟수 합산
-totalLogsCount = currentData.reduce((acc, m) => acc + (m.qCount || 0), 0);
+    const scoreDocRef = doc(db, "system_status", "vibe_score");
+    const scoreSnap = await getDoc(scoreDocRef);
+    
+    let tempPercent = 10;
+    let needNewCalculation = false;
+
+    if (scoreSnap.exists()) {
+      const savedData = scoreSnap.data();
+      tempPercent = savedData.tempPercent || 10;
+      
+      if (savedData.updatedAt) {
+        const lastUpdateDate = savedData.updatedAt.toDate();
+        console.log("마지막 정산 시각:", lastUpdateDate.toLocaleString());
+        
+        // 💡 핵심 톱니바퀴: 정산 시간이 지났는지 체크
+        needNewCalculation = checkIfNeedUpdate(lastUpdateDate);
+      } else {
+        needNewCalculation = true; // 시간 정보가 없으면 정산 진행
+      }
+    } else {
+      // 아예 문서가 존재하지 않는 최초 실행 시 무조건 정산 진행
+      needNewCalculation = true;
+    }
+
+    // ⚡ 만약 정산 타이밍이 지났다면? 접속한 이 사람이 '자동 정산' 독박(?)을 씁니다.
+    if (needNewCalculation) {
+      console.log("🔄 [자동 정산 트리거] 새로운 정산 시간이 지나 점수를 갱신합니다...");
+      tempPercent = await runCalculation();
+    } else {
+      console.log("🔹 [캐시 사용] 아직 정산 시간이 되지 않아 저장된 점수를 사용합니다.");
+    }
+
+    // ---------------- UI 구성 요소 반영 ----------------
+    const gauge = document.getElementById('vibeGauge');
+    const scoreTxt = document.getElementById('vibeScoreTxt');
+    const circleProgress = document.getElementById('vibeCircleProgress');
+    const circleIcon = document.getElementById('vibeCircleIcon');
+    const circleBtn = document.getElementById('vibeCircleBtn');
+    const status = document.getElementById('vibeStatusTxt');
+    const desc = document.getElementById('vibeDesc');
+    const modalIcon = document.getElementById('vibeModalIcon');
+
+    if (gauge) gauge.style.width = `${tempPercent}%`;
+    if (scoreTxt) scoreTxt.innerText = `${Math.floor(tempPercent)}%`;
+    if (circleProgress) {
+      circleProgress.style.strokeDashoffset = 100 - tempPercent;
+    }
+
+    let currentEmoji = "🍀";
+    if (tempPercent >= 80) {
+      currentEmoji = "🔥";
+      if (status) status.innerText = "EXPLOSIVE PASSION";
+      if (desc) desc.innerText = "현재 활동지수 최고조! 산행의 열기가 가득합니다.";
+      if (circleBtn) circleBtn.classList.add('hot-vibe');
+    } else if (tempPercent >= 50) {
+      currentEmoji = "☀️";
+      if (status) status.innerText = "VERY ACTIVE";
+      if (desc) desc.innerText = "커뮤니티가 아주 활발합니다. 함께 등산해요!";
+      if (circleBtn) circleBtn.classList.remove('hot-vibe');
+    } else if (tempPercent >= 20) {
+      currentEmoji = "🍀";
+      if (status) status.innerText = "WARMING UP";
+      if (desc) desc.innerText = "산행의 온기가 느껴집니다.";
+      if (circleBtn) circleBtn.classList.remove('hot-vibe');
+    } else {
+      currentEmoji = "❄️";
+      if (status) status.innerText = "CHILLING";
+      if (desc) desc.innerText = "조용한 숲속 같네요. 첫 산행 기록을 남겨보세요!";
+      if (circleBtn) circleBtn.classList.remove('hot-vibe');
+    }
+
+    if (circleIcon) circleIcon.innerText = currentEmoji;
+    if (modalIcon) modalIcon.innerText = currentEmoji;
+
+    console.log("🎯 최종 활동지수 UI 반영 완료:", tempPercent + "%");
+
+  } catch (e) {
+    console.error("온도 갱신 중 오류 발생:", e);
+  }
 }
 
-// 2. 최근 24시간 방문자 조회 (할당량 보호를 위해 limit 20)
-const twentyFourHoursAgo = Timestamp.fromMillis(Date.now() - 86400000);
-const visitorSnap = await getDocs(query(
-collection(db, "visitor_logs"),
-where("timestamp", ">=", twentyFourHoursAgo),
-limit(25)
-)).catch(() => ({ size: 0 }));
-
-const recentVisitorCount = visitorSnap.size;
-
-// 3. 점수 계산 로직 (방문자 점수 + 로그 점수)
-let visitorScore = (recentVisitorCount / 5) * 20; // 방문자 5명당 10점
-let logScore = totalLogsCount * 12; // 로그 1개당 12점 (가중치 상향)
-
-let tempPercent = visitorScore + logScore;
-
-// 기본 점수 보정 (최소 10% ~ 최대 100%)
-tempPercent = Math.max(10, Math.min(tempPercent, 100));
-
-// 4. UI 구성 요소 찾기
-const gauge = document.getElementById('vibeGauge');
-const scoreTxt = document.getElementById('vibeScoreTxt');
-const circleProgress = document.getElementById('vibeCircleProgress');
-const circleIcon = document.getElementById('vibeCircleIcon');
-const circleBtn = document.getElementById('vibeCircleBtn');
-const status = document.getElementById('vibeStatusTxt');
-const desc = document.getElementById('vibeDesc');
-const modalIcon = document.getElementById('vibeModalIcon');
-
-// 5. 점수 및 프로그레스 바 반영
-if (gauge) gauge.style.width = `${tempPercent}%`;
-if (scoreTxt) scoreTxt.innerText = `${Math.floor(tempPercent)}%`;
-if (circleProgress) {
-// 원형 게이지가 있다면 (SVG dashoffset 조절)
-circleProgress.style.strokeDashoffset = 100 - tempPercent;
-}
-
-// 6. 점수대별 상태 및 이모지 설정
-let currentEmoji = "🍀";
-if (tempPercent >= 80) {
-currentEmoji = "🔥";
-if (status) status.innerText = "EXPLOSIVE PASSION";
-if (desc) desc.innerText = "현재 활동지수 최고조! 산행의 열기가 가득합니다.";
-if (circleBtn) circleBtn.classList.add('hot-vibe');
-} else if (tempPercent >= 50) {
-currentEmoji = "☀️";
-if (status) status.innerText = "VERY ACTIVE";
-if (desc) desc.innerText = "커뮤니티가 아주 활발합니다. 함께 등산해요!";
-if (circleBtn) circleBtn.classList.remove('hot-vibe');
-} else if (tempPercent >= 20) {
-currentEmoji = "🍀";
-if (status) status.innerText = "WARMING UP";
-if (desc) desc.innerText = "산행의 온기가 느껴집니다.";
-if (circleBtn) circleBtn.classList.remove('hot-vibe');
-} else {
-currentEmoji = "❄️";
-if (status) status.innerText = "CHILLING";
-if (desc) desc.innerText = "조용한 숲속 같네요. 첫 산행 기록을 남겨보세요!";
-if (circleBtn) circleBtn.classList.remove('hot-vibe');
-}
-
-if (circleIcon) circleIcon.innerText = currentEmoji;
-if (modalIcon) modalIcon.innerText = currentEmoji;
-
-console.log("최종 활동지수:", tempPercent + "%");
-
-} catch (e) {
-console.error("온도 갱신 중 오류 발생:", e);
-}
-}
 
 window.showMemberMountain = async (mId, mName) => {
 const modal = document.getElementById('mountainViewModal');
