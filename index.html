@@ -4175,45 +4175,55 @@ window.globalSyncMountainInfo = async () => {
 };
 
 // [3] 알뜰 모드 데이터 실시간 동기화 함수
-// [최종 최적화] 선택한 분기의 하위 hike 값을 정확히 추적하는 할당량 절약형 함수
+// [최종] 1·2분기는 실시간 계산 / 3분기는 마스터 데이터 매핑 (일괄 저장 필요 없음)
 async function startRealtimeSync() {
-    console.log(`⚡ [할당량 절약] ${selectedYear}년 ${selectedQuarter}분기 데이터 분석 시작...`);
+    console.log(`⚡ [하이브리드 모드] ${selectedYear}년 ${selectedQuarter}분기 데이터 로드 중...`);
     try {
         // 1. 전체 멤버 명단 딱 '1번'만 가져옵니다.
         const snapshot = await getDocs(collection(db, "sanwoori"));
         
-        // 2. 화면 상단 버튼으로 선택된 연도와 분기 키 조합 생성 (예: "2026_q1", "2026_q2")
-        const targetQKey = `${selectedYear}_q${selectedQuarter}`;
+        // 2. 분기 선택 상태에 따라 분기 기준 날짜 계산 (1, 2분기 실시간 조회용)
+        const start = Timestamp.fromDate(new Date(selectedYear, (selectedQuarter - 1) * 3, 1));
+        const end = Timestamp.fromDate(new Date(selectedYear, selectedQuarter * 3, 1));
 
-        // 현재 실제 시간 기준의 분기 키 생성 (예: 지금이 7월이면 "2026_q3")
-        const now = new Date();
-        const currentQKey = `${now.getFullYear()}_q${Math.ceil((now.getMonth() + 1) / 3)}`;
-
-        // 3. 각 멤버별 문서를 읽어 화면 표시용 객체로 정렬
-        const results = snapshot.docs.map((docSnap) => {
+        // 3. 각 멤버별 데이터 매핑 (1,2분기만 하위 logs 접근, 3분기는 통과)
+        const results = await Promise.all(snapshot.docs.map(async (docSnap) => {
             const data = docSnap.data();
             const m = { id: docSnap.id, ...data };
             
-            // 💡 [핵심] quarterlyStats -> 연도_분기 -> 'hike' 방을 정확하게 조준해서 숫자를 가져옵니다.
-            if (data.quarterlyStats && data.quarterlyStats[targetQKey]) {
-                // 구조가 { hike: X, total: Y } 형태이므로 .hike를 명확히 짚어줍니다.
-                m.qCount = data.quarterlyStats[targetQKey].hike ?? 0;
+            // 💡 [핵심 규칙] 
+            // 1분기(q1) 또는 2분기(q2) 버튼을 눌렀을 때는 '이전 방식 그대로' 하위 로그를 뒤집니다.
+            if (selectedQuarter === 1 || selectedQuarter === 2) {
+                const qLogsQuery = query(
+                    collection(db, `sanwoori/${m.id}/logs`),
+                    where("date", ">=", start),
+                    where("date", "<", end)
+                );
+                const qSnap = await getDocs(qLogsQuery);
+                
+                // 순수 산행 횟수 실시간 계산 (런닝, 트레킹, 산책, 번외 제외)
+                m.qCount = qSnap.docs.filter(l => {
+                    const d = l.data();
+                    return !d.isRunning && !d.isTracking && !d.isWalking && !d.isExtraHike;
+                }).length;
+
             } else {
-                // 만약 quarterlyStats에 과거 데이터 방이 없다면 백업 필드를 확인합니다.
-                // 단, 선택한 분기가 '현재 진짜 분기(3분기)'와 일치할 때만 qCount 마스터 값을 보여줍니다.
-                if (targetQKey === currentQKey) {
-                    m.qCount = data.qCount || 0;
+                // ✨ 3분기 이상 버튼을 눌렀거나 기본 상태일 때는 '초절약 모드' 작동!
+                // 하위 로그 조회를 전면 차단하고, DB 메인 문서에 박혀있는 qCount 수치를 그대로 가져옵니다.
+                // 만약 quarterlyStats 객체 내부에 더 정확한 수치가 있다면 그걸 최우선으로 씁니다.
+                const targetQKey = `${selectedYear}_q${selectedQuarter}`;
+                if (data.quarterlyStats && data.quarterlyStats[targetQKey]) {
+                    m.qCount = data.quarterlyStats[targetQKey].hike ?? 0;
                 } else {
-                    // 선택한 분기가 과거 분기인데 quarterlyStats에 기록이 없다면 0으로 처리하여 3분기 값이 밀려드는 것을 차단합니다.
-                    m.qCount = 0; 
+                    m.qCount = data.qCount || 0; // 기본 마스터 값 매핑
                 }
             }
 
-            // 전체 높이는 전체 기간 누적값이므로 그대로 유지합니다.
+            // 전체 높이는 누적값이므로 그대로 유지합니다.
             m.totalHeight = data.totalHeight || 0;
             
             return m;
-        });
+        }));
 
         // 4. 화면 업데이트 및 테마 적용 (기존 UI 로직 완벽 유지)
         currentData = results;
@@ -4224,7 +4234,7 @@ async function startRealtimeSync() {
         const root = document.documentElement;
         const sColor = window.getSeasonColor ? window.getSeasonColor(new Date().getMonth() + 1) : '#4ade80';
         root.style.setProperty('--season-theme-color', sColor);
-        console.log(`🌸🌿 ${targetQKey} 객체 데이터 매핑 완료! 적용된 테마:`, sColor);
+        console.log(`🌸🌿 ${selectedQuarter}분기 매핑 완료! (테마: ${sColor})`);
     } catch (e) { 
         console.error("동기화 오류:", e); 
     }
@@ -4232,6 +4242,8 @@ async function startRealtimeSync() {
 
 // 레벨업 알림 카드 대기열 배열 (기존 위치 유지)
 let pendingLevelUpCards = [];
+
+
 
 
         
