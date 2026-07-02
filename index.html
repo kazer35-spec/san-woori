@@ -4175,28 +4175,47 @@ window.globalSyncMountainInfo = async () => {
 };
 
 // [3] 알뜰 모드 데이터 실시간 동기화 함수
-// [수정] Firebase Firestore 읽기 할당량을 99% 절약하는 최적화 동기화 함수
+// [최종 최적화] 선택한 분기의 하위 hike 값을 정확히 추적하는 할당량 절약형 함수
 async function startRealtimeSync() {
-    console.log("⚡ [할당량 절약 모드] 데이터 불러오기 시작...");
+    console.log(`⚡ [할당량 절약] ${selectedYear}년 ${selectedQuarter}분기 데이터 분석 시작...`);
     try {
-        // 1. 전체 멤버 명단 딱 '1번'만 가져옵니다. (회원별 하위 logs 전수조사 루프 폐기)
+        // 1. 전체 멤버 명단 딱 '1번'만 가져옵니다.
         const snapshot = await getDocs(collection(db, "sanwoori"));
         
-        // 2. 각 멤버별 데이터를 가볍게 정리 (네트워크 추가 요청 없음)
+        // 2. 화면 상단 버튼으로 선택된 연도와 분기 키 조합 생성 (예: "2026_q1", "2026_q2")
+        const targetQKey = `${selectedYear}_q${selectedQuarter}`;
+
+        // 현재 실제 시간 기준의 분기 키 생성 (예: 지금이 7월이면 "2026_q3")
+        const now = new Date();
+        const currentQKey = `${now.getFullYear()}_q${Math.ceil((now.getMonth() + 1) / 3)}`;
+
+        // 3. 각 멤버별 문서를 읽어 화면 표시용 객체로 정렬
         const results = snapshot.docs.map((docSnap) => {
             const data = docSnap.data();
             const m = { id: docSnap.id, ...data };
             
-            // 💡 [핵심 최적화] 매번 로그를 조회해서 카운트하지 않고, 
-            // 이미 메인 문서에 적재되어 관리되는 qCount와 totalHeight를 그대로 가져옵니다.
-            // 데이터 유실 방지를 위해 값이 없을 경우에만 기본값 0 처리를 해줍니다.
-            m.qCount = data.qCount || 0;
+            // 💡 [핵심] quarterlyStats -> 연도_분기 -> 'hike' 방을 정확하게 조준해서 숫자를 가져옵니다.
+            if (data.quarterlyStats && data.quarterlyStats[targetQKey]) {
+                // 구조가 { hike: X, total: Y } 형태이므로 .hike를 명확히 짚어줍니다.
+                m.qCount = data.quarterlyStats[targetQKey].hike ?? 0;
+            } else {
+                // 만약 quarterlyStats에 과거 데이터 방이 없다면 백업 필드를 확인합니다.
+                // 단, 선택한 분기가 '현재 진짜 분기(3분기)'와 일치할 때만 qCount 마스터 값을 보여줍니다.
+                if (targetQKey === currentQKey) {
+                    m.qCount = data.qCount || 0;
+                } else {
+                    // 선택한 분기가 과거 분기인데 quarterlyStats에 기록이 없다면 0으로 처리하여 3분기 값이 밀려드는 것을 차단합니다.
+                    m.qCount = 0; 
+                }
+            }
+
+            // 전체 높이는 전체 기간 누적값이므로 그대로 유지합니다.
             m.totalHeight = data.totalHeight || 0;
             
             return m;
         });
 
-        // 3. 화면 업데이트 및 테마 적용 (기존 UI 로직 완벽 유지)
+        // 4. 화면 업데이트 및 테마 적용 (기존 UI 로직 완벽 유지)
         currentData = results;
         if(typeof updateAdminMemberLists === 'function') updateAdminMemberLists();
         if(typeof renderStatusTable === 'function') renderStatusTable();
@@ -4205,7 +4224,7 @@ async function startRealtimeSync() {
         const root = document.documentElement;
         const sColor = window.getSeasonColor ? window.getSeasonColor(new Date().getMonth() + 1) : '#4ade80';
         root.style.setProperty('--season-theme-color', sColor);
-        console.log("🌸🌿 테마 적용 및 화면 동기화 완료:", sColor);
+        console.log(`🌸🌿 ${targetQKey} 객체 데이터 매핑 완료! 적용된 테마:`, sColor);
     } catch (e) { 
         console.error("동기화 오류:", e); 
     }
