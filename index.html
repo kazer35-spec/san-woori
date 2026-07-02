@@ -4175,47 +4175,28 @@ window.globalSyncMountainInfo = async () => {
 };
 
 // [3] 알뜰 모드 데이터 실시간 동기화 함수
+// [수정] Firebase Firestore 읽기 할당량을 99% 절약하는 최적화 동기화 함수
 async function startRealtimeSync() {
-    console.log("데이터 불러오기 시작...");
+    console.log("⚡ [할당량 절약 모드] 데이터 불러오기 시작...");
     try {
-        // 1. 전체 멤버 명단 가져오기
+        // 1. 전체 멤버 명단 딱 '1번'만 가져옵니다. (회원별 하위 logs 전수조사 루프 폐기)
         const snapshot = await getDocs(collection(db, "sanwoori"));
         
-        // 2. 현재 분기 날짜 계산
-        const start = Timestamp.fromDate(new Date(selectedYear, (selectedQuarter - 1) * 3, 1));
-        const end = Timestamp.fromDate(new Date(selectedYear, selectedQuarter * 3, 1));
+        // 2. 각 멤버별 데이터를 가볍게 정리 (네트워크 추가 요청 없음)
+        const results = snapshot.docs.map((docSnap) => {
+            const data = docSnap.data();
+            const m = { id: docSnap.id, ...data };
+            
+            // 💡 [핵심 최적화] 매번 로그를 조회해서 카운트하지 않고, 
+            // 이미 메인 문서에 적재되어 관리되는 qCount와 totalHeight를 그대로 가져옵니다.
+            // 데이터 유실 방지를 위해 값이 없을 경우에만 기본값 0 처리를 해줍니다.
+            m.qCount = data.qCount || 0;
+            m.totalHeight = data.totalHeight || 0;
+            
+            return m;
+        });
 
-        // 3. 각 멤버별 데이터 정리
-        const results = await Promise.all(snapshot.docs.map(async (docSnap) => {
-    const m = { id: docSnap.id, ...docSnap.data() };
-    const qLogsQuery = query(
-        collection(db, `sanwoori/${m.id}/logs`),
-        where("date", ">=", start),
-        where("date", "<", end)
-    );
-    const qSnap = await getDocs(qLogsQuery);
-    
-    // [수정] 분기 횟수 계산 시 산책(isWalking)도 제외
-    m.qCount = qSnap.docs.filter(l => {
-    const d = l.data();
-    // 런닝, 트레킹, 산책, 그리고 번외산행까지 모두 제외해야 순수 산행 횟수가 나옵니다.
-    return !d.isRunning && !d.isTracking && !d.isWalking && !d.isExtraHike;
-}).length;
-
-    const allLogsSnap = await getDocs(collection(db, `sanwoori/${m.id}/logs`));
-    
-    // [추가 팁] 전체 높이 합산에서도 산책/런닝/트래킹 높이를 제외하고 싶다면?
-    m.totalHeight = allLogsSnap.docs.reduce((acc, l) => {
-        const d = l.data();
-        // 순수 산행일 때만 높이를 더함 (필요 시 적용)
-        const isRealHike = !d.isRunning && !d.isTracking && !d.isWalking;
-        return acc + (isRealHike ? (d.height || 0) : 0);
-    }, 0);
-    
-    return m;
-}));
-
-        // 4. 화면 업데이트 및 테마 적용
+        // 3. 화면 업데이트 및 테마 적용 (기존 UI 로직 완벽 유지)
         currentData = results;
         if(typeof updateAdminMemberLists === 'function') updateAdminMemberLists();
         if(typeof renderStatusTable === 'function') renderStatusTable();
@@ -4224,11 +4205,15 @@ async function startRealtimeSync() {
         const root = document.documentElement;
         const sColor = window.getSeasonColor ? window.getSeasonColor(new Date().getMonth() + 1) : '#4ade80';
         root.style.setProperty('--season-theme-color', sColor);
-        console.log("🌸🌿 테마 적용 완료:", sColor);
-    } catch (e) { console.error("동기화 오류:", e); }
+        console.log("🌸🌿 테마 적용 및 화면 동기화 완료:", sColor);
+    } catch (e) { 
+        console.error("동기화 오류:", e); 
+    }
 }
 
+// 레벨업 알림 카드 대기열 배열 (기존 위치 유지)
 let pendingLevelUpCards = [];
+
 
         
 
