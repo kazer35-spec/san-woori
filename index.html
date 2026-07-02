@@ -4475,7 +4475,7 @@ window.addEventListener('DOMContentLoaded', () => {
             else await setDoc(mRef, mountainData);
         }
 
-        // [2] 선택된 회원들 루프 돌며 데이터 정산 및 저장
+                // [2] 선택된 회원들 루프 돌며 데이터 정산 및 저장
         for (const id of selectedMemberIds) {
             const member = currentData.find(m => m.id === id);
             if (!member) continue;
@@ -4490,16 +4490,23 @@ window.addEventListener('DOMContentLoaded', () => {
                 updateData["quarterlyStats.2026_q2"] = { hike: pastCount, total: pastCount };
             }
 
-            // 🌟 [핵심 변경] 순수산행이든 기타활동이든 상관없이 관리자가 입력한 공통 스펙 변경점은 "무조건 반영"
+            // 🌟 [수정] 활동 종류에 따라 적용할 진짜 레벨업 수치 분기 처리
+            // 순수산행이 아닐 때(번외/러닝/트레킹/산책)는 관리자가 화면에서 뭘 선택했든 무조건 0업으로 강제 차단!
+            const realUpAmount = (isRealHike && !isExtraHike) ? up : 0;
+
+            const logLoopCount = (isRegular || isSpecial || isQuarterOnlyOne) ? 1 : realUpAmount;
+            const finalHeightIncrement = height * logLoopCount; 
+
             updateData.lastDate = ts; 
             const oldLevel = member.level || 0;
-            const newLevel = oldLevel + up;
+            const newLevel = oldLevel + realUpAmount; // 💡 차단된 레벨업 수치 반영
             updateData.level = newLevel;
             updateData.count = _increment(1); 
-            updateData.totalHeight = _increment(height);
+            updateData.totalHeight = _increment(finalHeightIncrement); 
 
-            if (up > 0) checkLevelUpgrade(member.name, oldLevel, newLevel);
+            if (realUpAmount > 0) checkLevelUpgrade(member.name, oldLevel, newLevel);
             selectedNames.push(member.name);
+
             // ─── 🅰️ 오직 '정식 순수산행'일 때 (번외산행은 자동으로 제외됨) ───
             if (isRealHike && !isExtraHike) {
                 // 1. [분기 통계 데이터] 인원수 상관없이 "실제 산행 사실" 자체인 1회만 정직하게 누적
@@ -4515,11 +4522,12 @@ window.addEventListener('DOMContentLoaded', () => {
 
                 // 3. 2인 이상 동행 시 우정 포인트(FP) 및 동행 횟수 적재
                 if (isMultiHike) {
-                    let pointToAdd = (isQuarterOnlyOne || isRegular) ? 100 : (100 * (up || 1));
+                    let pointToAdd = (isQuarterOnlyOne || isRegular) ? 100 : (100 * (realUpAmount || 1));
                     updateData.buddyCount = _increment(1);
                     updateData.friendshipPoint = _increment(pointToAdd);
                     updateData[`fp_bins.${qKey}`] = _increment(pointToAdd);
                 }
+
 
         
             // ─── 🅱️ 번외산행 / 러닝 / 트레킹 / 산책 묶음일 때 ───
