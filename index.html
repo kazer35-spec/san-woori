@@ -4500,17 +4500,20 @@ window.addEventListener('DOMContentLoaded', () => {
 
             if (up > 0) checkLevelUpgrade(member.name, oldLevel, newLevel);
             selectedNames.push(member.name);
-
-            // ─── 🅰️ 오직 '정식 순수산행'일 때 ───
+            // ─── 🅰️ 오직 '정식 순수산행'일 때 (번외산행은 자동으로 제외됨) ───
             if (isRealHike && !isExtraHike) {
-                const qIncrementValue = Math.min(3, selectedMemberIds.size); 
-                
-                // 분기 통계 객체의 hike와 total을 동시에 채워줌
-                updateData[`quarterlyStats.${qKey}.hike`] = _increment(qIncrementValue);
-                updateData[`quarterlyStats.${qKey}.total`] = _increment(qIncrementValue);
+                // 1. [분기 통계 데이터] 인원수 상관없이 "실제 산행 사실" 자체인 1회만 정직하게 누적
+                updateData[`quarterlyStats.${qKey}.hike`] = _increment(1);
+                updateData[`quarterlyStats.${qKey}.total`] = _increment(1);
                 updateData.bonusDays = 0;
-                updateData.qCount = _increment(qIncrementValue); // 레거시 백업
+                
+                // 2. [메인 화면 분기 횟수] 2인 이상 동행 시 버프 적용 (1인=1회, 2인=2회, 3인이상=최대 3회)
+                const groupSize = selectedMemberIds.size;
+                const qCountIncrement = groupSize >= 3 ? 3 : groupSize; 
+                
+                updateData.qCount = _increment(qCountIncrement); // 메인 횟수 필드만 2회/3회 뻥튀기!
 
+                // 3. 2인 이상 동행 시 우정 포인트(FP) 및 동행 횟수 적재
                 if (isMultiHike) {
                     let pointToAdd = (isQuarterOnlyOne || isRegular) ? 100 : (100 * (up || 1));
                     updateData.buddyCount = _increment(1);
@@ -4518,6 +4521,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     updateData[`fp_bins.${qKey}`] = _increment(pointToAdd);
                 }
 
+        
             // ─── 🅱️ 번외산행 / 러닝 / 트레킹 / 산책 묶음일 때 ───
             } else {
                 // 분기 hike는 건들지 않도록 0 가산(또는 기존 유지), total만 1 가산
