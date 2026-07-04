@@ -4476,34 +4476,36 @@ window.addEventListener('DOMContentLoaded', () => {
                     updateData[`fp_bins.${qKey}`] = _increment(pointToAdd);
                 }
 
-            // ─── 🅱️ 번외산행 / 러닝 / 트레킹 / 산책 묶음일 때 ───
+                        // ─── 🅱️ 번외산행 / 러닝 / 트레킹 / 산책 묶음일 때 ───
             } else {
                 updateData[`quarterlyStats.${qKey}.total`] = _increment(1);
                 updateData[`quarterlyStats.${qKey}.hike`] = _increment(0); 
 
-                // 🎯 [규칙 반영] 러닝, 트레킹, 산책이면서 2인 이상 동행일 때만 +15일 연장 연산 처리
+                // 🎯 1단계: 오직 '러닝/트레킹/산책'이면서 '2인 이상 동행'일 때만 D-Day 연장 연산 실행
                 if (isDdayTargetActivity && isMultiHike && oldLevel > 0) {
                     const todayZero = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
                     const last = member.lastDate ? member.lastDate.toDate() : new Date();
                     const lastZero = new Date(last.getFullYear(), last.getMonth(), last.getDate()).getTime();
                     const diffDays = Math.floor((todayZero - lastZero) / (1000 * 60 * 60 * 24));
                     
-                    // 현재 시점의 남은 D-Day 잔여일 역산
+                    // 현재 잔여 D-Day 역산
                     const currentDdayVal = (122 + Number(member.bonusDays || 0)) - diffDays;
                     
-                    // 기존 남은 날짜에 15일을 더하되, 최종 합산일이 122일을 절대 넘지 않도록 상한 고정
+                    // 기존 남은 날짜에 15일을 더하되, 최대 122일까지만 제한
                     const nextDdayVal = Math.min(122, currentDdayVal + 15);
                     
-                    // 베이스 122일을 차감하여 최종 유동 보너스 필드 저장
+                    // 122일을 차감해 실제 저장할 보너스 일수 확정
                     updateData.bonusDays = nextDdayVal - 122;
                     
-                    console.log(`🏃‍♂️ [버프 반영] ${member.name}님 - 활동: 일반 동행 / 최종 D-Day: ${nextDdayVal}일 (bonusDays: ${updateData.bonusDays})`);
+                    console.log(`🏃‍♂️ [2인 동행 버프] ${member.name}님 D-Day 15일 연장 적용 (최대 122일 제한)`);
                 
-                } else if (isExtraHike) {
-                    // 🎯 [규칙 반영] 번외산행일 때는 날짜를 일절 주지 않으며 bonusDays에 아무런 가산도 하지 않음
-                    console.log(`🌲 [번외산행 패스] ${member.name}님 - 번외산행은 D-Day 연장 혜택이 제외됩니다.`);
+                } else {
+                    // 🎯 2단계: 혼자(1인) 기록하거나 번외산행일 때는 updateData에 'bonusDays' 필드를 절대 추가하지 않음!
+                    // 이렇게 해야 DB에 기존에 남아있던 보너스 일수와 D-Day가 오염되지 않고 그대로 유지됩니다.
+                    console.log(`👤 [D-Day 유지] ${member.name}님은 1인 활동 또는 번외산행이므로 기존 D-Day를 그대로 유지합니다.`);
                 }
             }
+
 
             // [3] DB 파이어스토어 메인 마스터 문서 전송
             if (Object.keys(updateData).length > 0) {
