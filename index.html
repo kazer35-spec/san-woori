@@ -4355,7 +4355,7 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 // 2. 기록 저장 핵심 로직
-        window.addMultiActivity = async () => {
+ window.addMultiActivity = async () => {
     const dateInput = document.getElementById('activityDate');
     if (!dateInput) return alert("날짜 입력창을 찾을 수 없습니다.");
     
@@ -4384,10 +4384,14 @@ window.addEventListener('DOMContentLoaded', () => {
     const region = document.getElementById('adminManualRegionSelect')?.value || "";
     const isQuarterOnlyOne = document.getElementById('isQuarterCheck')?.checked || false;
     
-    const isExtraHike = isRunning && isTracking;
+    // 🎯 [규칙 반영] 활동 판정 변수 정밀 재정의
+    const isExtraHike = isRunning && isTracking; // 러닝과 트레킹 동시 체크 시 번외산행
     const isSpecial = isRunning || isTracking || isWalking || isOnlyLog || isExtraHike;
-    const isRealHike = !isSpecial; 
+    const isRealHike = !isSpecial; // 오직 순수산행
     const isMultiHike = typeof selectedMemberIds !== 'undefined' && selectedMemberIds.size >= 2;
+
+    // 🎯 [규칙 반영] 러닝, 트레킹, 산책이면서 번외산행이 아닐 때만 D-Day 연장 적용 대상이 됨
+    const isDdayTargetActivity = (isRunning || isTracking || isWalking) && !isExtraHike;
 
     if(!selectedMemberIds || selectedMemberIds.size === 0 || !dateVal) return alert("대상과 날짜를 확인해주세요.");
 
@@ -4427,24 +4431,24 @@ window.addEventListener('DOMContentLoaded', () => {
             if (!member.quarterlyStats) {
                 const pastCount = member.qCount || member.count || 0;
                 updateData["quarterlyStats.2025_q4"] = { hike: pastCount, total: pastCount };
+                updateData["quarterlyStats.2025_q4"] = { hike: pastCount, total: pastCount };
                 updateData["quarterlyStats.2026_q1"] = { hike: pastCount, total: pastCount };
                 updateData["quarterlyStats.2026_q2"] = { hike: pastCount, total: pastCount };
             }
 
             // 🌟 [핵심 차단막] 활동 종류에 따라 적용할 진짜 레벨업 수치 분기 처리
-            // 순수산행이 아닐 때(번외/러닝/트레킹/산책)는 무조건 0업으로 강제 차단하여 레벨 상승 방지!
             const realUpAmount = (isRealHike && !isExtraHike) ? up : 0;
 
-            // 🌟 [누적고도 버그 수정] 레벨업 수치(realUpAmount)만큼 고도가 정상 비례하여 누적되도록 반영
+            // 🌟 [누적고도 버그 수정] 레벨업 수치만큼 고도가 정상 비례하여 누적되도록 반영
             const logLoopCount = (isRegular || isSpecial || isQuarterOnlyOne) ? 1 : realUpAmount;
             const finalHeightIncrement = height * logLoopCount; 
 
             updateData.lastDate = ts; 
             const oldLevel = member.level || 0;
-            const newLevel = oldLevel + realUpAmount; // 💡 안전하게 계산된 realUpAmount만 누적
+            const newLevel = oldLevel + realUpAmount; 
             updateData.level = newLevel;
             updateData.count = _increment(1); 
-            updateData.totalHeight = _increment(finalHeightIncrement); // 💡 정복지도 싱크 맞춤용 정상 고도 누적
+            updateData.totalHeight = _increment(finalHeightIncrement); 
 
             if (realUpAmount > 0) checkLevelUpgrade(member.name, oldLevel, newLevel);
             selectedNames.push(member.name);
@@ -4454,17 +4458,18 @@ window.addEventListener('DOMContentLoaded', () => {
                 // 1. [분기 통계 데이터] 인원수 상관없이 1회만 정직하게 누적
                 updateData[`quarterlyStats.${qKey}.hike`] = _increment(1);
                 updateData[`quarterlyStats.${qKey}.total`] = _increment(1);
+                
+                // 🎯 [규칙 반영] 순수산행은 최대 일수 122일 고정이므로 보너스 일수를 0으로 리셋 처리
                 updateData.bonusDays = 0;
                 
                 // 2. [메인 화면 분기 횟수] 2인 이상 동행 시 버프 적용 (1인=1회, 2인=2회, 3인이상=최대 3회)
                 const groupSize = selectedMemberIds.size;
                 const qCountIncrement = groupSize >= 3 ? 3 : groupSize; 
                 
-                updateData.qCount = _increment(qCountIncrement); // 메인 횟수 필드만 버프 적용!
+                updateData.qCount = _increment(qCountIncrement); 
 
                 // 3. 2인 이상 동행 시 우정 포인트(FP) 및 동행 횟수 적재
                 if (isMultiHike) {
-                    // 💡 오염될 수 있는 오리지널 up 대신 필터링을 거친 realUpAmount로 포인트 연산 통일!
                     let pointToAdd = (isQuarterOnlyOne || isRegular) ? 100 : (100 * (realUpAmount || 1));
                     updateData.buddyCount = _increment(1);
                     updateData.friendshipPoint = _increment(pointToAdd);
@@ -4476,14 +4481,27 @@ window.addEventListener('DOMContentLoaded', () => {
                 updateData[`quarterlyStats.${qKey}.total`] = _increment(1);
                 updateData[`quarterlyStats.${qKey}.hike`] = _increment(0); 
 
-                // 2인 이상 동행 활동일 때 D-Day 15일 연장 룰 (단, 등산 데이터가 이미 쌓인 회원만)
-                if (isMultiHike && oldLevel > 0) {
+                // 🎯 [규칙 반영] 러닝, 트레킹, 산책이면서 2인 이상 동행일 때만 +15일 연장 연산 처리
+                if (isDdayTargetActivity && isMultiHike && oldLevel > 0) {
                     const todayZero = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
                     const last = member.lastDate ? member.lastDate.toDate() : new Date();
                     const lastZero = new Date(last.getFullYear(), last.getMonth(), last.getDate()).getTime();
                     const diffDays = Math.floor((todayZero - lastZero) / (1000 * 60 * 60 * 24));
+                    
+                    // 현재 시점의 남은 D-Day 잔여일 역산
                     const currentDdayVal = (122 + Number(member.bonusDays || 0)) - diffDays;
-                    updateData.bonusDays = Math.min(122, currentDdayVal + 15) - 122;
+                    
+                    // 기존 남은 날짜에 15일을 더하되, 최종 합산일이 122일을 절대 넘지 않도록 상한 고정
+                    const nextDdayVal = Math.min(122, currentDdayVal + 15);
+                    
+                    // 베이스 122일을 차감하여 최종 유동 보너스 필드 저장
+                    updateData.bonusDays = nextDdayVal - 122;
+                    
+                    console.log(`🏃‍♂️ [버프 반영] ${member.name}님 - 활동: 일반 동행 / 최종 D-Day: ${nextDdayVal}일 (bonusDays: ${updateData.bonusDays})`);
+                
+                } else if (isExtraHike) {
+                    // 🎯 [규칙 반영] 번외산행일 때는 날짜를 일절 주지 않으며 bonusDays에 아무런 가산도 하지 않음
+                    console.log(`🌲 [번외산행 패스] ${member.name}님 - 번외산행은 D-Day 연장 혜택이 제외됩니다.`);
                 }
             }
 
@@ -4492,7 +4510,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 await updateDoc(doc(db, "sanwoori", id), updateData);
             }
             
-            // [4] 세부 로그 및 별자리 확률 적재 (realUpAmount와 정확히 연동하여 중복 실행 방지)
+            // [4] 세부 로그 및 별자리 확률 적재
             const finalLogLoopCount = (isRegular || isSpecial || isQuarterOnlyOne) ? 1 : realUpAmount;
             for(let i = 0; i < finalLogLoopCount; i++) {
                 let starType = null;
@@ -4512,7 +4530,7 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         } // 회원 반복문(for-loop) 종료
 
-        // [5] 동행의 숲(bondingForest) 기록 적재 (루프 바깥에서 정상 처리)
+        // [5] 동행의 숲(bondingForest) 기록 적재 (오직 순수산행 동행일 때만 적재)
         if (isRealHike && isMultiHike && selectedNames.length >= 2) {
             await addDoc(collection(db, "bondingForest"), {
                 mountain: mName, members: selectedNames, memberCount: selectedNames.length, date: dateVal, createdAt: new Date()
@@ -4521,7 +4539,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
         if (pendingLevelUpCards.length > 0) showCombinedLevelUpAlert();
         
-        alert((isRealHike && !isExtraHike) ? "순수산행 기록 완료! ✅" : "일반 활동(번외/러닝/트레킹/산책) 기록 완료! 🏃");
+        alert((isRealHike && !isExtraHike) ? "순수산행 기록 완료! ✅" : (isExtraHike ? "번외산행 기록 완료! 🌲" : "일반 활동(러닝/트레킹/산책) 기록 완료! 🏃"));
         
         // [6] 입력 폼 초기화 및 새로고침 트리거
         selectedMemberIds.clear();
@@ -4537,7 +4555,10 @@ window.addEventListener('DOMContentLoaded', () => {
         alert("저장 실패: " + error.message);
     }
 };
+       
 
+        
+            
  
 window.loadMemberLogs = async () => {
     const id = document.getElementById('memberSelectEdit').value;
