@@ -4355,6 +4355,7 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 // 2. 기록 저장 핵심 로직
+
 window.addMultiActivity = async () => {
     const dateInput = document.getElementById('activityDate');
     if (!dateInput) return alert("날짜 입력창을 찾을 수 없습니다.");
@@ -4439,15 +4440,10 @@ window.addMultiActivity = async () => {
             // 활동 종류에 따라 적용할 진짜 레벨업 수치 분기 처리
             const realUpAmount = (isRealHike && !isExtraHike) ? up : 0;
 
-            // 레벨업 수치만큼 고도가 정상 비례하여 누적되도록 반영
-            const logLoopCount = (isRegular || isSpecial || isQuarterOnlyOne) ? 1 : realUpAmount;
-            const finalHeightIncrement = height * logLoopCount; 
-
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + realUpAmount; 
             updateData.level = newLevel;
             updateData.count = _increment(1); 
-            updateData.totalHeight = _increment(finalHeightIncrement); 
 
             if (realUpAmount > 0) checkLevelUpgrade(member.name, oldLevel, newLevel);
             selectedNames.push(member.name);
@@ -4455,6 +4451,11 @@ window.addMultiActivity = async () => {
             // ─── 🅰️ 오직 '정식 순수산행'일 때 ───
             if (isRealHike && !isExtraHike) {
                 updateData.lastDate = ts; 
+
+                // 🎯 [누락 방지 예외처리 반영] 정기산행, 분기1회체크, 단순기록 체크 시 고도가 1배만 합산되도록 제어
+                const logLoopCount = (isRegular || isQuarterOnlyOne || isOnlyLog) ? 1 : realUpAmount;
+                const finalHeightIncrement = height * logLoopCount; 
+                updateData.totalHeight = _increment(finalHeightIncrement); 
 
                 // 🔄 [복원] 순수산행 분기 통계 처리 개별 누적
                 updateData[`quarterlyStats.${qKey}.hike`] = _increment(1);
@@ -4477,7 +4478,7 @@ window.addMultiActivity = async () => {
 
             // ─── 🅱️ 번외산행 / 러닝 / 트레킹 / 산책 묶음일 때 ───
             } else {
-                // 🔄 [복원] 일반 활동 분기 통계 처리 (total만 증가, hike는 0 증가)
+                // 🔄 [복원] 일반 활동 분기 통계 처리 (total만 증가, hike는 0 증가) - 고도는 결코 쌓이지 않음
                 updateData[`quarterlyStats.${qKey}.total`] = _increment(1);
                 updateData[`quarterlyStats.${qKey}.hike`] = _increment(0); 
 
@@ -4506,7 +4507,7 @@ window.addMultiActivity = async () => {
                 await updateDoc(doc(db, "sanwoori", id), updateData);
             }
             
-            // [4] 세부 로그 및 별자리 확률 적재
+            // [4] 세부 로그 및 별자리 확률 적재 (유저 히스토리 타임라인용)
             const finalLogLoopCount = (isRegular || isSpecial || isQuarterOnlyOne) ? 1 : realUpAmount;
             for(let i = 0; i < finalLogLoopCount; i++) {
                 let starType = null;
