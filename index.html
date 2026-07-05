@@ -4439,18 +4439,15 @@ window.addMultiActivity = async () => {
             // 활동 종류에 따라 적용할 진짜 레벨업 수치 분기 처리
             const realUpAmount = (isRealHike && !isExtraHike) ? up : 0;
 
-            // 🎯 [정밀 교정] 오직 '정식 순수산행'일 때만 가중치 고도를 계산하고, 번외/러닝/트레킹/산책은 0으로 완벽 차단!
-            let finalHeightIncrement = 0;
-            if (isRealHike && !isExtraHike) {
-                const logLoopCount = (isRegular || isSpecial || isQuarterOnlyOne) ? 1 : realUpAmount;
-                finalHeightIncrement = height * logLoopCount;
-            }
+            // 레벨업 수치만큼 고도가 정상 비례하여 누적되도록 반영
+            const logLoopCount = (isRegular || isSpecial || isQuarterOnlyOne) ? 1 : realUpAmount;
+            const finalHeightIncrement = height * logLoopCount; 
 
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + realUpAmount; 
             updateData.level = newLevel;
             updateData.count = _increment(1); 
-            updateData.totalHeight = _increment(finalHeightIncrement); // 계산된 finalHeightIncrement가 안전하게 반영됩니다.
+            updateData.totalHeight = _increment(finalHeightIncrement); 
 
             if (realUpAmount > 0) checkLevelUpgrade(member.name, oldLevel, newLevel);
             selectedNames.push(member.name);
@@ -4555,8 +4552,8 @@ window.addMultiActivity = async () => {
     }
 };
 
-            
-                       
+
+                
  
 window.loadMemberLogs = async () => {
     const id = document.getElementById('memberSelectEdit').value;
