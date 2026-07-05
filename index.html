@@ -4355,8 +4355,7 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 // 2. 기록 저장 핵심 로직
-
-window.addMultiActivity = async () => {
+Window.addMultiActivity = async () => {
     const dateInput = document.getElementById('activityDate');
     if (!dateInput) return alert("날짜 입력창을 찾을 수 없습니다.");
     
@@ -4437,7 +4436,7 @@ window.addMultiActivity = async () => {
                 updateData["quarterlyStats.2026_q2"] = { hike: pastCount, total: pastCount };
             }
 
-            // 활동 종류에 따라 적용할 진짜 레벨업 수치 분기 처리
+            // 활동 종류에 따라 적용할 진짜 레벨업 수치 분기 처리 (기존 라디오 선택값 복원)
             const realUpAmount = (isRealHike && !isExtraHike) ? up : 0;
 
             const oldLevel = member.level || 0;
@@ -4452,7 +4451,7 @@ window.addMultiActivity = async () => {
             if (isRealHike && !isExtraHike) {
                 updateData.lastDate = ts; 
 
-                // 🎯 [누락 방지 예외처리 반영] 정기산행, 분기1회체크, 단순기록 체크 시 고도가 1배만 합산되도록 제어
+                // 고도 계산용 루프 카운트 (정기산행, 분기체크, 단순기록은 고도 1배 적용 / 그 외 일반 순수산행은 상승 점수 비례)
                 const logLoopCount = (isRegular || isQuarterOnlyOne || isOnlyLog) ? 1 : realUpAmount;
                 const finalHeightIncrement = height * logLoopCount; 
                 updateData.totalHeight = _increment(finalHeightIncrement); 
@@ -4464,9 +4463,14 @@ window.addMultiActivity = async () => {
                 // 순수산행은 보너스 일수를 0으로 리셋하여 최대 122일 고정
                 updateData.bonusDays = 0;
                 
-                // 🎯 [요청 반영] 선택된 총 인원수에 따라 분기 횟수(qCount)를 1인=1, 2인=2, 3인이상=3회 차등 적용
-                const groupSize = selectedMemberIds.size;
-                const qCountIncrement = groupSize >= 3 ? 3 : groupSize; 
+                // 🎯 [요청 반영] 정기산행이면 인원수 상관없이 9회 증가, 아닐 때는 기존 인원수별 차등 적용(1인=1, 2인=2, 3인이상=3)
+                let qCountIncrement;
+                if (isRegular) {
+                    qCountIncrement = 9;
+                } else {
+                    const groupSize = selectedMemberIds.size;
+                    qCountIncrement = groupSize >= 3 ? 3 : groupSize;
+                }
                 updateData.qCount = _increment(qCountIncrement); 
 
                 if (isMultiHike) {
@@ -4478,7 +4482,7 @@ window.addMultiActivity = async () => {
 
             // ─── 🅱️ 번외산행 / 러닝 / 트레킹 / 산책 묶음일 때 ───
             } else {
-                // 🔄 [복원] 일반 활동 분기 통계 처리 (total만 증가, hike는 0 증가) - 고도는 결코 쌓이지 않음
+                // 🔄 [복원] 일반 활동 분기 통계 처리 (total만 증가, hike는 0 증가) - 고도는 쌓이지 않음
                 updateData[`quarterlyStats.${qKey}.total`] = _increment(1);
                 updateData[`quarterlyStats.${qKey}.hike`] = _increment(0); 
 
