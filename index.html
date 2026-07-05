@@ -4355,7 +4355,7 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 // 2. 기록 저장 핵심 로직
-window.addMultiActivity = async () => {
+Window.addMultiActivity = async () => {
     const dateInput = document.getElementById('activityDate');
     if (!dateInput) return alert("날짜 입력창을 찾을 수 없습니다.");
     
@@ -4428,7 +4428,7 @@ window.addMultiActivity = async () => {
 
             let updateData = {}; 
 
-            // 🔄 [복원] 회원 문서에 분기 통계 구조가 없다면 최초 1회 과거 분기 자동 주입 로직
+            // 회원 문서에 분기 통계 구조가 없다면 최초 1회 과거 분기 자동 주입 로직
             if (!member.quarterlyStats) {
                 const pastCount = member.qCount || member.count || 0;
                 updateData["quarterlyStats.2025_q4"] = { hike: pastCount, total: pastCount };
@@ -4439,15 +4439,18 @@ window.addMultiActivity = async () => {
             // 활동 종류에 따라 적용할 진짜 레벨업 수치 분기 처리
             const realUpAmount = (isRealHike && !isExtraHike) ? up : 0;
 
-            // 레벨업 수치만큼 고도가 정상 비례하여 누적되도록 반영
-            const logLoopCount = (isRegular || isSpecial || isQuarterOnlyOne) ? 1 : realUpAmount;
-            const finalHeightIncrement = height * logLoopCount; 
+            // 🎯 [정밀 교정] 오직 '정식 순수산행'일 때만 가중치 고도를 계산하고, 번외/러닝/트레킹/산책은 0으로 완벽 차단!
+            let finalHeightIncrement = 0;
+            if (isRealHike && !isExtraHike) {
+                const logLoopCount = (isRegular || isSpecial || isQuarterOnlyOne) ? 1 : realUpAmount;
+                finalHeightIncrement = height * logLoopCount;
+            }
 
             const oldLevel = member.level || 0;
             const newLevel = oldLevel + realUpAmount; 
             updateData.level = newLevel;
             updateData.count = _increment(1); 
-            updateData.totalHeight = _increment(finalHeightIncrement); 
+            updateData.totalHeight = _increment(finalHeightIncrement); // 🎯 고도 누적 필드가 공통 영역에서 안전하게 처리됩니다.
 
             if (realUpAmount > 0) checkLevelUpgrade(member.name, oldLevel, newLevel);
             selectedNames.push(member.name);
@@ -4456,14 +4459,13 @@ window.addMultiActivity = async () => {
             if (isRealHike && !isExtraHike) {
                 updateData.lastDate = ts; 
 
-                // 🔄 [복원] 순수산행 분기 통계 처리 개별 누적
                 updateData[`quarterlyStats.${qKey}.hike`] = _increment(1);
                 updateData[`quarterlyStats.${qKey}.total`] = _increment(1);
                 
                 // 순수산행은 보너스 일수를 0으로 리셋하여 최대 122일 고정
                 updateData.bonusDays = 0;
                 
-                // 🎯 [요청 반영] 선택된 총 인원수에 따라 분기 횟수(qCount)를 1인=1, 2인=2, 3인이상=3회 차등 적용
+                // 선택된 총 인원수에 따라 분기 횟수(qCount)를 1인=1, 2인=2, 3인이상=3회 차등 적용
                 const groupSize = selectedMemberIds.size;
                 const qCountIncrement = groupSize >= 3 ? 3 : groupSize; 
                 updateData.qCount = _increment(qCountIncrement); 
@@ -4477,7 +4479,6 @@ window.addMultiActivity = async () => {
 
             // ─── 🅱️ 번외산행 / 러닝 / 트레킹 / 산책 묶음일 때 ───
             } else {
-                // 🔄 [복원] 일반 활동 분기 통계 처리 (total만 증가, hike는 0 증가)
                 updateData[`quarterlyStats.${qKey}.total`] = _increment(1);
                 updateData[`quarterlyStats.${qKey}.hike`] = _increment(0); 
 
@@ -4552,8 +4553,8 @@ window.addMultiActivity = async () => {
     }
 };
 
-
-                
+            
+                       
  
 window.loadMemberLogs = async () => {
     const id = document.getElementById('memberSelectEdit').value;
