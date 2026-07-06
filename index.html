@@ -3402,25 +3402,26 @@ function renderHallModalStructure() {
     const modal = document.getElementById('hallModal');
     let tabWrapper = document.getElementById('hallTabWrapper');
     
+    const modalTitle = modal.querySelector('h2') || modal.querySelector('.hall-title') || modal.firstElementChild;
+    
     if (!tabWrapper) {
-        // 기존 타이틀과 영문 자막 영역을 찾아 그 사이에 정확히 안착시킵니다.
-        const titleArea = modal.querySelector('.hall-season-title') || modal.querySelector('h2') || modal.firstElementChild;
-        
         tabWrapper = document.createElement('div');
         tabWrapper.id = 'hallTabWrapper';
         tabWrapper.className = 'hall-tab-container';
         
-        if (titleArea && titleArea.parentNode) {
-            titleArea.parentNode.insertBefore(tabWrapper, titleArea.nextSibling);
+        if (modalTitle && modalTitle.parentNode) {
+            modalTitle.parentNode.insertBefore(tabWrapper, modalTitle.nextSibling);
         }
     }
 
-    // 🎯 [핵심] 불필요한 마진을 전부 빼고, 세로 간격을 줄이기 위해 margin-bottom을 -10px로 밀어 올렸습니다.
-    tabWrapper.setAttribute('style', 'margin: 5px auto -10px auto !important; width: 92% !important; padding: 0 !important;');
+    // 🎯 [구조 고정] 아래쪽 마진을 아예 없애고 패딩을 제거하여 아래 리스트 영역과 완전히 밀착시킵니다.
+    tabWrapper.setAttribute('style', 'margin: 0 auto !important; width: 92% !important; padding: 0 !important; display: flex; flex-direction: column; align-items: center;');
 
-    // 🎯 [핵심] 중복되던 영문 텍스트 코드를 완전히 지우고 '버튼만' 깔끔하게 렌더링합니다.
     tabWrapper.innerHTML = `
-        <div style="display: flex; width: 100%; gap: 8px;">
+        <div class="hall-subtitle" style="font-size: 10px; color: #a0aec0; text-align: center; letter-spacing: 1px; margin: 2px 0 8px 0 !important; padding: 0 !important; line-height: 1;">
+            HALL OF FAME - SAN:WOORI
+        </div>
+        <div style="display: flex; width: 100%; gap: 8px; margin-bottom: 0px !important; padding-bottom: 0px !important;">
             <button class="hall-tab-btn ${window.currentHallTab === 'mountain' ? 'active' : ''}" 
                     style="flex: 1; padding: 6px 0; font-size: 14px; line-height: 1.2; margin: 0;" 
                     onclick="switchHallTab('mountain')">산행왕</button>
@@ -3441,9 +3442,10 @@ function renderHallList() {
     const listArea = document.getElementById('hallListArea');
     if (!listArea) return;
     
-    // 🎯 [세로 간격 극소화] 리스트 영역의 상단 여백을 완전히 없애 버튼 바로 밑으로 붙게 만듭니다.
-    listArea.style.paddingTop = "0px";
-    listArea.style.marginTop = "0px";
+    // 🎯 [간격 극소화 + 3개만 먼저 보이게 스크롤 제어]
+    // max-height를 약 420px로 설정하여 딱 3개의 카드 볼륨만 화면에 확보하고, 나머지는 스크롤되도록 만듭니다.
+    // 마진과 패딩을 0px로 초기화하여 버튼 바로 밑에 2026년 3분기가 유격 없이 붙습니다.
+    listArea.setAttribute('style', 'padding-top: 0px !important; margin-top: 0px !important; max-height: 425px !important; overflow-y: auto !important; width: 100%;');
     
     let combinedHtml = "";
     
@@ -3514,7 +3516,7 @@ function renderHallList() {
         }
 
         if (top3.length > 0) {
-            // 첫 번째 카드의 위쪽 마진을 완벽히 제거하여 공백을 최소화합니다.
+            // 첫 번째 카드의 마진을 완벽히 없애 자막/버튼 라인과 완전히 조화를 이루게 만듭니다.
             const cardMarginStyle = isCurrent ? 'margin-top: 0px !important;' : '';
             
             combinedHtml += `
