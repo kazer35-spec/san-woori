@@ -3398,37 +3398,29 @@ window.showBondingForestModal = async (targetName, targetId) => {
     }
 };
 
-// 🎯 [정밀 교정] 메인 타이틀 ➡️ 영문 서브타이틀 ➡️ 탭 버튼 순서로 정확히 안착
+// 🎯 [정밀 수정] HTML 정석 순서대로 영문 타이틀 '밑에' 탭 버튼 안착시키기
 function renderHallModalStructure() {
     const modal = document.getElementById('hallModal');
     let tabWrapper = document.getElementById('hallTabWrapper');
     
-    const modalTitle = modal.querySelector('h2') || modal.querySelector('.hall-title');
-    const originalSubtitle = modal.querySelector('.hall-subtitle');
+    // HTML 원본에 있는 영문 타이틀 p 태그를 정확히 매칭합니다.
+    const originalSubtitle = modal.querySelector('p.uppercase') || modal.querySelector('.text-gray-400');
     
     if (!tabWrapper) {
         tabWrapper = document.createElement('div');
         tabWrapper.id = 'hallTabWrapper';
         tabWrapper.className = 'hall-tab-container';
         
-        // 🎯 [정답 순서] 영문 서브타이틀(originalSubtitle)의 '바로 다음'에 탭 버튼 바를 주입합니다.
+        // 🔄 [순서 고정] 영문 서브타이틀(p 태그)의 '바로 다음 위치'에 탭 버튼을 삽입합니다.
         if (originalSubtitle && originalSubtitle.parentNode) {
             originalSubtitle.parentNode.insertBefore(tabWrapper, originalSubtitle.nextSibling);
-        } else if (modalTitle && modalTitle.parentNode) {
-            // 예외 처리용 (기본은 영문 뒤에 붙음)
-            modalTitle.parentNode.insertBefore(tabWrapper, modalTitle.nextSibling);
         }
     }
 
-    // 영문 서브타이틀 자체의 여백을 깔끔하게 잡아 메인 타이틀 아래에 안착시킵니다.
-    if (originalSubtitle) {
-        originalSubtitle.setAttribute('style', 'margin: 4px auto 10px auto !important; font-size: 11px; letter-spacing: 1px; color: #a0aec0; text-align: center; display: block;');
-    }
+    // 탭 버튼 바 자체의 상하 여백 조절 (영문 서브타이틀 아래에 자연스럽게 위치)
+    tabWrapper.setAttribute('style', 'margin: 10px auto 14px auto !important; width: 100% !important; padding: 0 !important; box-sizing: border-box;');
 
-    // 탭 버튼 바의 마진을 조절하여 아래 명단 리스트와 빈틈없이 밀착되도록 합니다.
-    tabWrapper.setAttribute('style', 'margin: 0 auto !important; width: 100% !important; padding: 0 !important; box-sizing: border-box;');
-
-    // 탭 버튼 내부 주입
+    // 탭 버튼 내부 HTML 삽입
     tabWrapper.innerHTML = `
         <button class="hall-tab-btn ${window.currentHallTab === 'mountain' ? 'active' : ''}" 
                 style="padding: 6px 0; font-size: 14px; line-height: 1.2; margin: 0;" 
@@ -3446,13 +3438,13 @@ window.switchHallTab = (tabType) => {
     renderHallList();           
 };
 
-// 3개 노출 제한 및 내부 스크롤 리스트 렌더링
+// 명단 리스트 렌더링 (최대 3개 노출 제한 및 스크롤 영역 설정)
 function renderHallList() {
     const listArea = document.getElementById('hallListArea');
     if (!listArea) return;
     
-    // 탭 버튼 바로 밑에 명단 리스트 카드가 여백 없이 딱 붙도록 제어합니다.
-    listArea.setAttribute('style', 'padding-top: 0px !important; margin-top: 4px !important; max-height: 420px !important; overflow-y: auto !important; width: 100%; box-sizing: border-box;');
+    // 탭 버튼 아래에 밀착되도록 마진 정렬
+    listArea.setAttribute('style', 'padding-top: 0px !important; margin-top: 0px !important; max-height: 420px !important; overflow-y: auto !important; width: 100%; box-sizing: border-box;');
     
     let combinedHtml = "";
     
@@ -3552,7 +3544,7 @@ function renderHallList() {
     }
     listArea.innerHTML = combinedHtml;
 }
-           
+
    
 
     
