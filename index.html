@@ -3402,32 +3402,25 @@ function renderHallModalStructure() {
     const modal = document.getElementById('hallModal');
     let tabWrapper = document.getElementById('hallTabWrapper');
     
-    // 메인 타이틀 요소를 찾습니다.
-    const modalTitle = modal.querySelector('h2') || modal.querySelector('.hall-title') || modal.firstElementChild;
-    
     if (!tabWrapper) {
+        // 기존 타이틀과 영문 자막 영역을 찾아 그 사이에 정확히 안착시킵니다.
+        const titleArea = modal.querySelector('.hall-season-title') || modal.querySelector('h2') || modal.firstElementChild;
+        
         tabWrapper = document.createElement('div');
         tabWrapper.id = 'hallTabWrapper';
         tabWrapper.className = 'hall-tab-container';
         
-        // 🏆 명예의 전당 타이틀 바로 밑에 이 컨테이너를 삽입합니다.
-        if (modalTitle && modalTitle.parentNode) {
-            modalTitle.parentNode.insertBefore(tabWrapper, modalTitle.nextSibling);
+        if (titleArea && titleArea.parentNode) {
+            titleArea.parentNode.insertBefore(tabWrapper, titleArea.nextSibling);
         }
     }
 
-    // 🎯 [구조 및 간격 조정 핵심]
-    // 1. 영문 자막(HALL OF FAME)이 위로 가고, 그 아래에 산행왕/동행왕 버튼이 오도록 순서를 바꿨습니다.
-    // 2. 버튼 컨테이너 하단 마진을 0px로 주어, 아래 명단창과 세로 간격을 최소화했습니다.
-    tabWrapper.setAttribute('style', 'margin: 0 auto !important; width: 92% !important; padding: 0 !important; display: flex; flex-direction: column; align-items: center;');
+    // 🎯 [핵심] 불필요한 마진을 전부 빼고, 세로 간격을 줄이기 위해 margin-bottom을 -10px로 밀어 올렸습니다.
+    tabWrapper.setAttribute('style', 'margin: 5px auto -10px auto !important; width: 92% !important; padding: 0 !important;');
 
+    // 🎯 [핵심] 중복되던 영문 텍스트 코드를 완전히 지우고 '버튼만' 깔끔하게 렌더링합니다.
     tabWrapper.innerHTML = `
-        <!-- 1. 영문 서브 타이틀이 먼저 옵니다 -->
-        <div class="hall-subtitle" style="font-size: 10px; color: #a0aec0; text-align: center; letter-spacing: 1px; margin: 2px 0 8px 0 !important; padding: 0 !important; line-height: 1;">
-            HALL OF FAME - SAN:WOORI
-        </div>
-        <!-- 2. 그 밑에 산행왕/동행왕 버튼이 위치합니다 -->
-        <div style="display: flex; width: 100%; gap: 8px; margin-bottom: 0px !important;">
+        <div style="display: flex; width: 100%; gap: 8px;">
             <button class="hall-tab-btn ${window.currentHallTab === 'mountain' ? 'active' : ''}" 
                     style="flex: 1; padding: 6px 0; font-size: 14px; line-height: 1.2; margin: 0;" 
                     onclick="switchHallTab('mountain')">산행왕</button>
@@ -3448,9 +3441,9 @@ function renderHallList() {
     const listArea = document.getElementById('hallListArea');
     if (!listArea) return;
     
-    // 🎯 [세로 간격 줄임 핵심]: 버튼창 바로 밑에 26년도 3분기 명단창이 바짝 붙도록 마진과 패딩을 바꿨습니다.
+    // 🎯 [세로 간격 극소화] 리스트 영역의 상단 여백을 완전히 없애 버튼 바로 밑으로 붙게 만듭니다.
     listArea.style.paddingTop = "0px";
-    listArea.style.marginTop = "4px"; // 버튼과의 최소 유격을 위한 4px 확보
+    listArea.style.marginTop = "0px";
     
     let combinedHtml = "";
     
@@ -3521,7 +3514,7 @@ function renderHallList() {
         }
 
         if (top3.length > 0) {
-            // 첫 번째 카드의 마진을 없애 버튼과 완벽하게 조화를 이루게 만듭니다.
+            // 첫 번째 카드의 위쪽 마진을 완벽히 제거하여 공백을 최소화합니다.
             const cardMarginStyle = isCurrent ? 'margin-top: 0px !important;' : '';
             
             combinedHtml += `
@@ -3552,6 +3545,7 @@ function renderHallList() {
     listArea.innerHTML = combinedHtml;
 }
 
+        
       
     
 window.toggleVibeModal = (show) => { document.getElementById('vibeModal').style.display = show ? 'flex' : 'none'; };
