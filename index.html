@@ -13,6 +13,32 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+    /* 현황 탭 디자인 (다른 탭과 차별화) */
+.active-live {
+    background-color: #ef4444 !important; /* 라이브는 붉은색 계열 */
+    color: white !important;
+    box-shadow: 0 0 15px rgba(239, 68, 68, 0.4) !important;
+}
+
+/* 실시간 현황 카드 디자인 */
+.live-dashboard {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    padding: 10px;
+}
+
+.live-card {
+    padding: 20px;
+    border-radius: 20px;
+    background: #f8fafc;
+    border: 2px solid #e2e8f0;
+    text-align: center;
+}
+
+.live-card.with { border-color: #3b82f6; }
+.live-card.mountain { border-color: #10b981; }
+
     /* 활성화된 탭 스타일 - 네온 블루 효과 추가 */
 .hall-tab-btn.active {
     background-color: #ffffff;
@@ -3384,7 +3410,6 @@ window.showBondingForestModal = async (targetName, targetId) => {
     }
 };
 
- 
  window.toggleHallModal = async (show) => {
     const modal = document.getElementById('hallModal');
     if (!modal) return;
@@ -3392,9 +3417,9 @@ window.showBondingForestModal = async (targetName, targetId) => {
     modal.style.display = show ? 'flex' : 'none';
     
     if (show) {
-        // 🎯 [핵심] 기본값을 동행왕(with)으로 설정
+        // 기본 탭을 'live'로 설정
         if (!window.currentHallTab) {
-            window.currentHallTab = 'with'; 
+            window.currentHallTab = 'live'; 
         }
         renderHallModalStructure();
         renderHallList();
@@ -3404,28 +3429,29 @@ window.showBondingForestModal = async (targetName, targetId) => {
 function renderHallModalStructure() {
     const modal = document.getElementById('hallModal');
     let tabWrapper = document.getElementById('hallTabWrapper');
-    
     const originalSubtitle = modal.querySelector('p.uppercase') || modal.querySelector('.text-gray-400');
     
     if (!tabWrapper) {
         tabWrapper = document.createElement('div');
         tabWrapper.id = 'hallTabWrapper';
         tabWrapper.className = 'hall-tab-container';
-        
         if (originalSubtitle && originalSubtitle.parentNode) {
             originalSubtitle.parentNode.insertBefore(tabWrapper, originalSubtitle.nextSibling);
         }
     }
 
-    tabWrapper.setAttribute('style', 'margin: 10px auto 14px auto !important; width: 80% !important; padding: 4px !important; box-sizing: border-box; display: flex; gap: 8px; background-color: #f1f5f9; border-radius: 30px;');
+    // 3개 탭 배치 (현황, 동행지기, 산행고수)
+    tabWrapper.setAttribute('style', 'margin: 10px auto 14px auto !important; width: 90% !important; padding: 4px !important; box-sizing: border-box; display: flex; gap: 6px; background-color: #f1f5f9; border-radius: 30px;');
 
-    // 🎯 [순서 변경] 동행왕(with)이 먼저 오도록 배치
     tabWrapper.innerHTML = `
+        <button class="hall-tab-btn ${window.currentHallTab === 'live' ? 'active-live' : ''}" 
+                style="flex: 1; padding: 6px 0; font-size: 13px; font-weight: 700; border-radius: 25px; transition: all 0.3s;" 
+                onclick="switchHallTab('live')">⚡ 현황</button>
         <button class="hall-tab-btn ${window.currentHallTab === 'with' ? 'active' : ''}" 
-                style="flex: 1; padding: 6px 0; font-size: 14px; font-weight: 700; line-height: 1.2; margin: 0; transition: all 0.3s ease;" 
+                style="flex: 1; padding: 6px 0; font-size: 13px; font-weight: 700; border-radius: 25px; transition: all 0.3s;" 
                 onclick="switchHallTab('with')">👑 동행지기</button>
         <button class="hall-tab-btn ${window.currentHallTab === 'mountain' ? 'active' : ''}" 
-                style="flex: 1; padding: 6px 0; font-size: 14px; font-weight: 700; line-height: 1.2; margin: 0; transition: all 0.3s ease;" 
+                style="flex: 1; padding: 6px 0; font-size: 13px; font-weight: 700; border-radius: 25px; transition: all 0.3s;" 
                 onclick="switchHallTab('mountain')">🎖 산행고수</button>
     `;
 }
@@ -3436,22 +3462,36 @@ window.switchHallTab = (tabType) => {
     renderHallList();           
 };
 
-
-// 명단 리스트 렌더링
 function renderHallList() {
     const listArea = document.getElementById('hallListArea');
     if (!listArea) return;
     
-    listArea.setAttribute('style', 'padding-top: 0px !important; margin-top: 0px !important; max-height: 420px !important; overflow-y: auto !important; width: 100%; box-sizing: border-box;');
+    const isLive = (window.currentHallTab === 'live');
     
-    let combinedHtml = "";
-    
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentQuarter = Math.ceil((now.getMonth() + 1) / 3);
-    const qKey = `${currentYear}_q${currentQuarter}`;
-    
-    const seasons = [];
+    if (isLive) {
+        // [디자인 1: 라이브 대시보드]
+        listArea.style.cssText = 'margin-top: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;';
+        listArea.innerHTML = `
+            <div style="padding: 15px; border-radius: 15px; background: #eff6ff; border: 1px solid #bfdbfe; text-align: center;">
+                <div style="font-size: 12px; color: #3b82f6; font-weight: 800;">동행지기 1위</div>
+                <div style="font-size: 18px; font-weight: 900; margin-top: 5px;">해수</div>
+            </div>
+            <div style="padding: 15px; border-radius: 15px; background: #f0fdf4; border: 1px solid #bbf7d0; text-align: center;">
+                <div style="font-size: 12px; color: #22c55e; font-weight: 800;">산행고수 1위</div>
+                <div style="font-size: 18px; font-weight: 900; margin-top: 5px;">아랑</div>
+            </div>
+        `;
+    } else {
+        // [디자인 2: 기존 시즌 랭킹 리스트]
+        listArea.style.cssText = 'padding-top: 0px !important; margin-top: 4px !important; max-height: 420px !important; overflow-y: auto !important; width: 100%;';
+        
+        let combinedHtml = "";
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentQuarter = Math.ceil((now.getMonth() + 1) / 3);
+        const qKey = `${currentYear}_q${currentQuarter}`;
+        
+        const seasons = [];
     let loopYear = currentYear;
     let loopQuarter = currentQuarter;
     
@@ -3541,8 +3581,10 @@ function renderHallList() {
         }
     }
     listArea.innerHTML = combinedHtml;
+    }
 }
 
+ 
                     
 
     
