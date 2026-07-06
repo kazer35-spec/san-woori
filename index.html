@@ -3455,8 +3455,9 @@ window.switchHallTab = (tabType) => {
     renderHallList();
 };
 
-// 3. 메달별 컬러 깜빡임 효과가 적용된 카드 렌더링
+// 3. 메달별 컬러 깜빡임 효과가 적용된 카드 렌더링 (통합용)
 function renderRankCards(top3, labels) {
+    // 🥇골드, 🥈실버, 🥉브론즈 계열 깜빡임 애니메이션 정의
     return `
         <style>
             @keyframes blinkGold { 0%, 100% { color: #d97706; } 50% { color: #fbbf24; } }
@@ -3465,19 +3466,22 @@ function renderRankCards(top3, labels) {
             .blink-0 { animation: blinkGold 2s infinite; font-weight: 800; }
             .blink-1 { animation: blinkSilver 2s infinite; font-weight: 800; }
             .blink-2 { animation: blinkBronze 2s infinite; font-weight: 800; }
+            .rank-card-inner { display:flex; gap:8px; background:#ffffff; padding:12px; border-radius:15px; border:1px solid #e2e8f0; margin-bottom:15px; }
         </style>
-        <div style="display:flex; gap:8px; background:#ffffff; padding:12px; border-radius:15px; border:1px solid #e2e8f0; margin-bottom:15px;">
+        <div class="rank-card-inner">
             ${labels.map((l, i) => `
                 <div style="flex:1; text-align:center;">
                     <div class="blink-${i}" style="font-size:9px;">${l}</div>
-                    <div style="font-size:13px; font-weight:800; margin-top:4px; color:#1e293b;">${top3[i]?.name || '-'}</div>
+                    <div style="font-size:13px; font-weight:800; margin-top:4px; color:#1e293b;">
+                        ${top3[i]?.name || '-'}
+                    </div>
                 </div>
             `).join('')}
         </div>
     `;
 }
 
-// 4. 통합 리스트 렌더링 (동점자 정렬 및 실시간 레이아웃)
+// 4. 통합 리스트 렌더링 (현황 탭에서도 반짝임 효과 적용 완료)
 function renderHallList() {
     const listArea = document.getElementById('hallListArea');
     if (!listArea) return;
@@ -3495,6 +3499,7 @@ function renderHallList() {
 
     if (window.currentHallTab === 'live') {
         listArea.style.cssText = 'padding: 5px;';
+        // ⚡ 현황 탭에 renderRankCards를 적용하여 1~3위 반짝임 효과 통합
         listArea.innerHTML = `
             <div style="margin-bottom:10px; font-weight:900; font-size:14px; display:flex; justify-content:space-between; align-items:center;">
                 <span>👑 동행지기</span><span style="color:#22c55e; font-size:10px;">● LIVE</span>
@@ -3506,6 +3511,7 @@ function renderHallList() {
             ${renderRankCards(getSortedData(true), ["🥇산신령", "🥈심마니", "🥉나무꾼"])}
         `;
     } else {
+        
         
         
 
