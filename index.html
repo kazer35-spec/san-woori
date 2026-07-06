@@ -3382,14 +3382,14 @@ window.showBondingForestModal = async (targetName, targetId) => {
     }
 };
 
-window.toggleHallModal = async (show) => {
+ 
+ window.toggleHallModal = async (show) => {
     const modal = document.getElementById('hallModal');
     if (!modal) return;
     
     modal.style.display = show ? 'flex' : 'none';
     
     if (show) {
-        // 기본 탭 세팅
         if (!window.currentHallTab) {
             window.currentHallTab = 'mountain'; 
         }
@@ -3398,12 +3398,12 @@ window.toggleHallModal = async (show) => {
     }
 };
 
-// 🎯 원래 HTML 구조(타이틀 -> 영문서브) 바로 밑에 탭 컨테이너 배치하는 구조 고정 함수
+// 🎯 [정밀 교정] 메인 타이틀 ➡️ 영문 서브타이틀 ➡️ 탭 버튼 순서로 정확히 안착
 function renderHallModalStructure() {
     const modal = document.getElementById('hallModal');
     let tabWrapper = document.getElementById('hallTabWrapper');
     
-    // 원래 HTML에 고정되어 있는 영문 서브타이틀 요소를 추적
+    const modalTitle = modal.querySelector('h2') || modal.querySelector('.hall-title');
     const originalSubtitle = modal.querySelector('.hall-subtitle');
     
     if (!tabWrapper) {
@@ -3411,21 +3411,24 @@ function renderHallModalStructure() {
         tabWrapper.id = 'hallTabWrapper';
         tabWrapper.className = 'hall-tab-container';
         
-        // 원래 있던 영문 자막(originalSubtitle)의 '바로 다음'에 탭 바를 자연스럽게 주입
+        // 🎯 [정답 순서] 영문 서브타이틀(originalSubtitle)의 '바로 다음'에 탭 버튼 바를 주입합니다.
         if (originalSubtitle && originalSubtitle.parentNode) {
             originalSubtitle.parentNode.insertBefore(tabWrapper, originalSubtitle.nextSibling);
-        } else {
-            const modalTitle = modal.querySelector('h2') || modal.querySelector('.hall-title');
-            if (modalTitle && modalTitle.parentNode) {
-                modalTitle.parentNode.insertBefore(tabWrapper, modalTitle.nextSibling);
-            }
+        } else if (modalTitle && modalTitle.parentNode) {
+            // 예외 처리용 (기본은 영문 뒤에 붙음)
+            modalTitle.parentNode.insertBefore(tabWrapper, modalTitle.nextSibling);
         }
     }
 
-    // 영문 자막 아래에 바짝 붙고, 밑에 올 명단창과도 밀착되도록 마진을 정밀 제어
-    tabWrapper.setAttribute('style', 'margin: 4px auto 0 auto !important; width: 100% !important; padding: 0 !important; box-sizing: border-box;');
+    // 영문 서브타이틀 자체의 여백을 깔끔하게 잡아 메인 타이틀 아래에 안착시킵니다.
+    if (originalSubtitle) {
+        originalSubtitle.setAttribute('style', 'margin: 4px auto 10px auto !important; font-size: 11px; letter-spacing: 1px; color: #a0aec0; text-align: center; display: block;');
+    }
 
-    // 오직 버튼 두 개만 주입 (중복 생성을 막기 위함)
+    // 탭 버튼 바의 마진을 조절하여 아래 명단 리스트와 빈틈없이 밀착되도록 합니다.
+    tabWrapper.setAttribute('style', 'margin: 0 auto !important; width: 100% !important; padding: 0 !important; box-sizing: border-box;');
+
+    // 탭 버튼 내부 주입
     tabWrapper.innerHTML = `
         <button class="hall-tab-btn ${window.currentHallTab === 'mountain' ? 'active' : ''}" 
                 style="padding: 6px 0; font-size: 14px; line-height: 1.2; margin: 0;" 
@@ -3436,21 +3439,20 @@ function renderHallModalStructure() {
     `;
 }
 
-// ⚠️ [기존 누락 해결] 탭을 전환할 때 상태를 바꾸고 화면을 다시 그려주는 핵심 함수
+// 탭 전환 기능
 window.switchHallTab = (tabType) => {
     window.currentHallTab = tabType;
-    renderHallModalStructure(); // 탭 버튼 활성화 상태(active 클래스) 업데이트
-    renderHallList();           // 해당 탭에 맞는 명단 데이터 리로드
+    renderHallModalStructure(); 
+    renderHallList();           
 };
 
-// 🎯 화면에 3개만 먼저 노출시키고 나머지는 스크롤되도록 하는 리스트 렌더링 함수
+// 3개 노출 제한 및 내부 스크롤 리스트 렌더링
 function renderHallList() {
     const listArea = document.getElementById('hallListArea');
     if (!listArea) return;
     
-    // 버튼 바 바로 밑에 첫 카드가 빈틈없이 붙도록 marginTop을 2px로 축소
-    // max-height를 카드 3개 분량(420px)으로 묶어 내부 스크롤바 활성화
-    listArea.setAttribute('style', 'padding-top: 0px !important; margin-top: 2px !important; max-height: 420px !important; overflow-y: auto !important; width: 100%; box-sizing: border-box;');
+    // 탭 버튼 바로 밑에 명단 리스트 카드가 여백 없이 딱 붙도록 제어합니다.
+    listArea.setAttribute('style', 'padding-top: 0px !important; margin-top: 4px !important; max-height: 420px !important; overflow-y: auto !important; width: 100%; box-sizing: border-box;');
     
     let combinedHtml = "";
     
@@ -3550,7 +3552,7 @@ function renderHallList() {
     }
     listArea.innerHTML = combinedHtml;
 }
-
+           
    
 
     
