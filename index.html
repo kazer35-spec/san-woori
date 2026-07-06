@@ -3383,7 +3383,8 @@ window.showBondingForestModal = async (targetName, targetId) => {
 };
 
     
-// 2. 명예의 전당 모달 토글 함수
+
+
 window.toggleHallModal = async (show) => {
     const modal = document.getElementById('hallModal');
     if (!modal) return;
@@ -3391,24 +3392,18 @@ window.toggleHallModal = async (show) => {
     modal.style.display = show ? 'flex' : 'none';
     
     if (show) {
-        // 기본 탭 설정 (최초 실행 시 'mountain'이 기본 활성화)
         if (!window.currentHallTab) {
             window.currentHallTab = 'mountain'; 
         }
-        
-        // 상단 탭 메뉴(산행왕 | 동행왕) 바 생성
         renderHallModalStructure();
-        // 데이터 리스트 렌더링
         renderHallList();
     }
 };
 
-// 3. 탭 메뉴 생성 및 렌더링 틀 구조화
 function renderHallModalStructure() {
     const modal = document.getElementById('hallModal');
     let tabWrapper = document.getElementById('hallTabWrapper');
     
-    // HTML 내부에 탭 영역이 없다면 타이틀 영역 아래에 동적 생성
     if (!tabWrapper) {
         const titleArea = modal.querySelector('.hall-season-title') || modal.querySelector('h2') || modal.firstElementChild;
         
@@ -3421,33 +3416,29 @@ function renderHallModalStructure() {
         }
     }
 
-    // 현재 활성화된 탭에 active 클래스 부여
     tabWrapper.innerHTML = `
         <button class="hall-tab-btn ${window.currentHallTab === 'mountain' ? 'active' : ''}" onclick="switchHallTab('mountain')">산행왕</button>
         <button class="hall-tab-btn ${window.currentHallTab === 'with' ? 'active' : ''}" onclick="switchHallTab('with')">동행왕</button>
     `;
 }
 
-// 4. 탭 전환 클릭 이벤트 함수
 window.switchHallTab = (tabType) => {
     window.currentHallTab = tabType;
-    renderHallModalStructure(); // 탭 버튼 불 들어오는 위치 변경
-    renderHallList();           // 리스트 내용 갱신
+    renderHallModalStructure(); 
+    renderHallList();           
 };
 
-// 5. 핵심 리스트 출력 및 데이터 필터링 함수
 function renderHallList() {
     const listArea = document.getElementById('hallListArea');
     if (!listArea) return;
     
     let combinedHtml = "";
     
-    // 현재 날짜 기준으로 LIVE 쿼터 자동 계산
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentQuarter = Math.ceil((now.getMonth() + 1) / 3);
+    const qKey = `${currentYear}_q${currentQuarter}`;
     
-    // 2025년 4분기(시즌 1)까지 루프 돌며 시즌 리스트 자동 생성
     const seasons = [];
     let loopYear = currentYear;
     let loopQuarter = currentQuarter;
@@ -3466,8 +3457,8 @@ function renderHallList() {
         }
     }
 
-    // 선택된 탭 정보에 따른 [라벨 명칭] 및 [이펙트 클래스] 설정 분기
     const isMountain = (window.currentHallTab === 'mountain');
+    
     const rankLabels = isMountain 
         ? ["🥇산신령", "🥈심마니", "🥉나무꾼"] 
         : ["🥇홍길동", "🥈마당발", "🥉길동무"];
@@ -3480,30 +3471,27 @@ function renderHallList() {
         let top3 = [];
         let isCurrent = (s.year === currentYear && s.quarter === currentQuarter);
         
-        // --- [데이터 매칭 및 정렬] ---
         if (isCurrent) {
             if (typeof currentData !== 'undefined' && Array.isArray(currentData)) {
                 if (isMountain) {
-                    // [산행왕] 순수산행 기준 정렬 (오즈 제외 완료)
+                    // 🎯 [산행왕] 데이터베이스의 quarterlyStats 분기 순수 산행 횟수(hike) 기준으로 정렬
                     top3 = [...currentData]
-                        .filter(m => !m.isHidden && m.name !== "오즈" && m.qCount > 0)
-                        .sort((a, b) => b.qCount - a.qCount || b.level - a.level)
+                        .filter(m => !m.isHidden && m.name !== "오즈" && ((m.quarterlyStats?.[qKey]?.hike) || 0) > 0)
+                        .sort((a, b) => (b.quarterlyStats?.[qKey]?.hike || 0) - (a.quarterlyStats?.[qKey]?.hike || 0) || b.level - a.level)
                         .slice(0, 3);
                 } else {
-                    // [동행왕] 동행 횟수 기준 정렬 (오즈 제외 완료)
-                    // ※ 데이터베이스의 실시간 동행 카운트 필드명에 맞춰 (m.togetherCount || m.donghengCount) 부분을 유연하게 매칭합니다.
+                    // 🎯 [동행왕] 요청하신 대로 가중치 분기 점수인 'qCount' 기준으로 정렬 (오즈 제외 완료)
                     top3 = [...currentData]
-                        .filter(m => !m.isHidden && m.name !== "오즈" && (m.togetherCount || m.donghengCount) > 0)
-                        .sort((a, b) => (b.togetherCount || b.donghengCount) - (a.togetherCount || a.donghengCount))
+                        .filter(m => !m.isHidden && m.name !== "오즈" && (m.qCount || 0) > 0)
+                        .sort((a, b) => (b.qCount || 0) - (a.qCount || 0))
                         .slice(0, 3);
                 }
             }
         } 
-        // --- [과거 시즌 고정 데이터 영역] ---
         else if (s.year === 2026 && s.quarter === 2) {
             top3 = isMountain 
                 ? [{ name: "유스" }, { name: "하트" }, { name: "아랑" }]
-                : [{ name: "유스" }, { name: "하트" }, { name: "아랑" }]; // 필요시 과거 동행 기록자 명단으로 교체 가능
+                : [{ name: "유스" }, { name: "하트" }, { name: "아랑" }]; 
         }
         else if (s.year === 2026 && s.quarter === 1) {
             top3 = isMountain 
@@ -3516,7 +3504,6 @@ function renderHallList() {
                 : [{ name: "아랑" }, { name: "용삼" }, { name: "우진" }];
         }
 
-        // --- [HTML 문자열 적재: 기존 UI 스타일 구조 완벽 유지] ---
         if (top3.length > 0) {
             combinedHtml += `
             <div class="hall-card ${isCurrent ? 'border-blue-100 bg-blue-50/30' : ''}">
@@ -3543,9 +3530,10 @@ function renderHallList() {
             </div>`;
         }
     }
-    // 완성된 카드를 리스트 레이아웃에 주입
     listArea.innerHTML = combinedHtml;
 }
+
+
 
     
 window.toggleVibeModal = (show) => { document.getElementById('vibeModal').style.display = show ? 'flex' : 'none'; };
