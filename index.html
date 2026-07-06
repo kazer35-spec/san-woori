@@ -3382,7 +3382,8 @@ window.showBondingForestModal = async (targetName, targetId) => {
     }
 };
 
-window.toggleHallModal = async (show) => {
+
+ window.toggleHallModal = async (show) => {
     const modal = document.getElementById('hallModal');
     if (!modal) return;
     
@@ -3400,14 +3401,21 @@ window.toggleHallModal = async (show) => {
 function renderHallModalStructure() {
     const modal = document.getElementById('hallModal');
     
-    // 🎯 [핵심] 기존에 엉켜있던 요소들을 안전하게 제어하기 위해 
-    // 모달 내 최상단 타이틀(h2)을 제외한 구버전 탭 래퍼들을 먼저 깨끗이 청소합니다.
-    const oldWrappers = modal.querySelectorAll('.hall-tab-container, #hallTabWrapper');
-    oldWrappers.forEach(el => el.remove());
+    // 🎯 [중복 글씨 파괴 핵심]
+    // HTML 내부에 하드코딩으로 중복 존재하던 기존 'hall-subtitle' 클래스나 
+    // 유령 텍스트 엘리먼트들을 전부 찾아서 완전히 지워버립니다.
+    const duplicateSubtitles = modal.querySelectorAll('.hall-subtitle');
+    duplicateSubtitles.forEach(el => el.remove());
+    
+    // 혹시 모달 내부에 textContent로 직접 박혀있는 영문이 있다면 그것도 날립니다.
+    // 기존에 존재하던 구형 탭 컨테이너들도 깔끔하게 밀어버립니다.
+    const oldContainers = modal.querySelectorAll('.hall-tab-container, #hallTabWrapper');
+    oldContainers.forEach(el => el.remove());
 
+    // 🏆 명예의 전당 메인 h2 타이틀을 기준점으로 잡습니다.
     const modalTitle = modal.querySelector('h2') || modal.querySelector('.hall-title') || modal.firstElementChild;
     
-    // 신규 독립 컨테이너 생성
+    // 오직 단 하나만 존재할 새로운 탭 래퍼 생성
     const tabWrapper = document.createElement('div');
     tabWrapper.id = 'hallTabWrapper';
     
@@ -3415,12 +3423,12 @@ function renderHallModalStructure() {
         modalTitle.parentNode.insertBefore(tabWrapper, modalTitle.nextSibling);
     }
 
-    // 🎯 [간격 줄임 핵심]: 기존 CSS의 마진 설정을 무력화하기 위해 margin-bottom과 padding을 0으로 묶어 강제 제어합니다.
+    // CSS 마진 충돌을 방지하고 아래 명단창과 바짝 붙이기 위해 하단 마진을 0으로 묶습니다.
     tabWrapper.setAttribute('style', 'margin: 0 auto !important; width: 90% !important; padding: 0 !important; display: flex; flex-direction: column; align-items: center; gap: 0 !important;');
 
-    // 🎯 [정확한 순서 배치]: 영문 서브타이틀이 먼저 오고, 그 바로 밑에 라운드 처리된 탭 컨테이너가 오도록 고정합니다.
+    // 🎯 정확한 순서 고정: 메인 타이틀 바로 밑에 영문 자막 딱 1개 ➡️ 그 밑에 탭 버튼 묶음
     tabWrapper.innerHTML = `
-        <div class="hall-subtitle" style="font-size: 10px; color: #a0aec0; text-align: center; letter-spacing: 1px; margin: 4px 0 6px 0 !important; padding: 0 !important; line-height: 1;">
+        <div class="hall-subtitle" style="font-size: 10px; color: #a0aec0; text-align: center; letter-spacing: 1px; margin: 4px 0 8px 0 !important; padding: 0 !important; line-height: 1;">
             HALL OF FAME - SAN:WOORI
         </div>
         <div class="hall-tab-container" style="margin: 0 auto 0 auto !important; width: 100% !important; box-sizing: border-box;">
@@ -3444,10 +3452,10 @@ function renderHallList() {
     const listArea = document.getElementById('hallListArea');
     if (!listArea) return;
     
-    // 🎯 [3개 노출 제한 스크롤 + 간격 제로화]
-    // 탭 바로 밑에 명단 카드가 유격 없이 정렬되도록 marginTop과 paddingTop을 완전히 제거하고,
-    // 최대 높이를 고정하여 3개 카드가 노출된 후 깔끔하게 스크롤 바가 생기도록 강제 적용합니다.
-    listArea.setAttribute('style', 'padding-top: 0px !important; margin-top: 4px !important; max-height: 425px !important; overflow-y: auto !important; width: 100%; box-sizing: border-box;');
+    // 🎯 [간격 제로화 + 3개만 먼저 보이게 스크롤 제어]
+    // max-height를 카드 3개 볼륨(425px)으로 묶어 상위 3개 분기만 딱 보여주고 아래는 스크롤바가 생기게 처리합니다.
+    // paddingTop과 marginTop을 강제로 0으로 깎아 버튼 바로 밑에 명단창이 빈틈없이 붙도록 유도합니다.
+    listArea.setAttribute('style', 'padding-top: 0px !important; margin-top: 2px !important; max-height: 425px !important; overflow-y: auto !important; width: 100%; box-sizing: border-box;');
     
     let combinedHtml = "";
     
@@ -3476,7 +3484,6 @@ function renderHallList() {
 
     const isMountain = (window.currentHallTab === 'mountain');
     
-    // 칭호 명칭 매칭 고정
     const rankLabels = isMountain 
         ? ["🥇산신령", "🥈심마니", "🥉나무꾼"] 
         : ["🥇대장님", "🥈길잡이", "🥉마당발"];
@@ -3548,6 +3555,7 @@ function renderHallList() {
     }
     listArea.innerHTML = combinedHtml;
 }
+       
 
 
     
