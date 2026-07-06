@@ -3470,15 +3470,24 @@ window.showMemberTimeline = async (mId, mName) => {
         const end = new Date(selectedYear, selectedQuarter * 3, 1);
         const totalDaysInQ = Math.floor((end - start) / (1000 * 60 * 60 * 24));
 
-        // 2. 데이터 로드
+                // 2. 데이터 로드
         const snapAll = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc")));
         const logsAll = snapAll.docs.map(doc => ({ ...doc.data(), date: doc.data().date.toDate() }));
         const logsQuarter = logsAll.filter(l => l.date >= start && l.date < end);
 
+        // 🎯 [정밀 수정]
+        // 1. 이번 분기 순수 산행 (러닝, 트레킹, 산책, 번외산행이 모두 아닌 것)
+        const hikeCount = logsQuarter.filter(l => !l.isRunning && !l.isTracking && !l.isWalking && !l.isExtraHike).length;
+        
+        // 2. 이번 분기 모든 운동 (해당 분기 내에 들어오는 모든 로그의 총 개수)
+        const exerciseCount = logsQuarter.length; 
+
         const badge = document.getElementById('timelineCountBadge');
         if(badge) {
-            badge.innerText = `분기 ${logsQuarter.length}회 / 전체 ${logsAll.length}회`;
+            // 요청하신 포맷: 산행 X회 / 운동 Y회 / 전체 Z회
+            badge.innerText = `산행 ${hikeCount}회 / 운동 ${exerciseCount}회 / 전체 ${logsAll.length}회`;
         }
+
 
         // 3. 차트 렌더링
         const chartData = await calculateGrowthData(mId);
