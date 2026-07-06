@@ -3382,14 +3382,14 @@ window.showBondingForestModal = async (targetName, targetId) => {
     }
 };
 
-
- window.toggleHallModal = async (show) => {
+window.toggleHallModal = async (show) => {
     const modal = document.getElementById('hallModal');
     if (!modal) return;
     
     modal.style.display = show ? 'flex' : 'none';
     
     if (show) {
+        // 기본 탭 세팅
         if (!window.currentHallTab) {
             window.currentHallTab = 'mountain'; 
         }
@@ -3398,64 +3398,59 @@ window.showBondingForestModal = async (targetName, targetId) => {
     }
 };
 
+// 🎯 원래 HTML 구조(타이틀 -> 영문서브) 바로 밑에 탭 컨테이너 배치하는 구조 고정 함수
 function renderHallModalStructure() {
     const modal = document.getElementById('hallModal');
+    let tabWrapper = document.getElementById('hallTabWrapper');
     
-    // 🎯 [중복 글씨 파괴 핵심]
-    // HTML 내부에 하드코딩으로 중복 존재하던 기존 'hall-subtitle' 클래스나 
-    // 유령 텍스트 엘리먼트들을 전부 찾아서 완전히 지워버립니다.
-    const duplicateSubtitles = modal.querySelectorAll('.hall-subtitle');
-    duplicateSubtitles.forEach(el => el.remove());
+    // 원래 HTML에 고정되어 있는 영문 서브타이틀 요소를 추적
+    const originalSubtitle = modal.querySelector('.hall-subtitle');
     
-    // 혹시 모달 내부에 textContent로 직접 박혀있는 영문이 있다면 그것도 날립니다.
-    // 기존에 존재하던 구형 탭 컨테이너들도 깔끔하게 밀어버립니다.
-    const oldContainers = modal.querySelectorAll('.hall-tab-container, #hallTabWrapper');
-    oldContainers.forEach(el => el.remove());
-
-    // 🏆 명예의 전당 메인 h2 타이틀을 기준점으로 잡습니다.
-    const modalTitle = modal.querySelector('h2') || modal.querySelector('.hall-title') || modal.firstElementChild;
-    
-    // 오직 단 하나만 존재할 새로운 탭 래퍼 생성
-    const tabWrapper = document.createElement('div');
-    tabWrapper.id = 'hallTabWrapper';
-    
-    if (modalTitle && modalTitle.parentNode) {
-        modalTitle.parentNode.insertBefore(tabWrapper, modalTitle.nextSibling);
+    if (!tabWrapper) {
+        tabWrapper = document.createElement('div');
+        tabWrapper.id = 'hallTabWrapper';
+        tabWrapper.className = 'hall-tab-container';
+        
+        // 원래 있던 영문 자막(originalSubtitle)의 '바로 다음'에 탭 바를 자연스럽게 주입
+        if (originalSubtitle && originalSubtitle.parentNode) {
+            originalSubtitle.parentNode.insertBefore(tabWrapper, originalSubtitle.nextSibling);
+        } else {
+            const modalTitle = modal.querySelector('h2') || modal.querySelector('.hall-title');
+            if (modalTitle && modalTitle.parentNode) {
+                modalTitle.parentNode.insertBefore(tabWrapper, modalTitle.nextSibling);
+            }
+        }
     }
 
-    // CSS 마진 충돌을 방지하고 아래 명단창과 바짝 붙이기 위해 하단 마진을 0으로 묶습니다.
-    tabWrapper.setAttribute('style', 'margin: 0 auto !important; width: 90% !important; padding: 0 !important; display: flex; flex-direction: column; align-items: center; gap: 0 !important;');
+    // 영문 자막 아래에 바짝 붙고, 밑에 올 명단창과도 밀착되도록 마진을 정밀 제어
+    tabWrapper.setAttribute('style', 'margin: 4px auto 0 auto !important; width: 100% !important; padding: 0 !important; box-sizing: border-box;');
 
-    // 🎯 정확한 순서 고정: 메인 타이틀 바로 밑에 영문 자막 딱 1개 ➡️ 그 밑에 탭 버튼 묶음
+    // 오직 버튼 두 개만 주입 (중복 생성을 막기 위함)
     tabWrapper.innerHTML = `
-        <div class="hall-subtitle" style="font-size: 10px; color: #a0aec0; text-align: center; letter-spacing: 1px; margin: 4px 0 8px 0 !important; padding: 0 !important; line-height: 1;">
-            HALL OF FAME - SAN:WOORI
-        </div>
-        <div class="hall-tab-container" style="margin: 0 auto 0 auto !important; width: 100% !important; box-sizing: border-box;">
-            <button class="hall-tab-btn ${window.currentHallTab === 'mountain' ? 'active' : ''}" 
-                    style="padding: 6px 0; font-size: 14px; line-height: 1.2;" 
-                    onclick="switchHallTab('mountain')">산행왕</button>
-            <button class="hall-tab-btn ${window.currentHallTab === 'with' ? 'active' : ''}" 
-                    style="padding: 6px 0; font-size: 14px; line-height: 1.2;" 
-                    onclick="switchHallTab('with')">동행왕</button>
-        </div>
+        <button class="hall-tab-btn ${window.currentHallTab === 'mountain' ? 'active' : ''}" 
+                style="padding: 6px 0; font-size: 14px; line-height: 1.2; margin: 0;" 
+                onclick="switchHallTab('mountain')">산행왕</button>
+        <button class="hall-tab-btn ${window.currentHallTab === 'with' ? 'active' : ''}" 
+                style="padding: 6px 0; font-size: 14px; line-height: 1.2; margin: 0;" 
+                onclick="switchHallTab('with')">동행왕</button>
     `;
 }
 
+// ⚠️ [기존 누락 해결] 탭을 전환할 때 상태를 바꾸고 화면을 다시 그려주는 핵심 함수
 window.switchHallTab = (tabType) => {
     window.currentHallTab = tabType;
-    renderHallModalStructure(); 
-    renderHallList();           
+    renderHallModalStructure(); // 탭 버튼 활성화 상태(active 클래스) 업데이트
+    renderHallList();           // 해당 탭에 맞는 명단 데이터 리로드
 };
 
+// 🎯 화면에 3개만 먼저 노출시키고 나머지는 스크롤되도록 하는 리스트 렌더링 함수
 function renderHallList() {
     const listArea = document.getElementById('hallListArea');
     if (!listArea) return;
     
-    // 🎯 [간격 제로화 + 3개만 먼저 보이게 스크롤 제어]
-    // max-height를 카드 3개 볼륨(425px)으로 묶어 상위 3개 분기만 딱 보여주고 아래는 스크롤바가 생기게 처리합니다.
-    // paddingTop과 marginTop을 강제로 0으로 깎아 버튼 바로 밑에 명단창이 빈틈없이 붙도록 유도합니다.
-    listArea.setAttribute('style', 'padding-top: 0px !important; margin-top: 2px !important; max-height: 425px !important; overflow-y: auto !important; width: 100%; box-sizing: border-box;');
+    // 버튼 바 바로 밑에 첫 카드가 빈틈없이 붙도록 marginTop을 2px로 축소
+    // max-height를 카드 3개 분량(420px)으로 묶어 내부 스크롤바 활성화
+    listArea.setAttribute('style', 'padding-top: 0px !important; margin-top: 2px !important; max-height: 420px !important; overflow-y: auto !important; width: 100%; box-sizing: border-box;');
     
     let combinedHtml = "";
     
@@ -3555,8 +3550,8 @@ function renderHallList() {
     }
     listArea.innerHTML = combinedHtml;
 }
-       
 
+   
 
     
 window.toggleVibeModal = (show) => { document.getElementById('vibeModal').style.display = show ? 'flex' : 'none'; };
