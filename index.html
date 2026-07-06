@@ -3470,24 +3470,23 @@ window.showMemberTimeline = async (mId, mName) => {
         const end = new Date(selectedYear, selectedQuarter * 3, 1);
         const totalDaysInQ = Math.floor((end - start) / (1000 * 60 * 60 * 24));
 
-                // 2. 데이터 로드
+                // 2. 데이터 로드 (Firebase)
         const snapAll = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc")));
         const logsAll = snapAll.docs.map(doc => ({ ...doc.data(), date: doc.data().date.toDate() }));
         const logsQuarter = logsAll.filter(l => l.date >= start && l.date < end);
 
-        // 🎯 [정밀 수정]
-        // 1. 이번 분기 순수 산행 (러닝, 트레킹, 산책, 번외산행이 모두 아닌 것)
+        // 🎯 [핵심 수정] 등산/운동/전체 카운트 계산 로직
+        // - 산행: 이번 분기 중 러닝, 트레킹, 산책, 번외산행이 모두 아닌 '순수 등산'
         const hikeCount = logsQuarter.filter(l => !l.isRunning && !l.isTracking && !l.isWalking && !l.isExtraHike).length;
-        
-        // 2. 이번 분기 모든 운동 (해당 분기 내에 들어오는 모든 로그의 총 개수)
-        const exerciseCount = logsQuarter.length; 
+        // - 운동: 이번 분기의 모든 활동 로그 총합 (등산 + 러닝 + 트레킹 + 산책 + 번외)
+        const exerciseCount = logsQuarter.length;
+        // - 전체: 역대 모든 분기 누적 로그 총합
+        const totalCount = logsAll.length;
 
         const badge = document.getElementById('timelineCountBadge');
         if(badge) {
-            // 요청하신 포맷: 산행 X회 / 운동 Y회 / 전체 Z회
-            badge.innerText = `산행 ${hikeCount}회 / 운동 ${exerciseCount}회 / 전체 ${logsAll.length}회`;
+            badge.innerText = `산행 ${hikeCount}회 / 운동 ${exerciseCount}회 / 전체 ${totalCount}회`;
         }
-
 
         // 3. 차트 렌더링
         const chartData = await calculateGrowthData(mId);
