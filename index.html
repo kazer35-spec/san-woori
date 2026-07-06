@@ -3414,7 +3414,8 @@ window.showBondingForestModal = async (targetName, targetId) => {
     }
 };
 
-    window.toggleHallModal = async (show) => {
+    // 1. 모달 제어 및 탭 초기화
+window.toggleHallModal = async (show) => {
     const modal = document.getElementById('hallModal');
     if (!modal) return;
     modal.style.display = show ? 'flex' : 'none';
@@ -3425,6 +3426,7 @@ window.showBondingForestModal = async (targetName, targetId) => {
     }
 };
 
+// 2. 탭 바 구조 생성
 function renderHallModalStructure() {
     const modal = document.getElementById('hallModal');
     let tabWrapper = document.getElementById('hallTabWrapper');
@@ -3439,7 +3441,6 @@ function renderHallModalStructure() {
         }
     }
 
-    // 3개 탭 구성
     tabWrapper.setAttribute('style', 'margin: 10px auto 14px auto !important; width: 90% !important; padding: 4px !important; box-sizing: border-box; display: flex; gap: 6px; background-color: #f1f5f9; border-radius: 30px;');
     tabWrapper.innerHTML = `
         <button class="hall-tab-btn ${window.currentHallTab === 'live' ? 'active-live' : ''}" onclick="switchHallTab('live')">⚡ 현황</button>
@@ -3454,33 +3455,34 @@ window.switchHallTab = (tabType) => {
     renderHallList();
 };
 
-// 랭킹 카드 렌더링 (반짝임 효과 포함)
+// 3. 메달별 컬러 깜빡임 효과가 적용된 카드 렌더링
 function renderRankCards(top3, labels) {
-    const glows = ["0 0 10px #fbbf24", "0 0 8px #94a3b8", "0 0 6px #d97706"];
     return `
+        <style>
+            @keyframes blinkGold { 0%, 100% { color: #d97706; } 50% { color: #fbbf24; } }
+            @keyframes blinkSilver { 0%, 100% { color: #64748b; } 50% { color: #94a3b8; } }
+            @keyframes blinkBronze { 0%, 100% { color: #b45309; } 50% { color: #d97706; } }
+            .blink-0 { animation: blinkGold 2s infinite; font-weight: 800; }
+            .blink-1 { animation: blinkSilver 2s infinite; font-weight: 800; }
+            .blink-2 { animation: blinkBronze 2s infinite; font-weight: 800; }
+        </style>
         <div style="display:flex; gap:8px; background:#ffffff; padding:12px; border-radius:15px; border:1px solid #e2e8f0; margin-bottom:15px;">
             ${labels.map((l, i) => `
                 <div style="flex:1; text-align:center;">
-                    <div style="font-size:9px; color:#64748b; font-weight:700;">${l}</div>
-                    <div style="font-size:13px; font-weight:800; margin-top:4px; color:#1e293b; 
-                                text-shadow: ${top3[i] ? glows[i] : 'none'}; 
-                                animation: ${top3[i] ? 'pulse 1.5s infinite' : 'none'};">
-                        ${top3[i]?.name || '-'}
-                    </div>
+                    <div class="blink-${i}" style="font-size:9px;">${l}</div>
+                    <div style="font-size:13px; font-weight:800; margin-top:4px; color:#1e293b;">${top3[i]?.name || '-'}</div>
                 </div>
             `).join('')}
         </div>
     `;
 }
 
+// 4. 통합 리스트 렌더링 (동점자 정렬 및 실시간 레이아웃)
 function renderHallList() {
     const listArea = document.getElementById('hallListArea');
     if (!listArea) return;
     
-    // 키값 설정
     const qKey = `${new Date().getFullYear()}_q${Math.ceil((new Date().getMonth() + 1) / 3)}`;
-    
-    // 정렬 로직 (동점 시 레벨순)
     const getSortedData = (isMt) => {
         if (typeof currentData === 'undefined') return [];
         return [...currentData].filter(m => !m.isHidden && m.name !== "오즈" && ((isMt ? m.quarterlyStats?.[qKey]?.hike : m.qCount) || 0) > 0)
@@ -3494,13 +3496,17 @@ function renderHallList() {
     if (window.currentHallTab === 'live') {
         listArea.style.cssText = 'padding: 5px;';
         listArea.innerHTML = `
-            <style>@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }</style>
-            <div style="margin-bottom:10px;"><span style="font-weight:900; font-size:14px;">👑 동행지기 <span style="color:#ef4444; font-size:10px;">● LIVE</span></span></div>
+            <div style="margin-bottom:10px; font-weight:900; font-size:14px; display:flex; justify-content:space-between; align-items:center;">
+                <span>👑 동행지기</span><span style="color:#22c55e; font-size:10px;">● LIVE</span>
+            </div>
             ${renderRankCards(getSortedData(false), ["🥇산대장", "🥈길잡이", "🥉마당발"])}
-            <div style="margin-bottom:10px;"><span style="font-weight:900; font-size:14px;">🎖 산행고수 <span style="color:#ef4444; font-size:10px;">● LIVE</span></span></div>
+            <div style="margin-bottom:10px; font-weight:900; font-size:14px; display:flex; justify-content:space-between; align-items:center;">
+                <span>🎖 산행고수</span><span style="color:#22c55e; font-size:10px;">● LIVE</span>
+            </div>
             ${renderRankCards(getSortedData(true), ["🥇산신령", "🥈심마니", "🥉나무꾼"])}
         `;
     } else {
+        
         
 
 
