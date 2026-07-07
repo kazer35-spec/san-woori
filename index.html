@@ -13,6 +13,36 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+    /* CSS 스타일 추가 및 수정 */
+    .hall-tab-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background-color: #f1f5f9;
+        border-radius: 30px;
+        padding: 4px;
+        margin: 15px auto;
+        width: 95%; /* 95%로 확장 */
+    }
+    .live-badge {
+        background: #ef4444; color: white; padding: 2px 8px; border-radius: 12px;
+        font-size: 10px; font-weight: bold; margin-right: 8px; animation: blink 1.5s infinite;
+    }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    
+    .hall-section {
+        background: #ffffff; border-radius: 20px; padding: 20px; margin-bottom: 20px;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border: 1px solid #e2e8f0;
+    }
+    .rank-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 15px; text-align: center; }
+    .rank-item { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+    .score-text { font-size: 0.85em; color: #64748b; margin-top: 4px; }
+    
+    .glow-gold { color: #d97706; text-shadow: 0 0 8px rgba(217, 119, 6, 0.4); }
+    .glow-silver { color: #475569; text-shadow: 0 0 8px rgba(71, 85, 105, 0.4); }
+    .glow-bronze { color: #b45309; text-shadow: 0 0 8px rgba(180, 83, 9, 0.4); }
+
+    
     /* 활성화된 탭 스타일 - 네온 블루 효과 추가 */
 .hall-tab-btn.active {
     background-color: #ffffff;
@@ -3392,7 +3422,7 @@ window.showBondingForestModal = async (targetName, targetId) => {
     modal.style.display = show ? 'flex' : 'none';
     
     if (show) {
-        // 🎯 [핵심] 기본값을 동행왕(with)으로 설정
+        // [핵심] 기본값은 'with(우정대장)' 탭으로 자동 설정
         if (!window.currentHallTab) {
             window.currentHallTab = 'with'; 
         }
@@ -3401,6 +3431,9 @@ window.showBondingForestModal = async (targetName, targetId) => {
     }
 };
 
+/* ==========================================
+   3. 탭 바 구조 렌더링 (95% 크기 반영)
+   ========================================== */
 function renderHallModalStructure() {
     const modal = document.getElementById('hallModal');
     let tabWrapper = document.getElementById('hallTabWrapper');
@@ -3410,16 +3443,17 @@ function renderHallModalStructure() {
     if (!tabWrapper) {
         tabWrapper = document.createElement('div');
         tabWrapper.id = 'hallTabWrapper';
-        tabWrapper.className = 'hall-tab-container';
+        // 95% 전용 클래스 부여
+        tabWrapper.className = 'hall-tab-container-95';
         
         if (originalSubtitle && originalSubtitle.parentNode) {
             originalSubtitle.parentNode.insertBefore(tabWrapper, originalSubtitle.nextSibling);
         }
     }
 
-    tabWrapper.setAttribute('style', 'margin: 10px auto 14px auto !important; width: 80% !important; padding: 4px !important; box-sizing: border-box; display: flex; gap: 8px; background-color: #f1f5f9; border-radius: 30px;');
+    // 인라인 속성도 가로폭 95% 스케일에 맞춤 정렬
+    tabWrapper.setAttribute('style', 'margin: 10px auto 14px auto !important; width: 95% !important; padding: 4px !important; box-sizing: border-box; display: flex; gap: 8px; background-color: #f1f5f9; border-radius: 30px;');
 
-    // 🎯 [순서 변경] 동행왕(with)이 먼저 오도록 배치
     tabWrapper.innerHTML = `
         <button class="hall-tab-btn ${window.currentHallTab === 'with' ? 'active' : ''}" 
                 style="flex: 1; padding: 6px 0; font-size: 14px; font-weight: 700; line-height: 1.2; margin: 0; transition: all 0.3s ease;" 
@@ -3436,21 +3470,114 @@ window.switchHallTab = (tabType) => {
     renderHallList();           
 };
 
-
-// 명단 리스트 렌더링
+/* ==========================================
+   4. 실황정보 통합 대시보드 + 역대 시즌 리스트 렌더링
+   ========================================== */
 function renderHallList() {
     const listArea = document.getElementById('hallListArea');
     if (!listArea) return;
     
-    listArea.setAttribute('style', 'padding-top: 0px !important; margin-top: 0px !important; max-height: 420px !important; overflow-y: auto !important; width: 100%; box-sizing: border-box;');
-    
-    let combinedHtml = "";
+    listArea.setAttribute('style', 'padding-top: 0px !important; margin-top: 0px !important; max-height: 440px !important; overflow-y: auto !important; width: 100%; box-sizing: border-box;');
     
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentQuarter = Math.ceil((now.getMonth() + 1) / 3);
     const qKey = `${currentYear}_q${currentQuarter}`;
     
+    // --- [파트 A] 상단 통합 세련된 실황정보 대시보드 조립 ---
+    let liveWithTop3 = [];
+    let liveMountainTop3 = [];
+    
+    if (typeof currentData !== 'undefined' && Array.isArray(currentData)) {
+        // 1. 실시간 우정대장 정렬 추출 (동률 시레벨 높은 순)
+        liveWithTop3 = [...currentData]
+            .filter(m => !m.isHidden && m.name !== "오즈" && (m.friendshipPoint || 0) > 0)
+            .sort((a, b) => (b.friendshipPoint || 0) - (a.friendshipPoint || 0) || b.level - a.level)
+            .slice(0, 3);
+
+        // 2. 실시간 등산의신 정렬 추출 (동률 시 레벨 높은 순)
+        liveMountainTop3 = [...currentData]
+            .filter(m => !m.isHidden && m.name !== "오즈" && ((m.quarterlyStats?.[qKey]?.hike) || 0) > 0)
+            .sort((a, b) => (b.quarterlyStats?.[qKey]?.hike || 0) - (a.quarterlyStats?.[qKey]?.hike || 0) || b.level - a.level)
+            .slice(0, 3);
+    }
+
+    // 기본 빈 자리 처리용 안전장치 고정
+    const padRank = (arr) => {
+        const result = [...arr];
+        while(result.length < 3) { result.push({ name: '-', friendshipPoint: 0, level: 0, quarterlyStats: {} }); }
+        return result;
+    };
+    
+    const displayWith = padRank(liveWithTop3);
+    const displayMountain = padRank(liveMountainTop3);
+
+    // 실황정보 대시보드 HTML 템플릿 스트링 생성
+    let combinedHtml = `
+    <div class="realtime-dashboard">
+        <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #f1f5f9; padding-bottom: 8px; margin-bottom: 4px;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+                <span class="status-badge-realtime-live">⚡️ LIVE</span>
+                <span style="font-size: 15px; font-weight: 800; color: #0f172a;">현재 분기 실황정보</span>
+            </div>
+            <span style="font-size: 12px; color: #64748b; font-weight: 600;">${currentYear}년 ${currentQuarter}분기 진행중</span>
+        </div>
+
+        <div class="realtime-sector">
+            <div class="realtime-sector-title" style="color: #b45309;">👑 우정대장 실시간 랭킹</div>
+            <div class="realtime-rank-flex">
+                <div class="realtime-rank-item">
+                    <span class="realtime-rank-label glow-gold">🥇산대장</span>
+                    <span class="realtime-rank-name">${displayWith[0].name}</span>
+                    <span class="realtime-rank-score">${displayWith[0].friendshipPoint || 0}점</span>
+                </div>
+                <div class="realtime-rank-item">
+                    <span class="realtime-rank-label glow-silver">🥈길잡이</span>
+                    <span class="realtime-rank-name">${displayWith[1].name}</span>
+                    <span class="realtime-rank-score">${displayWith[1].friendshipPoint || 0}점</span>
+                </div>
+                <div class="realtime-rank-item">
+                    <span class="realtime-rank-label glow-bronze">🥉마당발</span>
+                    <span class="realtime-rank-name">${displayWith[2].name}</span>
+                    <span class="realtime-rank-score">${displayWith[2].friendshipPoint || 0}점</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="realtime-sector">
+            <div class="realtime-sector-title" style="color: #1e3a8a;">🎖 등산의신 실시간 랭킹</div>
+            <div class="realtime-rank-flex">
+                <div class="realtime-rank-item">
+                    <span class="realtime-rank-label glow-gold">🥇산신령</span>
+                    <span class="realtime-rank-name">${displayMountain[0].name}</span>
+                    <span class="realtime-rank-score">${displayMountain[0].quarterlyStats?.[qKey]?.hike || 0}회</span>
+                </div>
+                <div class="realtime-rank-item">
+                    <span class="realtime-rank-label glow-silver">🥈심마니</span>
+                    <span class="realtime-rank-name">${displayMountain[1].name}</span>
+                    <span class="realtime-rank-score">${displayMountain[1].quarterlyStats?.[qKey]?.hike || 0}회</span>
+                </div>
+                <div class="realtime-rank-item">
+                    <span class="realtime-rank-label glow-bronze">🥉나무꾼</span>
+                    <span class="realtime-rank-name">${displayMountain[2].name}</span>
+                    <span class="realtime-rank-score">${displayMountain[2].quarterlyStats?.[qKey]?.hike || 0}회</span>
+                </div>
+            </div>
+        </div>
+        
+        <p style="text-align: center; font-size: 11px; color: #94a3b8; font-weight: 600; margin: 12px 0 0 0; padding-top: 8px; border-top: 1px dashed #e2e8f0;">
+            ※ 점수와 횟수가 동률일 경우 레벨이 높은 순서입니다.
+        </p>
+    </div>
+    
+    <div style="display: flex; align-items: center; margin: 15px 0 10px 0;">
+        <div style="flex: 1; height: 1px; background-color: #cbd5e1;"></div>
+        <span style="font-size: 12px; color: #94a3b8; font-weight: bold; margin: 0 10px;">시즌별 명예의 전당 아카이브</span>
+        <div style="flex: 1; height: 1px; background-color: #cbd5e1;"></div>
+    </div>
+    `;
+
+    // --- [파트 B] 하단 선택된 탭 기반의 타임라인 히스토리 리스트 조립 ---
     const seasons = [];
     let loopYear = currentYear;
     let loopQuarter = currentQuarter;
@@ -3470,7 +3597,6 @@ function renderHallList() {
     }
 
     const isMountain = (window.currentHallTab === 'mountain');
-    
     const rankLabels = isMountain 
         ? ["🥇산신령", "🥈심마니", "🥉나무꾼"] 
         : ["🥇산대장", "🥈길잡이", "🥉마당발"];
@@ -3481,20 +3607,10 @@ function renderHallList() {
         let top3 = [];
         let isCurrent = (s.year === currentYear && s.quarter === currentQuarter);
         
+        // 과거 아카이브용 조건 매칭 및 주입
         if (isCurrent) {
-            if (typeof currentData !== 'undefined' && Array.isArray(currentData)) {
-                if (isMountain) {
-                    top3 = [...currentData]
-                        .filter(m => !m.isHidden && m.name !== "오즈" && ((m.quarterlyStats?.[qKey]?.hike) || 0) > 0)
-                        .sort((a, b) => (b.quarterlyStats?.[qKey]?.hike || 0) - (a.quarterlyStats?.[qKey]?.hike || 0) || b.level - a.level)
-                        .slice(0, 3);
-                } else {
-                    top3 = [...currentData]
-                        .filter(m => !m.isHidden && m.name !== "오즈" && (m.qCount || 0) > 0)
-                        .sort((a, b) => (b.qCount || 0) - (a.qCount || 0) || b.level - a.level)
-                        .slice(0, 3);
-                }
-            }
+            // 현재 분기의 리스트 카드 데이터는 위에서 구한 실시간 데이터를 그대로 할당
+            top3 = isMountain ? liveMountainTop3 : liveWithTop3;
         } 
         else if (s.year === 2026 && s.quarter === 2) {
             top3 = isMountain 
@@ -3540,9 +3656,11 @@ function renderHallList() {
             </div>`;
         }
     }
+    
+    // 최종적으로 모달 리스트 영역에 주입 실행
     listArea.innerHTML = combinedHtml;
 }
-
+            
                     
 
     
