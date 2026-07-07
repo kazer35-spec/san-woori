@@ -31,34 +31,36 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
             box-sizing: border-box;
             gap: 4px;
         }
-        /* 실황정보 탭 전용 깜빡이 배지 효과 */
-        .status-badge-realtime {
+        
+        /* 🎯 [수정] 실황정보 카드 내 LIVE 배지 강력 반짝임 효과 */
+        .live-pulse-badge {
             background-color: #ef4444;
             color: white;
             font-size: 10px;
             font-weight: 800;
-            padding: 2px 6px;
+            padding: 2px 7px;
             border-radius: 10px;
-            margin-left: 4px;
-            display: inline-block;
-            vertical-align: middle;
-            animation: realtimeBlink 1.5s infinite ease-in-out;
+            animation: livePulse 1.2s infinite ease-in-out;
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
         }
-        @keyframes realtimeBlink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+        @keyframes livePulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.95); box-shadow: 0 0 2px rgba(239, 68, 68, 0.2); }
         }
-        /* 동률 안내 문구 스타일 */
+
+        /* 동률 안내 문구 스타일 (파란색 + 작게) */
         .hall-rule-notice {
             text-align: center;
-            font-size: 11px;
-            color: #94a3b8;
+            font-size: 10px;
+            color: #2563eb; /* 파란색 */
             font-weight: 600;
             margin: 15px 0 5px 0;
+            opacity: 0.85;
         }
     `;
     document.head.appendChild(styleEl);
-             }
+}
+
             
     /* 활성화된 탭 스타일 - 네온 블루 효과 추가 */
 .hall-tab-btn.active {
@@ -3431,14 +3433,26 @@ window.showBondingForestModal = async (targetName, targetId) => {
     }
 };
 
- window.toggleHallModal = async (show) => {
+ .innerHTML = `
+        <button class="hall-tab-btn ${window.currentHallTab === 'live' ? 'active' : ''}" 
+                style="flex: 1; padding: 8px 0; font-size: 13px; font-weight: 700; line-height: 1.2; margin: 0; transition: all 0.3s ease;" 
+                onclick="switchHallTab('live')">⚡️ 실황정보</button>
+        <button class="hall-tab-btn ${window.currentHallTab === 'with' ? 'active' : ''}" 
+                style="flex: 1; padding: 8px 0; font-size: 13px; font-weight: 700; line-height: 1.2; margin: 0; transition: all 0.3s ease;" 
+                onclick="switchHallTab('with')">👑 우정대장</button>
+        <button class="hall-tab-btn ${window.currentHallTab === 'mountain' ? 'active' : ''}" 
+                style="flex: 1; padding: 8px 0; font-size: 13px; font-weight: 700; line-height: 1.2; margin: 0; transition: all 0.3s ease;" 
+                onclick="switchHallTab('mountain')">🎖 등산의신</button>
+    `;
+}
+
+window.toggleHallModal = async (show) => {
     const modal = document.getElementById('hallModal');
     if (!modal) return;
     
     modal.style.display = show ? 'flex' : 'none';
     
     if (show) {
-        // 기본 탭을 '실황정보(live)'로 최우선 설정
         if (!window.currentHallTab) {
             window.currentHallTab = 'live'; 
         }
@@ -3468,7 +3482,6 @@ function renderHallModalStructure() {
 
     tabWrapper.setAttribute('style', 'margin: 10px auto 14px auto !important; width: 95% !important; padding: 4px !important; box-sizing: border-box; display: flex; gap: 4px; background-color: #f1f5f9; border-radius: 30px;');
 
-    // 세 개의 탭 버튼 배치 (가로폭 균등 분할)
     tabWrapper.innerHTML = `
         <button class="hall-tab-btn ${window.currentHallTab === 'live' ? 'active' : ''}" 
                 style="flex: 1; padding: 8px 0; font-size: 13px; font-weight: 700; line-height: 1.2; margin: 0; transition: all 0.3s ease;" 
@@ -3501,10 +3514,9 @@ function renderHallList() {
     
     const now = new Date();
     const currentYear = now.getFullYear();
-    const currentQuarter = Math.ceil((now.getMonth() + 1) / 3); // 2026년 7월 기준 -> 3분기 계산
+    const currentQuarter = Math.ceil((now.getMonth() + 1) / 3); 
     const qKey = `${currentYear}_q${currentQuarter}`;
     
-    // 타임라인 시즌 배열 생성 (2026 3분기부터 역순)
     const seasons = [];
     let loopYear = currentYear;
     let loopQuarter = currentQuarter;
@@ -3526,88 +3538,86 @@ function renderHallList() {
     const glowClasses = ["glow-gold", "glow-silver", "glow-bronze"];
 
     // -------------------------------------------------------------
-    // [CASE 1] 실황정보 탭 클릭 시: 우정대장 LIVE 카드와 등산의신 LIVE 카드 연속 노출
+    // [CASE 1] 실황정보 탭 클릭 시 (디자인 통일 + LIVE 반짝임 + 실시간 횟수 노출)
     // -------------------------------------------------------------
     if (window.currentHallTab === 'live') {
         let liveWith = [];
         let liveMountain = [];
 
         if (typeof currentData !== 'undefined' && Array.isArray(currentData)) {
-            // 우정대장 실시간 데이터 추출 (qCount 기준)
             liveWith = [...currentData]
                 .filter(m => !m.isHidden && m.name !== "오즈" && (m.qCount || 0) > 0)
                 .sort((a, b) => (b.qCount || 0) - (a.qCount || 0) || b.level - a.level)
                 .slice(0, 3);
 
-            // 등산의신 실시간 데이터 추출 (hike 기준)
             liveMountain = [...currentData]
                 .filter(m => !m.isHidden && m.name !== "오즈" && ((m.quarterlyStats?.[qKey]?.hike) || 0) > 0)
                 .sort((a, b) => (b.quarterlyStats?.[qKey]?.hike || 0) - (a.quarterlyStats?.[qKey]?.hike || 0) || b.level - a.level)
                 .slice(0, 3);
         }
 
-        // 1-1. 실황정보 - 우정대장 카드 조립
+        // 1-1. 실황정보 - 우정대장 카드
         if (liveWith.length > 0) {
             combinedHtml += `
             <div class="hall-card border-blue-100 bg-blue-50/30" style="margin-top: 0px !important;">
                 <div class="hall-season-title">
                     <span>👑 실황정보 · 우정대장 현황</span>
-                    <span class="status-badge-realtime">LIVE</span>
+                    <span class="live-pulse-badge">LIVE</span>
                 </div>
                 <div class="hall-rank-flex">
                     <div class="hall-rank-item">
                         <span class="hall-rank-label ${glowClasses[0]}">🥇산대장</span>
                         <span class="hall-rank-name">${liveWith[0]?.name || '-'}</span>
-                        <span style="font-size:11px; color:#64748b; font-weight:600;">${liveWith[0]?.qCount || 0}회</span>
+                        <span style="font-size:11px; color:#64748b; font-weight:600; margin-top:2px;">${liveWith[0]?.qCount || 0}회</span>
                     </div>
                     ${liveWith[1] ? `
                     <div class="hall-rank-item">
                         <span class="hall-rank-label ${glowClasses[1]}">🥈길잡이</span>
                         <span class="hall-rank-name">${liveWith[1].name}</span>
-                        <span style="font-size:11px; color:#64748b; font-weight:600;">${liveWith[1].qCount || 0}회</span>
+                        <span style="font-size:11px; color:#64748b; font-weight:600; margin-top:2px;">${liveWith[1].qCount || 0}회</span>
                     </div>` : ''}
                     ${liveWith[2] ? `
                     <div class="hall-rank-item">
                         <span class="hall-rank-label ${glowClasses[2]}">🥉마당발</span>
                         <span class="hall-rank-name">${liveWith[2].name}</span>
-                        <span style="font-size:11px; color:#64748b; font-weight:600;">${liveWith[2].qCount || 0}회</span>
+                        <span style="font-size:11px; color:#64748b; font-weight:600; margin-top:2px;">${liveWith[2].qCount || 0}회</span>
                     </div>` : ''}
                 </div>
             </div>`;
         }
 
-        // 1-2. 실황정보 - 등산의신 카드 조립
+        // 1-2. 실황정보 - 등산의신 카드
         if (liveMountain.length > 0) {
             combinedHtml += `
             <div class="hall-card border-blue-100 bg-blue-50/30" style="margin-top: 12px !important;">
                 <div class="hall-season-title">
                     <span>🎖 실황정보 · 등산의신 현황</span>
-                    <span class="status-badge-realtime">LIVE</span>
+                    <span class="live-pulse-badge">LIVE</span>
                 </div>
                 <div class="hall-rank-flex">
                     <div class="hall-rank-item">
                         <span class="hall-rank-label ${glowClasses[0]}">🥇산신령</span>
                         <span class="hall-rank-name">${liveMountain[0]?.name || '-'}</span>
-                        <span style="font-size:11px; color:#64748b; font-weight:600;">${liveMountain[0]?.quarterlyStats?.[qKey]?.hike || 0}회</span>
+                        <span style="font-size:11px; color:#64748b; font-weight:600; margin-top:2px;">${liveMountain[0]?.quarterlyStats?.[qKey]?.hike || 0}회</span>
                     </div>
                     ${liveMountain[1] ? `
                     <div class="hall-rank-item">
                         <span class="hall-rank-label ${glowClasses[1]}">🥈심마니</span>
                         <span class="hall-rank-name">${liveMountain[1].name}</span>
-                        <span style="font-size:11px; color:#64748b; font-weight:600;">${liveMountain[1]?.quarterlyStats?.[qKey]?.hike || 0}회</span>
+                        <span style="font-size:11px; color:#64748b; font-weight:600; margin-top:2px;">${liveMountain[1]?.quarterlyStats?.[qKey]?.hike || 0}회</span>
                     </div>` : ''}
                     ${liveMountain[2] ? `
                     <div class="hall-rank-item">
                         <span class="hall-rank-label ${glowClasses[2]}">🥉나무꾼</span>
                         <span class="hall-rank-name">${liveMountain[2].name}</span>
-                        <span style="font-size:11px; color:#64748b; font-weight:600;">${liveMountain[2]?.quarterlyStats?.[qKey]?.hike || 0}회</span>
+                        <span style="font-size:11px; color:#64748b; font-weight:600; margin-top:2px;">${liveMountain[2]?.quarterlyStats?.[qKey]?.hike || 0}회</span>
                     </div>` : ''}
                 </div>
             </div>`;
         }
     } 
     // -------------------------------------------------------------
-    // [CASE 2] 우정대장 또는 등산의신 탭 클릭 시: 기존 아카이브 리스트 출력
+    // [CASE 2] 개별 탭 클릭 시 (캡처본처럼 이름만 나오는 깔끔한 양식 - 횟수 완전 제거)
     // -------------------------------------------------------------
     else {
         const isMountain = (window.currentHallTab === 'mountain');
@@ -3627,7 +3637,6 @@ function renderHallList() {
                             .sort((a, b) => (b.quarterlyStats?.[qKey]?.hike || 0) - (a.quarterlyStats?.[qKey]?.hike || 0) || b.level - a.level)
                             .slice(0, 3);
                     } else {
-                        // 우정대장 본래 의도대로 qCount 연산
                         top3 = [...currentData]
                             .filter(m => !m.isHidden && m.name !== "오즈" && (m.qCount || 0) > 0)
                             .sort((a, b) => (b.qCount || 0) - (a.qCount || 0) || b.level - a.level)
@@ -3654,16 +3663,6 @@ function renderHallList() {
             if (top3.length > 0) {
                 const cardMarginStyle = isCurrent ? 'margin-top: 0px !important;' : '';
                 
-                // 각 회원 밑에 수치 추가 표현 (LIVE 카드일 때 점수 가시성 확보)
-                const getScoreSubText = (memberObj) => {
-                    if (!isCurrent || !memberObj) return '';
-                    if (isMountain) {
-                        return `<span style="font-size:11px; color:#64748b; font-weight:600; display:block; margin-top:2px;">${memberObj.quarterlyStats?.[qKey]?.hike || 0}회</span>`;
-                    } else {
-                        return `<span style="font-size:11px; color:#64748b; font-weight:600; display:block; margin-top:2px;">${memberObj.qCount || 0}회</span>`;
-                    }
-                };
-
                 combinedHtml += `
                 <div class="hall-card ${isCurrent ? 'border-blue-100 bg-blue-50/30' : ''}" style="${cardMarginStyle}">
                     <div class="hall-season-title">
@@ -3674,19 +3673,16 @@ function renderHallList() {
                         <div class="hall-rank-item">
                             <span class="hall-rank-label ${glowClasses[0]}">${rankLabels[0]}</span>
                             <span class="hall-rank-name">${top3[0]?.name || '-'}</span>
-                            ${getScoreSubText(top3[0])}
                         </div>
                         ${top3[1] ? `
                         <div class="hall-rank-item">
                             <span class="hall-rank-label ${glowClasses[1]}">${rankLabels[1]}</span>
                             <span class="hall-rank-name">${top3[1].name}</span>
-                            ${getScoreSubText(top3[1])}
                         </div>` : ''}
                         ${top3[2] ? `
                         <div class="hall-rank-item">
                             <span class="hall-rank-label ${glowClasses[2]}">${rankLabels[2]}</span>
                             <span class="hall-rank-name">${top3[2].name}</span>
-                            ${getScoreSubText(top3[2])}
                         </div>` : ''}
                     </div>
                 </div>`;
@@ -3694,13 +3690,14 @@ function renderHallList() {
         }
     }
 
-    // 공통 하단 룰 가이드 배치
+    // 파란색 작은 글씨 가이드라인 주입
     combinedHtml += `<p class="hall-rule-notice">※ 점수와 횟수가 동률일 경우 레벨이 높은 순서입니다.</p>`;
     
     listArea.innerHTML = combinedHtml;
 }
 
-  
+        
+        
                     
 
     
