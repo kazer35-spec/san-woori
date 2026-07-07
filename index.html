@@ -13,35 +13,6 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-    .hall-tab-btn { flex: 1; border: none; background: transparent; padding: 8px 0; font-size: 12px; font-weight: 700; color: #64748b; cursor: pointer; border-radius: 25px; transition: all 0.3s; }
-.hal/* 1. 탭 버튼 기본 스타일 */
-.hall-tab-btn {
-    flex: 1;
-    border: none;
-    background: transparent;
-    padding: 8px 0;
-    font-size: 12px;
-    font-weight: 700;
-    color: #64748b;
-    cursor: pointer;
-    border-radius: 25px;
-    transition: all 0.3s ease;
-}
-
-/* 2. 일반 탭 활성화 (동행지기, 산행고수) */
-.hall-tab-btn.active {
-    background-color: #ffffff !important;
-    color: #1e3a8a !important;
-    box-shadow: 0 0 10px rgba(30, 58, 138, 0.3) !important;
-}
-
-/* 3. 라이브 탭 활성화 (현황 탭 전용 - 가장 높은 우선순위) */
-.hall-tab-btn.active-live {
-    background-color: #ef4444 !important;
-    color: #ffffff !important;
-    box-shadow: 0 0 15px rgba(239, 68, 68, 0.5) !important;
-}
-
     /* 활성화된 탭 스타일 - 네온 블루 효과 추가 */
 .hall-tab-btn.active {
     background-color: #ffffff;
@@ -3413,118 +3384,74 @@ window.showBondingForestModal = async (targetName, targetId) => {
     }
 };
 
-    // 1. 모달 제어 및 탭 초기화
-window.toggleHallModal = async (show) => {
+ 
+ window.toggleHallModal = async (show) => {
     const modal = document.getElementById('hallModal');
     if (!modal) return;
+    
     modal.style.display = show ? 'flex' : 'none';
+    
     if (show) {
-        if (!window.currentHallTab) window.currentHallTab = 'live';
+        // 🎯 [핵심] 기본값을 동행왕(with)으로 설정
+        if (!window.currentHallTab) {
+            window.currentHallTab = 'with'; 
+        }
         renderHallModalStructure();
         renderHallList();
     }
 };
 
-// 2. 탭 바 구조 생성
 function renderHallModalStructure() {
     const modal = document.getElementById('hallModal');
     let tabWrapper = document.getElementById('hallTabWrapper');
+    
     const originalSubtitle = modal.querySelector('p.uppercase') || modal.querySelector('.text-gray-400');
     
     if (!tabWrapper) {
         tabWrapper = document.createElement('div');
         tabWrapper.id = 'hallTabWrapper';
         tabWrapper.className = 'hall-tab-container';
+        
         if (originalSubtitle && originalSubtitle.parentNode) {
             originalSubtitle.parentNode.insertBefore(tabWrapper, originalSubtitle.nextSibling);
         }
     }
 
-    tabWrapper.setAttribute('style', 'margin: 10px auto 14px auto !important; width: 90% !important; padding: 4px !important; box-sizing: border-box; display: flex; gap: 6px; background-color: #f1f5f9; border-radius: 30px;');
+    tabWrapper.setAttribute('style', 'margin: 10px auto 14px auto !important; width: 80% !important; padding: 4px !important; box-sizing: border-box; display: flex; gap: 8px; background-color: #f1f5f9; border-radius: 30px;');
+
+    // 🎯 [순서 변경] 동행왕(with)이 먼저 오도록 배치
     tabWrapper.innerHTML = `
-        <button class="hall-tab-btn ${window.currentHallTab === 'live' ? 'active-live' : ''}" onclick="switchHallTab('live')">⚡ 현황</button>
-        <button class="hall-tab-btn ${window.currentHallTab === 'with' ? 'active' : ''}" onclick="switchHallTab('with')">👑 동행지기</button>
-        <button class="hall-tab-btn ${window.currentHallTab === 'mountain' ? 'active' : ''}" onclick="switchHallTab('mountain')">🎖 산행고수</button>
+        <button class="hall-tab-btn ${window.currentHallTab === 'with' ? 'active' : ''}" 
+                style="flex: 1; padding: 6px 0; font-size: 14px; font-weight: 700; line-height: 1.2; margin: 0; transition: all 0.3s ease;" 
+                onclick="switchHallTab('with')">👑 동행지기</button>
+        <button class="hall-tab-btn ${window.currentHallTab === 'mountain' ? 'active' : ''}" 
+                style="flex: 1; padding: 6px 0; font-size: 14px; font-weight: 700; line-height: 1.2; margin: 0; transition: all 0.3s ease;" 
+                onclick="switchHallTab('mountain')">🎖 산행고수</button>
     `;
 }
 
 window.switchHallTab = (tabType) => {
     window.currentHallTab = tabType;
-    renderHallModalStructure();
-    renderHallList();
+    renderHallModalStructure(); 
+    renderHallList();           
 };
 
-// 3. 메달별 컬러 깜빡임 효과가 적용된 카드 렌더링 (통합용)
-function renderRankCards(top3, labels) {
-    // 🥇골드, 🥈실버, 🥉브론즈 계열 깜빡임 애니메이션 정의
-    return `
-        <style>
-            @keyframes blinkGold { 0%, 100% { color: #d97706; } 50% { color: #fbbf24; } }
-            @keyframes blinkSilver { 0%, 100% { color: #64748b; } 50% { color: #94a3b8; } }
-            @keyframes blinkBronze { 0%, 100% { color: #b45309; } 50% { color: #d97706; } }
-            .blink-0 { animation: blinkGold 2s infinite; font-weight: 800; }
-            .blink-1 { animation: blinkSilver 2s infinite; font-weight: 800; }
-            .blink-2 { animation: blinkBronze 2s infinite; font-weight: 800; }
-            .rank-card-inner { display:flex; gap:8px; background:#ffffff; padding:12px; border-radius:15px; border:1px solid #e2e8f0; margin-bottom:15px; }
-        </style>
-        <div class="rank-card-inner">
-            ${labels.map((l, i) => `
-                <div style="flex:1; text-align:center;">
-                    <div class="blink-${i}" style="font-size:9px;">${l}</div>
-                    <div style="font-size:13px; font-weight:800; margin-top:4px; color:#1e293b;">
-                        ${top3[i]?.name || '-'}
-                    </div>
-                </div>
-            `).join('')}
-        </div>
-    `;
-}
 
-// 4. 통합 리스트 렌더링 (현황 탭에서도 반짝임 효과 적용 완료)
+// 명단 리스트 렌더링
 function renderHallList() {
     const listArea = document.getElementById('hallListArea');
     if (!listArea) return;
     
-    const qKey = `${new Date().getFullYear()}_q${Math.ceil((new Date().getMonth() + 1) / 3)}`;
-    const getSortedData = (isMt) => {
-        if (typeof currentData === 'undefined') return [];
-        return [...currentData].filter(m => !m.isHidden && m.name !== "오즈" && ((isMt ? m.quarterlyStats?.[qKey]?.hike : m.qCount) || 0) > 0)
-            .sort((a, b) => {
-                const sA = (isMt ? a.quarterlyStats?.[qKey]?.hike : a.qCount) || 0;
-                const sB = (isMt ? b.quarterlyStats?.[qKey]?.hike : b.qCount) || 0;
-                return sB !== sA ? sB - sA : (b.level || 0) - (a.level || 0);
-            }).slice(0, 3);
-    };
-
-    if (window.currentHallTab === 'live') {
-        listArea.style.cssText = 'padding: 5px;';
-        // ⚡ 현황 탭에 renderRankCards를 적용하여 1~3위 반짝임 효과 통합
-        listArea.innerHTML = `
-            <div style="margin-bottom:10px; font-weight:900; font-size:14px; display:flex; justify-content:space-between; align-items:center;">
-                <span>👑 동행지기</span><span style="color:#22c55e; font-size:10px;">● LIVE</span>
-            </div>
-            ${renderRankCards(getSortedData(false), ["🥇산대장", "🥈길잡이", "🥉마당발"])}
-            <div style="margin-bottom:10px; font-weight:900; font-size:14px; display:flex; justify-content:space-between; align-items:center;">
-                <span>🎖 산행고수</span><span style="color:#22c55e; font-size:10px;">● LIVE</span>
-            </div>
-            ${renderRankCards(getSortedData(true), ["🥇산신령", "🥈심마니", "🥉나무꾼"])}
-        `;
-    } else {
-        
-        
-        
-
-
-        // [디자인 2: 기존 시즌 랭킹 리스트]
-        listArea.style.cssText = 'padding-top: 0px !important; margin-top: 4px !important; max-height: 420px !important; overflow-y: auto !important; width: 100%;';
-        
-        let combinedHtml = "";
-        const now = new Date();
-        const currentYear = now.getFullYear();
-        const currentQuarter = Math.ceil((now.getMonth() + 1) / 3);
-        const qKey = `${currentYear}_q${currentQuarter}`;
-        
-        const seasons = [];
+    listArea.setAttribute('style', 'padding-top: 0px !important; margin-top: 0px !important; max-height: 420px !important; overflow-y: auto !important; width: 100%; box-sizing: border-box;');
+    
+    let combinedHtml = "";
+    
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentQuarter = Math.ceil((now.getMonth() + 1) / 3);
+    const qKey = `${currentYear}_q${currentQuarter}`;
+    
+    const seasons = [];
     let loopYear = currentYear;
     let loopQuarter = currentQuarter;
     
@@ -3614,10 +3541,8 @@ function renderHallList() {
         }
     }
     listArea.innerHTML = combinedHtml;
-    }
 }
 
- 
                     
 
     
