@@ -96,7 +96,41 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
     document.head.appendChild(styleEl);
      }
             
-    
+    /* 활성화된 탭 스타일 - 네온 블루 효과 추가 */
+.hall-tab-btn.active {
+    background-color: #ffffff;
+    color: #1e3a8a; 
+    box-shadow: 0 0 10px rgba(30, 58, 138, 0.5), 0 2px 8px rgba(0, 0, 0, 0.1); /* 네온빛 번쩍 효과 */
+    transform: scale(1.02); /* 살짝 커지는 효과 */
+}
+
+    /* 탭 바 겉 테두리 및 레이아웃 */
+.hall-tab-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #f1f5f9; /* 연한 회색 배경 */
+    border-radius: 30px;
+    padding: 4px;
+    margin: 15px auto;
+    width: 80%; /* 모달 크기에 맞춰 조절 */
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+}
+
+/* 탭 버튼 기본 스타일 */
+.hall-tab-btn {
+    flex: 1;
+    border: none;
+    background: transparent;
+    padding: 10px 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    border-radius: 25px;
+    transition: all 0.25s ease;
+}
+
 
 /* 동행왕 전용 라벨 컬러셋 (옵션) */
 .glow-with-gold { color: #d97706; font-weight: bold; }
@@ -3468,18 +3502,10 @@ function renderHallModalStructure() {
         }
     }
 
-    tabWrapper.setAttribute('style', 'margin: 10px auto 14px auto !important; width: 95% !important; padding: 4px !important; box-sizing: border-box; display: flex; gap: 4px; background-color: #f1f5f9; border-radius: 30px;');
-
     tabWrapper.innerHTML = `
-        <button class="hall-tab-btn ${window.currentHallTab === 'live' ? 'active' : ''}" 
-                style="flex: 1; padding: 8px 0; font-size: 13px; font-weight: 700; line-height: 1.2; margin: 0; transition: all 0.3s ease;" 
-                onclick="switchHallTab('live')">⚡️ 실황정보</button>
-        <button class="hall-tab-btn ${window.currentHallTab === 'with' ? 'active' : ''}" 
-                style="flex: 1; padding: 8px 0; font-size: 13px; font-weight: 700; line-height: 1.2; margin: 0; transition: all 0.3s ease;" 
-                onclick="switchHallTab('with')">👑 우정대장</button>
-        <button class="hall-tab-btn ${window.currentHallTab === 'mountain' ? 'active' : ''}" 
-                style="flex: 1; padding: 8px 0; font-size: 13px; font-weight: 700; line-height: 1.2; margin: 0; transition: all 0.3s ease;" 
-                onclick="switchHallTab('mountain')">🎖 등산의신</button>
+        <button class="hall-tab-btn ${window.currentHallTab === 'live' ? 'active' : ''}" onclick="switchHallTab('live')">⚡️ 실황정보</button>
+        <button class="hall-tab-btn ${window.currentHallTab === 'with' ? 'active' : ''}" onclick="switchHallTab('with')">👑 우정대장</button>
+        <button class="hall-tab-btn ${window.currentHallTab === 'mountain' ? 'active' : ''}" onclick="switchHallTab('mountain')">🎖 등산의신</button>
     `;
 }
 
@@ -3526,7 +3552,7 @@ function renderHallList() {
     const glowClasses = ["glow-gold", "glow-silver", "glow-bronze"];
 
     // -------------------------------------------------------------
-    // [CASE 1] 실황정보 탭 클릭 시 (디자인 통일 + LIVE 반짝임 + 실시간 횟수 노출)
+    // [CASE 1] 실황정보 탭 클릭 시 (디자인 통일 + live-pulse-badge 매칭 완료)
     // -------------------------------------------------------------
     if (window.currentHallTab === 'live') {
         let liveWith = [];
@@ -3544,7 +3570,7 @@ function renderHallList() {
                 .slice(0, 3);
         }
 
-        // 1-1. 실황정보 - 우정대장 카드
+        // 1-1. 실황정보 - 우정대장 카드 (live-pulse-badge 적용)
         if (liveWith.length > 0) {
             combinedHtml += `
             <div class="hall-card border-blue-100 bg-blue-50/30" style="margin-top: 0px !important;">
@@ -3574,7 +3600,7 @@ function renderHallList() {
             </div>`;
         }
 
-        // 1-2. 실황정보 - 등산의신 카드
+        // 1-2. 실황정보 - 등산의신 카드 (live-pulse-badge 적용)
         if (liveMountain.length > 0) {
             combinedHtml += `
             <div class="hall-card border-blue-100 bg-blue-50/30" style="margin-top: 12px !important;">
@@ -3605,7 +3631,7 @@ function renderHallList() {
         }
     } 
     // -------------------------------------------------------------
-    // [CASE 2] 개별 탭 클릭 시 (캡처본처럼 이름만 나오는 깔끔한 양식 - 횟수 완전 제거)
+    // [CASE 2] 개별 탭 클릭 시 (이름만 깔끔하게 노출, 횟수 X, 정적 배지 사용)
     // -------------------------------------------------------------
     else {
         const isMountain = (window.currentHallTab === 'mountain');
@@ -3655,7 +3681,7 @@ function renderHallList() {
                 <div class="hall-card ${isCurrent ? 'border-blue-100 bg-blue-50/30' : ''}" style="${cardMarginStyle}">
                     <div class="hall-season-title">
                         <span>${s.year}년 ${s.quarter}분기 (Season ${s.seasonNum})</span>
-                        ${isCurrent ? '<span class="status-badge-live">LIVE</span>' : '<span class="status-badge-end">종료</span>'}
+                        ${isCurrent ? '<span class="status-badge-live-static">LIVE</span>' : '<span class="status-badge-end">종료</span>'}
                     </div>
                     <div class="hall-rank-flex">
                         <div class="hall-rank-item">
@@ -3678,15 +3704,11 @@ function renderHallList() {
         }
     }
 
-    // 파란색 작은 글씨 가이드라인 주입
+    // 파란색 명시 처리된 가이드라인 추가
     combinedHtml += `<p class="hall-rule-notice">※ 점수와 횟수가 동률일 경우 레벨이 높은 순서입니다.</p>`;
     
     listArea.innerHTML = combinedHtml;
-}
-
-        
-        
-                    
+}                  
 
     
 window.toggleVibeModal = (show) => { document.getElementById('vibeModal').style.display = show ? 'flex' : 'none'; };
