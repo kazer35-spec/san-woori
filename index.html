@@ -13,6 +13,17 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+    @keyframes ringTextPulse {
+    0%, 100% {
+        opacity: 0.7;
+        filter: drop-shadow(0 0 2px var(--glow-color, inherit)) brightness(1);
+    }
+    50% {
+        opacity: 1;
+        filter: drop-shadow(0 0 8px var(--glow-color, inherit)) brightness(1.3);
+    }
+}
+
 /* LIVE 배지 깜빡임 애니메이션 */
 @keyframes pulse-glow {
     0%, 100% { opacity: 1; transform: scale(1); }
@@ -5153,19 +5164,7 @@ function updateAdminMemberLists() {
     document.getElementById('countFemale').innerText = visibleMembers.filter(m => m.gender === '여').length;
 }
 
-            
-
-
-
-
-
-
-
-
-
-
-
-
+        
 window.toggleModal = (show) => {
   document.getElementById('levelModal').style.display = show ? 'flex' : 'none';
   if(show) {
@@ -5614,18 +5613,27 @@ window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
     // 나이테 개수: 가입 직후(0개월) 1개, 한 달 경과(1개월) 2개... 방식 적용
     const diffMonths = Math.max(1, elapsedMonths + 1);
 
-    // ✨ [여기에 추가] 계산된 jDate를 기반으로 나이테 LAUNCHED 텍스트 즉시 갱신
+    // 레벨별 스타일 및 색상 추출 위치 이동
+    const style = getLevelStyle(memberLevel);
+    const ringColor = style.border; // ✨ 레벨 고유의 테두리 색상
+
+    // 🪐 [수정] 계산된 jDate를 기반으로 나이테 LAUNCHED 텍스트 매핑 및 레벨 네온 효과 적용
     const ringLaunchedEl = document.getElementById('ringLaunchedDate');
     if (ringLaunchedEl && jDate) {
         const yyyy = jDate.getFullYear();
         const mm = String(jDate.getMonth() + 1).padStart(2, '0');
         const dd = String(jDate.getDate()).padStart(2, '0');
+        
         ringLaunchedEl.innerText = `LAUNCHED: ${yyyy}.${mm}.${dd}`;
+        
+        // 🎨 레벨 색상 적용 및 반짝이는 네온 애니메이션 스타일 부여
+        ringLaunchedEl.style.color = ringColor;
+        ringLaunchedEl.style.textShadow = `0 0 5px ${ringColor}, 0 0 10px ${ringColor}`;
+        ringLaunchedEl.style.animation = "ringTextPulse 2s infinite ease-in-out";
     }
-    
-    const style = getLevelStyle(memberLevel);
-    const ringColor = style.border;
+
     const regularStarColors = ["#00FFFF", "#FF8C00", "#D32F2F", "#7C4DFF", "#A020F0", "#00FF7F"]; 
+
 
     // [4] 정기산행 데이터 로드
     let regularHikesByMonth = {};
