@@ -5997,7 +5997,7 @@ setTimeout(() => s.remove(), 500);
 }, 850);
 }
 
-window.showFadingScroll = async function(mId, dday, level = 0) {
+ window.showFadingScroll = async function(mId, dday, level = 0) {
     const modal = document.getElementById('scrollModal');
     const content = document.getElementById('scrollContent');
     const scrollWrap = document.querySelector('.fading-scroll'); 
@@ -6028,8 +6028,36 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
         subMsg = "지금 당장 기록을 지속하여 문장을 복원하세요.";
     }
 
+    // [추가] 가입일(regDate) 및 나이테 개월 수 동적 파싱 및 UI 반영
+    let formattedRegDateKo = "----년 --월 --일";
+    let formattedRegDateDot = "----.--.--";
+
+    try {
+        // 멤버 메인 문서에서 regDate 가져오기
+        const memberSnap = await getDoc(doc(db, `sanwoori`, mId));
+        if (memberSnap.exists()) {
+            const memberData = memberSnap.data();
+            if (memberData.regDate) {
+                const rDate = memberData.regDate.toDate();
+                const yyyy = rDate.getFullYear();
+                const mm = String(rDate.getMonth() + 1).padStart(2, '0');
+                const dd = String(rDate.getDate()).padStart(2, '0');
+                
+                formattedRegDateKo = `${yyyy}년 ${mm}월 ${dd}일`;
+                formattedRegDateDot = `${yyyy}.${mm}.${dd}`;
+
+                // 나이테 영역에 착륙일 실시간 바인딩
+                const ringLaunchedEl = document.getElementById('ringLaunchedDate');
+                if (ringLaunchedEl) {
+                    ringLaunchedEl.innerText = `LAUNCHED: ${formattedRegDateDot}`;
+                }
+            }
+        }
+    } catch (e) {
+        console.error("가입일 로드 실패:", e);
+    }
+
     // 2. 연대기 목록 (5개 호출하되, 보이는 높이는 고정)
-    // 기록이 없어도 하단 문구가 고정되도록 min-height와 max-height를 똑같이 90px로 맞춥니다.
     let chronicleHTML = `
         <div class="chronicle-container" style="min-height: 90px; max-height: 90px; overflow-y: auto; padding-right: 5px; margin-bottom: 10px;">
     `;
@@ -6042,13 +6070,14 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
             snap.forEach(doc => {
                 const data = doc.data();
                 const date = data.date ? data.date.toDate().toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' }) : '??.??';
-               let typeIcon = ""; // 기본값은 등산
-
-if (data.run === true || data.run > 0) {
-    typeIcon = ""; // 런닝
-} else if (data.trek === true || data.trek > 0) {
-    typeIcon = ""; // 트레킹
-}
+                
+                // 활동 아이콘 조건 복구
+                let typeIcon = ""; 
+                if (data.run === true || data.run > 0) {
+                    typeIcon = ""; 
+                } else if (data.trek === true || data.trek > 0) {
+                    typeIcon = ""; 
+                }
              
                 const textColor = isGold ? "color: #d4af37; font-weight: bold;" : "color: #5a4a3a;";
                 const dotColor = isGold ? "background: #d4af37;" : "background: #8d775f;";
@@ -6066,12 +6095,17 @@ if (data.run === true || data.run > 0) {
     }
     chronicleHTML += `</div>`;
 
-    // 3. UI 렌더링 (HTML 뼈대에 있는 중복 문구 제거)
+    // 3. UI 렌더링 (고대 예언서 내 "혼자 가면 기록..." 하단에 가입일 서사적 배치)
     content.innerHTML = `
-        <p class="${isGold ? 'gold-glow' : effectClass}" style="font-weight: 500;">
-            "혼자 가면 기록이지만<br>함께 가면 역사"
-        </p>
-        <div style="margin-top: 25px; font-size: 10px; line-height: 1.8; color: #5a4a3a;">
+        <div style="text-align: center;">
+            <p class="${isGold ? 'gold-glow' : effectClass}" style="font-weight: 500; margin-bottom: 6px;">
+                "혼자 가면 기록이지만<br>함께 가면 역사"
+            </p>
+            <p class="ancient-origin-date" style="font-size: 10px; color: #8d775f; font-style: italic; margin: 0 0 15px 0; opacity: 0.8; letter-spacing: 0.5px;">
+                - 始原(시원) : ${formattedRegDateKo}의 문장 -
+            </p>
+        </div>
+        <div style="margin-top: 20px; font-size: 10px; line-height: 1.8; color: #5a4a3a;">
             <strong style="font-size: 12px; display: block; margin-bottom: 10px; color: #3e2723; font-weight: 800;">${statusMsg}</strong>
             ${subMsg}
         </div>
@@ -6093,82 +6127,89 @@ if (data.run === true || data.run > 0) {
 };
 </script>
 
+<!-- 마크업 구조 레이어 -->
 <div id="mountainViewModal" class="mountain-modal" onclick="this.style.display='none'">
-<div id="integratedCard" class="integrated-member-card" onclick="event.stopPropagation()">
+    <div id="integratedCard" class="integrated-member-card" onclick="event.stopPropagation()">
 
-<div class="tree-ring-section">
-<div class="ring-header">
-<div class="ring-title-group">
-<span class="ring-label">ACTIVITY HISTORY</span>
-<h3 class="ring-main-title">활동 나이테</h3>
-</div>
-<div class="ring-stats">
-<span id="activityMonths" class="ring-months-val">0</span>
-<span class="ring-unit">Months</span>
-</div>
-</div>
-<div id="treeRingContainer" class="ring-canvas"></div>
+        <!-- [나이테 섹션] -->
+        <div class="tree-ring-section">
+            <div class="ring-header">
+                <div class="ring-title-group">
+                    <span class="ring-label">ACTIVITY HISTORY</span>
+                    <h3 class="ring-main-title">활동 나이테</h3>
+                </div>
+                <div class="ring-stats" style="text-align: right;">
+                    <span id="activityMonths" class="ring-months-val">0</span>
+                    <span class="ring-unit">Months</span>
+                    <!-- 🪐 나이테 중앙/우측 배치용 가입일 태그 추가 -->
+                    <div id="ringLaunchedDate" style="font-size: 9px; color: #1ABC9C; font-family: monospace; font-weight: bold; margin-top: 4px; letter-spacing: 0.5px; opacity: 0.8;">LAUNCHED: ----.--.--</div>
+                </div>
+            </div>
+            <div id="treeRingContainer" class="ring-canvas"></div>
+        </div>
+
+        <!-- [산맥 비주얼 섹션] -->
+        <div class="mountain-section">
+            <div id="starrySky"></div>
+            <div id="bgLayersContainer"></div>
+            <div id="lightBeam" class="light-beam"></div>
+            <div id="peakLayer" class="mountain-layer"></div>
+
+            <div class="mountain-header">
+                <h2 id="mwMountainName" style="font-size: 16px; margin: 0; font-weight: 900; color: white;"></h2>
+                <p style="font-size: 15px; color: #94a3b8; margin: 0;"></p>
+            </div>
+
+            <div id="highestPeakLabel" class="highest-peak-label"></div>
+
+            <div class="mountain-info-bar">
+                <div class="info-item">개인 누적 <span id="myTotalH" class="info-val">0</span>m</div>
+                <div class="info-item">산우리 합산 <span id="globalTotalH" class="info-val">0</span>m</div>
+            </div>
+        </div>
+
+        <button onclick="document.getElementById('mountainViewModal').style.display='none'" style="position:absolute; top:15px; right:15px; color:white; background:none; border:none; font-size:24px; cursor:pointer; z-index:201;">&times;</button>
+    </div>
 </div>
 
-<div class="mountain-section">
-<div id="starrySky"></div>
-<div id="bgLayersContainer"></div>
-<div id="lightBeam" class="light-beam"></div>
-<div id="peakLayer" class="mountain-layer"></div>
-
-<div class="mountain-header">
-<h2 id="mwMountainName" style="font-size: 16px; margin: 0; font-weight: 900; color: white;"></h2>
-<p style="font-size: 15px; color: #94a3b8; margin: 0;"></p>
-</div>
-
-<div id="highestPeakLabel" class="highest-peak-label"></div>
-
-<div class="mountain-info-bar">
-<div class="info-item">개인 누적 <span id="myTotalH" class="info-val">0</span>m</div>
-<div class="info-item">산우리 합산 <span id="globalTotalH" class="info-val">0</span>m</div>
-</div>
-</div>
-
-<button onclick="document.getElementById('mountainViewModal').style.display='none'"
-style="position:absolute; top:15px; right:15px; color:white; background:none; border:none; font-size:24px; cursor:pointer; z-index:201;">&times;</button>
-</div>
-</div>
-
+<!-- [고대 예언서 모달 레이어] -->
 <div id="scrollModal" class="scroll-overlay" onclick="this.style.display='none'">
-<div class="fading-scroll" onclick="event.stopPropagation()">
+    <div class="fading-scroll" onclick="event.stopPropagation()">
 
-<div class="ancient-mountain-bg">
-<svg viewBox="0 0 500 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-<path d="M150 180L250 50L350 180" stroke="#8b4513" stroke-width="2" stroke-opacity="0.2"/>
-<path d="M50 180L180 80L280 180" stroke="#8b4513" stroke-width="2" stroke-opacity="0.1"/>
-<path d="M280 180L380 90L480 180" stroke="#8b4513" stroke-width="2" stroke-opacity="0.1"/>
-<path d="M230 75L250 50L270 75" stroke="#8b4513" stroke-width="1" stroke-opacity="0.2"/>
-</svg>
-</div>
+        <div class="ancient-mountain-bg">
+            <svg viewBox="0 0 500 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M150 180L250 50L350 180" stroke="#8b4513" stroke-width="2" stroke-opacity="0.2"/>
+                <path d="M50 180L180 80L280 180" stroke="#8b4513" stroke-width="2" stroke-opacity="0.1"/>
+                <path d="M280 180L380 90L480 180" stroke="#8b4513" stroke-width="2" stroke-opacity="0.1"/>
+                <path d="M230 75L250 50L270 75" stroke="#8b4513" stroke-width="1" stroke-opacity="0.2"/>
+            </svg>
+        </div>
 
-<div class="scroll-header">
-<div class="scroll-title-sub">SAN WOORI</div>
-<h3 class="scroll-title-main">고대 예언서</h3>
-</div>
+        <div class="scroll-header">
+            <div class="scroll-title-sub">SAN WOORI</div>
+            <h3 class="scroll-title-main">고대 예언서</h3>
+        </div>
 
-<div id="scrollContent" class="scroll-body">
-</div>
+        <div id="scrollContent" class="scroll-body">
+            <!-- 자바스크립트에서 텍스트 및 가입일 명언 레이아웃이 여기에 채워집니다. -->
+        </div>
 
-<div class="scroll-footer">
-    <hr class="scroll-divider">
-    
-    <div class="ancient-seal">
-        <div class="seal-text">SAN<br>WOORI</div>
+        <div class="scroll-footer">
+            <hr class="scroll-divider">
+            
+            <div class="ancient-seal">
+                <div class="seal-text">SAN<br>WOORI</div>
+            </div>
+            
+            <p class="footer-note" style="font-weight: bold; color: #5a4a3a; margin-top: 15px;">
+                기록 연장이 필요하면 요청해 주세요.
+            </p>
+            
+            <p class="ancient-signature">San:woori Management</p>
+        </div>
     </div>
-    
-    <p class="footer-note" style="font-weight: bold; color: #5a4a3a; margin-top: 15px;">
-        기록 연장이 필요하면 요청해 주세요.
-    </p>
-    
-    <p class="ancient-signature">San:woori Management</p>
+</div>
 
-    </div>
-     </div>
 
 <div id="grassPopup" class="hidden" style="position: absolute; z-index: 9999; background: white; border: 1px solid #e2e8f0; padding: 12px; border-radius: 12px; shadow: 0 10px 15px -3px rgba(0,0,0,0.1); min-width: 140px; pointer-events: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
     <div id="popupDate" style="font-size: 10px; font-weight: bold; color: #94a3b8; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; margin-bottom: 8px;"></div>
