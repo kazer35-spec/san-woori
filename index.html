@@ -5433,8 +5433,7 @@ async function updateVibeTemp() {
   }
 }
 
-
-        window.showMemberMountain = async (mId, mName) => {
+window.showMemberMountain = async (mId, mName) => {
     const modal = document.getElementById('mountainViewModal');
     const card = document.getElementById('integratedCard');
     const peakLayer = document.getElementById('peakLayer');
@@ -5505,19 +5504,32 @@ async function updateVibeTemp() {
         // 고도가 존재하는 산맥 렌더링용 베이스 로그
         const logs = allLogs.filter(l => (l.height || 0) > 0);
 
-        // 🎯 산행 + 번외산행만 카운팅 (러닝, 트레킹, 산책 제외)
+        // 🎯 [필터 보정] 러닝, 트레킹, 산책만 제외하고 '산행 + 번외산행'은 전부 포함하여 카운트
         const pureHikeCount = allLogs.filter(l => !l.isRunning && !l.isTracking && !l.isWalking).length;
 
-        // 🏔️ 타이틀과 TOTAL 횟수 정밀 배치 (오른쪽 절대 좌표 고정 구조)
+        // 🏔️ 외부 CSS 전체 무시 및 완전 지배 레이아웃 주입
         if(mwMountainName) {
-            // 상위 부모 컴포넌트나 기준 스타일 영향 없이 우측에 완전히 고정시킵니다.
-            mwMountainName.style.position = 'relative';
-            mwMountainName.style.width = '100%';
-            mwMountainName.style.display = 'block';
+            const parentHeader = mwMountainName.closest('.mountain-header');
+            if (parentHeader) {
+                parentHeader.style.position = 'absolute';
+                parentHeader.style.top = '22px'; 
+                parentHeader.style.left = '25px';
+                parentHeader.style.right = '45px'; 
+                parentHeader.style.width = 'calc(100% - 70px)';
+                parentHeader.style.display = 'block';
+            }
 
+            // 부모 스타일 간섭 없이 강제 가로 분할 정렬
+            mwMountainName.style.display = 'flex';
+            mwMountainName.style.justifyContent = 'space-between';
+            mwMountainName.style.alignItems = 'center';
+            mwMountainName.style.width = '100%';
+            mwMountainName.style.position = 'relative';
+
+            // 텍스트 크기 규격화 고정 (좌측 16px / 우측 14px)
             mwMountainName.innerHTML = `
-                <span>${mName}님의 산맥</span>
-                <span style="position: absolute; right: 0; top: 50%; transform: translateY(-50%); color: ${style.border}; text-shadow: 0 0 5px ${style.border}, 0 0 10px ${style.border}; font-weight: 900; white-space: nowrap;">🏔️TOTAL: ${pureHikeCount}회</span>
+                <span style="font-size: 16px; font-weight: 800; white-space: nowrap; letter-spacing: -0.3px;">${mName}님의 산맥</span>
+                <span style="font-size: 14px; font-weight: 900; color: ${style.border}; text-shadow: 0 0 6px ${style.border}, 0 0 12px ${style.border}; white-space: nowrap;">🏔️TOTAL: ${pureHikeCount}회</span>
             `;
         }
 
@@ -5627,8 +5639,8 @@ async function updateVibeTemp() {
     }
 };
 
-
-
+         
+                        
 window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
     const container = document.getElementById('treeRingContainer');
     const monthLabel = document.getElementById('activityMonths');
