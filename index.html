@@ -1543,8 +1543,14 @@ box-shadow: 0 0 10px 2px white, 0 0 20px 5px #fbbf24; z-index: 120;
 
     /* 헤더 글씨 */
 .mountain-header {
-position: absolute; top: 15px; left: 20px; z-index: 200; color: white;
+    position: absolute;
+    top: 15px;
+    left: 20px;
+    right: 20px; /* 👈 이 속성이 우측 마진 공간을 뚫어줍니다! */
+    z-index: 200;
+    color: white;
 }
+
 
 /* 1. 전체 배경 어둡게 */
 .scroll-overlay {
@@ -3560,9 +3566,10 @@ function renderHallList() {
             </span>
             <div style="display: flex; align-items: center; gap: 6px;">
                 <span style="display: flex; position: relative; width: 6px; height: 6px;">
-                    <span style="animation: hallPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; position: absolute; inline-size: 100%; block-size: 100%; border-radius: 50%; background-color: #0d9488; opacity: 0.75;"></span>
-                    <span style="position: relative; display: inline-flex; border-radius: 50%; width: 6px; height: 6px; background-color: #0d9488;"></span>
-                </span>
+    <span style="animation: hallPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; position: absolute; inline-size: 100%; block-size: 100%; border-radius: 50%; background-color: #ef4444; opacity: 0.75;"></span>
+    <span style="position: relative; display: inline-flex; border-radius: 50%; width: 6px; height: 6px; background-color: #ef4444;"></span>
+</span>
+
                 <span id="hallLiveCountdown" style="font-size: 12px; color: #0d9488; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em;">계산 중...</span>
             </div>
         </div>
@@ -3573,6 +3580,8 @@ function renderHallList() {
                 50% { opacity: .3; transform: scale(1.4); }
             }
         </style>`;
+
+
 
 
         // 1-1. 실황정보 - 우정대장 카드
@@ -5424,188 +5433,214 @@ async function updateVibeTemp() {
   }
 }
 
-
 window.showMemberMountain = async (mId, mName) => {
-const modal = document.getElementById('mountainViewModal');
-const card = document.getElementById('integratedCard');
-const peakLayer = document.getElementById('peakLayer');
-const bgContainer = document.getElementById('bgLayersContainer');
-const sky = document.getElementById('starrySky');
-const beam = document.getElementById('lightBeam');
-const peakLabel = document.getElementById('highestPeakLabel');
-const ringMainTitle = document.querySelector('.ring-main-title');
-const mwMountainName = document.getElementById('mwMountainName');
+    const modal = document.getElementById('mountainViewModal');
+    const card = document.getElementById('integratedCard');
+    const peakLayer = document.getElementById('peakLayer');
+    const bgContainer = document.getElementById('bgLayersContainer');
+    const sky = document.getElementById('starrySky');
+    const beam = document.getElementById('lightBeam');
+    const peakLabel = document.getElementById('highestPeakLabel');
+    const ringMainTitle = document.querySelector('.ring-main-title');
+    const mwMountainName = document.getElementById('mwMountainName');
 
-let ringBeam = document.getElementById('ringLightBeam');
-if(!ringBeam) {
-ringBeam = document.createElement('div');
-ringBeam.id = 'ringLightBeam';
-ringBeam.className = 'light-beam-ring';
-const ringSection = document.querySelector('.tree-ring-section');
-if(ringSection) ringSection.appendChild(ringBeam);
-}
+    let ringBeam = document.getElementById('ringLightBeam');
+    if(!ringBeam) {
+        ringBeam = document.createElement('div');
+        ringBeam.id = 'ringLightBeam';
+        ringBeam.className = 'light-beam-ring';
+        const ringSection = document.querySelector('.tree-ring-section');
+        if(ringSection) ringSection.appendChild(ringBeam);
+    }
 
-if(mwMountainName) {
-mwMountainName.innerText = `${mName}님의 산맥`;
-mwMountainName.classList.add('cosmic-neon-text');
-}
-if(ringMainTitle) ringMainTitle.classList.add('cosmic-neon-text');
+    // 네온 텍스트 클래스 사전 적용
+    if(mwMountainName) mwMountainName.classList.add('cosmic-neon-text');
+    if(ringMainTitle) ringMainTitle.classList.add('cosmic-neon-text');
 
-modal.style.display = 'flex';
-card.classList.remove('glow-active');
+    modal.style.display = 'flex';
+    card.classList.remove('glow-active');
 
-const initializeBeam = (b) => {
-if(!b) return;
-b.style.transition = 'none';
-b.style.opacity = '0';
-b.style.height = '0';
-b.style.width = '12px';
-b.style.left = '50%';
-b.style.transform = 'translateX(-50%)';
-b.style.filter = 'blur(6px)';
-b.style.mixBlendMode = 'screen';
-};
-[beam, ringBeam].forEach(initializeBeam);
+    const initializeBeam = (b) => {
+        if(!b) return;
+        b.style.transition = 'none';
+        b.style.opacity = '0';
+        b.style.height = '0';
+        b.style.width = '12px';
+        b.style.left = '50%';
+        b.style.transform = 'translateX(-50%)';
+        b.style.filter = 'blur(6px)';
+        b.style.mixBlendMode = 'screen';
+    };
+    [beam, ringBeam].forEach(initializeBeam);
 
-if(peakLabel) peakLabel.innerText = "";
-peakLayer.innerHTML = bgContainer.innerHTML = sky.innerHTML = "";
-const ringContainer = document.getElementById('treeRingContainer');
-if(ringContainer) ringContainer.innerHTML = "";
+    if(peakLabel) peakLabel.innerText = "";
+    peakLayer.innerHTML = bgContainer.innerHTML = sky.innerHTML = "";
+    const ringContainer = document.getElementById('treeRingContainer');
+    if(ringContainer) ringContainer.innerHTML = "";
 
-const memberInfo = currentData.find(m => m.id === mId);
-const style = getLevelStyle(memberInfo ? memberInfo.level : 0);
+    const memberInfo = currentData.find(m => m.id === mId);
+    const style = getLevelStyle(memberInfo ? memberInfo.level : 0);
 
-card.style.setProperty('--glow-color', style.border);
-if(beam) beam.style.setProperty('--beam-color', style.border);
-if(ringBeam) ringBeam.style.setProperty('--beam-color', style.border);
+    card.style.setProperty('--glow-color', style.border);
+    if(beam) beam.style.setProperty('--beam-color', style.border);
+    if(ringBeam) ringBeam.style.setProperty('--beam-color', style.border);
 
-for(let i=0; i<80; i++) {
-const star = document.createElement('div');
-star.className = 'tree-ring-star';
-star.style.cssText = `
-position: absolute; width: ${Math.random() * 2}px; height: ${Math.random() * 2}px;
-left: ${Math.random() * 100}%; top: ${Math.random() * 100}%;
-background: white; opacity: ${Math.random()}; border-radius: 50%; pointer-events: none;
-`;
-sky.appendChild(star);
-}
+    // 밤하늘 별 입자 생성 (80개)
+    for(let i=0; i<80; i++) {
+        const star = document.createElement('div');
+        star.className = 'tree-ring-star';
+        star.style.cssText = `
+        position: absolute; width: ${Math.random() * 2}px; height: ${Math.random() * 2}px;
+        left: ${Math.random() * 100}%; top: ${Math.random() * 100}%;
+        background: white; opacity: ${Math.random()}; border-radius: 50%; pointer-events: none;
+        `;
+        sky.appendChild(star);
+    }
 
-try {
-const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
-const logs = snap.docs.map(d => d.data()).filter(l => (l.height || 0) > 0);
+    try {
+        const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
+        const allLogs = snap.docs.map(d => d.data());
+        
+        // 고도가 존재하는 산맥 렌더링용 베이스 로그
+        const logs = allLogs.filter(l => (l.height || 0) > 0);
 
-if (logs.length > 0) {
-const heights = logs.map(l => l.height);
-const maxHeight = Math.max(...heights);
-const maxLog = logs.find(l => l.height === maxHeight);
-const myTotalH = heights.reduce((a, b) => a + b, 0);
-const globalH = currentData.reduce((acc, m) => acc + (m.totalHeight || 0), 0);
+        // 🎯 [필터 보정] 러닝, 트레킹, 산책만 제외하고 '산행 + 번외산행'은 전부 포함하여 카운트
+        const pureHikeCount = allLogs.filter(l => !l.isRunning && !l.isTracking && !l.isWalking).length;
 
-// ✨ [수정] 네온 효과 및 글씨 크기 조절 적용
-if(document.getElementById('myTotalH')) {
-const el = document.getElementById('myTotalH');
-el.innerText = myTotalH.toLocaleString();
-el.className = 'neon-value'; // 네온 수치 전용 클래스
-}
-if(document.getElementById('globalTotalH')) {
-const el = document.getElementById('globalTotalH');
-el.innerText = globalH.toLocaleString();
-el.className = 'neon-value'; // 네온 수치 전용 클래스
-}
-if(maxLog && peakLabel) {
-// 최고봉 글씨 작게 처리
-peakLabel.innerHTML = `<span class="small-peak-tag">${maxLog.mountain} (${maxLog.height}m)</span>`;
-}
-
-const layerCount = Math.min(Math.floor(globalH / 15000) + 2, 5);
-for(let i = 1; i <= layerCount; i++) {
-const layer = document.createElement('div');
-layer.className = 'mountain-layer';
-layer.style.height = `${20 + (i * 8)}%`;
-layer.style.opacity = 0.4;
-for(let j=0; j<10; j++) {
-const p = document.createElement('div');
-p.className = 'peak';
-p.style.height = `${Math.random()*30+70}%`;
-layer.appendChild(p);
-}
-bgContainer.appendChild(layer);
-}
-
-peakLayer.style.height = "60%";
-logs.forEach((log) => {
-const hRatio = (log.height / maxHeight) * 100;
-const isMax = log.height === maxHeight;
-const peakDiv = document.createElement('div');
-peakDiv.className = `peak ${isMax ? 'max-height' : ''}`;
-peakDiv.style.height = `${hRatio}%`;
-if (isMax) peakDiv.innerHTML = `<div class="peak-glow-core"></div><div class="golden-glow-effect"></div>`;
-peakLayer.appendChild(peakDiv);
-});
-
-        // [수정된 애니메이션 및 호출 로직]
-        setTimeout(() => {
-            if(beam) {
-                beam.style.background = `linear-gradient(to top, transparent, ${style.border}, rgba(255,255,255,0.7))`;
-                beam.style.opacity = '0.9';
-                beam.style.transition = 'height 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
-                beam.style.height = '110%';
+        // 🏔️ 외부 CSS 전체 무시 및 완전 지배 레이아웃 주입
+        if(mwMountainName) {
+            const parentHeader = mwMountainName.closest('.mountain-header');
+            if (parentHeader) {
+                parentHeader.style.position = 'absolute';
+                parentHeader.style.top = '22px'; 
+                parentHeader.style.left = '25px';
+                parentHeader.style.right = '45px'; 
+                parentHeader.style.width = 'calc(100% - 70px)';
+                parentHeader.style.display = 'block';
             }
 
+            // 부모 스타일 간섭 없이 강제 가로 분할 정렬
+            mwMountainName.style.display = 'flex';
+            mwMountainName.style.justifyContent = 'space-between';
+            mwMountainName.style.alignItems = 'center';
+            mwMountainName.style.width = '100%';
+            mwMountainName.style.position = 'relative';
+
+            // 텍스트 크기 규격화 고정 (좌측 16px / 우측 14px)
+            mwMountainName.innerHTML = `
+                <span style="font-size: 16px; font-weight: 800; white-space: nowrap; letter-spacing: -0.3px;">${mName}님의 산맥</span>
+                <span style="font-size: 14px; font-weight: 900; color: ${style.border}; text-shadow: 0 0 6px ${style.border}, 0 0 12px ${style.border}; white-space: nowrap;">🏔️TOTAL: ${pureHikeCount}회</span>
+            `;
+        }
+
+        // [Case A] 기록이 1개라도 존재하는 멤버
+        if (logs.length > 0) {
+            const heights = logs.map(l => l.height);
+            const maxHeight = Math.max(...heights);
+            const maxLog = logs.find(l => l.height === maxHeight);
+            const myTotalH = heights.reduce((a, b) => a + b, 0);
+            const globalH = currentData.reduce((acc, m) => acc + (m.totalHeight || 0), 0);
+
+            if(document.getElementById('myTotalH')) {
+                const el = document.getElementById('myTotalH');
+                el.innerText = myTotalH.toLocaleString();
+                el.className = 'neon-value'; 
+            }
+            if(document.getElementById('globalTotalH')) {
+                const el = document.getElementById('globalTotalH');
+                el.innerText = globalH.toLocaleString();
+                el.className = 'neon-value'; 
+            }
+            if(maxLog && peakLabel) {
+                peakLabel.innerHTML = `<span class="small-peak-tag">${maxLog.mountain} (${maxLog.height}m)</span>`;
+            }
+
+            // 배경 가상 산맥 생성
+            const layerCount = Math.min(Math.floor(globalH / 15000) + 2, 5);
+            for(let i = 1; i <= layerCount; i++) {
+                const layer = document.createElement('div');
+                layer.className = 'mountain-layer';
+                layer.style.height = `${20 + (i * 8)}%`;
+                layer.style.opacity = 0.4;
+                for(let j=0; j<10; j++) {
+                    const p = document.createElement('div');
+                    p.className = 'peak';
+                    p.style.height = `${Math.random()*30+70}%`;
+                    layer.appendChild(p);
+                }
+                bgContainer.appendChild(layer);
+            }
+
+            // 개인 정복 산맥 피크 생성
+            peakLayer.style.height = "60%";
+            logs.forEach((log) => {
+                const hRatio = (log.height / maxHeight) * 100;
+                const isMax = log.height === maxHeight;
+                const peakDiv = document.createElement('div');
+                peakDiv.className = `peak ${isMax ? 'max-height' : ''}`;
+                peakDiv.style.height = `${hRatio}%`;
+                if (isMax) peakDiv.innerHTML = `<div class="peak-glow-core"></div><div class="golden-glow-effect"></div>`;
+                peakLayer.appendChild(peakDiv);
+            });
+
+            // 우주 광선 및 나이테 연쇄 애니메이션 트리거
             setTimeout(() => {
-                if(ringBeam) {
-                    ringBeam.style.background = `linear-gradient(to top, ${style.border}, transparent)`;
-                    ringBeam.style.opacity = '0.9';
-                    ringBeam.style.transition = 'height 0.5s ease-out';
-                    ringBeam.style.height = '50%';
+                if(beam) {
+                    beam.style.background = `linear-gradient(to top, transparent, ${style.border}, rgba(255,255,255,0.7))`;
+                    beam.style.opacity = '0.9';
+                    beam.style.transition = 'height 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+                    beam.style.height = '110%';
                 }
 
-                // 나이테 실행 (여기서 딱 한 번만 호출하면 됩니다)
-                setTimeout(async () => {
-                    if (memberInfo) {
-                        await window.renderTreeRings(mId, mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
+                setTimeout(() => {
+                    if(ringBeam) {
+                        ringBeam.style.background = `linear-gradient(to top, ${style.border}, transparent)`;
+                        ringBeam.style.opacity = '0.9';
+                        ringBeam.style.transition = 'height 0.5s ease-out';
+                        ringBeam.style.height = '50%';
                     }
-                    // 애니메이션 종료 후 빔 사라지게 함
-                    [beam, ringBeam].forEach(b => { 
-                        if(b) { b.style.transition = 'opacity 0.8s ease-out'; b.style.opacity = '0'; } 
-                    });
-                    card.classList.add('glow-active');
-                }, 450);
-            }, 350);
-        }, 400);
 
-        } else {
-        // ✨ [수정] 로그가 없는 신입 멤버일 경우, 화면의 고도 텍스트를 0으로 명확히 초기화합니다.
-        if(document.getElementById('myTotalH')) {
-            const el = document.getElementById('myTotalH');
-            el.innerText = "0";
-            el.className = 'neon-value';
-        }
-        if(document.getElementById('globalTotalH')) {
-            const el = document.getElementById('globalTotalH');
-            // 산우리 합산 전체 고도는 로그가 없어도 보여주고 싶다면 아래 주석을 해제하세요.
-            // const globalH = currentData.reduce((acc, m) => acc + (m.totalHeight || 0), 0);
-            // el.innerText = globalH.toLocaleString();
-            el.innerText = "0"; 
-            el.className = 'neon-value';
-        }
-        if(peakLabel) {
-            peakLabel.innerHTML = `<span class="small-peak-tag">아직 정복한 산이 없습니다</span>`;
-        }
+                    setTimeout(async () => {
+                        if (memberInfo) {
+                            await window.renderTreeRings(mId, mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
+                        }
+                        [beam, ringBeam].forEach(b => { 
+                            if(b) { b.style.transition = 'opacity 0.8s ease-out'; b.style.opacity = '0'; } 
+                        });
+                        card.classList.add('glow-active');
+                    }, 450);
+                }, 350);
+            }, 400);
 
-        // 기존 나이테 실행 로직
-        if (memberInfo) {
-            await window.renderTreeRings(mId, mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
+        } 
+        // [Case B] 정복 기록이 없는 신입/미활동 멤버 보호 예외 처리
+        else {
+            if(document.getElementById('myTotalH')) {
+                const el = document.getElementById('myTotalH');
+                el.innerText = "0";
+                el.className = 'neon-value';
+            }
+            if(document.getElementById('globalTotalH')) {
+                const el = document.getElementById('globalTotalH');
+                el.innerText = "0"; 
+                el.className = 'neon-value';
+            }
+            if(peakLabel) {
+                peakLabel.innerHTML = `<span class="small-peak-tag">아직 정복한 산이 없습니다</span>`;
+            }
+
+            if (memberInfo) {
+                await window.renderTreeRings(mId, mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
+            }
+            card.classList.add('glow-active');
         }
-        card.classList.add('glow-active');
+    } catch (e) { 
+        console.error("통합 로딩 에러:", e); 
     }
-} catch (e) { 
-    console.error("통합 로딩 에러:", e); 
-}
-}; // showMemberMountain 함수 끝
+};
 
-// --- [수정] renderTreeRings 함수 (정기산행 위성 및 다채로운 배경 별 추가) ---
-
+         
+                        
 window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
     const container = document.getElementById('treeRingContainer');
     const monthLabel = document.getElementById('activityMonths');
