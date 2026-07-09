@@ -5427,7 +5427,7 @@ async function updateVibeTemp() {
   }
 }
 
-window.showMemberMountain = async (mId, mName) => {
+        window.showMemberMountain = async (mId, mName) => {
     const modal = document.getElementById('mountainViewModal');
     const card = document.getElementById('integratedCard');
     const peakLayer = document.getElementById('peakLayer');
@@ -5447,10 +5447,15 @@ window.showMemberMountain = async (mId, mName) => {
         if(ringSection) ringSection.appendChild(ringBeam);
     }
 
+    // 🏔️ [레이아웃 보완] 좌우 텍스트가 서로를 침범해서 짤리지 않도록 정밀 방어 조치
     if(mwMountainName) {
         mwMountainName.innerText = `${mName}님의 산맥`;
         mwMountainName.classList.add('cosmic-neon-text');
+        
+        // 이름 글자가 절대 쪼그라들거나 밑으로 내려가지 않게 차단
         mwMountainName.style.whiteSpace = 'nowrap'; 
+        mwMountainName.style.flexShrink = '0';
+        mwMountainName.style.flexGrow = '1';
 
         const parent = mwMountainName.parentElement;
         if (parent) {
@@ -5459,9 +5464,10 @@ window.showMemberMountain = async (mId, mName) => {
             parent.style.alignItems = 'center';
             parent.style.width = '100%';
             parent.style.boxSizing = 'border-box';
+            parent.style.gap = '8px'; // 이름과 배지 사이의 최소 안전 마진
         }
 
-        // 🏔️ LAUNCHED 글자 스타일(크기/두께)과 완벽하게 맞춘 배지 영역
+        // 우측 총 산행 횟수 배지 생성 및 스타일 동기화 (LAUNCHED 폰트 밸런스 반영)
         let climbCountEl = document.getElementById('mwClimbCountBadge');
         if (!climbCountEl) {
             climbCountEl = document.createElement('span');
@@ -5472,8 +5478,7 @@ window.showMemberMountain = async (mId, mName) => {
                 letter-spacing: 0.02em;
                 white-space: nowrap;
                 text-align: right;
-                flex-shrink: 1;
-                margin-left: 8px;
+                flex-shrink: 0; /* 배지 글씨도 좁은 화면에서 절대 깨지지 않음 */
             `;
             parent.appendChild(climbCountEl);
         }
@@ -5522,20 +5527,22 @@ window.showMemberMountain = async (mId, mName) => {
 
     try {
         const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
+        
+        // 1. 산맥 레이어를 그릴 정상 로그 (높이 기준 필터링)
         const logs = snap.docs.map(d => d.data()).filter(l => (l.height || 0) > 0);
 
-        const climbLogs = snap.docs.map(d => d.data()).filter(l => !l.isRunning && !l.isTracking && !l.isWalking);
-        const totalClimbCount = climbLogs.length;
+        // 2. [데이터 반영] 번외산행 누락을 막기 위해 전체 문서 개수를 총 횟수로 집계
+        const totalClimbCount = snap.docs.length;
 
-        // 🎨 텍스트 내부 괄호까지 얇고 작게 맞춤 세팅
+        // 🎨 얇고 작은 최적화 폰트 크기 및 괄호 크기 밸런스 조율
         const cBadge = document.getElementById('mwClimbCountBadge');
         if (cBadge) {
-            cBadge.innerHTML = `🏔️ TOTAL: ${totalClimbCount}회 <span style="font-size: 8.5px; font-weight: 400; opacity: 0.7;"></span>`;
+            cBadge.innerHTML = `🏔️ TOTAL: ${totalClimbCount}회 <span style="font-size: 8.5px; opacity: 0.7;">(번외포함)</span>`;
             cBadge.style.color = style.border;
             cBadge.style.textShadow = `0 0 5px ${style.border}, 0 0 10px ${style.border}`;
         }
 
-        // ... 이 뒤쪽(if (logs.length > 0) 구문부터 함수 끝까지)은 기존 코드와 동일합니다.
+        // --- 이 하단부는 기존 코드(if (logs.length > 0) 등산 데이터 연산 구문) 그대로 이어집니다 ---
 
     
         
