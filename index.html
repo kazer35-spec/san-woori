@@ -5455,37 +5455,47 @@ window.showMemberMountain = async (mId, mName) => {
         if(ringSection) ringSection.appendChild(ringBeam);
     }
 
-    // 🏔️ [안전 구조 변경] 부모 요소를 타지 않고 타이틀 자체를 flex container로 묶어 무조건 우측에 정렬
+        // 🏔️ [구조 보완] 가로폭을 100% 확장하여 이름과 배지를 좌우 양 끝으로 완벽 분리
     if(mwMountainName) {
         mwMountainName.innerText = `${mName}님의 산맥`;
         mwMountainName.classList.add('cosmic-neon-text');
         
-        // 타이틀 자체를 가로 한 줄 정렬(flex) 공간으로 변환하고 양 끝으로 배치
+        // 1. 자기 자신의 가로폭을 강제로 100% 늘려서 모달 좌우 전체를 쓰게 만듭니다.
         mwMountainName.style.cssText = `
             display: flex !important;
             justify-content: space-between !important;
             align-items: center !important;
-            width: 100% !important;
-            white-space: nowrap !important;
+            width: 100% !important;        /* 👈 이 부분이 넓어져야 배지가 우측 끝으로 밀려납니다 */
             box-sizing: border-box !important;
+            white-space: nowrap !important;
         `;
 
-        // 배지가 타이틀 내부(우측 끝)에 안정적으로 안착하도록 설정
+        // 2. 부모(상위 div) 레이아웃도 유연하게 한 줄을 다 쓰도록 안전장치 마련
+        const parent = mwMountainName.parentElement;
+        if (parent) {
+            parent.style.cssText = `
+                display: flex !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
+            `;
+        }
+
+        // 3. 배지가 타이틀 내부 우측 끝에 꽉 고정되도록 처리
         let climbCountEl = document.getElementById('mwClimbCountBadge');
         if (!climbCountEl) {
             climbCountEl = document.createElement('span');
             climbCountEl.id = 'mwClimbCountBadge';
-            mwMountainName.appendChild(climbCountEl); // 부모가 아닌 mwMountainName 내부에 직접 삽입
+            mwMountainName.appendChild(climbCountEl);
         }
         
-        // LAUNCHED와 완벽한 싱크를 맞춘 폰트 스타일 (CSS 1rem !important 전면 차단)
+        // LAUNCHED 스타일 완벽 싱크 적용 (CSS 강제 !important 디버깅 완료)
         climbCountEl.style.cssText = `
             font-size: 9px !important; 
             font-weight: 500 !important; 
             letter-spacing: 0.02em !important;
             white-space: nowrap !important;
             text-align: right !important;
-            margin-left: auto !important; /* 무조건 우측 끝으로 밀 밀어내기 */
+            margin-left: auto !important; /* 왼쪽 마진을 최대로 주어 무조건 우측 끝으로 밀어냄 */
             text-transform: none !important;
         `;
     }
