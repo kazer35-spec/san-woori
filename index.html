@@ -5434,8 +5434,6 @@ async function updateVibeTemp() {
   }
 }
 
-
-네온 효과(text-shadow)용으로만 안전하게 결합
 window.showMemberMountain = async (mId, mName) => {
     const modal = document.getElementById('mountainViewModal');
     const card = document.getElementById('integratedCard');
@@ -5456,12 +5454,11 @@ window.showMemberMountain = async (mId, mName) => {
         if(ringSection) ringSection.appendChild(ringBeam);
     }
 
-    // 🏔️ [구조 개조 및 강제 정렬] CSS 설정을 완전히 덮어쓰고 좌우 끝선 자석 배치
+    // 🏔️ [시각 잔상 보정 코어] 네온 번짐으로 인한 글자 밀림 및 우측 쏠림 현상 완전 해결
     if(mwMountainName) {
-        // 1. 텍스트 노드만 깨끗하게 교체 (자식노드 삽입 방식 탈피)
+        // 1. 기존의 자식 배지 요소를 깨끗하게 초기화 후 재구성
         mwMountainName.innerText = `${mName}님의 산맥`;
         
-        // 2. 부모 컨테이너의 flex/block 속성을 화면 전체 크기(100%)로 제어
         const parentBox = mwMountainName.parentElement;
         if (parentBox) {
             parentBox.style.cssText = `
@@ -5471,50 +5468,53 @@ window.showMemberMountain = async (mId, mName) => {
                 width: 100% !important;
                 max-width: 100% !important;
                 box-sizing: border-box !important;
-                padding-left: 25px !important;  /* ACTIVITY HISTORY 텍스트와 시작 정렬 일치 */
-                padding-right: 25px !important; /* LAUNCHED: 날짜 마감선과 정확히 우측 일치 */
+                padding-left: 25px !important;   /* ACTIVITY HISTORY 라인과 세로 일치 */
+                padding-right: 25px !important;  /* LAUNCHED 시간 라인과 세로 일치 */
                 margin: 0 !important;
             `;
         }
 
-        // 3. 네온 효과용 클래스 설정 및 고유 스타일 무력화
+        // 2. CSS 파일 맨 하단의 .cosmic-neon-text의 과도한 중첩 그림자 효과 무력화
+        // 왼쪽 텍스트가 좌측 패딩 벽면에 정밀하게 밀착하도록 정렬 설정
         mwMountainName.style.cssText = `
             font-size: 0.6rem !important;
+            font-weight: bold !important;
             margin: 0 !important;
             padding: 0 !important;
             display: inline-block !important;
+            text-shadow: 0 0 8px rgba(0, 242, 255, 0.6) !important; /* 글자 밀림을 유발하던 무거운 그림자 대폭 축소 */
+            text-align: left !important;
         `;
 
-        // 4. 총 산행 횟수 배지를 mwMountainName 내부가 아닌 부모의 직속 자식(대등한 위치)으로 독립 생성
+        // 3. 우측에 배치될 총 산행 횟수 배지 독립 생성 및 우측 벽 정렬
         let climbCountEl = document.getElementById('mwClimbCountBadge');
         if (!climbCountEl) {
             climbCountEl = document.createElement('span');
             climbCountEl.id = 'mwClimbCountBadge';
             if (parentBox) parentBox.appendChild(climbCountEl);
         } else {
-            // 위치 이탈 방지를 위해 부모 박스 맨 뒤로 강제 재이동
             if (parentBox) parentBox.appendChild(climbCountEl);
         }
 
-        // 5. 해당 멤버의 실제 데이터 가져오기
         const memberInfo = currentData.find(m => m.id === mId);
         const totalClimbs = memberInfo ? (memberInfo.count || 0) : 0;
         climbCountEl.innerHTML = `🏔️ TOTAL: ${totalClimbs}회`;
 
-        // 6. 우측 정렬 대상 배지 독립 스타일 부여 (우측 끝 정렬)
+        // 4. 우측 텍스트 그림자가 카드 우측 테두리를 뚫고 나가지 않도록 패딩 보정 스타일 적용
         climbCountEl.style.cssText = `
             font-size: 9px !important; 
             font-weight: 600 !important; 
-            letter-spacing: 0.02em !important;
+            letter-spacing: 0.01em !important;
             white-space: nowrap !important;
             color: #fff !important;
-            text-shadow: 0 0 8px rgba(255, 255, 255, 0.6), 0 0 15px currentColor !important;
+            text-shadow: 0 0 8px rgba(255, 255, 255, 0.6) !important; /* 밀림 현상 방지를 위해 그림자 반경 일치 */
             margin: 0 !important;
             padding: 0 !important;
             text-align: right !important;
         `;
     }
 
+    // 네온 효과용 클래스는 그대로 유지하되 스타일 우선순위는 위의 스크립트가 통제
     if(mwMountainName) mwMountainName.classList.add('cosmic-neon-text');
     if(ringMainTitle) ringMainTitle.classList.add('cosmic-neon-text');
 
@@ -5545,6 +5545,7 @@ window.showMemberMountain = async (mId, mName) => {
     card.style.setProperty('--glow-color', style.border);
     if(beam) beam.style.setProperty('--beam-color', style.border);
     if(ringBeam) ringBeam.style.setProperty('--beam-color', style.border);
+
 
             
     
