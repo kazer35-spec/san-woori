@@ -5427,8 +5427,6 @@ async function updateVibeTemp() {
   }
 }
 
-
-    
 window.showMemberMountain = async (mId, mName) => {
     const modal = document.getElementById('mountainViewModal');
     const card = document.getElementById('integratedCard');
@@ -5449,10 +5447,10 @@ window.showMemberMountain = async (mId, mName) => {
         if(ringSection) ringSection.appendChild(ringBeam);
     }
 
-    // 🏔️ [구조 개선] 'OOO님의 산맥'과 '등산 횟수'를 한 줄(양끝) 정렬하기 위한 부모 요소 조정
     if(mwMountainName) {
         mwMountainName.innerText = `${mName}님의 산맥`;
         mwMountainName.classList.add('cosmic-neon-text');
+        mwMountainName.style.whiteSpace = 'nowrap'; 
 
         const parent = mwMountainName.parentElement;
         if (parent) {
@@ -5460,18 +5458,22 @@ window.showMemberMountain = async (mId, mName) => {
             parent.style.justifyContent = 'space-between';
             parent.style.alignItems = 'center';
             parent.style.width = '100%';
+            parent.style.boxSizing = 'border-box';
         }
 
-        // 우측 전용 총 산행 횟수 배지 동적 생성 및 준비
+        // 🏔️ LAUNCHED 글자 스타일(크기/두께)과 완벽하게 맞춘 배지 영역
         let climbCountEl = document.getElementById('mwClimbCountBadge');
         if (!climbCountEl) {
             climbCountEl = document.createElement('span');
             climbCountEl.id = 'mwClimbCountBadge';
             climbCountEl.style.cssText = `
-                font-size: 11px; 
-                font-weight: 800; 
-                letter-spacing: 0.05em;
-                padding-right: 4px;
+                font-size: 9px; 
+                font-weight: 500; 
+                letter-spacing: 0.02em;
+                white-space: nowrap;
+                text-align: right;
+                flex-shrink: 1;
+                margin-left: 8px;
             `;
             parent.appendChild(climbCountEl);
         }
@@ -5522,17 +5524,21 @@ window.showMemberMountain = async (mId, mName) => {
         const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
         const logs = snap.docs.map(d => d.data()).filter(l => (l.height || 0) > 0);
 
-        // 🔍 [필터링 산출] 러닝, 트레킹, 산책을 확실하게 배제한 순수등산 + 번외등산 총합 계산
         const climbLogs = snap.docs.map(d => d.data()).filter(l => !l.isRunning && !l.isTracking && !l.isWalking);
         const totalClimbCount = climbLogs.length;
 
-        // 🎨 산맥 우측 배지에 데이터 매핑 및 동적 네온 스타일 부여 (반짝임 없음)
+        // 🎨 텍스트 내부 괄호까지 얇고 작게 맞춤 세팅
         const cBadge = document.getElementById('mwClimbCountBadge');
         if (cBadge) {
-            cBadge.innerHTML = `🏔️ TOTAL: ${totalClimbCount}회 <span style="font-size: 9px; font-weight: 400; opacity: 0.7;">(번외포함)</span>`;
+            cBadge.innerHTML = `🏔️ TOTAL: ${totalClimbCount}회 <span style="font-size: 8.5px; font-weight: 400; opacity: 0.7;">(번외포함)</span>`;
             cBadge.style.color = style.border;
             cBadge.style.textShadow = `0 0 5px ${style.border}, 0 0 10px ${style.border}`;
         }
+
+        // ... 이 뒤쪽(if (logs.length > 0) 구문부터 함수 끝까지)은 기존 코드와 동일합니다.
+
+    
+        
 
         if (logs.length > 0) {
             const heights = logs.map(l => l.height);
