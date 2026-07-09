@@ -3536,7 +3536,6 @@ function renderHallList() {
         let nextQuarterStartMonth = currentQuarter * 3; 
         let targetYear = currentYear;
         
-        // 4분기인 경우 연도를 다음 해로 넘기고 1월로 세팅
         if (nextQuarterStartMonth === 12) {
             targetYear = currentYear + 1;
             nextQuarterStartMonth = 0; 
@@ -3544,7 +3543,7 @@ function renderHallList() {
         
         const targetDate = new Date(targetYear, nextQuarterStartMonth, 1, 0, 0, 0);
 
-                                // 상단 가로형 디데이 박스 주입 (세련된 초록색 점 및 텍스트 반영)
+        // 상단 가로형 디데이 박스 주입 (색상 제어를 위해 id 추가 및 초기 스타일 제거)
         combinedHtml += `
         <div id="hallLiveTimerContainer" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 10px 16px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
             <span style="font-size: 12px; color: #475569; font-weight: 700; display: flex; align-items: center; gap: 6px;">
@@ -3552,10 +3551,9 @@ function renderHallList() {
             </span>
             <div style="display: flex; align-items: center; gap: 6px;">
                 <span style="display: flex; position: relative; width: 6px; height: 6px;">
-    <span style="animation: hallPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; position: absolute; inline-size: 100%; block-size: 100%; border-radius: 50%; background-color: #ef4444; opacity: 0.75;"></span>
-    <span style="position: relative; display: inline-flex; border-radius: 50%; width: 6px; height: 6px; background-color: #ef4444;"></span>
-</span>
-
+                    <span id="hallPulseBg" style="animation: hallPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; position: absolute; inline-size: 100%; block-size: 100%; border-radius: 50%; background-color: #10b981; opacity: 0.75;"></span>
+                    <span id="hallPulseDot" style="position: relative; display: inline-flex; border-radius: 50%; width: 6px; height: 6px; background-color: #10b981;"></span>
+                </span>
                 <span id="hallLiveCountdown" style="font-size: 12px; color: #0d9488; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em;">계산 중...</span>
             </div>
         </div>
@@ -3566,9 +3564,6 @@ function renderHallList() {
                 50% { opacity: .3; transform: scale(1.4); }
             }
         </style>`;
-
-
-
 
         // 1-1. 실황정보 - 우정대장 카드
         if (liveWith.length > 0) {
@@ -3630,13 +3625,13 @@ function renderHallList() {
             </div>`;
         }
 
-
-
         // 💡 실시간 카운트다운 함수 및 루프 트리거
         if (window.hallTimerInterval) clearInterval(window.hallTimerInterval);
 
         const updateCountdown = () => {
             const timerEl = document.getElementById('hallLiveCountdown');
+            const pulseBg = document.getElementById('hallPulseBg');
+            const pulseDot = document.getElementById('hallPulseDot');
             if (!timerEl) return;
 
             const currentTime = new Date();
@@ -3644,6 +3639,8 @@ function renderHallList() {
 
             if (diff <= 0) {
                 timerEl.innerText = "분기 종료됨";
+                if(pulseBg) pulseBg.style.backgroundColor = "#94a3b8";
+                if(pulseDot) pulseDot.style.backgroundColor = "#94a3b8";
                 clearInterval(window.hallTimerInterval);
                 return;
             }
@@ -3651,6 +3648,25 @@ function renderHallList() {
             const totalHours = Math.floor(diff / (1000 * 60 * 60));
             const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
             const secs = Math.floor((diff % (1000 * 60)) / 1000);
+
+            // 🎨 시간에 따른 색상 조건 분기 추가
+            let textColor = "#0d9488"; // 기본 녹색 (720시간 초과)
+            let pulseColor = "#10b981"; 
+
+            if (totalHours <= 240) { 
+                // 240시간 이하: 빨간색
+                textColor = "#dc2626";
+                pulseColor = "#ef4444";
+            } else if (totalHours <= 720) { 
+                // 720시간 이하: 주황색
+                textColor = "#ea580c";
+                pulseColor = "#f97316";
+            }
+
+            // 스타일 적용
+            timerEl.style.color = textColor;
+            if (pulseBg) pulseBg.style.backgroundColor = pulseColor;
+            if (pulseDot) pulseDot.style.backgroundColor = pulseColor;
 
             // 우측 끝에 시간 데이터가 한 줄로 포매팅되어 출력
             timerEl.innerText = `${totalHours}시간 ${mins}분 ${secs}초`;
@@ -3660,7 +3676,7 @@ function renderHallList() {
         window.hallTimerInterval = setInterval(updateCountdown, 1000);
     } 
     // -------------------------------------------------------------
-    // [CASE 2] 개별 탭 클릭 시 (캡처본처럼 이름만 나오는 깔끔한 양식 - 횟수 완전 제거)
+    // [CASE 2] 개별 탭 클릭 시
     // -------------------------------------------------------------
     else {
         const isMountain = (window.currentHallTab === 'mountain');
@@ -3741,9 +3757,6 @@ function renderHallList() {
     
     listArea.innerHTML = combinedHtml;
 }
-
-                    
-
     
 window.toggleVibeModal = (show) => { document.getElementById('vibeModal').style.display = show ? 'flex' : 'none'; };
 
