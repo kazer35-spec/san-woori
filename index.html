@@ -1543,8 +1543,14 @@ box-shadow: 0 0 10px 2px white, 0 0 20px 5px #fbbf24; z-index: 120;
 
     /* 헤더 글씨 */
 .mountain-header {
-position: absolute; top: 15px; left: 20px; z-index: 200; color: white;
+    position: absolute;
+    top: 15px;
+    left: 20px;
+    right: 20px; /* 👈 이 속성이 우측 마진 공간을 뚫어줍니다! */
+    z-index: 200;
+    color: white;
 }
+
 
 /* 1. 전체 배경 어둡게 */
 .scroll-overlay {
@@ -5427,7 +5433,8 @@ async function updateVibeTemp() {
   }
 }
 
-window.showMemberMountain = async (mId, mName) => {
+
+        window.showMemberMountain = async (mId, mName) => {
     const modal = document.getElementById('mountainViewModal');
     const card = document.getElementById('integratedCard');
     const peakLayer = document.getElementById('peakLayer');
@@ -5498,16 +5505,19 @@ window.showMemberMountain = async (mId, mName) => {
         // 고도가 존재하는 산맥 렌더링용 베이스 로그
         const logs = allLogs.filter(l => (l.height || 0) > 0);
 
-        // 🎯 [필터링 고도화] 산행 + 번외산행만 카운팅 (러닝, 트레킹, 산책 제외)
+        // 🎯 산행 + 번외산행만 카운팅 (러닝, 트레킹, 산책 제외)
         const pureHikeCount = allLogs.filter(l => !l.isRunning && !l.isTracking && !l.isWalking).length;
 
-        // 🏔️ 타이틀과 TOTAL 횟수 배치 (로그 유무 상관없이 상단 통합 처리)
+        // 🏔️ 타이틀과 TOTAL 횟수 정밀 배치 (오른쪽 절대 좌표 고정 구조)
         if(mwMountainName) {
+            // 상위 부모 컴포넌트나 기준 스타일 영향 없이 우측에 완전히 고정시킵니다.
+            mwMountainName.style.position = 'relative';
+            mwMountainName.style.width = '100%';
+            mwMountainName.style.display = 'block';
+
             mwMountainName.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 10px;">
-                    <span>${mName}님의 산맥</span>
-                    <span style="color: ${style.border}; text-shadow: 0 0 5px ${style.border}, 0 0 10px ${style.border}; font-weight: 900; white-space: nowrap;">🏔️TOTAL: ${pureHikeCount}회</span>
-                </div>
+                <span>${mName}님의 산맥</span>
+                <span style="position: absolute; right: 0; top: 50%; transform: translateY(-50%); color: ${style.border}; text-shadow: 0 0 5px ${style.border}, 0 0 10px ${style.border}; font-weight: 900; white-space: nowrap;">🏔️TOTAL: ${pureHikeCount}회</span>
             `;
         }
 
@@ -5616,6 +5626,7 @@ window.showMemberMountain = async (mId, mName) => {
         console.error("통합 로딩 에러:", e); 
     }
 };
+
 
 
 window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
