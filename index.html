@@ -5454,67 +5454,68 @@ window.showMemberMountain = async (mId, mName) => {
         if(ringSection) ringSection.appendChild(ringBeam);
     }
 
-    // 🏔️ [시각 잔상 보정 코어] 네온 번짐으로 인한 글자 밀림 및 우측 쏠림 현상 완전 해결
+    // 🏔️ [구조적 족쇄 해제 코어] .mountain-header의 공간 제약을 풀고 끝선 정렬 강제화
     if(mwMountainName) {
-        // 1. 기존의 자식 배지 요소를 깨끗하게 초기화 후 재구성
         mwMountainName.innerText = `${mName}님의 산맥`;
         
-        const parentBox = mwMountainName.parentElement;
-        if (parentBox) {
-            parentBox.style.cssText = `
+        // 1. 가장 바깥쪽 가두리인 .mountain-header 클래스를 찾아 카드의 좌우 끝까지 영역 확장
+        const targetHeader = mwMountainName.closest('.mountain-header') || mwMountainName.parentElement;
+        if (targetHeader) {
+            targetHeader.style.cssText = `
+                position: absolute !important;
+                top: 15px !important;
+                left: 0 !important;          /* 20px 공간 제약을 풀고 0부터 시작 */
+                width: 100% !important;       /* 카드 전체 너비를 완벽히 확보 */
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+                padding-left: 25px !important;  /* 상단 ACTIVITY HISTORY 라인과 자석 고정 */
+                padding-right: 25px !important; /* 상단 LAUNCHED 날짜 라인과 자석 고정 */
                 display: flex !important;
                 justify-content: space-between !important;
                 align-items: center !important;
-                width: 100% !important;
-                max-width: 100% !important;
-                box-sizing: border-box !important;
-                padding-left: 25px !important;   /* ACTIVITY HISTORY 라인과 세로 일치 */
-                padding-right: 25px !important;  /* LAUNCHED 시간 라인과 세로 일치 */
-                margin: 0 !important;
+                z-index: 200 !important;
             `;
         }
 
-        // 2. CSS 파일 맨 하단의 .cosmic-neon-text의 과도한 중첩 그림자 효과 무력화
-        // 왼쪽 텍스트가 좌측 패딩 벽면에 정밀하게 밀착하도록 정렬 설정
+        // 2. mwMountainName 자체는 불필요한 레이아웃 속성을 제거하고 네온 폰트 속성만 유지
         mwMountainName.style.cssText = `
             font-size: 0.6rem !important;
             font-weight: bold !important;
             margin: 0 !important;
             padding: 0 !important;
             display: inline-block !important;
-            text-shadow: 0 0 8px rgba(0, 242, 255, 0.6) !important; /* 글자 밀림을 유발하던 무거운 그림자 대폭 축소 */
+            text-shadow: 0 0 8px rgba(0, 242, 255, 0.6) !important;
             text-align: left !important;
         `;
 
-        // 3. 우측에 배치될 총 산행 횟수 배지 독립 생성 및 우측 벽 정렬
+        // 3. 우측 총 산행 횟수 배지를 부모(확장된 헤더) 단의 우측 끝에 배치
         let climbCountEl = document.getElementById('mwClimbCountBadge');
         if (!climbCountEl) {
             climbCountEl = document.createElement('span');
             climbCountEl.id = 'mwClimbCountBadge';
-            if (parentBox) parentBox.appendChild(climbCountEl);
+            if (targetHeader) targetHeader.appendChild(climbCountEl);
         } else {
-            if (parentBox) parentBox.appendChild(climbCountEl);
+            if (targetHeader) targetHeader.appendChild(climbCountEl);
         }
 
         const memberInfo = currentData.find(m => m.id === mId);
         const totalClimbs = memberInfo ? (memberInfo.count || 0) : 0;
         climbCountEl.innerHTML = `🏔️ TOTAL: ${totalClimbs}회`;
 
-        // 4. 우측 텍스트 그림자가 카드 우측 테두리를 뚫고 나가지 않도록 패딩 보정 스타일 적용
+        // 4. 우측 텍스트 스타일 보정 및 정렬 일치
         climbCountEl.style.cssText = `
             font-size: 9px !important; 
             font-weight: 600 !important; 
             letter-spacing: 0.01em !important;
             white-space: nowrap !important;
             color: #fff !important;
-            text-shadow: 0 0 8px rgba(255, 255, 255, 0.6) !important; /* 밀림 현상 방지를 위해 그림자 반경 일치 */
+            text-shadow: 0 0 8px rgba(255, 255, 255, 0.6) !important;
             margin: 0 !important;
             padding: 0 !important;
             text-align: right !important;
         `;
     }
 
-    // 네온 효과용 클래스는 그대로 유지하되 스타일 우선순위는 위의 스크립트가 통제
     if(mwMountainName) mwMountainName.classList.add('cosmic-neon-text');
     if(ringMainTitle) ringMainTitle.classList.add('cosmic-neon-text');
 
@@ -5545,7 +5546,6 @@ window.showMemberMountain = async (mId, mName) => {
     card.style.setProperty('--glow-color', style.border);
     if(beam) beam.style.setProperty('--beam-color', style.border);
     if(ringBeam) ringBeam.style.setProperty('--beam-color', style.border);
-
 
             
     
