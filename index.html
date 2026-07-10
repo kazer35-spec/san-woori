@@ -2796,54 +2796,46 @@ const now = new Date();
 let selectedYear = now.getFullYear();
 let selectedQuarter = Math.ceil((now.getMonth() + 1) / 3);
 
- // ==========================================================================
-// 🏔️ [최종] 종류 불문 고도 기준 100개 하드캡 순환 및 최고봉 보호 함수
-// ==========================================================================
 async function saveHikeLog(mId, newLogData) {
     const logsRef = collection(db, `sanwoori/${mId}/logs`);
     
-    // 💡 고도가 없는 일반 활동(러닝/트레킹/산책 중 높이 0)은 100개 규칙에서 완전 제외하고 즉시 저장
     if (!newLogData.height || newLogData.height <= 0) {
         await addDoc(logsRef, newLogData);
         return;
     }
 
-    // 1. 순수/번외 상관없이 '고도가 있는 모든 산맥 로그'를 '날짜 오래된 순(asc)'으로 조회
     const q = query(logsRef, orderBy("date", "asc"));
     const snap = await getDocs(q);
-    
-    // 고도가 0보다 큰 데이터만 엄격하게 필터링 (순수산행 + 고도 있는 번외산행 통합)
     const existingMountainLogs = snap.docs.filter(d => (d.data().height || 0) > 0);
 
-    // 2. 통합 산맥 개수가 아직 100개 미만이라면 순서대로 저장
     if (existingMountainLogs.length < 100) {
         await addDoc(logsRef, newLogData);
         console.log(`🏔️ 산맥 데이터 적재 중 (${existingMountainLogs.length + 1}/100)`);
     } 
-    // 3. 🎯 순수+번외 합산 100개가 꽉 찼을 때 (101번째부터 밀어내기 가동)
     else {
-        // 현재 저장된 100개의 산맥 중 가장 높은 고도(최고봉 기준값) 추출
+        // 1. 기존 100개 중 최고봉 고도값 찾기
         const maxHeight = Math.max(...existingMountainLogs.map(d => d.data().height || 0));
 
-        // 🛡️ 최고봉이 아니면서 + 가장 오래된(배열 앞쪽) 문서 단 하나를 타겟팅
-        const targetDocToDelete = existingMountainLogs.find(docSnap => {
+        // 2. 최고봉이 '아닌' 오래된 문서 찾기
+        let targetDocToDelete = existingMountainLogs.find(docSnap => {
             return docSnap.data().height !== maxHeight;
         });
 
+        // 🎯 [보완] 만약 100개가 전부 고도가 똑같아서 대상을 못 찾았다면,
+        // 최고봉 보호고 뭐고 유실될 업적이 없으므로 그냥 가장 오래된 배열의 0번째 문서를 타겟으로 강제 지정합니다.
+        if (!targetDocToDelete) {
+            targetDocToDelete = existingMountainLogs[0];
+        }
+
+        // 3. 타겟 문서 확실하게 삭제 후 새로운 산맥 즉시 인서트
         if (targetDocToDelete) {
-            // 최고봉은 완벽히 지키고, 가장 오래된 구형 산맥(순수든 번외든) 문서 삭제
             await deleteDoc(doc(db, `sanwoori/${mId}/logs`, targetDocToDelete.id));
-            
-            // 삭제되어 확보된 슬롯에 새 산맥 데이터 주입
             await addDoc(logsRef, newLogData);
-            console.log("🔄 [순환 완료] 최고봉을 보호하고, 가장 오래된 산맥을 새 기록으로 대체했습니다!");
-        } else {
-            // 예외 처리 (100개 데이터 고도가 소수점까지 전부 똑같을 경우 첫 데이터 대치)
-            await deleteDoc(doc(db, `sanwoori/${mId}/logs`, existingMountainLogs[0].id));
-            await addDoc(logsRef, newLogData);
+            console.log("🔄 [대체 완료] 오래된 산맥 슬롯을 제거하고 최신 산맥(1000m) 등록을 완료했습니다.");
         }
     }
 }
+
 
 
     const regionBoundaries = [
