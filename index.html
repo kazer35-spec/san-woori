@@ -5442,7 +5442,7 @@ async function updateVibeTemp() {
 
                  
 
-            window.showMemberMountain = async (mId, mName) => {
+        window.showMemberMountain = async (mId, mName) => {
     const modal = document.getElementById('mountainViewModal');
     const card = document.getElementById('integratedCard');
     const peakLayer = document.getElementById('peakLayer');
@@ -5593,7 +5593,7 @@ async function updateVibeTemp() {
                 bgContainer.appendChild(layer);
             }
 
-            /* 🌟 [수정된 로직 구간: 100개 하드캡 + 최고봉 보장 + 검붉은색 랜덤 셔플] 🌟 */
+            /* 🌟 [수정 로직: 100회 제한 + 최고봉 보장 + 레벨 색상 피크 분기] 🌟 */
             if (logs.length > 100) {
                 let slicedLogs = logs.slice(0, 100);
                 const isMaxIncluded = slicedLogs.some(l => l.height === maxHeight);
@@ -5603,18 +5603,18 @@ async function updateVibeTemp() {
                 logs = slicedLogs;
             }
 
-            // 검붉은색으로 바뀔 대상 개수 계산
-            const darkRedCount = pureHikeCount > 100 ? pureHikeCount - 100 : 0;
+            // 100회 초과 시점부터 다르게 칠해질 대상 개수 계산
+            const levelColorCount = pureHikeCount > 100 ? pureHikeCount - 100 : 0;
 
-            // 각 로그 데이터에 검붉은색(isDarkRed) 플래그를 미리 매핑
+            // 각 피크 데이터에 레벨 컬러 전용 플래그(isLevelColorPeak) 매핑
             let mappedPeaks = logs.map((log, index) => {
                 const isMax = log.height === maxHeight;
-                // 최고봉이 아니고, 검붉은색 타겟 카운트 이내에 포함된 인덱스인 경우 플래그 부여
-                const isDarkRed = !isMax && (index < darkRedCount);
-                return { log, isMax, isDarkRed };
+                // 최고봉이 아니고, 초과 카운트 범위 내에 포함되어 있으면 true
+                const isLevelColorPeak = !isMax && (index < levelColorCount);
+                return { log, isMax, isLevelColorPeak };
             });
 
-            // 🎲 Fisher-Yates Shuffle 알고리즘으로 자리를 무작위로 섞음 (랜덤 생성 구현)
+            // 🎲 자리를 무작위로 섞어 웅장하게 랜덤 분산 배치
             for (let i = mappedPeaks.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [mappedPeaks[i], mappedPeaks[j]] = [mappedPeaks[j], mappedPeaks[i]];
@@ -5622,16 +5622,22 @@ async function updateVibeTemp() {
 
             // 개인 정복 산맥 피크 최종 렌더링
             peakLayer.style.height = "60%";
-            mappedPeaks.forEach(({ log, isMax, isDarkRed }) => {
+            mappedPeaks.forEach(({ log, isMax, isLevelColorPeak }) => {
                 const hRatio = (log.height / maxHeight) * 100;
-
                 const peakDiv = document.createElement('div');
-                peakDiv.className = `peak ${isMax ? 'max-height' : ''} ${isDarkRed ? 'dark-red-peak' : ''}`;
+                
+                peakDiv.className = `peak ${isMax ? 'max-height' : ''}`;
                 peakDiv.style.height = `${hRatio}%`;
                 
                 if (isMax) {
                     peakDiv.innerHTML = `<div class="peak-glow-core"></div><div class="golden-glow-effect"></div>`;
+                } else if (isLevelColorPeak) {
+                    // 🎨 100회 초과된 피크들은 묵직한 밤하늘색 대신 해당 멤버의 레벨 보더 컬러 그라데이션 주입
+                    peakDiv.style.background = `linear-gradient(to bottom, ${style.border}, rgba(7, 11, 20, 0.8))`;
+                    peakDiv.style.zIndex = "15"; // 약간 앞쪽으로 레이어 전진 처리
+                    peakDiv.style.filter = "brightness(1.1)";
                 }
+                
                 peakLayer.appendChild(peakDiv);
             });
             /* ─────────────────────────────────────────────────────────────── */
@@ -5697,7 +5703,10 @@ async function updateVibeTemp() {
         console.error("통합 로딩 에러:", e); 
     }
 };
-
+    
+                
+                        
+                        
                 
             
         
