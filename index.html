@@ -13,6 +13,14 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+    /* 101번째 산행부터 변환되는 검붉은색 심해/심우주 산맥 스타일 */
+.peak.dark-red-peak {
+    background: linear-gradient(to bottom, #7f1d1d, #450a0a, #070b14) !important;
+    /* 기존 푸른 계열의 그림자나 레이아웃 처리에 보정 효과 */
+    box-shadow: inset 0 1px 5px rgba(239, 68, 68, 0.2);
+    z-index: 10;
+}
+
 /* LIVE 배지 깜빡임 애니메이션 */
 @keyframes pulse-glow {
     0%, 100% { opacity: 1; transform: scale(1); }
@@ -5432,7 +5440,6 @@ async function updateVibeTemp() {
   }
 }
 
-
 window.showMemberMountain = async (mId, mName) => {
     const modal = document.getElementById('mountainViewModal');
     const card = document.getElementById('integratedCard');
@@ -5460,8 +5467,7 @@ window.showMemberMountain = async (mId, mName) => {
     modal.style.display = 'flex';
     card.classList.remove('glow-active');
 
-    // 🌟 [핵심 개선] 모달이 열리는 순간 즉시 레이아웃을 잡고 TOTAL만 완벽히 숨깁니다.
-    // 데이터 로딩(await)을 기다리기 전에 실행되므로 1초간의 잔상 현상이 원천 차단됩니다.
+    // 모달 오픈 즉시 레이아웃을 잡고 TOTAL 깜빡임 잔상 원천 차단
     if(mwMountainName) {
         const parentHeader = mwMountainName.closest('.mountain-header');
         if (parentHeader) {
@@ -5478,9 +5484,8 @@ window.showMemberMountain = async (mId, mName) => {
         mwMountainName.style.alignItems = 'center';
         mwMountainName.style.width = '100%';
         mwMountainName.style.position = 'relative';
-        mwMountainName.style.opacity = '1'; // 타이틀은 처음부터 고정 노출
+        mwMountainName.style.opacity = '1';
 
-        // 타이틀은 그대로 보여주고, TOTAL 부분만 opacity 0 및 transition 세팅
         mwMountainName.innerHTML = `
             <span style="font-size: 10.5px !important; font-weight: 700 !important; white-space: nowrap; letter-spacing: -0.3px;">${mName}님의 산맥</span>
             <span id="mwHikeTotalCount" style="font-size: 9px !important; font-weight: 700 !important; white-space: nowrap; margin-right: -12px !important; opacity: 0; transition: opacity 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);">🏔️TOTAL: --회</span>
@@ -5524,7 +5529,6 @@ window.showMemberMountain = async (mId, mName) => {
         sky.appendChild(star);
     }
 
-    // 🪐 나이테 아래 들어오는 날짜(LAUNCHED) 엘리먼트 초기 투명 처리
     const ringLaunchedEl = document.getElementById('ringLaunchedDate');
     if (ringLaunchedEl) {
         ringLaunchedEl.style.opacity = '0';
@@ -5535,13 +5539,13 @@ window.showMemberMountain = async (mId, mName) => {
         const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
         const allLogs = snap.docs.map(d => d.data());
         
-        // 고도가 존재하는 산맥 렌더링용 베이스 로그
-        const logs = allLogs.filter(l => (l.height || 0) > 0);
+        // 고도가 존재하는 산맥 렌더링용 베이스 로그 (순수 + 번외 전체)
+        let logs = allLogs.filter(l => (l.height || 0) > 0);
 
-        // 🎯 러닝, 트레킹, 산책 제외 ('산행 + 번외산행' 누계 카운트)
+        // 🎯 러닝, 트레킹, 산책 제외 ('순수산행 + 번외산행' 누계 카운트)
         const pureHikeCount = allLogs.filter(l => !l.isRunning && !l.isTracking && !l.isWalking).length;
 
-        // 🏔️ 비동기 데이터 로드가 완료되면 데이터와 레벨 스타일만 태그에 미리 주입 (아직 투명 상태)
+        // 비동기 로딩 완료 후 TOTAL 수치 및 컬러 스타일 주입
         const totalCountEl = document.getElementById('mwHikeTotalCount');
         if (totalCountEl) {
             totalCountEl.style.color = style.border;
@@ -5587,17 +5591,42 @@ window.showMemberMountain = async (mId, mName) => {
                 bgContainer.appendChild(layer);
             }
 
+            /* 🌟 [핵심 변경 로직 적용] 🌟 */
+            // 1 & 2. 전체 산맥 최대 100개 생성 제한 및 최고봉 보장 처리
+            if (logs.length > 100) {
+                const maxLogIndex = logs.findIndex(l => l.height === maxHeight);
+                let slicedLogs = logs.slice(0, 100);
+                
+                // 자른 100개 내에 최고봉이 없다면, 100번째 자리에 강제로 최고봉 데이터 매핑
+                const isMaxIncluded = slicedLogs.some(l => l.height === maxHeight);
+                if (!isMaxIncluded && maxLog) {
+                    slicedLogs[99] = maxLog; 
+                }
+                logs = slicedLogs;
+            }
+
+            // 3. 순수 산행 100회 초과 시 검붉은색으로 타오를 피크 개수 계산
+            const darkRedCount = pureHikeCount > 100 ? pureHikeCount - 100 : 0;
+
             // 개인 정복 산맥 피크 생성
             peakLayer.style.height = "60%";
-            logs.forEach((log) => {
+            logs.forEach((log, index) => {
                 const hRatio = (log.height / maxHeight) * 100;
                 const isMax = log.height === maxHeight;
+                
+                // 최고봉이 아니면서 누적 카운트가 검붉은 피크 범위 내에 있다면 true
+                const isDarkRed = !isMax && (index < darkRedCount);
+
                 const peakDiv = document.createElement('div');
-                peakDiv.className = `peak ${isMax ? 'max-height' : ''}`;
+                peakDiv.className = `peak ${isMax ? 'max-height' : ''} ${isDarkRed ? 'dark-red-peak' : ''}`;
                 peakDiv.style.height = `${hRatio}%`;
-                if (isMax) peakDiv.innerHTML = `<div class="peak-glow-core"></div><div class="golden-glow-effect"></div>`;
+                
+                if (isMax) {
+                    peakDiv.innerHTML = `<div class="peak-glow-core"></div><div class="golden-glow-effect"></div>`;
+                }
                 peakLayer.appendChild(peakDiv);
             });
+            /* ────────────────────────────────── */
 
             // 우주 광선 및 나이테 연쇄 애니메이션 트리거
             setTimeout(() => {
@@ -5624,7 +5653,7 @@ window.showMemberMountain = async (mId, mName) => {
                             if(b) { b.style.transition = 'opacity 0.8s ease-out'; b.style.opacity = '0'; } 
                         });
                         
-                        // 🌟 [핵심 타이밍] 창 테두리가 번쩍 반짝일 때 숨겨둔 TOTAL과 날짜가 스르륵 등장!
+                        // 창 테두리 및 은폐 엘리먼트 동시 오픈 타이밍
                         card.classList.add('glow-active');
                         if(totalCountEl) totalCountEl.style.opacity = '1';
                         if(ringLaunchedEl) ringLaunchedEl.style.opacity = '1';
@@ -5633,7 +5662,7 @@ window.showMemberMountain = async (mId, mName) => {
             }, 400);
 
         } 
-        // [Case B] 정복 기록이 없는 신입/미활동 멤버 보호 예외 처리
+        // [Case B] 정복 기록이 없는 신입/미활동 멤버 예외 처리
         else {
             if(document.getElementById('myTotalH')) {
                 const el = document.getElementById('myTotalH');
@@ -5653,7 +5682,6 @@ window.showMemberMountain = async (mId, mName) => {
                 await window.renderTreeRings(mId, mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
             }
             
-            // 테두리 번쩍 반짝일 때 동시 오픈
             card.classList.add('glow-active');
             if(totalCountEl) totalCountEl.style.opacity = '1';
             if(ringLaunchedEl) ringLaunchedEl.style.opacity = '1';
@@ -5663,7 +5691,9 @@ window.showMemberMountain = async (mId, mName) => {
     }
 };
 
-         
+                
+            
+        
                         
 window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
     const container = document.getElementById('treeRingContainer');
