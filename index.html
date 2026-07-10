@@ -5433,7 +5433,7 @@ async function updateVibeTemp() {
 }
 
 
-                window.showMemberMountain = async (mId, mName) => {
+     window.showMemberMountain = async (mId, mName) => {
     const modal = document.getElementById('mountainViewModal');
     const card = document.getElementById('integratedCard');
     const peakLayer = document.getElementById('peakLayer');
@@ -5477,7 +5477,7 @@ async function updateVibeTemp() {
         mwMountainName.style.alignItems = 'center';
         mwMountainName.style.width = '100%';
         mwMountainName.style.position = 'relative';
-        mwMountainName.style.opacity = '1'; // "OO님의 산맥"은 처음부터 선명하게 고정
+        mwMountainName.style.opacity = '1'; 
 
         mwMountainName.innerHTML = `
             <span style="font-size: 10.5px !important; font-weight: 700 !important; white-space: nowrap; letter-spacing: -0.3px;">${mName}님의 산맥</span>
@@ -5585,30 +5585,27 @@ async function updateVibeTemp() {
                 bgContainer.appendChild(layer);
             }
 
-                                    // ==========================================================================
-            // 🎯 [CSS 무시 및 바닥 완전 고정] 100개 기준 산맥 생성 로직 통합구역
             // ==========================================================================
-            
-            // 1. 기존 peakLayer 내부를 완전히 비우고 기존 정렬 간섭을 초기화합니다.
+            // 🎯 [CSS 무시 및 바닥 완전 고정] 100개 기준 산맥 생성 로직 통합구역 (버그 수정본)
+            // ==========================================================================
             peakLayer.innerHTML = "";
             peakLayer.style.display = "block";
             peakLayer.style.position = "relative";
-            peakLayer.style.height = "110px"; // 높이를 모바일 뷰박스 규격으로 고정
+            peakLayer.style.height = "110px"; 
             peakLayer.style.padding = "0";
             peakLayer.style.margin = "0";
             peakLayer.style.overflow = "visible";
 
-            // 부모 섹션 기준점 재확인
             const mountainSection = peakLayer.closest('.mountain-section') || peakLayer.parentElement;
             if (mountainSection) {
                 mountainSection.style.position = "relative";
             }
 
-            // 2. 외부 CSS를 완벽히 차단하고 무조건 바닥에 자석처럼 붙는 독립 컨테이너 레이어를 생성합니다.
             const forcedContainer = document.createElement('div');
+            // 문법 에러가 났던 정렬 속성들을 안전하게 cssText 단일 문자열 내부로 취합했습니다.
             forcedContainer.style.cssText = `
                 position: absolute !important;
-                bottom: 0 !important; /* 무조건 맨 밑바닥 고정 */
+                bottom: 0 !important;
                 left: 0 !important;
                 width: 100% !important;
                 height: 110px !important;
@@ -5618,15 +5615,17 @@ async function updateVibeTemp() {
                 pointer-events: none !important;
             `;
 
-            const width = 340;  // 내부 뷰박스 가로 크기
-            const height = 110; // 내부 뷰박스 세로 크기
+            const width = 340;  
+            const height = 110; 
 
             if (logs.length < 100) {
-                // 🔥 [CASE 1: 100개 미만] 기존 낱개 피크 방식 (자석 바닥 렌더링)
-                forcedContainer.style.display = "flex" !important;
-                forcedContainer.style.flexDirection = "row" !important;
-                forcedContainer.style.justifyContent = "space-around" !important;
-                forcedContainer.style.alignItems = "flex-end" !important;
+                // 🔥 [CASE 1: 100개 미만] 기존 낱개 피크 방식
+                forcedContainer.style.cssText += `
+                    display: flex !important;
+                    flex-direction: row !important;
+                    justify-content: space-around !important;
+                    align-items: flex-end !important;
+                `;
 
                 logs.forEach((log) => {
                     const hRatio = (log.height / maxHeight) * 100;
@@ -5634,7 +5633,6 @@ async function updateVibeTemp() {
                     const peakDiv = document.createElement('div');
                     peakDiv.className = `peak ${isMax ? 'max-height' : ''}`;
                     
-                    // 안전 마진 0.85배율을 주어 텍스트 침범 방지 및 바닥 밀착
                     peakDiv.style.height = `${hRatio * 0.85}%`; 
                     peakDiv.style.margin = "0 2px";
                     peakDiv.style.transformOrigin = "bottom";
@@ -5646,21 +5644,20 @@ async function updateVibeTemp() {
                 });
 
             } else {
-                // 👑 [CASE 2: 100개 이상 초고수] SVG 거대 네온 스카이라인 (안전 마진 바닥 렌더링)
-                forcedContainer.style.display = "block" !important;
+                // 👑 [CASE 2: 100개 이상 초고수] SVG 거대 네온 스카이라인
+                forcedContainer.style.display = "block";
                 
                 let points = "";
-                let fillPoints = `0,${height} `; // 첫 점 왼쪽 맨 바닥 (0, 110)
+                let fillPoints = `0,${height} `; 
                 
                 logs.forEach((log, idx) => {
                     const x = (idx / (logs.length - 1)) * width;
-                    // 최고점이 상단 헤더 글자를 찌르지 않도록 안전 배율 0.65 제어
                     const y = height - ((log.height / maxHeight) * (height * 0.65)); 
                     points += `${x},${y} `;
                     fillPoints += `${x},${y} `;
                 });
                 
-                fillPoints += `${width},${height}`; // 마지막 점 오른쪽 맨 바닥 (340, 110)
+                fillPoints += `${width},${height}`; 
 
                 forcedContainer.innerHTML = `
                     <svg viewBox="0 0 ${width} ${height}" style="width:100%; height:100%; overflow:visible; display:block;">
@@ -5677,11 +5674,8 @@ async function updateVibeTemp() {
                 `;
             }
 
-            // 3. 최종 정렬된 독립 컨테이너를 비워진 peakLayer에 탑재합니다.
             peakLayer.appendChild(forcedContainer);
-            
             // ==========================================================================
-
 
             // 우주 광선 및 나이테 연쇄 애니메이션 트리거
             setTimeout(() => {
@@ -5708,7 +5702,6 @@ async function updateVibeTemp() {
                             if(b) { b.style.transition = 'opacity 0.8s ease-out'; b.style.opacity = '0'; } 
                         });
                         
-                        // 🌟 창 테두리가 반짝 반짝 켜질 때 숨겨져 있던 TOTAL 개수와 날짜가 스르륵 오픈
                         card.classList.add('glow-active');
                         if(totalCountEl) totalCountEl.style.opacity = '1';
                         if(ringLaunchedEl) ringLaunchedEl.style.opacity = '1';
@@ -5745,7 +5738,10 @@ async function updateVibeTemp() {
         console.error("통합 로딩 에러:", e); 
     }
 };
+           
 
+                
+            
          
                         
 window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
