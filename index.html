@@ -5467,7 +5467,8 @@ async function updateVibeTemp() {
   }
 }
 
-    window.showMemberMountain = async (mId, mName) => {
+    
+   window.showMemberMountain = async (mId, mName) => {
     const modal = document.getElementById('mountainViewModal');
     const card = document.getElementById('integratedCard');
     const peakLayer = document.getElementById('peakLayer');
@@ -5494,9 +5495,9 @@ async function updateVibeTemp() {
     modal.style.display = 'flex';
     card.classList.remove('glow-active');
 
-    // 🌟 [초신성 요소 초기화] 모달 오픈 시 이전 잔상 즉시 리셋 (성운 클래스 처리 제거)
-    const existingSupernova = document.getElementById('cosmicSupernova');
-    if (existingSupernova) existingSupernova.remove();
+    // 🌟 [초신성 폭발 요소 리셋] 모달 오픈 시 기존에 남아있던 폭발 컨테이너 완벽 제거
+    const existingBlast = document.getElementById('mwSupernovaBlast');
+    if (existingBlast) existingBlast.remove();
 
     // 모달 오픈 즉시 레이아웃을 잡고 TOTAL 깜빡임 잔상 원천 차단
     if(mwMountainName) {
@@ -5517,9 +5518,12 @@ async function updateVibeTemp() {
         mwMountainName.style.position = 'relative';
         mwMountainName.style.opacity = '1';
 
+        // 🌟 [구조 변경] 초신성 폭발 소스가 TOTAL 영역의 정중앙에 겹치도록 상대(relative) 컨테이너화 구성
         mwMountainName.innerHTML = `
             <span style="font-size: 10.5px !important; font-weight: 700 !important; white-space: nowrap; letter-spacing: -0.3px;">${mName}님의 산맥</span>
-            <span id="mwHikeTotalCount" style="font-size: 9px !important; font-weight: 700 !important; white-space: nowrap; margin-right: -12px !important; opacity: 0; transition: opacity 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);">🏔️TOTAL: --회</span>
+            <span id="mwHikeTotalWrapper" style="position: relative; display: inline-block;">
+                <span id="mwHikeTotalCount" style="font-size: 9px !important; font-weight: 700 !important; white-space: nowrap; margin-right: -12px !important; opacity: 0; transition: opacity 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);">🏔️TOTAL: --회</span>
+            </span>
         `;
     }
 
@@ -5632,7 +5636,7 @@ async function updateVibeTemp() {
                 logs = slicedLogs;
             }
 
-            // 검붉은색으로 바뀔 대상 개수 계산
+            // 검붉은색으로 바뀔 대상 개수 계산 (100회 초과분만큼)
             const darkRedCount = pureHikeCount > 100 ? pureHikeCount - 100 : 0;
 
             let mappedPeaks = logs.map((log, index) => {
@@ -5678,14 +5682,21 @@ async function updateVibeTemp() {
                     }
 
                     setTimeout(async () => {
-                        // 🌟 [오직 초신성 폭발 오브젝트만 밤하늘에 단독 주입]
+                        // 🌟 [🎯 핵심 인터랙션: 100회 돌파 유저 전용 TOTAL 영역 초신성 단독 폭발]
                         if (pureHikeCount >= 100) {
-                            if (sky && !document.getElementById('cosmicSupernova')) {
-                                const supernova = document.createElement('div');
-                                supernova.id = 'cosmicSupernova';
-                                supernova.className = 'supernova-core';
-                                supernova.style.setProperty('--supernova-color', style.border);
-                                sky.appendChild(supernova);
+                            const totalWrapper = document.getElementById('mwHikeTotalWrapper');
+                            if (totalWrapper && !document.getElementById('mwSupernovaBlast')) {
+                                const blast = document.createElement('div');
+                                blast.id = 'mwSupernovaBlast';
+                                blast.className = 'supernova-blast';
+                                // 유저 고유 레벨 색상 바인딩 (`--blast-color` 매핑)
+                                blast.style.setProperty('--blast-color', style.border);
+                                totalWrapper.appendChild(blast);
+
+                                // 브라우저가 요소를 인지한 직후 렌더링 사이클에 맞춰 클래스 액티브 주입
+                                requestAnimationFrame(() => {
+                                    blast.classList.add('blast-active');
+                                });
                             }
                         }
 
@@ -5732,9 +5743,7 @@ async function updateVibeTemp() {
         console.error("통합 로딩 에러:", e); 
     }
 };
-             
-            
-            
+         
         
                         
 window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
