@@ -2796,41 +2796,39 @@ const now = new Date();
 let selectedYear = now.getFullYear();
 let selectedQuarter = Math.ceil((now.getMonth() + 1) / 3);
 
+
 // ==========================================================================
-// 🏔️ [최종] 런닝/산책/트레킹은 산맥 생성 원천 차단 + 순수/번외 통합 100개 순환
+// 🏔️ [최종] 러닝/트레킹/산책(km 단위) 데이터 완벽 보존 + 산맥 생성 원천 차단
 // ==========================================================================
 async function saveHikeLog(mId, newLogData) {
     const logsRef = collection(db, `sanwoori/${mId}/logs`);
     
-    // 🎯 [핵심 추가] 고도가 입력되었더라도 런닝, 트레킹, 산책, 단순기록(isSpecial)이면 
-    // 산맥을 그리지 않도록 height를 강제로 0으로 덮어쓰고 즉시 저장 (100개 제한에서도 완전 제외)
-    if (newLogData.isSpecial) {
-        newLogData.height = 0; // 고도를 무력화하여 산맥 렌더링 방지
-        await addDoc(logsRef, newLogData);
+    // 🎯 [완벽 방어] 러닝, 트레킹, 산책, 단순기록(isSpecial)이거나 고도 데이터가 없다면
+    // 유저의 소중한 거리(km) 기록은 그대로 저장하되, 산맥 100개 순환 계산에서는 완전히 패스!
+    if (newLogData.isSpecial || !newLogData.height || newLogData.height <= 0) {
+        await addDoc(logsRef, newLogData); // km 단위 산책/러닝 기록 파괴 없이 그대로 보존
         return;
     }
 
-    // 💡 고도가 없는 데이터는 기존처럼 즉시 저장
-    if (!newLogData.height || newLogData.height <= 0) {
-        await addDoc(logsRef, newLogData);
-        return;
-    }
-
-    // 1. 진짜 산맥으로 그려질 순수/번외 산행 로그만 날짜 오래된 순으로 조회
+    // 1. 여기서부터는 오직 '순수 등산/번외 산행(m 단위)' 진짜 산맥들만 날짜순 조회
     const q = query(logsRef, orderBy("date", "asc"));
     const snap = await getDocs(q);
-    const existingMountainLogs = snap.docs.filter(d => (d.data().height || 0) > 0 && !d.data().isSpecial);
+    
+    // DB에서 일반 활동(isSpecial)이 아니면서 진짜 고도(m)를 가진 산맥 데이터만 필터링
+    const existingMountainLogs = snap.docs.filter(d => {
+        return (d.data().height || 0) > 0 && !d.data().isSpecial;
+    });
 
-    // 2. 통합 산맥 개수가 아직 100개 미만이라면 순서대로 저장
+    // 2. 진짜 m 단위 산맥 개수가 아직 100개 미만이라면 순서대로 적재
     if (existingMountainLogs.length < 100) {
         await addDoc(logsRef, newLogData);
-        console.log(`🏔️ 산맥 데이터 적재 중 (${existingMountainLogs.length + 1}/100)`);
+        console.log(`🏔️ 순수 등산 산맥 적재 중 (${existingMountainLogs.length + 1}/100)`);
     } 
-    // 3. 🎯 100개가 꽉 찼을 때 (101번째부터 밀어내기 가동)
+    // 3. 🎯 진짜 산맥 슬롯이 100개가 꽉 찼을 때 (101번째부터 밀어내기)
     else {
         const maxHeight = Math.max(...existingMountainLogs.map(d => d.data().height || 0));
 
-        // 최고봉은 지키고, 가장 오래된 구형 산맥 하나를 타겟팅
+        // 최고봉(최고 고도 m)은 영구 보존하고, 가장 오래된 구형 산맥 하나를 타겟팅
         let targetDocToDelete = existingMountainLogs.find(docSnap => {
             return docSnap.data().height !== maxHeight;
         });
@@ -2842,7 +2840,7 @@ async function saveHikeLog(mId, newLogData) {
         if (targetDocToDelete) {
             await deleteDoc(doc(db, `sanwoori/${mId}/logs`, targetDocToDelete.id));
             await addDoc(logsRef, newLogData);
-            console.log("🔄 [순환 완료] 최고봉을 보호하고 새 산맥을 대체했습니다.");
+            console.log("🔄 [순환 완료] 최고봉을 보호하고, 가장 오래된 등산 산맥 슬롯을 최신 산으로 교체했습니다.");
         }
     }
 }
@@ -5511,8 +5509,7 @@ async function updateVibeTemp() {
 }
 
     
-   
-            window.showMemberMountain = async (mId, mName) => {
+   Window.showMemberMountain = async (mId, mName) => {
     const modal = document.getElementById('mountainViewModal');
     const card = document.getElementById('integratedCard');
     const peakLayer = document.getElementById('peakLayer');
@@ -5618,8 +5615,8 @@ async function updateVibeTemp() {
         const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
         const allLogs = snap.docs.map(d => d.data());
         
-        // 고도가 유효한 베이스 데이터 추출 (저장 메커니즘 덕분에 자동으로 최대 100개 고정)
-        let logs = allLogs.filter(l => (l.height || 0) > 0);
+        // 🎯 [통합 보완] 러닝/트레킹/산책(isSpecial)은 km 단위이므로 산맥 그래프 필터에서 원천 배제
+        let logs = allLogs.filter(l => (l.height || 0) > 0 && !l.isSpecial);
 
         // 러닝, 트레킹, 산책을 배제한 순수 산행 누적 스코어 카운팅
         const pureHikeCount = allLogs.filter(l => !l.isRunning && !l.isTracking && !l.isWalking).length;
@@ -5740,7 +5737,7 @@ async function updateVibeTemp() {
                         [beam, ringBeam].forEach(b => { 
                             if(b) { b.style.transition = 'opacity 0.8s ease-out'; b.style.opacity = '0'; } 
                         });
-                        
+
                         card.classList.add('glow-active');
                         if(totalCountEl) totalCountEl.style.opacity = '1';
                         if(ringLaunchedEl) ringLaunchedEl.style.opacity = '1';
@@ -5769,6 +5766,9 @@ async function updateVibeTemp() {
         console.error("통합 로딩 에러:", e); 
     }
 };
+
+                            
+            
 
         
                         
