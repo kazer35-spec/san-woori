@@ -5506,7 +5506,7 @@ window.showMemberMountain = async (mId, mName) => {
         // 🎯 러닝, 트레킹, 산책 제외 ('산행 + 번외산행' 누계 카운트)
         const pureHikeCount = allLogs.filter(l => !l.isRunning && !l.isTracking && !l.isWalking).length;
 
-        // 🏔️ 레이아웃 고정 및 자식 글씨 크기 강제 축소
+        // 🏔️ 레이아웃 고정 및 초기 투명 처리 (숨겨두기)
         if(mwMountainName) {
             const parentHeader = mwMountainName.closest('.mountain-header');
             if (parentHeader) {
@@ -5523,12 +5523,22 @@ window.showMemberMountain = async (mId, mName) => {
             mwMountainName.style.alignItems = 'center';
             mwMountainName.style.width = '100%';
             mwMountainName.style.position = 'relative';
+            
+            // 🎬 처음에 안 보이도록 opacity: 0 처리, 등장할 때 매끄럽도록 트랜지션 추가
+            mwMountainName.style.opacity = '0';
+            mwMountainName.style.transition = 'opacity 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
 
-            // 🌟 폰트 크기를 눈에 띄게 줄이고 font-size를 !important로 강제 고정
             mwMountainName.innerHTML = `
-    <span style="font-size: 10.5px !important; font-weight: 700 !important; white-space: nowrap; letter-spacing: -0.3px;">${mName}님의 산맥</span>
-    <span style="font-size: 9px !important; font-weight: 700 !important; color: ${style.border} !important; text-shadow: 0 0 5px ${style.border}, 0 0 10px ${style.border} !important; white-space: nowrap; margin-right: -12px !important;">🏔️TOTAL: ${pureHikeCount}회</span>
-`;
+                <span style="font-size: 10.5px !important; font-weight: 700 !important; white-space: nowrap; letter-spacing: -0.3px;">${mName}님의 산맥</span>
+                <span style="font-size: 9px !important; font-weight: 700 !important; color: ${style.border} !important; text-shadow: 0 0 5px ${style.border}, 0 0 10px ${style.border} !important; white-space: nowrap; margin-right: -12px !important;">🏔️TOTAL: ${pureHikeCount}회</span>
+            `;
+        }
+
+        // 🪐 나이테 아래 들어오는 날짜(LAUNCHED) 엘리먼트도 초기에는 투명하게 대기
+        const ringLaunchedEl = document.getElementById('ringLaunchedDate');
+        if (ringLaunchedEl) {
+            ringLaunchedEl.style.opacity = '0';
+            ringLaunchedEl.style.transition = 'opacity 0.4s ease-out';
         }
 
         // [Case A] 기록이 1개라도 존재하는 멤버
@@ -5605,7 +5615,11 @@ window.showMemberMountain = async (mId, mName) => {
                         [beam, ringBeam].forEach(b => { 
                             if(b) { b.style.transition = 'opacity 0.8s ease-out'; b.style.opacity = '0'; } 
                         });
+                        
+                        // 🌟 [핵심 타이밍] 전체 창이 번쩍하고 반짝임(Glow Active)이 시작될 때 정보를 노출합니다.
                         card.classList.add('glow-active');
+                        if(mwMountainName) mwMountainName.style.opacity = '1';
+                        if(ringLaunchedEl) ringLaunchedEl.style.opacity = '1';
                     }, 450);
                 }, 350);
             }, 400);
@@ -5630,16 +5644,16 @@ window.showMemberMountain = async (mId, mName) => {
             if (memberInfo) {
                 await window.renderTreeRings(mId, mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
             }
+            
+            // 기록 없는 멤버도 나이테가 깔린 직후 테두리가 반짝일 때 동시 오픈
             card.classList.add('glow-active');
+            if(mwMountainName) mwMountainName.style.opacity = '1';
+            if(ringLaunchedEl) ringLaunchedEl.style.opacity = '1';
         }
     } catch (e) { 
         console.error("통합 로딩 에러:", e); 
     }
 };
-
-                     
-
-
          
                         
 window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
@@ -5724,19 +5738,20 @@ window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
 
     // 🪐 [수정] 가입일 텍스트 매핑 및 반짝임(애니메이션) 없이 색상만 고정 적용
     const ringLaunchedEl = document.getElementById('ringLaunchedDate');
-    if (ringLaunchedEl && jDate) {
-        const yyyy = jDate.getFullYear();
-        const mm = String(jDate.getMonth() + 1).padStart(2, '0');
-        const dd = String(jDate.getDate()).padStart(2, '0');
-        
-        ringLaunchedEl.innerText = `LAUNCHED: ${yyyy}.${mm}.${dd}`;
-        
-        // 🎨 레벨 색상 및 은은한 네온 조명 효과만 고정 (애니메이션 제거)
-        ringLaunchedEl.style.color = ringColor;
-        ringLaunchedEl.style.textShadow = `0 0 5px ${ringColor}, 0 0 10px ${ringColor}`;
-        ringLaunchedEl.style.animation = "none"; // 깜빡임 효과 제거
-        ringLaunchedEl.style.opacity = "1";       // 흐려지지 않게 선명도 고정
-    }
+    // renderTreeRings 함수 내부 [3]번 영역 중 Launched 텍스트 세팅 부분 보정
+if (ringLaunchedEl && jDate) {
+    const yyyy = jDate.getFullYear();
+    const mm = String(jDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(jDate.getDate()).padStart(2, '0');
+    
+    ringLaunchedEl.innerText = `LAUNCHED: ${yyyy}.${mm}.${dd}`;
+    
+    ringLaunchedEl.style.color = ringColor;
+    ringLaunchedEl.style.textShadow = `0 0 5px ${ringColor}, 0 0 10px ${ringColor}`;
+    ringLaunchedEl.style.animation = "none"; 
+    // 💡 초기 선언 시 opacity를 건드리지 않고, 위의 showMemberMountain에서 
+    // glow-active 시점에 1로 켜주도록 열어둡니다.
+}
 
     const regularStarColors = ["#00FFFF", "#FF8C00", "#D32F2F", "#7C4DFF", "#A020F0", "#00FF7F"]; 
 
