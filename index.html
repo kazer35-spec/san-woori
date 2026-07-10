@@ -5585,55 +5585,84 @@ async function updateVibeTemp() {
                 bgContainer.appendChild(layer);
             }
 
-                        // 🎯 [양방향 바닥 고정 완벽 보정] 100개 기준 산맥 생성 로직
-            peakLayer.style.height = "60%";
-            peakLayer.style.display = "flex";
-            peakLayer.style.alignItems = "flex-end";
+                                    // ==========================================================================
+            // 🎯 [CSS 무시 및 바닥 완전 고정] 100개 기준 산맥 생성 로직 통합구역
+            // ==========================================================================
+            
+            // 1. 기존 peakLayer 내부를 완전히 비우고 기존 정렬 간섭을 초기화합니다.
+            peakLayer.innerHTML = "";
+            peakLayer.style.display = "block";
             peakLayer.style.position = "relative";
-            peakLayer.style.overflow = "visible"; // 상단 광원이나 팁이 안 잘리도록 처리
+            peakLayer.style.height = "110px"; // 높이를 모바일 뷰박스 규격으로 고정
+            peakLayer.style.padding = "0";
+            peakLayer.style.margin = "0";
+            peakLayer.style.overflow = "visible";
+
+            // 부모 섹션 기준점 재확인
+            const mountainSection = peakLayer.closest('.mountain-section') || peakLayer.parentElement;
+            if (mountainSection) {
+                mountainSection.style.position = "relative";
+            }
+
+            // 2. 외부 CSS를 완벽히 차단하고 무조건 바닥에 자석처럼 붙는 독립 컨테이너 레이어를 생성합니다.
+            const forcedContainer = document.createElement('div');
+            forcedContainer.style.cssText = `
+                position: absolute !important;
+                bottom: 0 !important; /* 무조건 맨 밑바닥 고정 */
+                left: 0 !important;
+                width: 100% !important;
+                height: 110px !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                z-index: 10 !important;
+                pointer-events: none !important;
+            `;
+
+            const width = 340;  // 내부 뷰박스 가로 크기
+            const height = 110; // 내부 뷰박스 세로 크기
 
             if (logs.length < 100) {
-                // 🔥 [100개 미만]: 기존 낱개 피크 방식 (바닥 밀착 및 마진 보정)
-                peakLayer.style.justifyContent = "space-around";
-                // 기존에 부모 flex 때문에 붕 뜨던 현상을 방지하기 위해 정렬을 명시적으로 바닥 고정
-                peakLayer.style.flexDirection = "row"; 
-                
+                // 🔥 [CASE 1: 100개 미만] 기존 낱개 피크 방식 (자석 바닥 렌더링)
+                forcedContainer.style.display = "flex" !important;
+                forcedContainer.style.flexDirection = "row" !important;
+                forcedContainer.style.justifyContent = "space-around" !important;
+                forcedContainer.style.alignItems = "flex-end" !important;
+
                 logs.forEach((log) => {
                     const hRatio = (log.height / maxHeight) * 100;
                     const isMax = log.height === maxHeight;
                     const peakDiv = document.createElement('div');
                     peakDiv.className = `peak ${isMax ? 'max-height' : ''}`;
                     
-                    // 🎯 안전 높이 배율(85%)을 적용해 텍스트 영역을 침범하지 않게 조절하고 바닥에 붙임
+                    // 안전 마진 0.85배율을 주어 텍스트 침범 방지 및 바닥 밀착
                     peakDiv.style.height = `${hRatio * 0.85}%`; 
-                    peakDiv.style.margin = "0 2px"; // 모바일 가로폭 촘촘함 보정
+                    peakDiv.style.margin = "0 2px";
+                    peakDiv.style.transformOrigin = "bottom";
                     
                     if (isMax) {
                         peakDiv.innerHTML = `<div class="peak-glow-core"></div><div class="golden-glow-effect"></div>`;
                     }
-                    peakLayer.appendChild(peakDiv);
+                    forcedContainer.appendChild(peakDiv);
                 });
+
             } else {
-                // 👑 [100개 이상]: SVG 거대 네온 산맥 스카이라인 (바닥 고정 및 마진 보정)
-                peakLayer.style.justifyContent = "stretch";
-                
-                const width = 340;  
-                const height = 110; 
+                // 👑 [CASE 2: 100개 이상 초고수] SVG 거대 네온 스카이라인 (안전 마진 바닥 렌더링)
+                forcedContainer.style.display = "block" !important;
                 
                 let points = "";
-                let fillPoints = `0,${height} `; // 첫 점 왼쪽 바닥 강제 지정
+                let fillPoints = `0,${height} `; // 첫 점 왼쪽 맨 바닥 (0, 110)
                 
                 logs.forEach((log, idx) => {
                     const x = (idx / (logs.length - 1)) * width;
-                    // 최저 고도 일 때 정확히 110px 바닥에 닿고 최고점일 때 85% 높이 제한
-                    const y = height - ((log.height / maxHeight) * (height * 0.85)); 
+                    // 최고점이 상단 헤더 글자를 찌르지 않도록 안전 배율 0.65 제어
+                    const y = height - ((log.height / maxHeight) * (height * 0.65)); 
                     points += `${x},${y} `;
                     fillPoints += `${x},${y} `;
                 });
                 
-                fillPoints += `${width},${height}`; // 마지막 점 오른쪽 바닥 강제 지정
+                fillPoints += `${width},${height}`; // 마지막 점 오른쪽 맨 바닥 (340, 110)
 
-                peakLayer.innerHTML = `
+                forcedContainer.innerHTML = `
                     <svg viewBox="0 0 ${width} ${height}" style="width:100%; height:100%; overflow:visible; display:block;">
                         <defs>
                             <linearGradient id="mountainGlowFill" x1="0" y1="0" x2="0" y2="1">
@@ -5647,6 +5676,11 @@ async function updateVibeTemp() {
                     </svg>
                 `;
             }
+
+            // 3. 최종 정렬된 독립 컨테이너를 비워진 peakLayer에 탑재합니다.
+            peakLayer.appendChild(forcedContainer);
+            
+            // ==========================================================================
 
 
             // 우주 광선 및 나이테 연쇄 애니메이션 트리거
