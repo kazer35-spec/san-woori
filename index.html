@@ -5433,7 +5433,7 @@ async function updateVibeTemp() {
 }
 
 
-     window.showMemberMountain = async (mId, mName) => {
+window.showMemberMountain = async (mId, mName) => {
     const modal = document.getElementById('mountainViewModal');
     const card = document.getElementById('integratedCard');
     const peakLayer = document.getElementById('peakLayer');
@@ -5460,7 +5460,8 @@ async function updateVibeTemp() {
     modal.style.display = 'flex';
     card.classList.remove('glow-active');
 
-    // [개선] 모달이 열리는 순간 즉시 레이아웃을 잡고 TOTAL 카운트만 완벽히 숨겨 잔상 차단
+    // 🌟 [핵심 개선] 모달이 열리는 순간 즉시 레이아웃을 잡고 TOTAL만 완벽히 숨깁니다.
+    // 데이터 로딩(await)을 기다리기 전에 실행되므로 1초간의 잔상 현상이 원천 차단됩니다.
     if(mwMountainName) {
         const parentHeader = mwMountainName.closest('.mountain-header');
         if (parentHeader) {
@@ -5477,8 +5478,9 @@ async function updateVibeTemp() {
         mwMountainName.style.alignItems = 'center';
         mwMountainName.style.width = '100%';
         mwMountainName.style.position = 'relative';
-        mwMountainName.style.opacity = '1'; 
+        mwMountainName.style.opacity = '1'; // 타이틀은 처음부터 고정 노출
 
+        // 타이틀은 그대로 보여주고, TOTAL 부분만 opacity 0 및 transition 세팅
         mwMountainName.innerHTML = `
             <span style="font-size: 10.5px !important; font-weight: 700 !important; white-space: nowrap; letter-spacing: -0.3px;">${mName}님의 산맥</span>
             <span id="mwHikeTotalCount" style="font-size: 9px !important; font-weight: 700 !important; white-space: nowrap; margin-right: -12px !important; opacity: 0; transition: opacity 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);">🏔️TOTAL: --회</span>
@@ -5522,7 +5524,7 @@ async function updateVibeTemp() {
         sky.appendChild(star);
     }
 
-    // 나이테 LAUNCHED 날짜 엘리먼트 초기 투명 대기
+    // 🪐 나이테 아래 들어오는 날짜(LAUNCHED) 엘리먼트 초기 투명 처리
     const ringLaunchedEl = document.getElementById('ringLaunchedDate');
     if (ringLaunchedEl) {
         ringLaunchedEl.style.opacity = '0';
@@ -5539,7 +5541,7 @@ async function updateVibeTemp() {
         // 🎯 러닝, 트레킹, 산책 제외 ('산행 + 번외산행' 누계 카운트)
         const pureHikeCount = allLogs.filter(l => !l.isRunning && !l.isTracking && !l.isWalking).length;
 
-        // 비동기 데이터 로드 완료 후 태그에 미리 데이터 주입 (아직 숨김 상태)
+        // 🏔️ 비동기 데이터 로드가 완료되면 데이터와 레벨 스타일만 태그에 미리 주입 (아직 투명 상태)
         const totalCountEl = document.getElementById('mwHikeTotalCount');
         if (totalCountEl) {
             totalCountEl.style.color = style.border;
@@ -5585,97 +5587,17 @@ async function updateVibeTemp() {
                 bgContainer.appendChild(layer);
             }
 
-            // ==========================================================================
-            // 🎯 [CSS 무시 및 바닥 완전 고정] 100개 기준 산맥 생성 로직 통합구역 (버그 수정본)
-            // ==========================================================================
-            peakLayer.innerHTML = "";
-            peakLayer.style.display = "block";
-            peakLayer.style.position = "relative";
-            peakLayer.style.height = "110px"; 
-            peakLayer.style.padding = "0";
-            peakLayer.style.margin = "0";
-            peakLayer.style.overflow = "visible";
-
-            const mountainSection = peakLayer.closest('.mountain-section') || peakLayer.parentElement;
-            if (mountainSection) {
-                mountainSection.style.position = "relative";
-            }
-
-            const forcedContainer = document.createElement('div');
-            // 문법 에러가 났던 정렬 속성들을 안전하게 cssText 단일 문자열 내부로 취합했습니다.
-            forcedContainer.style.cssText = `
-                position: absolute !important;
-                bottom: 0 !important;
-                left: 0 !important;
-                width: 100% !important;
-                height: 110px !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                z-index: 10 !important;
-                pointer-events: none !important;
-            `;
-
-            const width = 340;  
-            const height = 110; 
-
-            if (logs.length < 100) {
-                // 🔥 [CASE 1: 100개 미만] 기존 낱개 피크 방식
-                forcedContainer.style.cssText += `
-                    display: flex !important;
-                    flex-direction: row !important;
-                    justify-content: space-around !important;
-                    align-items: flex-end !important;
-                `;
-
-                logs.forEach((log) => {
-                    const hRatio = (log.height / maxHeight) * 100;
-                    const isMax = log.height === maxHeight;
-                    const peakDiv = document.createElement('div');
-                    peakDiv.className = `peak ${isMax ? 'max-height' : ''}`;
-                    
-                    peakDiv.style.height = `${hRatio * 0.85}%`; 
-                    peakDiv.style.margin = "0 2px";
-                    peakDiv.style.transformOrigin = "bottom";
-                    
-                    if (isMax) {
-                        peakDiv.innerHTML = `<div class="peak-glow-core"></div><div class="golden-glow-effect"></div>`;
-                    }
-                    forcedContainer.appendChild(peakDiv);
-                });
-
-            } else {
-                // 👑 [CASE 2: 100개 이상 초고수] SVG 거대 네온 스카이라인
-                forcedContainer.style.display = "block";
-                
-                let points = "";
-                let fillPoints = `0,${height} `; 
-                
-                logs.forEach((log, idx) => {
-                    const x = (idx / (logs.length - 1)) * width;
-                    const y = height - ((log.height / maxHeight) * (height * 0.65)); 
-                    points += `${x},${y} `;
-                    fillPoints += `${x},${y} `;
-                });
-                
-                fillPoints += `${width},${height}`; 
-
-                forcedContainer.innerHTML = `
-                    <svg viewBox="0 0 ${width} ${height}" style="width:100%; height:100%; overflow:visible; display:block;">
-                        <defs>
-                            <linearGradient id="mountainGlowFill" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stop-color="${style.border}" stop-opacity="0.35"/>
-                                <stop offset="100%" stop-color="${style.border}" stop-opacity="0.0"/>
-                            </linearGradient>
-                        </defs>
-                        <polygon points="${fillPoints}" fill="url(#mountainGlowFill)" />
-                        <polyline points="${points}" fill="none" stroke="${style.border}" stroke-width="1.8" 
-                            style="filter: drop-shadow(0 0 5px ${style.border});" />
-                    </svg>
-                `;
-            }
-
-            peakLayer.appendChild(forcedContainer);
-            // ==========================================================================
+            // 개인 정복 산맥 피크 생성
+            peakLayer.style.height = "60%";
+            logs.forEach((log) => {
+                const hRatio = (log.height / maxHeight) * 100;
+                const isMax = log.height === maxHeight;
+                const peakDiv = document.createElement('div');
+                peakDiv.className = `peak ${isMax ? 'max-height' : ''}`;
+                peakDiv.style.height = `${hRatio}%`;
+                if (isMax) peakDiv.innerHTML = `<div class="peak-glow-core"></div><div class="golden-glow-effect"></div>`;
+                peakLayer.appendChild(peakDiv);
+            });
 
             // 우주 광선 및 나이테 연쇄 애니메이션 트리거
             setTimeout(() => {
@@ -5702,6 +5624,7 @@ async function updateVibeTemp() {
                             if(b) { b.style.transition = 'opacity 0.8s ease-out'; b.style.opacity = '0'; } 
                         });
                         
+                        // 🌟 [핵심 타이밍] 창 테두리가 번쩍 반짝일 때 숨겨둔 TOTAL과 날짜가 스르륵 등장!
                         card.classList.add('glow-active');
                         if(totalCountEl) totalCountEl.style.opacity = '1';
                         if(ringLaunchedEl) ringLaunchedEl.style.opacity = '1';
@@ -5730,6 +5653,7 @@ async function updateVibeTemp() {
                 await window.renderTreeRings(mId, mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
             }
             
+            // 테두리 번쩍 반짝일 때 동시 오픈
             card.classList.add('glow-active');
             if(totalCountEl) totalCountEl.style.opacity = '1';
             if(ringLaunchedEl) ringLaunchedEl.style.opacity = '1';
@@ -5738,10 +5662,7 @@ async function updateVibeTemp() {
         console.error("통합 로딩 에러:", e); 
     }
 };
-           
 
-                
-            
          
                         
 window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
