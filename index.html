@@ -5432,6 +5432,7 @@ async function updateVibeTemp() {
   }
 }
 
+
 window.showMemberMountain = async (mId, mName) => {
     const modal = document.getElementById('mountainViewModal');
     const card = document.getElementById('integratedCard');
@@ -5458,6 +5459,33 @@ window.showMemberMountain = async (mId, mName) => {
 
     modal.style.display = 'flex';
     card.classList.remove('glow-active');
+
+    // 🌟 [핵심 개선] 모달이 열리는 순간 즉시 레이아웃을 잡고 TOTAL만 완벽히 숨깁니다.
+    // 데이터 로딩(await)을 기다리기 전에 실행되므로 1초간의 잔상 현상이 원천 차단됩니다.
+    if(mwMountainName) {
+        const parentHeader = mwMountainName.closest('.mountain-header');
+        if (parentHeader) {
+            parentHeader.style.position = 'absolute';
+            parentHeader.style.top = '22px'; 
+            parentHeader.style.left = '25px';
+            parentHeader.style.right = '15px'; 
+            parentHeader.style.width = 'calc(100% - 70px)';
+            parentHeader.style.display = 'block';
+        }
+
+        mwMountainName.style.display = 'flex';
+        mwMountainName.style.justifyContent = 'space-between';
+        mwMountainName.style.alignItems = 'center';
+        mwMountainName.style.width = '100%';
+        mwMountainName.style.position = 'relative';
+        mwMountainName.style.opacity = '1'; // 타이틀은 처음부터 고정 노출
+
+        // 타이틀은 그대로 보여주고, TOTAL 부분만 opacity 0 및 transition 세팅
+        mwMountainName.innerHTML = `
+            <span style="font-size: 10.5px !important; font-weight: 700 !important; white-space: nowrap; letter-spacing: -0.3px;">${mName}님의 산맥</span>
+            <span id="mwHikeTotalCount" style="font-size: 9px !important; font-weight: 700 !important; white-space: nowrap; margin-right: -12px !important; opacity: 0; transition: opacity 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);">🏔️TOTAL: --회</span>
+        `;
+    }
 
     const initializeBeam = (b) => {
         if(!b) return;
@@ -5496,6 +5524,13 @@ window.showMemberMountain = async (mId, mName) => {
         sky.appendChild(star);
     }
 
+    // 🪐 나이테 아래 들어오는 날짜(LAUNCHED) 엘리먼트 초기 투명 처리
+    const ringLaunchedEl = document.getElementById('ringLaunchedDate');
+    if (ringLaunchedEl) {
+        ringLaunchedEl.style.opacity = '0';
+        ringLaunchedEl.style.transition = 'opacity 0.4s ease-out';
+    }
+
     try {
         const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
         const allLogs = snap.docs.map(d => d.data());
@@ -5506,39 +5541,12 @@ window.showMemberMountain = async (mId, mName) => {
         // 🎯 러닝, 트레킹, 산책 제외 ('산행 + 번외산행' 누계 카운트)
         const pureHikeCount = allLogs.filter(l => !l.isRunning && !l.isTracking && !l.isWalking).length;
 
-        // 🏔️ 레이아웃 고정 및 초기 투명 처리 (숨겨두기)
-        if(mwMountainName) {
-            const parentHeader = mwMountainName.closest('.mountain-header');
-            if (parentHeader) {
-                parentHeader.style.position = 'absolute';
-                parentHeader.style.top = '22px'; 
-                parentHeader.style.left = '25px';
-                parentHeader.style.right = '15px'; 
-                parentHeader.style.width = 'calc(100% - 70px)';
-                parentHeader.style.display = 'block';
-            }
-
-            mwMountainName.style.display = 'flex';
-            mwMountainName.style.justifyContent = 'space-between';
-            mwMountainName.style.alignItems = 'center';
-            mwMountainName.style.width = '100%';
-            mwMountainName.style.position = 'relative';
-            
-            // 🎬 처음에 안 보이도록 opacity: 0 처리, 등장할 때 매끄럽도록 트랜지션 추가
-            mwMountainName.style.opacity = '0';
-            mwMountainName.style.transition = 'opacity 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-
-            mwMountainName.innerHTML = `
-                <span style="font-size: 10.5px !important; font-weight: 700 !important; white-space: nowrap; letter-spacing: -0.3px;">${mName}님의 산맥</span>
-                <span style="font-size: 9px !important; font-weight: 700 !important; color: ${style.border} !important; text-shadow: 0 0 5px ${style.border}, 0 0 10px ${style.border} !important; white-space: nowrap; margin-right: -12px !important;">🏔️TOTAL: ${pureHikeCount}회</span>
-            `;
-        }
-
-        // 🪐 나이테 아래 들어오는 날짜(LAUNCHED) 엘리먼트도 초기에는 투명하게 대기
-        const ringLaunchedEl = document.getElementById('ringLaunchedDate');
-        if (ringLaunchedEl) {
-            ringLaunchedEl.style.opacity = '0';
-            ringLaunchedEl.style.transition = 'opacity 0.4s ease-out';
+        // 🏔️ 비동기 데이터 로드가 완료되면 데이터와 레벨 스타일만 태그에 미리 주입 (아직 투명 상태)
+        const totalCountEl = document.getElementById('mwHikeTotalCount');
+        if (totalCountEl) {
+            totalCountEl.style.color = style.border;
+            totalCountEl.style.textShadow = `0 0 5px ${style.border}, 0 0 10px ${style.border}`;
+            totalCountEl.innerHTML = `🏔️TOTAL: ${pureHikeCount}회`;
         }
 
         // [Case A] 기록이 1개라도 존재하는 멤버
@@ -5616,9 +5624,9 @@ window.showMemberMountain = async (mId, mName) => {
                             if(b) { b.style.transition = 'opacity 0.8s ease-out'; b.style.opacity = '0'; } 
                         });
                         
-                        // 🌟 [핵심 타이밍] 전체 창이 번쩍하고 반짝임(Glow Active)이 시작될 때 정보를 노출합니다.
+                        // 🌟 [핵심 타이밍] 창 테두리가 번쩍 반짝일 때 숨겨둔 TOTAL과 날짜가 스르륵 등장!
                         card.classList.add('glow-active');
-                        if(mwMountainName) mwMountainName.style.opacity = '1';
+                        if(totalCountEl) totalCountEl.style.opacity = '1';
                         if(ringLaunchedEl) ringLaunchedEl.style.opacity = '1';
                     }, 450);
                 }, 350);
@@ -5645,15 +5653,16 @@ window.showMemberMountain = async (mId, mName) => {
                 await window.renderTreeRings(mId, mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
             }
             
-            // 기록 없는 멤버도 나이테가 깔린 직후 테두리가 반짝일 때 동시 오픈
+            // 테두리 번쩍 반짝일 때 동시 오픈
             card.classList.add('glow-active');
-            if(mwMountainName) mwMountainName.style.opacity = '1';
+            if(totalCountEl) totalCountEl.style.opacity = '1';
             if(ringLaunchedEl) ringLaunchedEl.style.opacity = '1';
         }
     } catch (e) { 
         console.error("통합 로딩 에러:", e); 
     }
 };
+
          
                         
 window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
