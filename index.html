@@ -2796,55 +2796,54 @@ const now = new Date();
 let selectedYear = now.getFullYear();
 let selectedQuarter = Math.ceil((now.getMonth() + 1) / 3);
 
-        /**
- * 산행 기록을 저장하는 통합 함수 (최대 100개 순환 적재 & 최고봉 보호)
- * @param {string} mId - 멤버 UID
- * @param {object} newLogData - 새롭게 추가할 산행 로그 객체
- */
+ // ==========================================================================
+// 🏔️ [최종] 종류 불문 고도 기준 100개 하드캡 순환 및 최고봉 보호 함수
+// ==========================================================================
 async function saveHikeLog(mId, newLogData) {
     const logsRef = collection(db, `sanwoori/${mId}/logs`);
     
-    // 💡 고도가 없는 번외/러닝/트레킹/산책 기록은 하드캡 제한 없이 무조건 즉시 저장
+    // 💡 고도가 없는 일반 활동(러닝/트레킹/산책 중 높이 0)은 100개 규칙에서 완전 제외하고 즉시 저장
     if (!newLogData.height || newLogData.height <= 0) {
         await addDoc(logsRef, newLogData);
         return;
     }
 
-    // 1. 고도가 있는 기존 산맥 로그들을 '날짜 오래된 순(asc)'으로 정렬하여 1차 조회
+    // 1. 순수/번외 상관없이 '고도가 있는 모든 산맥 로그'를 '날짜 오래된 순(asc)'으로 조회
     const q = query(logsRef, orderBy("date", "asc"));
     const snap = await getDocs(q);
-    const existingMountainLogs = snap.docs;
+    
+    // 고도가 0보다 큰 데이터만 엄격하게 필터링 (순수산행 + 고도 있는 번외산행 통합)
+    const existingMountainLogs = snap.docs.filter(d => (d.data().height || 0) > 0);
 
-    // 2. 현재 저장된 산맥이 100개 미만이라면 아무 조건 없이 그대로 추가
+    // 2. 통합 산맥 개수가 아직 100개 미만이라면 순서대로 저장
     if (existingMountainLogs.length < 100) {
         await addDoc(logsRef, newLogData);
         console.log(`🏔️ 산맥 데이터 적재 중 (${existingMountainLogs.length + 1}/100)`);
     } 
-    // 3. 🎯 100개가 꽉 찼을 때 (101회째 산행부터 순차 교체 메커니즘 가동)
+    // 3. 🎯 순수+번외 합산 100개가 꽉 찼을 때 (101번째부터 밀어내기 가동)
     else {
-        // 현재 저장되어 있는 100개 중 가장 높은 고도(최고봉 기준값)를 도출
+        // 현재 저장된 100개의 산맥 중 가장 높은 고도(최고봉 기준값) 추출
         const maxHeight = Math.max(...existingMountainLogs.map(d => d.data().height || 0));
 
-        // 최고봉이 아니면서('height !== maxHeight') 가장 오래된(배열 앞쪽) 문서 단 하나를 타겟팅
+        // 🛡️ 최고봉이 아니면서 + 가장 오래된(배열 앞쪽) 문서 단 하나를 타겟팅
         const targetDocToDelete = existingMountainLogs.find(docSnap => {
             return docSnap.data().height !== maxHeight;
         });
 
         if (targetDocToDelete) {
-            // 최고봉을 안전하게 보호하고, 가장 오래된 구형 산맥 문서 삭제
+            // 최고봉은 완벽히 지키고, 가장 오래된 구형 산맥(순수든 번외든) 문서 삭제
             await deleteDoc(doc(db, `sanwoori/${mId}/logs`, targetDocToDelete.id));
             
-            // 삭제된 빈 자리에 새로운 산맥 로그 인서트
+            // 삭제되어 확보된 슬롯에 새 산맥 데이터 주입
             await addDoc(logsRef, newLogData);
-            console.log("🔄 최고봉을 우회하고, 가입 초기의 오래된 산맥을 최신 산맥으로 대체 완료했습니다!");
+            console.log("🔄 [순환 완료] 최고봉을 보호하고, 가장 오래된 산맥을 새 기록으로 대체했습니다!");
         } else {
-            // 예외 처리 (만약 100개 데이터의 고도가 소수점까지 전부 똑같을 경우)
+            // 예외 처리 (100개 데이터 고도가 소수점까지 전부 똑같을 경우 첫 데이터 대치)
             await deleteDoc(doc(db, `sanwoori/${mId}/logs`, existingMountainLogs[0].id));
             await addDoc(logsRef, newLogData);
         }
     }
 }
-
 
 
     const regionBoundaries = [
@@ -4835,7 +4834,7 @@ window.addMultiActivity = async () => {
 
             let updateData = {}; 
 
-            // 🔄 [복원] 회원 문서에 분기 통계 구조가 없다면 최초 1회 과거 분기 자동 주입 로직
+            // 🔄 회원 문서에 분기 통계 구조가 없다면 최초 1회 과거 분기 자동 주입 로직
             if (!member.quarterlyStats) {
                 const pastCount = member.qCount || member.count || 0;
                 updateData["quarterlyStats.2025_q4"] = { hike: pastCount, total: pastCount };
@@ -4858,19 +4857,19 @@ window.addMultiActivity = async () => {
             if (isRealHike && !isExtraHike) {
                 updateData.lastDate = ts; 
 
-                // 🎯 [누락 방지 예외처리 반영] 정기산행, 분기1회체크, 단순기록 체크 시 고도가 1배만 합산되도록 제어
+                // 🎯 정기산행, 분기1회체크, 단순기록 체크 시 고도가 1배만 합산되도록 제어
                 const logLoopCount = (isRegular || isQuarterOnlyOne || isOnlyLog) ? 1 : realUpAmount;
                 const finalHeightIncrement = height * logLoopCount; 
                 updateData.totalHeight = _increment(finalHeightIncrement); 
 
-                // 🔄 [복원] 순수산행 분기 통계 처리 개별 누적
+                // 🔄 순수산행 분기 통계 처리 개별 누적
                 updateData[`quarterlyStats.${qKey}.hike`] = _increment(1);
                 updateData[`quarterlyStats.${qKey}.total`] = _increment(1);
                 
                 // 순수산행은 보너스 일수를 0으로 리셋하여 최대 122일 고정
                 updateData.bonusDays = 0;
                 
-                // 🎯 [요청 반영] 선택된 총 인원수에 따라 분기 횟수(qCount)를 1인=1, 2인=2, 3인이상=3회 차등 적용
+                // 🎯 선택된 총 인원수에 따라 분기 횟수(qCount) 차등 적용 (1인=1, 2인=2, 3인이상=3회)
                 const groupSize = selectedMemberIds.size;
                 const qCountIncrement = groupSize >= 3 ? 3 : groupSize; 
                 updateData.qCount = _increment(qCountIncrement); 
@@ -4884,7 +4883,7 @@ window.addMultiActivity = async () => {
 
             // ─── 🅱️ 번외산행 / 러닝 / 트레킹 / 산책 묶음일 때 ───
             } else {
-                // 🔄 [복원] 일반 활동 분기 통계 처리 (total만 증가, hike는 0 증가) - 고도는 결코 쌓이지 않음
+                // 일반 활동 분기 통계 처리 (total만 증가, hike는 0 증가)
                 updateData[`quarterlyStats.${qKey}.total`] = _increment(1);
                 updateData[`quarterlyStats.${qKey}.hike`] = _increment(0); 
 
@@ -4903,7 +4902,7 @@ window.addMultiActivity = async () => {
                     console.log(`🏃‍♂️ [2인 동행 버프] ${member.name}님 D-Day 15일 연장 (최대 122일 제한)`);
                 
                 } else {
-                    // 혼자 기록하거나 번외산행일 때는 lastDate와 bonusDays를 건드리지 않아 완벽 보존
+                    // 혼자 기록하거나 번외산행일 때는 lastDate와 bonusDays 보존
                     console.log(`👤 [D-Day 유지] ${member.name}님 기존 D-Day 유지 (lastDate 및 bonusDays 보존)`);
                 }
             }
@@ -4913,7 +4912,7 @@ window.addMultiActivity = async () => {
                 await updateDoc(doc(db, "sanwoori", id), updateData);
             }
             
-            // [4] 세부 로그 및 별자리 확률 적재 (유저 히스토리 타임라인용)
+            // [4] 🎯 세부 로그 및 별자리 확률 적재 (기존 addDoc를 saveHikeLog 우회 방식으로 대체)
             const finalLogLoopCount = (isRegular || isSpecial || isQuarterOnlyOne) ? 1 : realUpAmount;
             for(let i = 0; i < finalLogLoopCount; i++) {
                 let starType = null;
@@ -4923,13 +4922,19 @@ window.addMultiActivity = async () => {
                     else if (rand <= 10) starType = "special";
                     else starType = "regular_" + (Math.floor(Math.random() * 4) + 1);
                 }
-                await addDoc(collection(db, `sanwoori/${id}/logs`), {
+
+                // 기존 데이터 포맷 규칙 100% 매핑
+                const logPayload = {
                     date: ts, 
                     mountain: mName || (isWalking ? "동네 산책" : (isExtraHike ? "번외 산행" : (isRunning ? "러닝 활동" : "트레킹 활동"))), 
                     height, coords: safeCoords,
                     isTop100, isBAC, isRegular, isRunning, isTracking, isWalking, isExtraHike, isOnlyLog, region,
-                    starType, author: member.name
-                });
+                    starType, author: member.name,
+                    isSpecial: isSpecial // 조건 필터링용 속성 추가
+                };
+
+                // 🏔️ 설계한 순환 적재형 전용 라우터 함수 가동
+                await saveHikeLog(id, logPayload);
             }
         } // 회원 반복문(for-loop) 종료
 
@@ -4958,6 +4963,10 @@ window.addMultiActivity = async () => {
         alert("저장 실패: " + error.message);
     }
 };
+
+// HTML 클릭 이벤트 호환을 위한 전역 스코프 개방 바인딩 추가
+window.addMultiActivity = Window.addMultiActivity;
+
 
 
                 
