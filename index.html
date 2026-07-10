@@ -5441,8 +5441,7 @@ async function updateVibeTemp() {
 }
 
                  
-
-        window.showMemberMountain = async (mId, mName) => {
+window.showMemberMountain = async (mId, mName) => {
     const modal = document.getElementById('mountainViewModal');
     const card = document.getElementById('integratedCard');
     const peakLayer = document.getElementById('peakLayer');
@@ -5488,9 +5487,13 @@ async function updateVibeTemp() {
         mwMountainName.style.position = 'relative';
         mwMountainName.style.opacity = '1';
 
+        // 🌟 [아이디어 4 반영] TOTAL 영역 뒤에 초신성 폭발 이펙트용 스팬(supernova-blast) 배치
         mwMountainName.innerHTML = `
             <span style="font-size: 10.5px !important; font-weight: 700 !important; white-space: nowrap; letter-spacing: -0.3px;">${mName}님의 산맥</span>
-            <span id="mwHikeTotalCount" style="font-size: 9px !important; font-weight: 700 !important; white-space: nowrap; margin-right: -12px !important; opacity: 0; transition: opacity 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);">🏔️TOTAL: --회</span>
+            <span id="mwHikeTotalCount" style="font-size: 9px !important; font-weight: 700 !important; white-space: nowrap; margin-right: -12px !important; opacity: 0; transition: opacity 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); position: relative;">
+                <span class="supernova-blast"></span>
+                <span class="total-text-node">🏔️TOTAL: --회</span>
+            </span>
         `;
     }
 
@@ -5511,6 +5514,12 @@ async function updateVibeTemp() {
     peakLayer.innerHTML = bgContainer.innerHTML = sky.innerHTML = "";
     const ringContainer = document.getElementById('treeRingContainer');
     if(ringContainer) ringContainer.innerHTML = "";
+
+    // 🌟 [아이디어 1, 3 초기화] 100회 돌파 연출 요소 초기화 및 제거
+    const mountainSection = document.querySelector('.mountain-section');
+    if (mountainSection) mountainSection.classList.remove('nebula-awakened');
+    const existingFog = document.getElementById('cosmicMountainFog');
+    if (existingFog) existingFog.remove();
 
     const memberInfo = currentData.find(m => m.id === mId);
     const style = getLevelStyle(memberInfo ? memberInfo.level : 0);
@@ -5552,7 +5561,8 @@ async function updateVibeTemp() {
         if (totalCountEl) {
             totalCountEl.style.color = style.border;
             totalCountEl.style.textShadow = `0 0 5px ${style.border}, 0 0 10px ${style.border}`;
-            totalCountEl.innerHTML = `🏔️TOTAL: ${pureHikeCount}회`;
+            const textNode = totalCountEl.querySelector('.total-text-node');
+            if (textNode) textNode.innerHTML = `🏔️TOTAL: ${pureHikeCount}회`;
         }
 
         // [Case A] 기록이 1개라도 존재하는 멤버
@@ -5593,7 +5603,7 @@ async function updateVibeTemp() {
                 bgContainer.appendChild(layer);
             }
 
-            /* 🌟 [수정 로직: 100회 제한 + 최고봉 보장 + 레벨 색상 피크 분기] 🌟 */
+            /* 🌟 [100개 하드캡 제한 및 최고봉 보장] 🌟 */
             if (logs.length > 100) {
                 let slicedLogs = logs.slice(0, 100);
                 const isMaxIncluded = slicedLogs.some(l => l.height === maxHeight);
@@ -5603,18 +5613,17 @@ async function updateVibeTemp() {
                 logs = slicedLogs;
             }
 
-            // 100회 초과 시점부터 다르게 칠해질 대상 개수 계산
-            const levelColorCount = pureHikeCount > 100 ? pureHikeCount - 100 : 0;
+            // 100회 초과 시점부터 다르게 디자인될 특별 산맥 개수 계산
+            const specialPeakCount = pureHikeCount > 100 ? pureHikeCount - 100 : 0;
 
-            // 각 피크 데이터에 레벨 컬러 전용 플래그(isLevelColorPeak) 매핑
+            // 각 피크 데이터에 특별 조건(isSpecialPeak) 매핑
             let mappedPeaks = logs.map((log, index) => {
                 const isMax = log.height === maxHeight;
-                // 최고봉이 아니고, 초과 카운트 범위 내에 포함되어 있으면 true
-                const isLevelColorPeak = !isMax && (index < levelColorCount);
-                return { log, isMax, isLevelColorPeak };
+                const isSpecialPeak = !isMax && (index < specialPeakCount);
+                return { log, isMax, isSpecialPeak };
             });
 
-            // 🎲 자리를 무작위로 섞어 웅장하게 랜덤 분산 배치
+            // 🎲 자리를 무작위로 섞음 (랜덤 생성)
             for (let i = mappedPeaks.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [mappedPeaks[i], mappedPeaks[j]] = [mappedPeaks[j], mappedPeaks[i]];
@@ -5622,25 +5631,23 @@ async function updateVibeTemp() {
 
             // 개인 정복 산맥 피크 최종 렌더링
             peakLayer.style.height = "60%";
-            mappedPeaks.forEach(({ log, isMax, isLevelColorPeak }) => {
+            mappedPeaks.forEach(({ log, isMax, isSpecialPeak }) => {
                 const hRatio = (log.height / maxHeight) * 100;
                 const peakDiv = document.createElement('div');
                 
-                peakDiv.className = `peak ${isMax ? 'max-height' : ''}`;
+                // 🌟 [아이디어 3 반영] 100회 초과 특별 피크에 'special-glowing-peak' 클래스 부여
+                peakDiv.className = `peak ${isMax ? 'max-height' : ''} ${isSpecialPeak ? 'special-glowing-peak' : ''}`;
                 peakDiv.style.height = `${hRatio}%`;
                 
                 if (isMax) {
                     peakDiv.innerHTML = `<div class="peak-glow-core"></div><div class="golden-glow-effect"></div>`;
-                } else if (isLevelColorPeak) {
-                    // 🎨 100회 초과된 피크들은 묵직한 밤하늘색 대신 해당 멤버의 레벨 보더 컬러 그라데이션 주입
-                    peakDiv.style.background = `linear-gradient(to bottom, ${style.border}, rgba(7, 11, 20, 0.8))`;
-                    peakDiv.style.zIndex = "15"; // 약간 앞쪽으로 레이어 전진 처리
-                    peakDiv.style.filter = "brightness(1.1)";
+                } else if (isSpecialPeak) {
+                    // 레벨별 고유 경계선 색상을 쉐도우 및 스타일의 핵심 테마 변수로 주입
+                    peakDiv.style.setProperty('--special-peak-color', style.border);
                 }
                 
                 peakLayer.appendChild(peakDiv);
             });
-            /* ─────────────────────────────────────────────────────────────── */
 
             // 우주 광선 및 나이테 연쇄 애니메이션 트리거
             setTimeout(() => {
@@ -5667,9 +5674,31 @@ async function updateVibeTemp() {
                             if(b) { b.style.transition = 'opacity 0.8s ease-out'; b.style.opacity = '0'; } 
                         });
                         
+                        // 창 테두리 오픈 및 수치 노출
                         card.classList.add('glow-active');
                         if(totalCountEl) totalCountEl.style.opacity = '1';
                         if(ringLaunchedEl) ringLaunchedEl.style.opacity = '1';
+
+                        /* 🌟 [타이밍 연쇄 연출: 100회 달성자 각성 효과 트리거] 🌟 */
+                        if (pureHikeCount >= 100) {
+                            // 1. [아이디어 1] 배경 성운(Nebula) 클래스 ON
+                            if (mountainSection) mountainSection.classList.add('nebula-awakened');
+
+                            // 2. [아이디어 3] 운해(신령한 안개) 엘리먼트 동적 생성 및 주입
+                            if (mountainSection && !document.getElementById('cosmicMountainFog')) {
+                                const fog = document.createElement('div');
+                                fog.id = 'cosmicMountainFog';
+                                fog.className = 'cosmic-valley-fog';
+                                mountainSection.appendChild(fog);
+                            }
+
+                            // 3. [아이디어 4] TOTAL 카운터 뒤 초신성 파동(Blast) 애니메이션 작동
+                            const blastEl = totalCountEl.querySelector('.supernova-blast');
+                            if (blastEl) {
+                                blastEl.style.setProperty('--blast-color', style.border);
+                                blastEl.classList.add('blast-active');
+                            }
+                        }
                     }, 450);
                 }, 350);
             }, 400);
@@ -5703,6 +5732,8 @@ async function updateVibeTemp() {
         console.error("통합 로딩 에러:", e); 
     }
 };
+
+                     
     
                 
                         
