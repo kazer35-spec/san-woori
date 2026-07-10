@@ -5440,7 +5440,9 @@ async function updateVibeTemp() {
   }
 }
 
-window.showMemberMountain = async (mId, mName) => {
+                 
+
+            window.showMemberMountain = async (mId, mName) => {
     const modal = document.getElementById('mountainViewModal');
     const card = document.getElementById('integratedCard');
     const peakLayer = document.getElementById('peakLayer');
@@ -5591,13 +5593,9 @@ window.showMemberMountain = async (mId, mName) => {
                 bgContainer.appendChild(layer);
             }
 
-            /* 🌟 [핵심 변경 로직 적용] 🌟 */
-            // 1 & 2. 전체 산맥 최대 100개 생성 제한 및 최고봉 보장 처리
+            /* 🌟 [수정된 로직 구간: 100개 하드캡 + 최고봉 보장 + 검붉은색 랜덤 셔플] 🌟 */
             if (logs.length > 100) {
-                const maxLogIndex = logs.findIndex(l => l.height === maxHeight);
                 let slicedLogs = logs.slice(0, 100);
-                
-                // 자른 100개 내에 최고봉이 없다면, 100번째 자리에 강제로 최고봉 데이터 매핑
                 const isMaxIncluded = slicedLogs.some(l => l.height === maxHeight);
                 if (!isMaxIncluded && maxLog) {
                     slicedLogs[99] = maxLog; 
@@ -5605,17 +5603,27 @@ window.showMemberMountain = async (mId, mName) => {
                 logs = slicedLogs;
             }
 
-            // 3. 순수 산행 100회 초과 시 검붉은색으로 타오를 피크 개수 계산
+            // 검붉은색으로 바뀔 대상 개수 계산
             const darkRedCount = pureHikeCount > 100 ? pureHikeCount - 100 : 0;
 
-            // 개인 정복 산맥 피크 생성
-            peakLayer.style.height = "60%";
-            logs.forEach((log, index) => {
-                const hRatio = (log.height / maxHeight) * 100;
+            // 각 로그 데이터에 검붉은색(isDarkRed) 플래그를 미리 매핑
+            let mappedPeaks = logs.map((log, index) => {
                 const isMax = log.height === maxHeight;
-                
-                // 최고봉이 아니면서 누적 카운트가 검붉은 피크 범위 내에 있다면 true
+                // 최고봉이 아니고, 검붉은색 타겟 카운트 이내에 포함된 인덱스인 경우 플래그 부여
                 const isDarkRed = !isMax && (index < darkRedCount);
+                return { log, isMax, isDarkRed };
+            });
+
+            // 🎲 Fisher-Yates Shuffle 알고리즘으로 자리를 무작위로 섞음 (랜덤 생성 구현)
+            for (let i = mappedPeaks.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [mappedPeaks[i], mappedPeaks[j]] = [mappedPeaks[j], mappedPeaks[i]];
+            }
+
+            // 개인 정복 산맥 피크 최종 렌더링
+            peakLayer.style.height = "60%";
+            mappedPeaks.forEach(({ log, isMax, isDarkRed }) => {
+                const hRatio = (log.height / maxHeight) * 100;
 
                 const peakDiv = document.createElement('div');
                 peakDiv.className = `peak ${isMax ? 'max-height' : ''} ${isDarkRed ? 'dark-red-peak' : ''}`;
@@ -5626,7 +5634,7 @@ window.showMemberMountain = async (mId, mName) => {
                 }
                 peakLayer.appendChild(peakDiv);
             });
-            /* ────────────────────────────────── */
+            /* ─────────────────────────────────────────────────────────────── */
 
             // 우주 광선 및 나이테 연쇄 애니메이션 트리거
             setTimeout(() => {
@@ -5653,7 +5661,6 @@ window.showMemberMountain = async (mId, mName) => {
                             if(b) { b.style.transition = 'opacity 0.8s ease-out'; b.style.opacity = '0'; } 
                         });
                         
-                        // 창 테두리 및 은폐 엘리먼트 동시 오픈 타이밍
                         card.classList.add('glow-active');
                         if(totalCountEl) totalCountEl.style.opacity = '1';
                         if(ringLaunchedEl) ringLaunchedEl.style.opacity = '1';
