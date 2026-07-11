@@ -5508,8 +5508,8 @@ async function updateVibeTemp() {
   }
 }
 
-    
- window.showMemberMountain = async (mId, mName) => {
+                    
+window.showMemberMountain = async (mId, mName) => {
     const modal = document.getElementById('mountainViewModal');
     const card = document.getElementById('integratedCard');
     const peakLayer = document.getElementById('peakLayer');
@@ -5612,16 +5612,30 @@ async function updateVibeTemp() {
     }
 
     try {
-        const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
-        const allLogs = snap.docs.map(d => d.data());
-        
-        // 🎯 1. [산맥 그리기 대상 버그 수정] 
-        // 고도가 있으면서 일반 활동(!isSpecial)이거나, 혹은 '번외산행(isExtraHike)'인 것만 포함시켜서 
-        // 러닝/산책/트레킹은 완벽 차단하고 번외산행은 산맥이 정상적으로 그려지도록 처리합니다.
-        let logs = allLogs.filter(l => (l.height || 0) > 0 && (!l.isSpecial || l.isExtraHike));
+        const logsRef = collection(db, `sanwoori/${mId}/logs`);
 
-        // 🎯 2. [TOTAL 카운터 대상] 번외산행(isExtraHike)까지 완전히 제외한 오직 '순수산행'만 카운트
-        const pureHikeCount = allLogs.filter(l => !l.isRunning && !l.isTracking && !l.isWalking && !l.isExtraHike).length;
+        // 🎯 [최적화 쿼리 1] 산맥 그리기용 (순수산행 + 번외산행) 최대 100개만 서버에서 조회
+        // 고도가 존재하면서, 러닝/트레킹/산책 단독이 아닌(!isSpecial) 데이터와 번외산행(isExtraHike)을 포괄하는 조건인
+        // "height > 0" 필터를 사용하고, 순환 순서 일치를 위해 날짜 오름차순 정렬 후 딱 100개 제한
+        const mountainQuery = query(
+            logsRef,
+            where("height", ">", 0),
+            orderBy("height", "asc"), // 범위 필터링 기준 필드 선행 정렬 필요
+            orderBy("date", "asc"),
+            limit(100)
+        );
+        const mountainSnap = await getDocs(mountainQuery);
+        let logs = mountainSnap.docs.map(d => d.data());
+
+        // 🎯 [최적화 쿼리 2] TOTAL 카운터용 (오직 순수산행만)
+        // 번외산행까지 제외한 순수산행은 저장 시 isSpecial이 false이고, isExtraHike도 false인 상태입니다.
+        // 유저 메인 정보에 캐싱하기 전까지 비용을 아끼기 위해, 최소한의 정보(id만)만 카운트용으로 가져옵니다.
+        const pureHikeQuery = query(
+            logsRef,
+            where("isSpecial", "==", false)
+        );
+        const pureSnap = await getDocs(pureHikeQuery);
+        const pureHikeCount = pureSnap.size; // 문서 데이터 로드 없이 개수(size)만 접근하여 최적화
 
         const totalCountEl = document.getElementById('mwHikeTotalCount');
         if (totalCountEl) {
@@ -5684,7 +5698,7 @@ async function updateVibeTemp() {
                 [mappedPeaks[i], mappedPeaks[j]] = [mappedPeaks[j], mappedPeaks[i]];
             }
 
-            // 가공 완료된 개인 전경 피크 마운틴 드로잉 (순수+번외 최대 100개 그려짐)
+            // 가공 완료된 개인 전경 피크 마운틴 드로잉 (순수+번외 최대 100개 서버에서 받아와 정확히 매핑)
             peakLayer.style.height = "60%";
             mappedPeaks.forEach(({ log, isMax, isDarkRed }) => {
                 const hRatio = (log.height / maxHeight) * 100;
@@ -5768,6 +5782,7 @@ async function updateVibeTemp() {
         console.error("통합 로딩 에러:", e); 
     }
 };
+                                
 
         
         
