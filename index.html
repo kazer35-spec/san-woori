@@ -5509,7 +5509,7 @@ async function updateVibeTemp() {
 }
 
     
-window.showMemberMountain = async (mId, mName) => {
+ window.showMemberMountain = async (mId, mName) => {
     const modal = document.getElementById('mountainViewModal');
     const card = document.getElementById('integratedCard');
     const peakLayer = document.getElementById('peakLayer');
@@ -5612,23 +5612,16 @@ window.showMemberMountain = async (mId, mName) => {
     }
 
     try {
-        // 🎯 [DB 쿼리 최적화] 러닝/산책/트레킹은 가져오기 전 단계부터 완벽히 차단 (읽기 비용 절감)
-        // TOTAL 카운트의 무한 반영을 위해 limit은 걸지 않고 전체 대상 데이터를 패치합니다.
-        const q = query(
-            collection(db, `sanwoori/${mId}/logs`),
-            where('height', '>', 0),
-            where('isRunning', '==', false),
-            where('isTracking', '==', false),
-            where('isWalking', '==', false),
-            orderBy('height', 'desc') // 고도 기준 혹은 프로젝트 성격에 맞춰 'date', 'desc'로 변경 가능
-        );
+        const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
+        const allLogs = snap.docs.map(d => d.data());
         
-        const snap = await getDocs(q);
-        const allHikeLogs = snap.docs.map(d => d.data());
-        
-        // 🎯 [TOTAL 카운터 대상] 번외산행(isExtraHike)까지 완벽하게 제외한 오직 '순수산행' 전체 카운트
-        // 데이터가 100개가 넘어도 누락 없이 실제 카운트가 100% 반영됩니다.
-        const pureHikeCount = allHikeLogs.filter(l => !l.isExtraHike).length;
+        // 🎯 1. [산맥 그리기 대상 버그 수정] 
+        // 고도가 있으면서 일반 활동(!isSpecial)이거나, 혹은 '번외산행(isExtraHike)'인 것만 포함시켜서 
+        // 러닝/산책/트레킹은 완벽 차단하고 번외산행은 산맥이 정상적으로 그려지도록 처리합니다.
+        let logs = allLogs.filter(l => (l.height || 0) > 0 && (!l.isSpecial || l.isExtraHike));
+
+        // 🎯 2. [TOTAL 카운터 대상] 번외산행(isExtraHike)까지 완전히 제외한 오직 '순수산행'만 카운트
+        const pureHikeCount = allLogs.filter(l => !l.isRunning && !l.isTracking && !l.isWalking && !l.isExtraHike).length;
 
         const totalCountEl = document.getElementById('mwHikeTotalCount');
         if (totalCountEl) {
@@ -5636,9 +5629,6 @@ window.showMemberMountain = async (mId, mName) => {
             totalCountEl.style.textShadow = `0 0 5px ${style.border}, 0 0 10px ${style.border}`;
             totalCountEl.innerHTML = `🏔️TOTAL: ${pureHikeCount}회`;
         }
-
-        // 🎯 [산맥 드로잉용 데이터 제어] 화면에 피크가 과도하게 뭉쳐 뒤틀리는 것을 막기 위해 최대 100개만 슬라이스
-        const logs = allHikeLogs.slice(0, 100);
 
         // [Case A] 산맥 데이터가 하나라도 잡히는 일반 유저군
         if (logs.length > 0) {
@@ -5694,7 +5684,7 @@ window.showMemberMountain = async (mId, mName) => {
                 [mappedPeaks[i], mappedPeaks[j]] = [mappedPeaks[j], mappedPeaks[i]];
             }
 
-            // 가공 완료된 개인 전경 피크 마운틴 드로잉 (순수+번외 최대 100개까지만 예쁘게 그려짐)
+            // 가공 완료된 개인 전경 피크 마운틴 드로잉 (순수+번외 최대 100개 그려짐)
             peakLayer.style.height = "60%";
             mappedPeaks.forEach(({ log, isMax, isDarkRed }) => {
                 const hRatio = (log.height / maxHeight) * 100;
@@ -5779,7 +5769,6 @@ window.showMemberMountain = async (mId, mName) => {
     }
 };
 
-            
         
         
                         
