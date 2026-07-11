@@ -25,7 +25,7 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
     border-radius: 50%;
     opacity: 0;
     pointer-events: none;
-    z-index: 1;
+    z-index: 999; /* 🎯 다른 레이어에 파묻히지 않도록 최상위 레이어로 변경 */
     mix-blend-mode: screen;
 }
 
@@ -35,9 +35,17 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 }
 
 @keyframes supernovaExplosion {
-    0% { transform: translate(-50%, -50%) scale(0.4); opacity: 0; }
-    10% { opacity: 1; }
-    100% { transform: translate(-50%, -50%) scale(3.5); opacity: 0; }
+    0% { 
+        transform: translate(-50%, -50%) scale(0.4); 
+        opacity: 1; /* 🎯 클래스가 붙자마자 즉시 불빛이 보이도록 인지성 확보 */
+    }
+    15% { 
+        opacity: 1; 
+    }
+    100% { 
+        transform: translate(-50%, -50%) scale(3.5); 
+        opacity: 0; 
+    }
 }
 
     /* 101번째 산행부터 변환되는 검붉은색 심해/심우주 산맥 스타일 */
@@ -5706,33 +5714,41 @@ async function updateVibeTemp() {
                         ringBeam.style.height = '50%';
                     }
 
-                    setTimeout(async () => {
-                        if (pureHikeCount >= 100) {
-                            const totalWrapper = document.getElementById('mwHikeTotalWrapper');
-                            if (totalWrapper && !document.getElementById('mwSupernovaBlast')) {
-                                const blast = document.createElement('div');
-                                blast.id = 'mwSupernovaBlast';
-                                blast.className = 'supernova-blast';
-                                blast.style.setProperty('--blast-color', style.border);
-                                totalWrapper.appendChild(blast);
+                    // ... [앞부분 동일] ...
 
-                                requestAnimationFrame(() => {
-                                    blast.classList.add('blast-active');
-                                });
-                            }
-                        }
+setTimeout(async () => {
+    if (pureHikeCount >= 100) {
+        const totalWrapper = document.getElementById('mwHikeTotalWrapper');
+        if (totalWrapper && !document.getElementById('mwSupernovaBlast')) {
+            const blast = document.createElement('div');
+            blast.id = 'mwSupernovaBlast';
+            blast.className = 'supernova-blast';
+            blast.style.setProperty('--blast-color', style.border);
+            totalWrapper.appendChild(blast);
 
-                        if (memberInfo) {
-                            await window.renderTreeRings(mId, mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
-                        }
-                        [beam, ringBeam].forEach(b => { 
-                            if(b) { b.style.transition = 'opacity 0.8s ease-out'; b.style.opacity = '0'; } 
-                        });
+            // 🎯 브라우저가 새 엘리먼트 렌더링을 완전히 마친 뒤 애니메이션을 실행하도록 안전 더블 프레임 큐 적용
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    blast.classList.add('blast-active');
+                });
+            });
+        }
+    }
 
-                        card.classList.add('glow-active');
-                        if(totalCountEl) totalCountEl.style.opacity = '1';
-                        if(ringLaunchedEl) ringLaunchedEl.style.opacity = '1';
-                    }, 450);
+    if (memberInfo) {
+        await window.renderTreeRings(mId, mName, memberInfo.regDate || memberInfo.lastDate, memberInfo.level || 0);
+    }
+    [beam, ringBeam].forEach(b => { 
+        if(b) { b.style.transition = 'opacity 0.8s ease-out'; b.style.opacity = '0'; } 
+    });
+
+    card.classList.add('glow-active');
+    if(totalCountEl) totalCountEl.style.opacity = '1';
+    if(ringLaunchedEl) ringLaunchedEl.style.opacity = '1';
+}, 450);
+
+// ... [뒷부분 동일] ...
+
                 }, 350);
             }, 400);
 
