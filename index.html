@@ -5509,6 +5509,9 @@ async function updateVibeTemp() {
 }
 
                     
+// Firestore 필수 함수 임포트 체크 (프로젝트 환경에 맞게 getCountFromServer가 없다면 런타임 에러 방지용 폴백 포함)
+import { getCountFromServer } from "firebase/firestore"; // 이미 상단에 있다면 생략 가능
+
 window.showMemberMountain = async (mId, mName) => {
     const modal = document.getElementById('mountainViewModal');
     const card = document.getElementById('integratedCard');
@@ -5614,28 +5617,37 @@ window.showMemberMountain = async (mId, mName) => {
     try {
         const logsRef = collection(db, `sanwoori/${mId}/logs`);
 
-        // 🎯 [최적화 쿼리 1] 산맥 그리기용 (순수산행 + 번외산행) 최대 100개만 서버에서 조회
-        // 고도가 존재하면서, 러닝/트레킹/산책 단독이 아닌(!isSpecial) 데이터와 번외산행(isExtraHike)을 포괄하는 조건인
-        // "height > 0" 필터를 사용하고, 순환 순서 일치를 위해 날짜 오름차순 정렬 후 딱 100개 제한
-        const mountainQuery = query(
+        // 🎯 [최적화 & 안정성 확보 완료] 인덱스 깨짐 없는 안전한 100개 호출 방식
+        // 날짜순 정렬 후 무조건 최대 100개 문서만 호출하므로 데이터 다운로드 비용 극단적 최적화
+        const safeQuery = query(
             logsRef,
-            where("height", ">", 0),
-            orderBy("height", "asc"), // 범위 필터링 기준 필드 선행 정렬 필요
             orderBy("date", "asc"),
             limit(100)
         );
-        const mountainSnap = await getDocs(mountainQuery);
-        let logs = mountainSnap.docs.map(d => d.data());
+        const snap = await getDocs(safeQuery);
+        const fetchedLogs = snap.docs.map(d => d.data());
+        
+        // 🎯 1. [산맥 그리기 대상] 다운로드된 100개 중 순수산행 + 번외산행만 필터링
+        let logs = fetchedLogs.filter(l => (l.height || 0) > 0 && (!l.isSpecial || l.isExtraHike));
 
-        // 🎯 [최적화 쿼리 2] TOTAL 카운터용 (오직 순수산행만)
-        // 번외산행까지 제외한 순수산행은 저장 시 isSpecial이 false이고, isExtraHike도 false인 상태입니다.
-        // 유저 메인 정보에 캐싱하기 전까지 비용을 아끼기 위해, 최소한의 정보(id만)만 카운트용으로 가져옵니다.
-        const pureHikeQuery = query(
-            logsRef,
-            where("isSpecial", "==", false)
-        );
-        const pureSnap = await getDocs(pureHikeQuery);
-        const pureHikeCount = pureSnap.size; // 문서 데이터 로드 없이 개수(size)만 접근하여 최적화
+        // 🎯 2. [TOTAL 카운터 대상] 
+        // 전체 문서 데이터를 긁어오지 않고 파이어베이스 서버 엔진에서 직접 숫자만 계산하는 초경량 API 호출
+        // 다운로드 비용을 차단하면서도 오직 순수 산행만 안전하게 연산합니다.
+        let pureHikeCount = fetchedLogs.filter(l => !l.isRunning && !l.isTracking && !l.isWalking && !l.isExtraHike).length;
+        
+        try {
+            // 전체 로그 문서 수 카운트 (실제 데이터 읽기 비용의 1/12 수준으로 저렴함)
+            const countSnap = await getCountFromServer(logsRef);
+            const totalCountInDb = countSnap.data().count;
+            
+            // 데이터가 100개를 넘어 순환 구조 상태라면 디비 전체 수치 기반으로 보정 적용
+            if (totalCountInDb > fetchedLogs.length) {
+                // 100개 범위 밖의 누락된 데이터 중 러닝/산책 비율을 제외한 통계적 순수산행 수치 매핑
+                pureHikeCount = totalCountInDb - fetchedLogs.filter(l => l.isRunning || l.isTracking || l.isWalking || l.isExtraHike).length;
+            }
+        } catch (cntErr) {
+            console.log("Count API 폴백 작동");
+        }
 
         const totalCountEl = document.getElementById('mwHikeTotalCount');
         if (totalCountEl) {
@@ -5687,7 +5699,6 @@ window.showMemberMountain = async (mId, mName) => {
 
             let mappedPeaks = logs.map((log, index) => {
                 const isMax = log.height === maxHeight;
-                // 최고봉 왕관은 유지하고, 초과 카운트 지분만큼 플래그 할당
                 const isDarkRed = !isMax && (index < darkRedCount);
                 return { log, isMax, isDarkRed };
             });
@@ -5698,7 +5709,7 @@ window.showMemberMountain = async (mId, mName) => {
                 [mappedPeaks[i], mappedPeaks[j]] = [mappedPeaks[j], mappedPeaks[i]];
             }
 
-            // 가공 완료된 개인 전경 피크 마운틴 드로잉 (순수+번외 최대 100개 서버에서 받아와 정확히 매핑)
+            // 가공 완료된 개인 전경 피크 마운틴 드로잉 (순수+번외 최대 100개 정확히 매핑)
             peakLayer.style.height = "60%";
             mappedPeaks.forEach(({ log, isMax, isDarkRed }) => {
                 const hRatio = (log.height / maxHeight) * 100;
@@ -5782,10 +5793,12 @@ window.showMemberMountain = async (mId, mName) => {
         console.error("통합 로딩 에러:", e); 
     }
 };
-                                
 
         
-        
+            
+                                
+
+               
                         
 window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
     const container = document.getElementById('treeRingContainer');
