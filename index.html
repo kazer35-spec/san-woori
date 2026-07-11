@@ -5509,7 +5509,7 @@ async function updateVibeTemp() {
 }
 
     
-window.showMemberMountain = async (mId, mName) => {
+ window.showMemberMountain = async (mId, mName) => {
     const modal = document.getElementById('mountainViewModal');
     const card = document.getElementById('integratedCard');
     const peakLayer = document.getElementById('peakLayer');
@@ -5615,9 +5615,10 @@ window.showMemberMountain = async (mId, mName) => {
         const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
         const allLogs = snap.docs.map(d => d.data());
         
-        // 🎯 1. [산맥 그리기 대상] 순수산행 + 번외산행만 필터링 (최대 100개 제한 상태)
-        // 러닝, 트레킹, 산책(isSpecial 단독)은 원천 배제하고 고도가 있는 데이터만
-        let logs = allLogs.filter(l => (l.height || 0) > 0 && !l.isSpecial);
+        // 🎯 1. [산맥 그리기 대상 버그 수정] 
+        // 고도가 있으면서 일반 활동(!isSpecial)이거나, 혹은 '번외산행(isExtraHike)'인 것만 포함시켜서 
+        // 러닝/산책/트레킹은 완벽 차단하고 번외산행은 산맥이 정상적으로 그려지도록 처리합니다.
+        let logs = allLogs.filter(l => (l.height || 0) > 0 && (!l.isSpecial || l.isExtraHike));
 
         // 🎯 2. [TOTAL 카운터 대상] 번외산행(isExtraHike)까지 완전히 제외한 오직 '순수산행'만 카운트
         const pureHikeCount = allLogs.filter(l => !l.isRunning && !l.isTracking && !l.isWalking && !l.isExtraHike).length;
@@ -5768,10 +5769,7 @@ window.showMemberMountain = async (mId, mName) => {
     }
 };
 
-
-                            
-            
-
+        
         
                         
 window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
