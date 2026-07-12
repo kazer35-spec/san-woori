@@ -3109,18 +3109,16 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 
     
 // ⭐ 이름을 화면에서 긁어오지 않고, 클릭한 대상의 이름과 ID를 직접 매개변수로
-        window.showBondingForestModal = async (targetName, targetId) => {
+ window.showBondingForestModal = async (targetName, targetId) => {
     if (!targetName) return alert("회원 이름이 지정되지 않았습니다.");
     
     const mName = targetName.trim();
     const STORAGE_KEY = `forest_v5_final_${mName}`;
 
-    // 1. 기본 UI 요소 세팅 (내 화면의 FP 엘리먼트가 있다면 임시 참조)
     const fpElement = document.getElementById('memberFriendshipPoint');
     let currentFP = fpElement ? parseInt(fpElement.innerText.replace(/[^0-9]/g, '')) : 0;
 
     try {
-        // 2. [실시간 자동 조회] 누른 회원의 최신 정보를 DB에서 직접 단건 조회
         let memberInfo = null;
         if (targetId) {
             const mDoc = await getDoc(doc(db, "sanwoori", targetId));
@@ -3129,15 +3127,13 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
             }
         }
         
-        // 안전장치: ID 조회가 실패하거나 없는 경우 전역 데이터 배열 탐색
         if (!memberInfo && typeof currentData !== 'undefined') {
             memberInfo = currentData.find(m => targetId ? m.id === targetId : m.name === mName);
         }
 
-        // 3. 만료 포인트 소멸 처리 및 실시간 FP 동기화
         if (memberInfo) {
             if (memberInfo.friendshipPoint !== undefined) {
-                currentFP = memberInfo.friendshipPoint; // DB의 진짜 최신 값으로 동기화
+                currentFP = memberInfo.friendshipPoint;
             }
 
             if (memberInfo.fp_bins) {
@@ -3152,7 +3148,6 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
                         friendshipPoint: increment(-expiredP),
                         [`fp_bins.${lastYearQKey}`]: 0
                     });
-                    console.log(`만료된 ${lastYearQKey} 포인트 ${expiredP}P가 소멸되었습니다.`);
                     currentFP = Math.max(0, currentFP - expiredP); 
                 }
             }
@@ -3163,8 +3158,7 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
             localStorage.removeItem(STORAGE_KEY);
         }
 
-        // 4. [자동화 핵심] 캐시 유효성 검사를 무력화하고 누를 때마다 bondingForest 풀 스캔
-        console.log(`🔄 [자동 조회] ${mName}님의 실시간 인연 데이터를 DB에서 새로 매칭합니다.`);
+        console.log(`🔄 [비용 절감 조회] ${mName}님이 포함된 동행 데이터만 서버에서 필터링하여 매칭합니다.`);
         
         const currentYear = new Date().getFullYear();
         let cached = { 
@@ -3174,67 +3168,65 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
             } 
         };
 
-        const bondingSnap = await getDocs(collection(db, "bondingForest"));
+        // 🎯 [읽기 비용 절감] 등초님이 포함된 문서만 array-contains로 타겟팅 다운로드
+        const bondingQuery = query(
+            collection(db, "bondingForest"),
+            where("members", "array-contains", mName)
+        );
+        const bondingSnap = await getDocs(bondingQuery);
 
         bondingSnap.forEach(doc => {
             const data = doc.data();
             const members = data.members || [];
             
-            // 🛑 번외산행 유형(타입) 패스
+            // 번외산행 유형 매칭 데이터 연산에서 원천 차단
             if (data.type === "번외" || data.type === "번외산행") {
                 return; 
             }
             
-            if (members.includes(mName)) {
-                cached.processedIds.push(doc.id);
-                
-                const dateStr = data.date || ""; 
-                const dateParts = dateStr.split('-'); 
-                const year = parseInt(dateParts[0]) || currentYear;
-                const month = parseInt(dateParts[1]);
-                
+            cached.processedIds.push(doc.id);
+            
+            const dateStr = data.date || ""; 
+            const dateParts = dateStr.split('-'); 
+            const year = parseInt(dateParts[0]) || currentYear;
+            const month = parseInt(dateParts[1]);
+            
+            members.forEach(p => {
+                if (p !== mName) {
+                    cached.partnersMap[p] = (cached.partnersMap[p] || 0) + 1;
+                    if (!cached.uniquePartners.includes(p)) cached.uniquePartners.push(p);
+                }
+            });
+
+            if (!cached.quarterlyPartners[year]) {
+                cached.quarterlyPartners[year] = { q1: {}, q2: {}, q3: {}, q4: {} };
+            }
+
+            let qKey = "";
+            if (month >= 1 && month <= 3) qKey = "q1";
+            else if (month >= 4 && month <= 6) qKey = "q2";
+            else if (month >= 7 && month <= 9) qKey = "q3";
+            else if (month >= 10 && month <= 12) qKey = "q4";
+
+            if (qKey) {
                 members.forEach(p => {
                     if (p !== mName) {
-                        cached.partnersMap[p] = (cached.partnersMap[p] || 0) + 1;
-                        if (!cached.uniquePartners.includes(p)) cached.uniquePartners.push(p);
+                        cached.quarterlyPartners[year][qKey][p] = (cached.quarterlyPartners[year][qKey][p] || 0) + 1;
                     }
                 });
-
-                // 연도별 객체가 없으면 자동으로 동적 생성
-                if (!cached.quarterlyPartners[year]) {
-                    cached.quarterlyPartners[year] = { q1: {}, q2: {}, q3: {}, q4: {} };
-                }
-
-                let qKey = "";
-                if (month >= 1 && month <= 3) qKey = "q1";
-                else if (month >= 4 && month <= 6) qKey = "q2";
-                else if (month >= 7 && month <= 9) qKey = "q3";
-                else if (month >= 10 && month <= 12) qKey = "q4";
-
-                if (qKey) {
-                    members.forEach(p => {
-                        if (p !== mName) {
-                            cached.quarterlyPartners[year][qKey][p] = (cached.quarterlyPartners[year][qKey][p] || 0) + 1;
-                        }
-                    });
-                }
             }
         });
 
-        // 서브 팝업창들이 localStorage를 정상 참조할 수 있도록 최신본 강제 덮어쓰기
         localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
 
-        // 5. ✨ 규칙 반영 스탯 연산 보정 (불필요한 Max 비교 제거 및 DB count 직접 바인딩)
-        const dbTotalCount = memberInfo ? (memberInfo.count || 0) : 0;
-        const dbBuddyCount = memberInfo ? (memberInfo.buddyCount || 0) : 0;
-
-        // DB에 기록된 순수 count 값을 최종 산행 횟수로 지정하여 정확하게 10회 유도
-        const finalTotalHikes = dbTotalCount; 
-        const myMultiHikes = dbBuddyCount;
+        // 🎯 [연산 버그 해결 완료] DB 내부 필드 값을 있는 그대로 바인딩하여 분모가 튀는 현상 원천 차단
+        const finalTotalHikes = memberInfo ? (memberInfo.count || 0) : 0; 
+        const myMultiHikes = memberInfo ? (memberInfo.buddyCount || 0) : 0;
         
-        const finalSynergy = finalTotalHikes > 0 ? Math.min(100, Math.round((myMultiHikes / finalTotalHikes) * 100)) : 0;
+        // 동행 횟수가 전체 산행 횟수보다 크게 잡히는 구조적 예외 방어식 추가
+        const adjustedTotalHikes = Math.max(finalTotalHikes, myMultiHikes);
+        const finalSynergy = adjustedTotalHikes > 0 ? Math.min(100, Math.round((myMultiHikes / adjustedTotalHikes) * 100)) : 0;
 
-        // 분기 최고 파트너 추출 헬퍼 함수
         const getBestInQuarter = (qMap) => {
             let name = "데이터 없음";
             let count = 0;
@@ -3261,11 +3253,9 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
         else if (currentMonth >= 7 && currentMonth <= 9) { currentQKey = "q3"; qName = "3rd Bestie"; }
         else if (currentMonth >= 10 && currentMonth <= 12) { currentQKey = "q4"; qName = "4th Bestie"; }
 
-        // 메인 화면용 현재 연도의 분기 데이터 바인딩
         const currentYearData = cached.quarterlyPartners[currentYear] || { q1: {}, q2: {}, q3: {}, q4: {} };
         const currentQData = getBestInQuarter(currentYearData[currentQKey]);
 
-        // 7. 퍼센트별 색상 및 게이지 효과 설정
         let gaugeColor = "#ef4444"; 
         let glowClass = "";
         if (finalSynergy >= 80) {
@@ -3277,13 +3267,11 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
             gaugeColor = "#f59e0b"; 
         }
 
-        // 8. 전역 하위 팝업 함수 바인딩 스크립트
-        
-        // [우정 포인트 사용 안내 팝업]
+        // 하위 팝업 함수 바인딩 스크립트
         window.showFriendshipGuide = () => {
             const guideHTML = `
-                <div id="fpGuideOverlay" class="fixed inset-0 z-[10001] flex items-center justify-center bg-black/80 backdrop-blur-md transition-opacity" onclick="this.remove()">
-                    <div class="bg-[#0f172a] border border-amber-500/40 p-8 rounded-[2.5rem] w-[300px] text-center shadow-2xl scale-in-center" onclick="event.stopPropagation()">
+                <div id="fpGuideOverlay" class="fixed inset-0 z-[10001] flex items-center justify-center bg-black/80 backdrop-blur-md" onclick="this.remove()">
+                    <div class="bg-[#0f172a] border border-amber-500/40 p-8 rounded-[2.5rem] w-[300px] text-center shadow-2xl" onclick="event.stopPropagation()">
                         <div class="mb-6">
                             <div class="text-amber-400 text-[10px] font-black tracking-[0.4em] mb-2 uppercase">Friendship Points</div>
                             <h4 class="text-white text-xl font-bold">포인트 사용 가이드</h4>
@@ -3291,23 +3279,17 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
                         <div class="bg-white/5 p-6 rounded-2xl border border-white/10 mb-6">
                             <div class="text-amber-400 text-3xl mb-4">🎁</div>
                             <p class="text-slate-300 text-[12px] leading-relaxed">
-                                산:우리 4분기 아나바다<br>
-                                <span class="text-white font-bold text-[14px]">이벤트 재화로 사용</span><br>
-                                포인트와 교환 가능합니다.<br>
-                                <span class="text-[10px] text-red-400 mt-1 block font-medium">* 포인트 유효기간: 적립일로부터 1년 <br>(1분기 포인트는 다음해 1분기 시작 시 소멸)</span>
+                                산:우리 분기별 아나바다 이벤트 재화나 클럽 굿즈 교환 시 사용 가능합니다.<br>
+                                <span class="text-[10px] text-red-400 mt-2 block font-medium">* 포인트 유효기간: 적립일로부터 1년</span>
                             </p>
                         </div>
-                        <div class="text-[10px] text-slate-500 mb-8 leading-tight">
-                            * 본 포인트 제도는 운영 사정에 따라 <br>변경 또는 종료될 수 있습니다.<br>
-                            * 포인트는 2인이상 산행 참여도와 커뮤니티<br>기여도에 따라 자동으로 적립됩니다.<br>
-                        </div>
-                        <button onclick="document.getElementById('fpGuideOverlay').remove()" class="w-full py-4 bg-amber-500 text-white text-xs font-black rounded-2xl active:scale-95 transition-transform shadow-lg shadow-amber-500/20">확인 완료</button>
+                        <button onclick="document.getElementById('fpGuideOverlay').remove()" class="w-full py-4 bg-amber-500 text-white text-xs font-black rounded-2xl active:scale-95 transition-transform">확인 완료</button>
                     </div>
                 </div>`;
             document.body.insertAdjacentHTML('beforeend', guideHTML);
         };
 
-        // [분기별 최고 파트너 요약 팝업 - 슬라이드 버전]
+        // 분기별 최고 파트너 모달 레이아웃 (올려주신 스크린샷 UI 완벽 적용)
         window.showQuarterlyDetails = () => {
             const nameEl = document.querySelector('#forestModal h3');
             if(!nameEl) return;
@@ -3325,7 +3307,6 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 
             const updateYearSlide = (idx) => {
                 const targetYear = availableYears[idx];
-                
                 const yearLabelEl = document.getElementById('currentQuarterYearLabel');
                 if (yearLabelEl) yearLabelEl.innerText = `${targetYear}년`;
 
@@ -3365,26 +3346,19 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
             };
 
             const detailsHTML = `
-                <div id="quarterlyOverlay" class="fixed inset-0 z-[10001] flex items-center justify-center bg-black/80 backdrop-blur-md transition-opacity" onclick="this.remove()">
+                <div id="quarterlyOverlay" class="fixed inset-0 z-[10001] flex items-center justify-center bg-black/80 backdrop-blur-md" onclick="this.remove()">
                     <div class="bg-[#0f172a] border border-blue-500/40 p-6 rounded-[2.5rem] w-[320px] text-center shadow-2xl" onclick="event.stopPropagation()">
                         <div class="mb-4">
-                            <div class="text-blue-400 text-[10px] font-black tracking-[0.4em] mb-2">QUARTERLY RECORDS</div>
-                            <h4 class="text-white text-xl font-bold">분기별 최고 파트너</h4>
-                            <p class="text-[9px] text-slate-500 mt-1">분기를 클릭하면 전체 목록을 봅니다</p>
+                            <div class="text-blue-400 text-[10px] font-black tracking-[0.4em] mb-2 text-center">QUARTERLY RECORDS</div>
+                            <h4 class="text-white text-xl font-bold mb-1 text-center">분기별 최고 파트너</h4>
+                            <p class="text-[10px] text-slate-500 text-center mb-4">분기를 클릭하면 전체 목록을 봅니다</p>
                         </div>
-
                         <div class="flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl p-2.5 mb-4 select-none">
-                            <button onclick="moveQuarterYear(1)" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white active:scale-75 transition-transform font-bold text-lg">
-                                ◀
-                            </button>
+                            <button onclick="moveQuarterYear(1)" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white font-bold text-lg">◀</button>
                             <span id="currentQuarterYearLabel" class="text-white font-black text-[15px] tracking-wide"></span>
-                            <button onclick="moveQuarterYear(-1)" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white active:scale-75 transition-transform font-bold text-lg">
-                                ▶
-                            </button>
+                            <button onclick="moveQuarterYear(-1)" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white font-bold text-lg">▶</button>
                         </div>
-
                         <div id="quarterlyCardsContainer" class="space-y-2.5"></div>
-                        
                         <button onclick="document.getElementById('quarterlyOverlay').remove()" class="mt-6 w-full py-4 bg-slate-800 text-white text-xs font-black rounded-xl active:scale-95 transition-transform">닫기</button>
                     </div>
                 </div>`;
@@ -3393,7 +3367,6 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
             updateYearSlide(currentIdx);
         };
 
-        // [특정 분기의 전체 파트너 상세 목록 팝업]
         window.showQuarterlyPartnerList = (qYear, qKey, qLabel) => {
             const nameEl = document.querySelector('#forestModal h3');
             if(!nameEl) return;
@@ -3410,7 +3383,7 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
             if (sortedList.length === 0) return alert(`${qYear}년 ${qLabel}에는 동행 기록이 없습니다.`);
 
             const listHTML = `
-                <div id="qListOverlay" class="fixed inset-0 z-[10002] flex items-center justify-center bg-black/90 backdrop-blur-lg animate-in fade-in duration-200" onclick="this.remove()">
+                <div id="qListOverlay" class="fixed inset-0 z-[10002] flex items-center justify-center bg-black/90 backdrop-blur-lg" onclick="this.remove()">
                     <div class="bg-[#0f172a] border border-purple-500/40 p-8 rounded-[2.5rem] w-[320px] shadow-2xl" onclick="event.stopPropagation()">
                         <div class="text-center mb-6">
                             <div class="text-purple-400 text-[10px] font-black tracking-[0.4em] mb-1 uppercase">${qYear} / ${qKey} Detail</div>
@@ -3424,13 +3397,12 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
                                 </div>
                             `).join('')}
                         </div>
-                        <button onclick="document.getElementById('qListOverlay').remove()" class="mt-6 w-full py-4 bg-purple-600 text-white text-xs font-black rounded-xl active:scale-95 transition-transform">돌아가기</button>
+                        <button onclick="document.getElementById('qListOverlay').remove()" class="mt-6 w-full py-4 bg-purple-600 text-white text-xs font-black rounded-xl">돌아가기</button>
                     </div>
                 </div>`;
             document.body.insertAdjacentHTML('beforeend', listHTML);
         };
 
-        // [인연의 반경 - 전체 파트너 랭킹 목록 팝업]
         window.showForestMemberList = () => {
             const nameEl = document.querySelector('#forestModal h3');
             if(!nameEl) return;
@@ -3444,8 +3416,8 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
             const sortedList = Object.entries(currentCache.partnersMap).sort((a, b) => b[1] - a[1]);
 
             const popupHTML = `
-                <div id="forestListOverlay" class="fixed inset-0 z-[10001] flex items-center justify-center bg-black/80 backdrop-blur-md transition-opacity duration-300" onclick="this.remove()">
-                    <div class="bg-[#0f172a] border border-emerald-500/40 p-10 rounded-[3rem] w-[340px] text-center shadow-[0_0_50px_rgba(16,185,129,0.2)] scale-100" onclick="event.stopPropagation()">
+                <div id="forestListOverlay" class="fixed inset-0 z-[10001] flex items-center justify-center bg-black/80 backdrop-blur-md" onclick="this.remove()">
+                    <div class="bg-[#0f172a] border border-emerald-500/40 p-10 rounded-[3rem] w-[340px] text-center shadow-2xl" onclick="event.stopPropagation()">
                         <div class="mb-8">
                             <div class="text-emerald-400 text-[11px] font-black tracking-[0.5em] mb-2">BEST PARTNERS</div>
                             <h4 class="text-white text-2xl font-bold">인연의 목록</h4>
@@ -3453,27 +3425,21 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
                         <div class="max-h-[340px] overflow-y-auto pr-2 space-y-3 custom-scroll">
                             ${sortedList.map(([name, count], index) => {
                                 const isFirst = index === 0;
-                                const itemClass = isFirst 
-                                    ? "border-amber-400/50 bg-amber-400/10 shadow-[0_0_15px_rgba(251,191,36,0.2)] animate-pulse" 
-                                    : "border-white/10 bg-white/5";
-                                const nameColor = isFirst ? "text-amber-400 font-black" : "text-white";
-                                const countColor = isFirst ? "text-amber-300" : "text-emerald-400";
-                                const crown = isFirst ? "👑 " : "";
-
+                                const itemClass = isFirst ? "border-amber-400/50 bg-amber-400/10 shadow-lg animate-pulse" : "border-white/10 bg-white/5";
                                 return `
-                                    <div class="flex justify-between items-center p-4 rounded-2xl border ${itemClass} transition-all">
-                                        <span class="${nameColor} text-[15px]">${crown}${name}</span>
-                                        <span class="${countColor} font-black text-[15px]">${count}회</span>
+                                    <div class="flex justify-between items-center p-4 rounded-2xl border ${itemClass}">
+                                        <span class="${isFirst ? "text-amber-400 font-black" : "text-white"} text-[15px]">${isFirst ? "👑 " : ""}${name}</span>
+                                        <span class="${isFirst ? "text-amber-300" : "text-emerald-400"} font-black text-[15px]">${count}회</span>
                                     </div>`;
                             }).join('')}
                         </div>
-                        <button onclick="document.getElementById('forestListOverlay').remove()" class="mt-10 w-full py-5 bg-emerald-500 text-white text-sm font-black rounded-2xl shadow-lg shadow-emerald-500/20 active:scale-95 transition-transform">확인 완료</button>
+                        <button onclick="document.getElementById('forestListOverlay').remove()" class="mt-10 w-full py-5 bg-emerald-500 text-white text-sm font-black rounded-2xl shadow-lg">확인 완료</button>
                     </div>
                 </div>`;
             document.body.insertAdjacentHTML('beforeend', popupHTML);
         };
 
-        // 9. 메인 모달 HTML 레이아웃 생성
+        // 메인 모달 UI 바인딩
         const modalHTML = `
             <div id="forestModal" class="fixed inset-0 z-[10000] flex items-center justify-center bg-black/85 backdrop-blur-md" onclick="this.remove()">
                 <div class="bg-[#0f172a] border border-emerald-500/30 p-6 rounded-[2.5rem] w-[320px] text-center shadow-2xl" onclick="event.stopPropagation()">
@@ -3486,7 +3452,7 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
                         <div class="bg-white/[0.03] py-2.5 px-4 rounded-2xl border border-white/[0.06]">
                             <div class="text-[10px] font-bold mb-1" style="color: ${gaugeColor}">🤝 동행 지수 (Synergy Rate)</div>
                             <div class="flex justify-between items-end">
-                                <div class="text-white text-[14px] font-bold">총 ${finalTotalHikes}회 중 ${myMultiHikes}회</div>
+                                <div class="text-white text-[14px] font-bold">총 ${adjustedTotalHikes}회 중 ${myMultiHikes}회</div>
                                 <div class="text-lg font-black" style="color: ${gaugeColor}">${finalSynergy}%</div>
                             </div>
                             <div class="w-full h-1.5 bg-white/10 rounded-full mt-1.5 overflow-hidden">
@@ -3539,7 +3505,6 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
                 </div>
             </div>`;
 
-        // 10. 기존 메인 모달 정리 후 새로 렌더링
         const oldModal = document.getElementById('forestModal');
         if (oldModal) oldModal.remove();
         document.body.insertAdjacentHTML('beforeend', modalHTML);
@@ -3549,7 +3514,10 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
         alert("인연의 숲 데이터를 조회하는 도중 오류가 발생했습니다.");
     }
 };
-
+       
+            
+                    
+            
                  
         
 // 타이머 인터벌을 관리할 전역 변수 (중복 실행 방지 및 메모리 누수 차단)
