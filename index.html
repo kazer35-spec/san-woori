@@ -4858,7 +4858,6 @@ window.addMultiActivity = async () => {
     const region = document.getElementById('adminManualRegionSelect')?.value || "";
     const isQuarterOnlyOne = document.getElementById('isQuarterCheck')?.checked || false;
     
-    // 🌟 [확인 완료] 확인된 정확한 id명(pRock, pForest, pValley)으로 화면 값을 가져옵니다.
     const pRock = parseInt(document.getElementById('pRock')?.value) || 0;
     const pForest = parseInt(document.getElementById('pForest')?.value) || 0;
     const pValley = parseInt(document.getElementById('pValley')?.value) || 0;
@@ -4885,7 +4884,6 @@ window.addMultiActivity = async () => {
             const mRef = doc(db, "mountains", mName);
             const mSnap = await getDoc(mRef);
             
-            // 🌟 [자동 저장 연동] 개별 산 마스터 테이블에도 성분을 함께 저장 및 머지(Merge)합니다.
             const mountainData = {
                 height: height, isTop100: isTop100, isBAC: isBAC, region: region, updatedAt: new Date(),
                 pRock: pRock, pForest: pForest, pValley: pValley
@@ -4916,13 +4914,13 @@ window.addMultiActivity = async () => {
             const newLevel = oldLevel + realUpAmount; 
             
             updateData.level = newLevel;
-            updateData.count = _increment(1); 
 
             if (realUpAmount > 0) checkLevelUpgrade(member.name, oldLevel, newLevel);
             selectedNames.push(member.name);
 
-            // ─── 🅰️ 오직 '정식 순수산행'일 때 ───
+            // ─── 🅰️ 오직 '정식 순수산행'일 때만 count 상승 ───
             if (isRealHike && !isExtraHike) {
+                updateData.count = _increment(1); // ✨ 번외산행 시 누적 방지 완료
                 updateData.lastDate = ts; 
 
                 const logLoopCount = (isRegular || isQuarterOnlyOne || isOnlyLog) ? 1 : realUpAmount;
@@ -4945,7 +4943,7 @@ window.addMultiActivity = async () => {
                     updateData[`fp_bins.${qKey}`] = _increment(pointToAdd);
                 }
 
-            // ─── 🅱️ 번외산행 / 러닝 / 트레킹 / 산책 묶음일 때 ───
+            // ─── 🅱️ 번외산행 / 러닝 / 트레킹 / 산책 묶음일 때 (Count 고정) ───
             } else {
                 updateData[`quarterlyStats.${qKey}.total`] = _increment(1);
                 updateData[`quarterlyStats.${qKey}.hike`] = _increment(0); 
@@ -4966,7 +4964,7 @@ window.addMultiActivity = async () => {
                 await updateDoc(doc(db, "sanwoori", id), updateData);
             }
             
-            // [4] 세부 로그 및 별자리 확률 적재
+            // 세부 로그 적재
             const finalLogLoopCount = (isRegular || isSpecial || isQuarterOnlyOne) ? 1 : realUpAmount;
             for(let i = 0; i < finalLogLoopCount; i++) {
                 let starType = null;
@@ -4977,7 +4975,6 @@ window.addMultiActivity = async () => {
                     else starType = "regular_" + (Math.floor(Math.random() * 4) + 1);
                 }
 
-                // 🌟 [핵심 수정] 타임라인 세부 로그 데이터에 산 성분(pRock, pForest, pValley)을 자동으로 매핑합니다.
                 const logPayload = {
                     date: ts, 
                     mountain: mName || (isWalking ? "동네 산책" : (isExtraHike ? "번외 산행" : (isRunning ? "러닝 활동" : "트레킹 활동"))), 
@@ -4985,11 +4982,7 @@ window.addMultiActivity = async () => {
                     isTop100, isBAC, isRegular, isRunning, isTracking, isWalking, isExtraHike, isOnlyLog, region,
                     starType, author: member.name,
                     isSpecial: isSpecial,
-                    
-                    // 성분비 자동 세팅 완료!
-                    pRock: pRock,
-                    pForest: pForest,
-                    pValley: pValley
+                    pRock, pForest, pValley
                 };
 
                 await saveHikeLog(id, logPayload);
@@ -5019,6 +5012,8 @@ window.addMultiActivity = async () => {
         alert("저장 실패: " + error.message);
     }
 };
+
+             
 
   
   
