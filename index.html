@@ -5509,7 +5509,7 @@ async function updateVibeTemp() {
 }
 
     
- window.showMemberMountain = async (mId, mName) => {
+        window.showMemberMountain = async (mId, mName) => {
     const modal = document.getElementById('mountainViewModal');
     const card = document.getElementById('integratedCard');
     const peakLayer = document.getElementById('peakLayer');
@@ -5529,18 +5529,15 @@ async function updateVibeTemp() {
         if(ringSection) ringSection.appendChild(ringBeam);
     }
 
-    // 네온 텍스트 스타일 클래스 사전 세팅
     if(mwMountainName) mwMountainName.classList.add('cosmic-neon-text');
     if(ringMainTitle) ringMainTitle.classList.add('cosmic-neon-text');
 
     modal.style.display = 'flex';
     card.classList.remove('glow-active');
 
-    // 🌟 모달 재오픈 시 이전 초신성 잔상 요소를 즉각 청소 (성운/안개 클래스는 완전 제외)
     const existingBlast = document.getElementById('mwSupernovaBlast');
     if (existingBlast) existingBlast.remove();
 
-    // 레이아웃 뒤틀림 및 깜빡임 노이즈 방지 헤더 구조 선형화
     if(mwMountainName) {
         const parentHeader = mwMountainName.closest('.mountain-header');
         if (parentHeader) {
@@ -5559,7 +5556,6 @@ async function updateVibeTemp() {
         mwMountainName.style.position = 'relative';
         mwMountainName.style.opacity = '1';
 
-        // 초신성이 TOTAL 구역 중앙에 귀속되도록 relative 래퍼 바인딩
         mwMountainName.innerHTML = `
             <span style="font-size: 10.5px !important; font-weight: 700 !important; white-space: nowrap; letter-spacing: -0.3px;">${mName}님의 산맥</span>
             <span id="mwHikeTotalWrapper" style="position: relative; display: inline-block;">
@@ -5593,7 +5589,6 @@ async function updateVibeTemp() {
     if(beam) beam.style.setProperty('--beam-color', style.border);
     if(ringBeam) ringBeam.style.setProperty('--beam-color', style.border);
 
-    // 미니멀 우주 별빛 입자 생성
     for(let i=0; i<80; i++) {
         const star = document.createElement('div');
         star.className = 'tree-ring-star';
@@ -5612,16 +5607,16 @@ async function updateVibeTemp() {
     }
 
     try {
-        const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
-        const allLogs = snap.docs.map(d => d.data());
-        
-        // 🎯 1. [산맥 그리기 대상 버그 수정] 
-        // 고도가 있으면서 일반 활동(!isSpecial)이거나, 혹은 '번외산행(isExtraHike)'인 것만 포함시켜서 
-        // 러닝/산책/트레킹은 완벽 차단하고 번외산행은 산맥이 정상적으로 그려지도록 처리합니다.
-        let logs = allLogs.filter(l => (l.height || 0) > 0 && (!l.isSpecial || l.isExtraHike));
-
-        // 🎯 2. [TOTAL 카운터 대상] 번외산행(isExtraHike)까지 완전히 제외한 오직 '순수산행'만 카운트
-        const pureHikeCount = allLogs.filter(l => !l.isRunning && !l.isTracking && !l.isWalking && !l.isExtraHike).length;
+        // 🎯 [TOTAL 카운터 대상 최적화]
+        // 하위 로그를 카운트하지 않고, DB에 이미 저장되어 있는 quarterlyStats 구조 안의 순수산행(hike) 값만 추출하여 합산합니다.
+        let pureHikeCount = 0;
+        if (memberInfo && memberInfo.quarterlyStats) {
+            Object.values(memberInfo.quarterlyStats).forEach(quarter => {
+                if (quarter && typeof quarter.hike === 'number') {
+                    pureHikeCount += quarter.hike;
+                }
+            });
+        }
 
         const totalCountEl = document.getElementById('mwHikeTotalCount');
         if (totalCountEl) {
@@ -5629,6 +5624,18 @@ async function updateVibeTemp() {
             totalCountEl.style.textShadow = `0 0 5px ${style.border}, 0 0 10px ${style.border}`;
             totalCountEl.innerHTML = `🏔️TOTAL: ${pureHikeCount}회`;
         }
+
+        // 🎯 [산맥 그리기 대상] 복합 색인 유실 리스크와 무거운 패치를 막기 위해, 
+        // 하위 logs는 복합 조건 없이 딱 '최대 100개' 제한만 걸고 가져온 뒤 자바스크립트로 안전하게 거릅니다.
+        const q = query(
+            collection(db, `sanwoori/${mId}/logs`),
+            limit(100)
+        );
+        const snap = await getDocs(q);
+        const allLogs = snap.docs.map(d => d.data());
+        
+        // 고도가 있으면서 일반 활동(!isSpecial)이거나 '번외산행(isExtraHike)'인 것만 산맥 리스트에 바인딩
+        let logs = allLogs.filter(l => (l.height || 0) > 0 && (!l.isSpecial || l.isExtraHike));
 
         // [Case A] 산맥 데이터가 하나라도 잡히는 일반 유저군
         if (logs.length > 0) {
@@ -5652,7 +5659,6 @@ async function updateVibeTemp() {
                 peakLabel.innerHTML = `<span class="small-peak-tag">${maxLog.mountain} (${maxLog.height}m)</span>`;
             }
 
-            // 가상 원경 백그라운드 마운틴 레이어 빌드
             const layerCount = Math.min(Math.floor(globalH / 15000) + 2, 5);
             for(let i = 1; i <= layerCount; i++) {
                 const layer = document.createElement('div');
@@ -5668,23 +5674,19 @@ async function updateVibeTemp() {
                 bgContainer.appendChild(layer);
             }
 
-            // 🎯 순수산행 100회 초과분만큼 '검붉은 산맥'으로 스위칭할 표본 수 계산
             const darkRedCount = pureHikeCount > 100 ? pureHikeCount - 100 : 0;
 
             let mappedPeaks = logs.map((log, index) => {
                 const isMax = log.height === maxHeight;
-                // 최고봉 왕관은 유지하고, 초과 카운트 지분만큼 플래그 할당
                 const isDarkRed = !isMax && (index < darkRedCount);
                 return { log, isMax, isDarkRed };
             });
 
-            // 🎲 Fisher-Yates 셔플 알고리즘으로 검붉은 피크 무작위로 교차 분산
             for (let i = mappedPeaks.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [mappedPeaks[i], mappedPeaks[j]] = [mappedPeaks[j], mappedPeaks[i]];
             }
 
-            // 가공 완료된 개인 전경 피크 마운틴 드로잉 (순수+번외 최대 100개 그려짐)
             peakLayer.style.height = "60%";
             mappedPeaks.forEach(({ log, isMax, isDarkRed }) => {
                 const hRatio = (log.height / maxHeight) * 100;
@@ -5699,7 +5701,6 @@ async function updateVibeTemp() {
                 peakLayer.appendChild(peakDiv);
             });
 
-            // 시네마틱 라이트 빔 연쇄 작동 트리거
             setTimeout(() => {
                 if(beam) {
                     beam.style.background = `linear-gradient(to top, transparent, ${style.border}, rgba(255,255,255,0.7))`;
@@ -5717,7 +5718,6 @@ async function updateVibeTemp() {
                     }
 
                     setTimeout(async () => {
-                        // 🌟 [최종 하이라이트 페이즈] 순수산행 100회 이상 달성 시 TOTAL 카운터 영역 초신성 단발 폭발
                         if (pureHikeCount >= 100) {
                             const totalWrapper = document.getElementById('mwHikeTotalWrapper');
                             if (totalWrapper && !document.getElementById('mwSupernovaBlast')) {
@@ -5747,9 +5747,7 @@ async function updateVibeTemp() {
                 }, 350);
             }, 400);
 
-        } 
-        // [Case B] 신입 회원 등 산맥 로그가 전혀 잡히지 않는 공백 예외 처리
-        else {
+        } else {
             if(document.getElementById('myTotalH')) document.getElementById('myTotalH').innerText = "0";
             if(document.getElementById('globalTotalH')) document.getElementById('globalTotalH').innerText = "0";
             if(peakLabel) {
@@ -5769,7 +5767,6 @@ async function updateVibeTemp() {
     }
 };
 
-        
         
                         
 window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
