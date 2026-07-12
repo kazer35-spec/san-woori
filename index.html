@@ -5606,14 +5606,29 @@ async function updateVibeTemp() {
         ringLaunchedEl.style.transition = 'opacity 0.4s ease-out';
     }
 
-    try {
-        // 🎯 [TOTAL 카운터 대상 최적화]
-        // 하위 로그를 카운트하지 않고, DB에 이미 저장되어 있는 quarterlyStats 구조 안의 순수산행(hike) 값만 추출하여 합산합니다.
+        try {
+        // 🎯 [TOTAL 카운터 대상 보정] 
+        // 2026_q2까지 누적된 62회를 베이스로 잡고, 2026_q3부터 추가되는 수치만 누적 합산합니다.
         let pureHikeCount = 0;
+        
         if (memberInfo && memberInfo.quarterlyStats) {
-            Object.values(memberInfo.quarterlyStats).forEach(quarter => {
-                if (quarter && typeof quarter.hike === 'number') {
-                    pureHikeCount += quarter.hike;
+            const stats = memberInfo.quarterlyStats;
+            
+            // 1. 2026_q2를 베이스로 지정 (존재하지 않으면 안전하게 0 처리)
+            const baseCount = (stats['2026_q2'] && typeof stats['2026_q2'].hike === 'number') 
+                ? stats['2026_q2'].hike 
+                : 0;
+            
+            pureHikeCount += baseCount;
+
+            // 2. 2026_q3 포함 그 이후에 새로 쌓이는 분기 데이터만 필터링해서 더해줍니다.
+            Object.keys(stats).forEach(key => {
+                // 키값 문자열 비교를 통해 '2026_q3'과 같거나 그보다 미래 분기(예: 2026_q4, 2027_q1 등)인 것만 추출
+                if (key >= '2026_q3') {
+                    const quarter = stats[key];
+                    if (quarter && typeof quarter.hike === 'number') {
+                        pureHikeCount += quarter.hike;
+                    }
                 }
             });
         }
@@ -5625,12 +5640,13 @@ async function updateVibeTemp() {
             totalCountEl.innerHTML = `🏔️TOTAL: ${pureHikeCount}회`;
         }
 
-        // 🎯 [산맥 그리기 대상] 복합 색인 유실 리스크와 무거운 패치를 막기 위해, 
-        // 하위 logs는 복합 조건 없이 딱 '최대 100개' 제한만 걸고 가져온 뒤 자바스크립트로 안전하게 거릅니다.
+        // 🎯 [산맥 그리기 대상] (이하 코드는 이전과 동일하게 100개 limit 쿼리 유지)
         const q = query(
             collection(db, `sanwoori/${mId}/logs`),
             limit(100)
         );
+        
+
         const snap = await getDocs(q);
         const allLogs = snap.docs.map(d => d.data());
         
