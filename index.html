@@ -3120,7 +3120,7 @@ window.showBondingForestModal = async (targetName, targetId) => {
     let currentFP = fpElement ? parseInt(fpElement.innerText.replace(/[^0-9]/g, '')) : 0;
 
     try {
-        // 2. [실시간 자동 조회] 누른 회원의 최신 정보를 DB에서 직접 단건 조회
+        // 2. 🔥 [실시간 자동 조회] 누른 회원의 최신 정보를 DB에서 직접 단건 조회
         let memberInfo = null;
         if (targetId) {
             const mDoc = await getDoc(doc(db, "sanwoori", targetId));
@@ -3163,34 +3163,27 @@ window.showBondingForestModal = async (targetName, targetId) => {
             localStorage.removeItem(STORAGE_KEY);
         }
 
-        // 4. [자동화 핵심] 캐시 유효성 검사를 무력화하고 누를 때마다 bondingForest 풀 스캔
+        // 4. 🔥 [자동화 핵심] 캐시 유효성 검사를 무력화하고 누를 때마다 bondingForest 풀 스캔
         console.log(`🔄 [자동 조회] ${mName}님의 실시간 인연 데이터를 DB에서 새로 매칭합니다.`);
         
-        const currentYear = new Date().getFullYear();
         let cached = { 
             processedIds: [], extraHikes: 0, partnersMap: {}, uniquePartners: [],
-            quarterlyPartners: {
-                [currentYear]: { q1: {}, q2: {}, q3: {}, q4: {} }
-            } 
+            quarterlyPartners: { q1: {}, q2: {}, q3: {}, q4: {} } 
         };
 
         const bondingSnap = await getDocs(collection(db, "bondingForest"));
+        const currentYear = new Date().getFullYear();
 
         bondingSnap.forEach(doc => {
             const data = doc.data();
             const members = data.members || [];
-            
-            // 🔥 [조건 추가] 번외산행 유형(타입) 패스하여 동행 지수 연산에서 차단
-            if (data.type === "번외" || data.type === "번외산행") {
-                return; 
-            }
             
             if (members.includes(mName)) {
                 cached.processedIds.push(doc.id);
                 
                 const dateStr = data.date || ""; 
                 const dateParts = dateStr.split('-'); 
-                const year = parseInt(dateParts[0]) || currentYear;
+                const year = parseInt(dateParts[0]);
                 const month = parseInt(dateParts[1]);
                 
                 members.forEach(p => {
@@ -3200,23 +3193,20 @@ window.showBondingForestModal = async (targetName, targetId) => {
                     }
                 });
 
-                // 연도별 객체가 없으면 자동으로 동적 생성
-                if (!cached.quarterlyPartners[year]) {
-                    cached.quarterlyPartners[year] = { q1: {}, q2: {}, q3: {}, q4: {} };
-                }
+                if (year === currentYear) {
+                    let qKey = "";
+                    if (month >= 1 && month <= 3) qKey = "q1";
+                    else if (month >= 4 && month <= 6) qKey = "q2";
+                    else if (month >= 7 && month <= 9) qKey = "q3";
+                    else if (month >= 10 && month <= 12) qKey = "q4";
 
-                let qKey = "";
-                if (month >= 1 && month <= 3) qKey = "q1";
-                else if (month >= 4 && month <= 6) qKey = "q2";
-                else if (month >= 7 && month <= 9) qKey = "q3";
-                else if (month >= 10 && month <= 12) qKey = "q4";
-
-                if (qKey) {
-                    members.forEach(p => {
-                        if (p !== mName) {
-                            cached.quarterlyPartners[year][qKey][p] = (cached.quarterlyPartners[year][qKey][p] || 0) + 1;
-                        }
-                    });
+                    if (qKey) {
+                        members.forEach(p => {
+                            if (p !== mName) {
+                                cached.quarterlyPartners[qKey][p] = (cached.quarterlyPartners[qKey][p] || 0) + 1;
+                            }
+                        });
+                    }
                 }
             }
         });
@@ -3235,7 +3225,7 @@ window.showBondingForestModal = async (targetName, targetId) => {
         const myMultiHikes = dbBuddyCount;
         const finalSynergy = finalTotalHikes > 0 ? Math.min(100, Math.round((myMultiHikes / finalTotalHikes) * 100)) : 0;
 
-        // 분기 최고 파트너 추출 헬퍼 함수
+        // 6. 분기 및 전체 베스트 데이터 사전 가공
         const getBestInQuarter = (qMap) => {
             let name = "데이터 없음";
             let count = 0;
@@ -3246,6 +3236,11 @@ window.showBondingForestModal = async (targetName, targetId) => {
             }
             return { name, count };
         };
+
+        const q1 = getBestInQuarter(cached.quarterlyPartners?.q1);
+        const q2 = getBestInQuarter(cached.quarterlyPartners?.q2);
+        const q3 = getBestInQuarter(cached.quarterlyPartners?.q3);
+        const q4 = getBestInQuarter(cached.quarterlyPartners?.q4);
 
         let overallBestP = "데이터 없음"; 
         let overallBestC = 0;
@@ -3262,9 +3257,7 @@ window.showBondingForestModal = async (targetName, targetId) => {
         else if (currentMonth >= 7 && currentMonth <= 9) { currentQKey = "q3"; qName = "3rd Bestie"; }
         else if (currentMonth >= 10 && currentMonth <= 12) { currentQKey = "q4"; qName = "4th Bestie"; }
 
-        // 메인 화면용 현재 연도의 분기 데이터 바인딩
-        const currentYearData = cached.quarterlyPartners[currentYear] || { q1: {}, q2: {}, q3: {}, q4: {} };
-        const currentQData = getBestInQuarter(currentYearData[currentQKey]);
+        const currentQData = getBestInQuarter(cached.quarterlyPartners[currentQKey]);
 
         // 7. 퍼센트별 색상 및 게이지 효과 설정
         let gaugeColor = "#ef4444"; 
@@ -3278,7 +3271,7 @@ window.showBondingForestModal = async (targetName, targetId) => {
             gaugeColor = "#f59e0b"; 
         }
 
-        // 8. 전역 하위 팝업 함수 바인딩 스크립트
+        // 8. 🛠️ 전역 하위 팝업 함수 바인딩 스크립트 (누락 없도록 스코프 보호 배치)
         
         // [우정 포인트 사용 안내 팝업]
         window.showFriendshipGuide = () => {
@@ -3308,114 +3301,61 @@ window.showBondingForestModal = async (targetName, targetId) => {
             document.body.insertAdjacentHTML('beforeend', guideHTML);
         };
 
-        // [분기별 최고 파트너 요약 팝업 - 슬라이드 버전]
+        // [분기별 최고 파트너 요약 팝업]
         window.showQuarterlyDetails = () => {
-            const nameEl = document.querySelector('#forestModal h3');
-            if(!nameEl) return;
-            const currentModalName = nameEl.innerText.replace('님의 인연', '').trim();
-            const currentCache = JSON.parse(localStorage.getItem(`forest_v5_final_${currentModalName}`));
-            
-            if (!currentCache || !currentCache.quarterlyPartners) return alert("분기 기록 데이터가 존재하지 않습니다.");
-
-            const yearSet = new Set(Object.keys(currentCache.quarterlyPartners).map(Number));
-            yearSet.add(new Date().getFullYear());
-            const availableYears = Array.from(yearSet).sort((a, b) => b - a);
-            
-            let currentIdx = availableYears.indexOf(new Date().getFullYear());
-            if (currentIdx === -1) currentIdx = 0;
-
-            const updateYearSlide = (idx) => {
-                const targetYear = availableYears[idx];
-                
-                const yearLabelEl = document.getElementById('currentQuarterYearLabel');
-                if (yearLabelEl) yearLabelEl.innerText = `${targetYear}년`;
-
-                const targetYearData = currentCache.quarterlyPartners[targetYear] || {};
-                const q1_b = getBestInQuarter(targetYearData.q1);
-                const q2_b = getBestInQuarter(targetYearData.q2);
-                const q3_b = getBestInQuarter(targetYearData.q3);
-                const q4_b = getBestInQuarter(targetYearData.q4);
-
-                const items = [
-                    { id: 'q1', label: '1분기(1-3월)', data: q1_b },
-                    { id: 'q2', label: '2분기(4-6월)', data: q2_b },
-                    { id: 'q3', label: '3분기(7-9월)', data: q3_b },
-                    { id: 'q4', label: '4분기(10-12월)', data: q4_b }
-                ];
-
-                const container = document.getElementById('quarterlyCardsContainer');
-                if (container) {
-                    container.innerHTML = items.map(item => `
-                        <div class="flex justify-between items-center p-4 bg-white/5 rounded-2xl border border-white/10 cursor-pointer active:scale-98 transition-all hover:border-blue-500/50"
-                             onclick="showQuarterlyPartnerList('${targetYear}', '${item.id}', '${item.label}')">
-                            <span class="text-slate-400 text-[12px]">${item.label}</span>
-                            <div class="text-right">
-                                <div class="text-white text-[14px] font-bold">${item.data.name}</div>
-                                <div class="text-blue-400 text-[11px] font-black">${item.data.count}회</div>
-                            </div>
-                        </div>
-                    `).join('');
-                }
-            };
-
-            window.moveQuarterYear = (direction) => {
-                currentIdx += direction;
-                if (currentIdx < 0) currentIdx = availableYears.length - 1;
-                if (currentIdx >= availableYears.length) currentIdx = 0;
-                updateYearSlide(currentIdx);
-            };
-
             const detailsHTML = `
                 <div id="quarterlyOverlay" class="fixed inset-0 z-[10001] flex items-center justify-center bg-black/80 backdrop-blur-md transition-opacity" onclick="this.remove()">
-                    <div class="bg-[#0f172a] border border-blue-500/40 p-6 rounded-[2.5rem] w-[320px] text-center shadow-2xl" onclick="event.stopPropagation()">
-                        <div class="mb-4">
+                    <div class="bg-[#0f172a] border border-blue-500/40 p-8 rounded-[2.5rem] w-[300px] text-center shadow-2xl" onclick="event.stopPropagation()">
+                        <div class="mb-6">
                             <div class="text-blue-400 text-[10px] font-black tracking-[0.4em] mb-2">QUARTERLY RECORDS</div>
                             <h4 class="text-white text-xl font-bold">분기별 최고 파트너</h4>
                             <p class="text-[9px] text-slate-500 mt-1">분기를 클릭하면 전체 목록을 봅니다</p>
                         </div>
-
-                        <div class="flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl p-2.5 mb-4 select-none">
-                            <button onclick="moveQuarterYear(1)" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white active:scale-75 transition-transform font-bold text-lg">
-                                ◀
-                            </button>
-                            <span id="currentQuarterYearLabel" class="text-white font-black text-[15px] tracking-wide"></span>
-                            <button onclick="moveQuarterYear(-1)" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white active:scale-75 transition-transform font-bold text-lg">
-                                ▶
-                            </button>
+                        <div class="space-y-3">
+                            ${[
+                                { id: 'q1', label: '1분기(1-3월)', data: q1 },
+                                { id: 'q2', label: '2분기(4-6월)', data: q2 },
+                                { id: 'q3', label: '3분기(7-9월)', data: q3 },
+                                { id: 'q4', label: '4분기(10-12월)', data: q4 }
+                            ].map(item => `
+                                <div class="flex justify-between items-center p-3 bg-white/5 rounded-xl border border-white/10 cursor-pointer active:scale-95 transition-all hover:border-blue-500/50"
+                                     onclick="showQuarterlyPartnerList('${item.id}', '${item.label}')">
+                                    <span class="text-slate-400 text-[11px]">${item.label}</span>
+                                    <div class="text-right">
+                                        <div class="text-white text-[13px] font-bold">${item.data.name}</div>
+                                        <div class="text-blue-400 text-[10px] font-black">${item.data.count}회</div>
+                                    </div>
+                                </div>
+                            `).join('')}
                         </div>
-
-                        <div id="quarterlyCardsContainer" class="space-y-2.5"></div>
-                        
-                        <button onclick="document.getElementById('quarterlyOverlay').remove()" class="mt-6 w-full py-4 bg-slate-800 text-white text-xs font-black rounded-xl active:scale-95 transition-transform">닫기</button>
+                        <button onclick="document.getElementById('quarterlyOverlay').remove()" class="mt-8 w-full py-4 bg-slate-800 text-white text-xs font-black rounded-xl active:scale-95 transition-transform">닫기</button>
                     </div>
                 </div>`;
-                
             document.body.insertAdjacentHTML('beforeend', detailsHTML);
-            updateYearSlide(currentIdx);
         };
 
         // [특정 분기의 전체 파트너 상세 목록 팝업]
-        window.showQuarterlyPartnerList = (qYear, qKey, qLabel) => {
+        window.showQuarterlyPartnerList = (qKey, qLabel) => {
             const nameEl = document.querySelector('#forestModal h3');
             if(!nameEl) return;
             const currentModalName = nameEl.innerText.replace('님의 인연', '').trim();
             const currentCache = JSON.parse(localStorage.getItem(`forest_v5_final_${currentModalName}`));
 
-            if (!currentCache || !currentCache.quarterlyPartners || !currentCache.quarterlyPartners[qYear] || !currentCache.quarterlyPartners[qYear][qKey]) {
+            if (!currentCache || !currentCache.quarterlyPartners || !currentCache.quarterlyPartners[qKey]) {
                 return alert("해당 분기 데이터가 없습니다.");
             }
 
-            const partners = currentCache.quarterlyPartners[qYear][qKey];
+            const partners = currentCache.quarterlyPartners[qKey];
             const sortedList = Object.entries(partners).sort((a, b) => b[1] - a[1]);
 
-            if (sortedList.length === 0) return alert(`${qYear}년 ${qLabel}에는 동행 기록이 없습니다.`);
+            if (sortedList.length === 0) return alert("이 분기에는 동행 기록이 없습니다.");
 
             const listHTML = `
                 <div id="qListOverlay" class="fixed inset-0 z-[10002] flex items-center justify-center bg-black/90 backdrop-blur-lg animate-in fade-in duration-200" onclick="this.remove()">
                     <div class="bg-[#0f172a] border border-purple-500/40 p-8 rounded-[2.5rem] w-[320px] shadow-2xl" onclick="event.stopPropagation()">
                         <div class="text-center mb-6">
-                            <div class="text-purple-400 text-[10px] font-black tracking-[0.4em] mb-1 uppercase">${qYear} / ${qKey} Detail</div>
-                            <h4 class="text-white text-lg font-bold">${qYear}년 ${qLabel} 인연들</h4>
+                            <div class="text-purple-400 text-[10px] font-black tracking-[0.4em] mb-1 uppercase">${qKey} Detail</div>
+                            <h4 class="text-white text-lg font-bold">${qLabel} 인연들</h4>
                         </div>
                         <div class="max-h-[300px] overflow-y-auto space-y-2 pr-1 custom-scroll">
                             ${sortedList.map(([pName, pCount]) => `
@@ -3540,7 +3480,7 @@ window.showBondingForestModal = async (targetName, targetId) => {
                 </div>
             </div>`;
 
-        // 10. 기존 메인 모달 정리 후 새로 렌더링
+        // 10. 기존 모달 정리 후 새로 렌더링
         const oldModal = document.getElementById('forestModal');
         if (oldModal) oldModal.remove();
         document.body.insertAdjacentHTML('beforeend', modalHTML);
@@ -3551,7 +3491,7 @@ window.showBondingForestModal = async (targetName, targetId) => {
     }
 };
 
-        
+
 // 타이머 인터벌을 관리할 전역 변수 (중복 실행 방지 및 메모리 누수 차단)
 window.hallTimerInterval = null;
 
