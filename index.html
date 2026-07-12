@@ -4761,7 +4761,7 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 // 2. 기록 저장 핵심 로직
-window.addMultiActivity = async () => {
+Window.addMultiActivity = async () => {
     const dateInput = document.getElementById('activityDate');
     if (!dateInput) return alert("날짜 입력창을 찾을 수 없습니다.");
     
@@ -4798,6 +4798,11 @@ window.addMultiActivity = async () => {
     const region = document.getElementById('adminManualRegionSelect')?.value || "";
     const isQuarterOnlyOne = document.getElementById('isQuarterCheck')?.checked || false;
     
+    // 🌟 [확인 완료] 확인된 정확한 id명(pRock, pForest, pValley)으로 화면 값을 가져옵니다.
+    const pRock = parseInt(document.getElementById('pRock')?.value) || 0;
+    const pForest = parseInt(document.getElementById('pForest')?.value) || 0;
+    const pValley = parseInt(document.getElementById('pValley')?.value) || 0;
+    
     const isExtraHike = isRunning && isTracking; 
     const isSpecial = isRunning || isTracking || isWalking || isOnlyLog || isExtraHike;
     const isRealHike = !isSpecial; 
@@ -4819,8 +4824,11 @@ window.addMultiActivity = async () => {
         if (isRealHike && mName) {
             const mRef = doc(db, "mountains", mName);
             const mSnap = await getDoc(mRef);
+            
+            // 🌟 [자동 저장 연동] 개별 산 마스터 테이블에도 성분을 함께 저장 및 머지(Merge)합니다.
             const mountainData = {
-                height: height, isTop100: isTop100, isBAC: isBAC, region: region, updatedAt: new Date()
+                height: height, isTop100: isTop100, isBAC: isBAC, region: region, updatedAt: new Date(),
+                pRock: pRock, pForest: pForest, pValley: pValley
             };
             if (safeCoords) {
                 mountainData.x = safeCoords.x;
@@ -4848,8 +4856,6 @@ window.addMultiActivity = async () => {
             const newLevel = oldLevel + realUpAmount; 
             
             updateData.level = newLevel;
-            
-            // 🎯 [횟수 누락 방어] 강제로 increment가 확실히 동작하도록 명시적 매핑
             updateData.count = _increment(1); 
 
             if (realUpAmount > 0) checkLevelUpgrade(member.name, oldLevel, newLevel);
@@ -4863,7 +4869,6 @@ window.addMultiActivity = async () => {
                 const finalHeightIncrement = height * logLoopCount; 
                 updateData.totalHeight = _increment(finalHeightIncrement); 
 
-                // 🔄 순수산행 분기 횟수 및 토탈 카운트 동시 강제 누적
                 updateData[`quarterlyStats.${qKey}.hike`] = _increment(1);
                 updateData[`quarterlyStats.${qKey}.total`] = _increment(1);
                 
@@ -4897,7 +4902,6 @@ window.addMultiActivity = async () => {
                 }
             }
 
-            // [3] DB 파이어스토어 업데이트 전송
             if (Object.keys(updateData).length > 0) {
                 await updateDoc(doc(db, "sanwoori", id), updateData);
             }
@@ -4913,13 +4917,19 @@ window.addMultiActivity = async () => {
                     else starType = "regular_" + (Math.floor(Math.random() * 4) + 1);
                 }
 
+                // 🌟 [핵심 수정] 타임라인 세부 로그 데이터에 산 성분(pRock, pForest, pValley)을 자동으로 매핑합니다.
                 const logPayload = {
                     date: ts, 
                     mountain: mName || (isWalking ? "동네 산책" : (isExtraHike ? "번외 산행" : (isRunning ? "러닝 활동" : "트레킹 활동"))), 
                     height, coords: safeCoords,
                     isTop100, isBAC, isRegular, isRunning, isTracking, isWalking, isExtraHike, isOnlyLog, region,
                     starType, author: member.name,
-                    isSpecial: isSpecial
+                    isSpecial: isSpecial,
+                    
+                    // 성분비 자동 세팅 완료!
+                    pRock: pRock,
+                    pForest: pForest,
+                    pValley: pValley
                 };
 
                 await saveHikeLog(id, logPayload);
