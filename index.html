@@ -5606,31 +5606,38 @@ async function updateVibeTemp() {
         ringLaunchedEl.style.transition = 'opacity 0.4s ease-out';
     }
 
-        try {
-        // 🎯 [TOTAL 카운터 대상 보정] 
-        // 2026_q2까지 누적된 62회를 베이스로 잡고, 2026_q3부터 추가되는 수치만 누적 합산합니다.
+            try {
+        // 🎯 [TOTAL 카운터 대상 보정]
         let pureHikeCount = 0;
+        let hasQuarterlyHike = false; // 분기 hike 데이터 존재 여부 플래그
         
         if (memberInfo && memberInfo.quarterlyStats) {
             const stats = memberInfo.quarterlyStats;
             
-            // 1. 2026_q2를 베이스로 지정 (존재하지 않으면 안전하게 0 처리)
+            // 1. 2026_q2를 베이스로 지정
             const baseCount = (stats['2026_q2'] && typeof stats['2026_q2'].hike === 'number') 
                 ? stats['2026_q2'].hike 
                 : 0;
             
+            if (baseCount > 0) hasQuarterlyHike = true;
             pureHikeCount += baseCount;
 
-            // 2. 2026_q3 포함 그 이후에 새로 쌓이는 분기 데이터만 필터링해서 더해줍니다.
+            // 2. 2026_q3 포함 그 이후 분기 데이터 누적 합산
             Object.keys(stats).forEach(key => {
-                // 키값 문자열 비교를 통해 '2026_q3'과 같거나 그보다 미래 분기(예: 2026_q4, 2027_q1 등)인 것만 추출
                 if (key >= '2026_q3') {
                     const quarter = stats[key];
                     if (quarter && typeof quarter.hike === 'number') {
+                        if (quarter.hike > 0) hasQuarterlyHike = true; 
                         pureHikeCount += quarter.hike;
                     }
                 }
             });
+        }
+
+        // 🎯 [핵심 예외 처리] 분기 기록이 없는 경우 'count' 필드를 토탈로 표기합니다.
+        if (!hasQuarterlyHike || pureHikeCount === 0) {
+            // qCount 대신 이미지에 명시된 실제 필드명 'count'로 정확히 스위칭합니다.
+            pureHikeCount = (memberInfo && typeof memberInfo.count === 'number') ? memberInfo.count : 0;
         }
 
         const totalCountEl = document.getElementById('mwHikeTotalCount');
@@ -5640,18 +5647,16 @@ async function updateVibeTemp() {
             totalCountEl.innerHTML = `🏔️TOTAL: ${pureHikeCount}회`;
         }
 
-        // 🎯 [산맥 그리기 대상] (이하 코드는 이전과 동일하게 100개 limit 쿼리 유지)
+        // 🎯 [산맥 그리기 대상] 100개 limit 쿼리 유지
         const q = query(
             collection(db, `sanwoori/${mId}/logs`),
             limit(100)
         );
-        
-
         const snap = await getDocs(q);
         const allLogs = snap.docs.map(d => d.data());
         
-        // 고도가 있으면서 일반 활동(!isSpecial)이거나 '번외산행(isExtraHike)'인 것만 산맥 리스트에 바인딩
         let logs = allLogs.filter(l => (l.height || 0) > 0 && (!l.isSpecial || l.isExtraHike));
+
 
         // [Case A] 산맥 데이터가 하나라도 잡히는 일반 유저군
         if (logs.length > 0) {
