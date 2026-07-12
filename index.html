@@ -3169,7 +3169,7 @@ window.showBondingForestModal = async (targetName, targetId) => {
         const currentYear = new Date().getFullYear();
         let cached = { 
             processedIds: [], extraHikes: 0, partnersMap: {}, uniquePartners: [],
-            // 동적 연도 관리를 위해 초기 구조에 현재 연도를 기본 바인딩
+            // 동적 연도별 관리를 위해 초기 구조에 현재 연도를 기본 바인딩
             quarterlyPartners: {
                 [currentYear]: { q1: {}, q2: {}, q3: {}, q4: {} }
             } 
@@ -3196,7 +3196,7 @@ window.showBondingForestModal = async (targetName, targetId) => {
                     }
                 });
 
-                // 연도별 객체가 없으면 동적으로 자동 생성 (2026, 2027, 2028...)
+                // 연도별 객체가 없으면 자동으로 동적 생성 (2026, 2027, 2028...)
                 if (!cached.quarterlyPartners[year]) {
                     cached.quarterlyPartners[year] = { q1: {}, q2: {}, q3: {}, q4: {} };
                 }
@@ -3258,7 +3258,7 @@ window.showBondingForestModal = async (targetName, targetId) => {
         else if (currentMonth >= 7 && currentMonth <= 9) { currentQKey = "q3"; qName = "3rd Bestie"; }
         else if (currentMonth >= 10 && currentMonth <= 12) { currentQKey = "q4"; qName = "4th Bestie"; }
 
-        // 현재 연도의 분기 데이터 바인딩
+        // 메인 화면용 현재 연도의 분기 데이터 바인딩
         const currentYearData = cached.quarterlyPartners[currentYear] || { q1: {}, q2: {}, q3: {}, q4: {} };
         const currentQData = getBestInQuarter(currentYearData[currentQKey]);
 
@@ -3274,7 +3274,7 @@ window.showBondingForestModal = async (targetName, targetId) => {
             gaugeColor = "#f59e0b"; 
         }
 
-        // 8. 🛠️ 전역 하위 팝업 함수 바인딩 스크립트
+        // 8. 🛠️ 전역 하위 팝업 함수 바인딩 스크립트 (누락 없도록 스코프 보호 배치)
         
         // [우정 포인트 사용 안내 팝업]
         window.showFriendshipGuide = () => {
@@ -3304,7 +3304,7 @@ window.showBondingForestModal = async (targetName, targetId) => {
             document.body.insertAdjacentHTML('beforeend', guideHTML);
         };
 
-        // [분기별 최고 파트너 요약 팝업 - 년도별 동적 탭 적용 버전]
+        // [분기별 최고 파트너 요약 팝업 - 슬라이드 버전 통합]
         window.showQuarterlyDetails = () => {
             const nameEl = document.querySelector('#forestModal h3');
             if(!nameEl) return;
@@ -3313,25 +3313,23 @@ window.showBondingForestModal = async (targetName, targetId) => {
             
             if (!currentCache || !currentCache.quarterlyPartners) return alert("분기 기록 데이터가 존재하지 않습니다.");
 
-            // 1. 존재하는 연도 리스트 추출 및 정렬 (내림차순 최신순 정렬)
-            const availableYears = Object.keys(currentCache.quarterlyPartners).map(Number).sort((a, b) => b - a);
-            const activeYear = availableYears.includes(currentYear) ? currentYear : availableYears[0];
+            // 데이터가 기록된 전체 연도를 추출하고 현재 연도도 자동 세트에 병합 후 최신순 정렬
+            const yearSet = new Set(Object.keys(currentCache.quarterlyPartners).map(Number));
+            yearSet.add(new Date().getFullYear());
+            const availableYears = Array.from(yearSet).sort((a, b) => b - a);
+            
+            // 현재 활성화되어 보여줄 연도 인덱스 타겟팅
+            let currentIdx = availableYears.indexOf(new Date().getFullYear());
+            if (currentIdx === -1) currentIdx = 0;
 
-            // 연도 탭 전용 클릭 전환 내장 스크립트
-            window.switchQuarterlyYear = (selectedYear) => {
-                // 탭 버튼 active 스타일 제어
-                document.querySelectorAll('.year-tab-btn').forEach(btn => {
-                    btn.classList.remove('bg-blue-500', 'text-white', 'border-blue-400/50');
-                    btn.classList.add('bg-white/5', 'text-slate-400', 'border-white/10');
-                });
-                const activeBtn = document.getElementById(`tab-yr-${selectedYear}`);
-                if (activeBtn) {
-                    activeBtn.classList.remove('bg-white/5', 'text-slate-400', 'border-white/10');
-                    activeBtn.classList.add('bg-blue-500', 'text-white', 'border-blue-400/50');
-                }
+            // 슬라이드 체인지 구동 제어 함수
+            const updateYearSlide = (idx) => {
+                const targetYear = availableYears[idx];
+                
+                const yearLabelEl = document.getElementById('currentQuarterYearLabel');
+                if (yearLabelEl) yearLabelEl.innerText = `${targetYear}년`;
 
-                // 선택 연도 리스트 리랜더링
-                const targetYearData = currentCache.quarterlyPartners[selectedYear] || {};
+                const targetYearData = currentCache.quarterlyPartners[targetYear] || {};
                 const q1_b = getBestInQuarter(targetYearData.q1);
                 const q2_b = getBestInQuarter(targetYearData.q2);
                 const q3_b = getBestInQuarter(targetYearData.q3);
@@ -3347,16 +3345,24 @@ window.showBondingForestModal = async (targetName, targetId) => {
                 const container = document.getElementById('quarterlyCardsContainer');
                 if (container) {
                     container.innerHTML = items.map(item => `
-                        <div class="flex justify-between items-center p-3 bg-white/5 rounded-xl border border-white/10 cursor-pointer active:scale-95 transition-all hover:border-blue-500/50"
-                             onclick="showQuarterlyPartnerList('${selectedYear}', '${item.id}', '${item.label}')">
-                            <span class="text-slate-400 text-[11px]">${item.label}</span>
+                        <div class="flex justify-between items-center p-4 bg-white/5 rounded-2xl border border-white/10 cursor-pointer active:scale-98 transition-all hover:border-blue-500/50"
+                             onclick="showQuarterlyPartnerList('${targetYear}', '${item.id}', '${item.label}')">
+                            <span class="text-slate-400 text-[12px]">${item.label}</span>
                             <div class="text-right">
-                                <div class="text-white text-[13px] font-bold">${item.data.name}</div>
-                                <div class="text-blue-400 text-[10px] font-black">${item.data.count}회</div>
+                                <div class="text-white text-[14px] font-bold">${item.data.name}</div>
+                                <div class="text-blue-400 text-[11px] font-black">${item.data.count}회</div>
                             </div>
                         </div>
                     `).join('');
                 }
+            };
+
+            // 전역 이벤트 디스패치 체인 핸들러
+            window.moveQuarterYear = (direction) => {
+                currentIdx += direction;
+                if (currentIdx < 0) currentIdx = availableYears.length - 1;
+                if (currentIdx >= availableYears.length) currentIdx = 0;
+                updateYearSlide(currentIdx);
             };
 
             const detailsHTML = `
@@ -3368,31 +3374,25 @@ window.showBondingForestModal = async (targetName, targetId) => {
                             <p class="text-[9px] text-slate-500 mt-1">분기를 클릭하면 전체 목록을 봅니다</p>
                         </div>
 
-                        <div class="flex items-center gap-1.5 overflow-x-auto pb-2.5 mb-3 border-b border-white/5 custom-scroll justify-center">
-                            ${availableYears.map(yr => {
-                                const isActive = yr === activeYear;
-                                const btnClass = isActive 
-                                    ? "bg-blue-500 text-white border-blue-400/50" 
-                                    : "bg-white/5 text-slate-400 border-white/10";
-                                return `
-                                    <button id="tab-yr-${yr}" onclick="switchQuarterlyYear(${yr})" 
-                                            class="year-tab-btn px-3 py-1.5 rounded-lg border text-[11px] font-bold transition-all active:scale-95 whitespace-nowrap ${btnClass}">
-                                        ${yr}년
-                                    </button>
-                                `;
-                            }).join('')}
+                        <div class="flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl p-2.5 mb-4 select-none">
+                            <button onclick="moveQuarterYear(1)" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white active:scale-75 transition-transform font-bold text-lg">
+                                ◀
+                            </button>
+                            <span id="currentQuarterYearLabel" class="text-white font-black text-[15px] tracking-wide"></span>
+                            <button onclick="moveQuarterYear(-1)" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white active:scale-75 transition-transform font-bold text-lg">
+                                ▶
+                            </button>
                         </div>
 
                         <div id="quarterlyCardsContainer" class="space-y-2.5">
                             </div>
                         
-                        <button onclick="document.getElementById('quarterlyOverlay').remove()" class="mt-6 w-full py-3.5 bg-slate-800 text-white text-xs font-black rounded-xl active:scale-95 transition-transform">닫기</button>
+                        <button onclick="document.getElementById('quarterlyOverlay').remove()" class="mt-6 w-full py-4 bg-slate-800 text-white text-xs font-black rounded-xl active:scale-95 transition-transform">닫기</button>
                     </div>
                 </div>`;
                 
             document.body.insertAdjacentHTML('beforeend', detailsHTML);
-            // 초기 지정 활성화 연도 로드 트리거 실행
-            window.switchQuarterlyYear(activeYear);
+            updateYearSlide(currentIdx);
         };
 
         // [특정 분기의 전체 파트너 상세 목록 팝업]
@@ -3541,7 +3541,7 @@ window.showBondingForestModal = async (targetName, targetId) => {
                 </div>
             </div>`;
 
-        // 10. 기존 모달 정리 후 새로 렌더링
+        // 10. 기존 메인 모달 정리 후 새로 렌더링
         const oldModal = document.getElementById('forestModal');
         if (oldModal) oldModal.remove();
         document.body.insertAdjacentHTML('beforeend', modalHTML);
@@ -3552,8 +3552,8 @@ window.showBondingForestModal = async (targetName, targetId) => {
     }
 };
 
-                            
 
+        
 // 타이머 인터벌을 관리할 전역 변수 (중복 실행 방지 및 메모리 누수 차단)
 window.hallTimerInterval = null;
 
