@@ -5389,6 +5389,9 @@ window.handleHostCheck = (checkbox, memberId) => {
 // ==========================================================================
 // 🔄 [수정] 관리자 화면 멤버 리스트 UI 렌더링 함수 (가로 3개 배치 그리드형)
 // ==========================================================================
+// ==========================================================================
+// 🔄 [수정] 관리자 화면 멤버 리스트 UI 렌더링 함수 (이름 왼쪽 정렬 + 체크박스만 배치)
+// ==========================================================================
 function updateAdminMemberLists() {
     const alpha = [...currentData].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
     const multi = document.getElementById('multiMemberList');
@@ -5399,31 +5402,29 @@ function updateAdminMemberLists() {
     multi.innerHTML = ""; 
     edit.innerHTML = manage.innerHTML = '<option value="">대상 회원 선택</option>';
     
-    // ★ 한 줄에 3개씩(grid-cols-3) 이쁘게 쪼개지도록 레이아웃 변경
+    // 가로 3열 그리드 레이아웃 유지
     multi.className = "grid grid-cols-3 gap-1.5 max-h-52 overflow-y-auto mb-3 p-1";
 
     alpha.forEach(m => {
         const isSelected = typeof selectedMemberIds !== 'undefined' && selectedMemberIds.has(m.id);
 
-        // 한 칸(Cell) 안에서 상단은 이름, 하단은 벙주 체크박스로 분할하여 좁은 화면 최적화
+        // justify-between 구조에서 왼쪽 정렬(justify-start) 느낌을 주도록 비율 조정
         multi.innerHTML += `
-        <div class="admin-member-row flex flex-col justify-between p-1.5 border rounded-xl bg-white text-xs shadow-sm transition-all ${isSelected ? 'border-emerald-400 bg-emerald-50/20' : 'border-gray-100'} ${m.isHidden ? 'opacity-50' : ''}">
+        <div class="admin-member-row flex items-center justify-between p-1.5 border rounded-xl bg-white text-[11px] shadow-sm transition-all ${isSelected ? 'border-emerald-400 bg-emerald-50/20' : 'border-gray-100'} ${m.isHidden ? 'opacity-50' : ''}">
             
-            <!-- 상단 영역: 이름 토글 (클릭 범위 확보) -->
-            <div onclick="window.toggleSelectMember('${m.id}', this)" class="w-full flex items-center justify-center gap-1 cursor-pointer py-1 select-none border-b border-gray-50 pb-1 mb-1">
-                <span class="text-[9px] ${m.gender === '여' ? 'text-pink-400' : 'text-blue-400'}">●</span>
-                <span class="font-bold text-gray-700 truncate">${m.name}</span>
+            <!-- 왼쪽: 성별 점 + 닉네임 (왼쪽으로 바짝 정렬 및 넓은 범위 확보) -->
+            <div onclick="window.toggleSelectMember('${m.id}', this)" class="flex-1 flex items-center gap-1 cursor-pointer py-1 select-none truncate justify-start">
+                <span class="text-[8px] shrink-0 ${m.gender === '여' ? 'text-pink-400' : 'text-blue-400'}">●</span>
+                <span class="font-bold text-gray-700 truncate pl-0.5">${m.name}</span>
             </div>
             
-            <!-- 하단 영역: 벙주 체크박스 (중앙 정렬 및 버블링 차단) -->
-            <div class="w-full flex justify-center items-center py-0.5">
-                <label class="flex items-center justify-center cursor-pointer p-0.5 hover:bg-gray-100 rounded" onclick="event.stopPropagation()">
-                    <input type="checkbox" 
-                           class="host-checkbox w-3.5 h-3.5 accent-red-500 cursor-pointer" 
-                           ${window.selectedHostIds.includes(m.id) ? 'checked' : ''}
-                           onchange="window.handleHostCheck(this, '${m.id}')">
-                </label>
-            </div>
+            <!-- 오른쪽: 체크박스 표시만 단독 배치 (기존 크기 유지, 간섭 전파 차단) -->
+            <label class="flex items-center justify-center p-0.5 cursor-pointer hover:bg-gray-100 rounded shrink-0" onclick="event.stopPropagation()">
+                <input type="checkbox" 
+                       class="host-checkbox w-3.5 h-3.5 accent-red-500 cursor-pointer" 
+                       ${window.selectedHostIds.includes(m.id) ? 'checked' : ''}
+                       onchange="window.handleHostCheck(this, '${m.id}')">
+            </label>
         </div>`;
         
         edit.innerHTML += `<option value="${m.id}">${m.name} </option> `;
@@ -5435,6 +5436,7 @@ function updateAdminMemberLists() {
     document.getElementById('countMale').innerText = visibleMembers.filter(m => m.gender === '남').length;
     document.getElementById('countFemale').innerText = visibleMembers.filter(m => m.gender === '여').length;
 }
+
 
 // ==========================================================================
 // ✨ [기존 유지] 레벨 가이드 모달 제어 함수
