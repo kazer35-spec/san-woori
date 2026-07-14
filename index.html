@@ -3641,8 +3641,8 @@ window.switchHallTab = (tabType) => {
 };
 
 
-      /* ==========================================
-   4. 명단 리스트 렌더링 (구분감 극대화 버전)
+ /* ==========================================
+   4. 명단 리스트 렌더링 (타이머 최하단 이동 버전)
    ========================================== */
 function renderHallList() {
     const listArea = document.getElementById('hallListArea');
@@ -3715,21 +3715,6 @@ function renderHallList() {
         
         const targetDate = new Date(targetYear, nextQuarterStartMonth, 1, 0, 0, 0);
 
-        combinedHtml += `
-        <div id="hallLiveTimerContainer" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 6px 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;">
-            <span style="font-size: 11px; color: #475569; font-weight: 700; display: flex; align-items: center; gap: 6px;">
-                ✨️ ${currentQuarter}분기 전설의 시작까지
-            </span>
-            <div style="display: flex; align-items: center; gap: 6px;">
-                <span style="display: flex; position: relative; width: 6px; height: 6px;">
-                    <span id="hallPulseBg" style="animation: hallPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; position: absolute; inline-size: 100%; block-size: 100%; border-radius: 50%; background-color: #10b981; opacity: 0.75;"></span>
-                    <span id="hallPulseDot" style="position: relative; display: inline-flex; border-radius: 50%; width: 6px; height: 6px; background-color: #10b981;"></span>
-                </span>
-                <span id="hallLiveCountdown" style="font-size: 11px; color: #0d9488; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em;">계산 중...</span>
-            </div>
-        </div>
-        <style>@keyframes hallPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .3; transform: scale(1.4); } }</style>`;
-
         const makeLiveCompactRow = (label, name, score, scoreTail, glowClass) => {
             return `
             <div class="hall-rank-item" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #fff; border-radius: 16px; padding: 10px 4px; border: 1px solid #f1f5f9; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
@@ -3798,6 +3783,22 @@ function renderHallList() {
             </div>`;
         }
 
+        // ★ 실시간 남은 시간 타이머 위치를 벙의달인 하단(여기)으로 이동 및 여백 조정
+        combinedHtml += `
+        <div id="hallLiveTimerContainer" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 8px 16px; margin-top: 14px; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;">
+            <span style="font-size: 11px; color: #475569; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+                ✨️ ${currentQuarter}분기 전설의 시작까지
+            </span>
+            <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="display: flex; position: relative; width: 6px; height: 6px;">
+                    <span id="hallPulseBg" style="animation: hallPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; position: absolute; inline-size: 100%; block-size: 100%; border-radius: 50%; background-color: #10b981; opacity: 0.75;"></span>
+                    <span id="hallPulseDot" style="position: relative; display: inline-flex; border-radius: 50%; width: 6px; height: 6px; background-color: #10b981;"></span>
+                </span>
+                <span id="hallLiveCountdown" style="font-size: 11px; color: #0d9488; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em;">계산 중...</span>
+            </div>
+        </div>
+        <style>@keyframes hallPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .3; transform: scale(1.4); } }</style>`;
+
         if (window.hallTimerInterval) clearInterval(window.hallTimerInterval);
         const updateCountdown = () => {
             const timerEl = document.getElementById('hallLiveCountdown');
@@ -3833,7 +3834,7 @@ function renderHallList() {
         window.hallTimerInterval = setInterval(updateCountdown, 1000);
     } 
     // -------------------------------------------------------------
-    // [CASE 2] 개별 시즌 아카이브 탭 클릭 시 (기존 스타일 유지)
+    // [CASE 2] 개별 시즌 아카이브 탭 클릭 시
     // -------------------------------------------------------------
     else {
         let rankLabels = ["🥇산대장", "🥈길잡이", "🥉마당발"];
@@ -3931,8 +3932,7 @@ function renderHallList() {
     
     listArea.innerHTML = combinedHtml;
 }
-      
-    
+                                 
   
                                      
 
