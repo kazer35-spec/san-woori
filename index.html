@@ -3551,8 +3551,7 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 // 타이머 인터벌을 관리할 전역 변수 (중복 실행 방지 및 메모리 누수 차단)
 window.hallTimerInterval = null;
 
-                      
-  window.toggleHallModal = async (show) => {
+   window.toggleHallModal = async (show) => {
     const modal = document.getElementById('hallModal');
     if (!modal) return;
     
@@ -3573,7 +3572,7 @@ window.hallTimerInterval = null;
 };
 
 /* ==========================================
-   3. 탭 UI 구조 생성
+   3. 탭 UI 구조 생성 (4개 탭 한 줄 보장 + 세로 정렬 스타일)
    ========================================== */
 function renderHallModalStructure() {
     const modal = document.getElementById('hallModal');
@@ -3591,21 +3590,40 @@ function renderHallModalStructure() {
         }
     }
 
-    tabWrapper.setAttribute('style', 'margin: 10px auto 14px auto !important; width: 95% !important; padding: 3px !important; box-sizing: border-box; display: flex; gap: 3px; background-color: #f1f5f9; border-radius: 30px;');
+    // 부모 컨테이너에 flex와 너비 100%를 확실히 부여하여 내부 버튼들이 균등 분배되도록 설정
+    tabWrapper.setAttribute('style', 'margin: 10px auto 14px auto !important; width: 95% !important; padding: 4px !important; box-sizing: border-box; display: flex; justify-content: space-between; gap: 4px; background-color: #f1f5f9; border-radius: 30px;');
+
+    // 각 버튼 내부 스타일을 display: flex; flex-direction: column; 으로 지정하여 이모지와 텍스트가 세로 배치되도록 수정
+    const btnStyle = (isActive) => `
+        flex: 1; 
+        min-width: 0;
+        display: flex; 
+        flex-direction: column; 
+        align-items: center; 
+        justify-content: center; 
+        gap: 2px;
+        padding: 6px 0; 
+        font-size: 10px; 
+        font-weight: 700; 
+        line-height: 1.2; 
+        margin: 0; 
+        transition: all 0.3s ease;
+        border-radius: 20px;
+    `;
 
     tabWrapper.innerHTML = `
         <button class="hall-tab-btn ${window.currentHallTab === 'live' ? 'active' : ''}" 
-                style="flex: 1; padding: 7px 0; font-size: 11px; font-weight: 700; line-height: 1.2; margin: 0; transition: all 0.3s ease;" 
-                onclick="switchHallTab('live')">⚡️ 실황정보</button>
+                style="${btnStyle(window.currentHallTab === 'live')}" 
+                onclick="switchHallTab('live')"><span>⚡️</span><span>실황정보</span></button>
         <button class="hall-tab-btn ${window.currentHallTab === 'with' ? 'active' : ''}" 
-                style="flex: 1; padding: 7px 0; font-size: 11px; font-weight: 700; line-height: 1.2; margin: 0; transition: all 0.3s ease;" 
-                onclick="switchHallTab('with')">👑 우정대장</button>
+                style="${btnStyle(window.currentHallTab === 'with')}" 
+                onclick="switchHallTab('with')"><span>👑</span><span>우정대장</span></button>
         <button class="hall-tab-btn ${window.currentHallTab === 'mountain' ? 'active' : ''}" 
-                style="flex: 1; padding: 7px 0; font-size: 11px; font-weight: 700; line-height: 1.2; margin: 0; transition: all 0.3s ease;" 
-                onclick="switchHallTab('mountain')">🎖 등산의신</button>
+                style="${btnStyle(window.currentHallTab === 'mountain')}" 
+                onclick="switchHallTab('mountain')"><span>🎖</span><span>등산의신</span></button>
         <button class="hall-tab-btn ${window.currentHallTab === 'host' ? 'active' : ''}" 
-                style="flex: 1; padding: 7px 0; font-size: 11px; font-weight: 700; line-height: 1.2; margin: 0; transition: all 0.3s ease;" 
-                onclick="switchHallTab('host')">🏅 벙의달인</button>
+                style="${btnStyle(window.currentHallTab === 'host')}" 
+                onclick="switchHallTab('host')"><span>🏅</span><span>벙의달인</span></button>
     `;
 }
 
@@ -3693,7 +3711,7 @@ function renderHallList() {
         
         const targetDate = new Date(targetYear, nextQuarterStartMonth, 1, 0, 0, 0);
 
-        // ★ [원래 위치 복구 + 세로 간격 축소] padding과 margin-bottom을 줄여 콤팩트하게 배치
+        // 상단 원복 + 슬림화 유지
         combinedHtml += `
         <div id="hallLiveTimerContainer" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 6px 16px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;">
             <span style="font-size: 11px; color: #475569; font-weight: 700; display: flex; align-items: center; gap: 6px;">
@@ -3901,8 +3919,9 @@ function renderHallList() {
     
     listArea.innerHTML = combinedHtml;
 }
-          
-          
+                   
+  
+                                     
 
             
     
