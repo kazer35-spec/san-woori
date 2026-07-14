@@ -3641,8 +3641,9 @@ window.switchHallTab = (tabType) => {
 };
 
 
- /* ==========================================
-   4. 명단 리스트 렌더링 (세로 크기 축소 버전)
+                        
+    /* ==========================================
+   4. 명단 리스트 렌더링 (타이머 최상단 복구 버전)
    ========================================== */
 function renderHallList() {
     const listArea = document.getElementById('hallListArea');
@@ -3715,7 +3716,6 @@ function renderHallList() {
         
         const targetDate = new Date(targetYear, nextQuarterStartMonth, 1, 0, 0, 0);
 
-        // 랭킹 아이템 세로 패딩 축소 (10px -> 6px)
         const makeLiveCompactRow = (label, name, score, scoreTail, glowClass) => {
             return `
             <div class="hall-rank-item" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #fff; border-radius: 14px; padding: 6px 4px; border: 1px solid #f1f5f9; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
@@ -3727,7 +3727,23 @@ function renderHallList() {
             </div>`;
         };
 
-        // 1-1. 실황 - 우정대장 카드 (세로 패딩 14px -> 10px, 타이틀 마진 12px -> 8px)
+        // ★ 실시간 남은 시간 타이머 위치를 최상단(우정대장 위)으로 이동 및 여백 조정
+        combinedHtml += `
+        <div id="hallLiveTimerContainer" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 5px 12px; margin-top: 0px !important; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;">
+            <span style="font-size: 10.5px; color: #475569; font-weight: 700; display: flex; align-items: center; gap: 5px;">
+                ✨️ ${currentQuarter}분기 전설의 시작까지
+            </span>
+            <div style="display: flex; align-items: center; gap: 5px;">
+                <span style="display: flex; position: relative; width: 5px; height: 5px;">
+                    <span id="hallPulseBg" style="animation: hallPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; position: absolute; inline-size: 100%; block-size: 100%; border-radius: 50%; background-color: #10b981; opacity: 0.75;"></span>
+                    <span id="hallPulseDot" style="position: relative; display: inline-flex; border-radius: 50%; width: 5px; height: 5px; background-color: #10b981;"></span>
+                </span>
+                <span id="hallLiveCountdown" style="font-size: 10.5px; color: #0d9488; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em;">계산 중...</span>
+            </div>
+        </div>
+        <style>@keyframes hallPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .3; transform: scale(1.4); } }</style>`;
+
+        // 1-1. 실황 - 우정대장 카드 (타이머 아랫부분 margin-top 조정 반영)
         if (liveWith.length > 0) {
             combinedHtml += `
             <div class="hall-card" style="margin-top: 0px !important; padding: 10px 10px !important; border-radius: 18px; border: 1px solid #ffedd5; background: linear-gradient(180deg, #fffbee 0%, #fff 100%); box-shadow: 0 3px 5px -1px rgba(251, 146, 60, 0.04);">
@@ -3746,7 +3762,7 @@ function renderHallList() {
             </div>`;
         }
 
-        // 1-2. 실황 - 등산의신 카드 (카드 간 간격 14px -> 10px로 축소)
+        // 1-2. 실황 - 등산의신 카드
         if (liveMountain.length > 0) {
             combinedHtml += `
             <div class="hall-card" style="margin-top: 10px !important; padding: 10px 10px !important; border-radius: 18px; border: 1px solid #ccfbf1; background: linear-gradient(180deg, #f0fdfa 0%, #fff 100%); box-shadow: 0 3px 5px -1px rgba(26, 188, 156, 0.04);">
@@ -3765,7 +3781,7 @@ function renderHallList() {
             </div>`;
         }
 
-        // 1-3. 실황 - 벙의달인 카드 (카드 간 간격 14px -> 10px로 축소)
+        // 1-3. 실황 - 벙의달인 카드
         if (liveHost.length > 0) {
             combinedHtml += `
             <div class="hall-card" style="margin-top: 10px !important; padding: 10px 10px !important; border-radius: 18px; border: 1px solid #e0f2fe; background: linear-gradient(180deg, #f0f9ff 0%, #fff 100%); box-shadow: 0 3px 5px -1px rgba(0, 191, 255, 0.04);">
@@ -3783,22 +3799,6 @@ function renderHallList() {
                 </div>
             </div>`;
         }
-
-        // 타이머 간격 컴팩트화 (padding 8px -> 5px, 상단 마진 14px -> 10px)
-        combinedHtml += `
-        <div id="hallLiveTimerContainer" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 5px 12px; margin-top: 10px; margin-bottom: 2px; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;">
-            <span style="font-size: 10.5px; color: #475569; font-weight: 700; display: flex; align-items: center; gap: 5px;">
-                ✨️ ${currentQuarter}분기 전설의 시작까지
-            </span>
-            <div style="display: flex; align-items: center; gap: 5px;">
-                <span style="display: flex; position: relative; width: 5px; height: 5px;">
-                    <span id="hallPulseBg" style="animation: hallPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; position: absolute; inline-size: 100%; block-size: 100%; border-radius: 50%; background-color: #10b981; opacity: 0.75;"></span>
-                    <span id="hallPulseDot" style="position: relative; display: inline-flex; border-radius: 50%; width: 5px; height: 5px; background-color: #10b981;"></span>
-                </span>
-                <span id="hallLiveCountdown" style="font-size: 10.5px; color: #0d9488; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em;">계산 중...</span>
-            </div>
-        </div>
-        <style>@keyframes hallPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .3; transform: scale(1.4); } }</style>`;
 
         if (window.hallTimerInterval) clearInterval(window.hallTimerInterval);
         const updateCountdown = () => {
@@ -3933,10 +3933,7 @@ function renderHallList() {
     
     listArea.innerHTML = combinedHtml;
 }
-                   
-            
-            
-                                 
+                             
   
                                      
 
