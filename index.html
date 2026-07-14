@@ -4804,7 +4804,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// 2. 기록 저장 핵심 로직
+// 2. 기록 저장 핵심 로직    
 window.addMultiActivity = async () => {
     const dateInput = document.getElementById('activityDate');
     if (!dateInput) return alert("날짜 입력창을 찾을 수 없습니다.");
@@ -4904,7 +4904,7 @@ window.addMultiActivity = async () => {
 
             // ─── 🅰️ 오직 '정식 순수산행'일 때만 count 상승 ───
             if (isRealHike && !isExtraHike) {
-                updateData.count = _increment(1); // ✨ 번외산행 시 누적 방지 완료
+                updateData.count = _increment(1); 
                 updateData.lastDate = ts; 
 
                 const logLoopCount = (isRegular || isQuarterOnlyOne || isOnlyLog) ? 1 : realUpAmount;
@@ -4942,6 +4942,11 @@ window.addMultiActivity = async () => {
                     const nextDdayVal = Math.min(122, currentDdayVal + 15);
                     updateData.bonusDays = nextDdayVal - 122;
                 }
+            }
+
+            // ⚡ [벙주 체크박스 기능 추가] 만약 해당 회원이 우측 체크박스(벙주)에 체크되어 있다면 데이터 분기 누적
+            if (window.selectedHostIds && window.selectedHostIds.includes(id)) {
+                updateData[`quarterlyStats.${qKey}.hosted`] = _increment(1);
             }
 
             if (Object.keys(updateData).length > 0) {
@@ -4984,6 +4989,11 @@ window.addMultiActivity = async () => {
         alert((isRealHike && !isExtraHike) ? "순수산행 기록 완료! ✅" : (isExtraHike ? "번외산행 기록 완료! 🌲" : "일반 활동(러닝/트레킹/산책) 기록 완료! 🏃"));
         
         selectedMemberIds.clear();
+        
+        // ⚡ [벙주 체크박스 기능 추가] 완료 후 전역 배열 및 UI 체크박스 전부 초기화
+        window.selectedHostIds = [];
+        document.querySelectorAll('.host-checkbox').forEach(cb => cb.checked = false);
+
         tempCoord = null; 
         const kstDate = new Date(new Date().getTime() + (9 * 60 * 60 * 1000));
         if (typeof dateInput !== 'undefined' && dateInput) {
@@ -4996,11 +5006,7 @@ window.addMultiActivity = async () => {
         alert("저장 실패: " + error.message);
     }
 };
-
-             
-
-  
-  
+                        
                 
  
 window.loadMemberLogs = async () => {
@@ -5304,6 +5310,11 @@ window.updateManualLevel = async () => {
 };
 
 // 🔥 [신규 추가] 분기별 분기 횟수(qCount) 임의 수정 기능
+
+    const grid = document.getElementById('levelGuideGrid'); 
+    // ==========================================================================
+// 🛠️ [기존 유지] 수동 분기 횟수 수정 함수
+// ==========================================================================
 window.updateManualQCount = async () => {
     // memberSelectEdit에서 선택된 회원 ID 가져오기
     const id = document.getElementById('memberSelectEdit').value; 
@@ -5326,7 +5337,9 @@ window.updateManualQCount = async () => {
     }
 };
 
-// 초기 실행 로직 정리
+// ==========================================================================
+// 🚀 [기존 유지] 초기 실행 로직 및 실시간 리스너 작동 세션
+// ==========================================================================
 if (!sessionStorage.getItem('visited')) { 
     if (typeof updateVisitorCount === 'function') updateVisitorCount(); 
     sessionStorage.setItem('visited', 'true'); 
@@ -5338,35 +5351,100 @@ startRealtimeSync();
 listenSubRooms();
 
 setTimeout(() => {
-    updateVibeTemp();
+    if (typeof updateVibeTemp === 'function') updateVibeTemp();
 }, 2000);
 
 if (document.getElementById('regDate')) document.getElementById('regDate').valueAsDate = new Date();
 if (document.getElementById('activityDate')) document.getElementById('activityDate').valueAsDate = new Date();
 
+// ==========================================================================
+// ⚡ [1] 회원 선택 토글 및 벙주 체크박스 제어 전역 함수
+// ==========================================================================
+if (typeof window.selectedHostIds === 'undefined') {
+    window.selectedHostIds = [];
+}
+
+// 🅰️ 왼쪽 영역: 등산 기록 대상 토글 (새로운 Row UI 테두리 컬러 스타일 반영)
 window.toggleSelectMember = (id, el) => {
-    if(selectedMemberIds.has(id)){ selectedMemberIds.delete(id); el.classList.remove('selected'); }
-    else { selectedMemberIds.add(id); el.classList.add('selected'); }
+    if (typeof selectedMemberIds === 'undefined') return;
+    
+    // 이벤트를 발생시킨 div가 .admin-member-row가 아닐 경우를 대비해 보정
+    const rowEl = el.closest('.admin-member-row') || el;
+
+    if (selectedMemberIds.has(id)) { 
+        selectedMemberIds.delete(id); 
+        rowEl.classList.remove('border-emerald-400', 'bg-emerald-50/20'); 
+        rowEl.classList.add('border-gray-100');
+    } else { 
+        selectedMemberIds.add(id); 
+        rowEl.classList.remove('border-gray-100');
+        rowEl.classList.add('border-emerald-400', 'bg-emerald-50/20'); 
+    }
 };
 
+// 🅱️ 오른쪽 영역: 벙주(일정 개설자) 추적용 체크박스 이벤트 핸들러
+window.handleHostCheck = (checkbox, memberId) => {
+    if (checkbox.checked) {
+        if (!window.selectedHostIds.includes(memberId)) {
+            window.selectedHostIds.push(memberId);
+        }
+    } else {
+        window.selectedHostIds = window.selectedHostIds.filter(id => id !== memberId);
+    }
+    console.log("현재 선택된 벙주 ID 목록:", window.selectedHostIds);
+};
+
+// ==========================================================================
+// 🔄 [2] 관리자 화면 멤버 리스트 UI 렌더링 함수 (가로 분할 Row 그리드)
+// ==========================================================================
 function updateAdminMemberLists() {
     const alpha = [...currentData].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
     const multi = document.getElementById('multiMemberList');
     const edit = document.getElementById('memberSelectEdit');
     const manage = document.getElementById('memberSelectManage');
-    if(!multi) return; multi.innerHTML = ""; edit.innerHTML = manage.innerHTML = '<option value="">대상 회원 선택</option>';
+    
+    if(!multi) return; 
+    multi.innerHTML = ""; 
+    edit.innerHTML = manage.innerHTML = '<option value="">대상 회원 선택</option>';
+    
+    // 유연한 가로 정렬 한 줄 세로 축적 디자인 레이아웃 선언
+    multi.className = "flex flex-col gap-1 max-h-48 overflow-y-auto mb-3 p-1";
+
     alpha.forEach(m => {
-        multi.innerHTML += `<div class="member-chip ${selectedMemberIds.has(m.id)?'selected':''} ${m.isHidden?'opacity-50':''}" onclick="toggleSelectMember('${m.id}', this)"><span class="gender-dot ${m.gender==='여'?'dot-pink':'dot-blue'}">●</span>${m.name}</div> `;
+        const isSelected = typeof selectedMemberIds !== 'undefined' && selectedMemberIds.has(m.id);
+
+        // 한 행 구조 생성 (좌: 기존 기록 클릭 매핑 / 우: 버블링 차단된 벙주 래퍼)
+        multi.innerHTML += `
+        <div class="admin-member-row flex items-center justify-between p-1.5 border rounded-xl bg-white text-xs shadow-sm w-full transition-all ${isSelected ? 'border-emerald-400 bg-emerald-50/20' : 'border-gray-100'} ${m.isHidden ? 'opacity-50' : ''}">
+            
+            <!-- 🅰️ 좌측 터치 영역: 등산 대상 기록 토글 -->
+            <div onclick="window.toggleSelectMember('${m.id}', this)" class="flex-1 flex items-center gap-1.5 cursor-pointer py-1 select-none">
+                <span class="gender-dot ${m.gender === '여' ? 'dot-pink' : 'dot-blue'}">●</span>
+                <span class="font-bold text-gray-700">${m.name}</span>
+            </div>
+            
+            <!-- 🅱️ 우측 터치 영역: 벙 올린 사람 체크박스 (부모 클릭 간섭 전파 전면 차단) -->
+            <label class="flex items-center justify-center p-1 cursor-pointer hover:bg-gray-100 rounded shrink-0" onclick="event.stopPropagation()">
+                <input type="checkbox" 
+                       class="host-checkbox w-3.5 h-3.5 accent-red-500 cursor-pointer" 
+                       ${window.selectedHostIds.includes(m.id) ? 'checked' : ''}
+                       onchange="window.handleHostCheck(this, '${m.id}')">
+            </label>
+        </div>`;
+        
         edit.innerHTML += `<option value="${m.id}">${m.name} </option> `;
         manage.innerHTML += `<option value="${m.id}">${m.name} (${m.buddyCount || 0}회)</option> `;
     });
+    
     const visibleMembers = currentData.filter(m => !m.isHidden);
     document.getElementById('countTotal').innerText = visibleMembers.length;
     document.getElementById('countMale').innerText = visibleMembers.filter(m => m.gender === '남').length;
     document.getElementById('countFemale').innerText = visibleMembers.filter(m => m.gender === '여').length;
 }
 
-        
+// ==========================================================================
+// ✨ [기존 유지] 레벨 가이드 모달 제어 함수
+// ==========================================================================
 window.toggleModal = (show) => {
   document.getElementById('levelModal').style.display = show ? 'flex' : 'none';
   if(show) {
@@ -5387,14 +5465,18 @@ window.toggleModal = (show) => {
   }
 };
 
+// ==========================================================================
+// 🔍 [수정] 회원 이름 검색 필터 함수 (새로운 가로 정렬 Row 구조 전용 flex 대응)
+// ==========================================================================
+if (typeof status !== 'undefined' && status) status.innerText = "EXPLOSIVE PASSION";
 
-if (status) status.innerText = "EXPLOSIVE PASSION";
 window.filterAdminMemberList = () => {
   const q = document.getElementById('adminSearchInput').value.toLowerCase();
-  document.querySelectorAll('.member-chip').forEach(c => { 
-    c.style.display = c.innerText.toLowerCase().includes(q) ? "block" : "none"; 
+  document.querySelectorAll('.admin-member-row').forEach(c => { 
+    c.style.setProperty('display', c.innerText.toLowerCase().includes(q) ? 'flex' : 'none', 'important'); 
   });
 };
+
 
 // [내부 전용] 지정된 정산 타임 목록 (시 0~23 기준)
 const TARGET_HOURS = [0, 9, 12, 15, 18, 21];
