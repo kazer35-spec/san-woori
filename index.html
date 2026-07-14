@@ -13,6 +13,26 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+        /* 번외산행 단계별 색상 (기본 민트: #00CED1) */
+.grass-extra-active-1 { background-color: #E0FFFF !important; } /* 매우 연한 민트 */
+.grass-extra-active-2 { background-color: #48D1CC !important; } /* 중간 민트 */
+.grass-extra-active-3 { background-color: #00CED1 !important; } /* 원본 진한 민트 */
+
+/* 트레킹 단계별 색상 (기본 보라: #E0B0FF) */
+.grass-trek-active-1 { background-color: #F8F0FF !important; } /* 매우 연한 보라 */
+.grass-trek-active-2 { background-color: #EEAFFF !important; } /* 중간 보라 */
+.grass-trek-active-3 { background-color: #D686FF !important; } /* 진한 보라 */
+
+/* 산책 단계별 색상 (기본 주황: #FFCC80) */
+.grass-walk-active-1 { background-color: #FFF3E0 !important; } /* 매우 연한 주황 */
+.grass-walk-active-2 { background-color: #FFE0B2 !important; } /* 중간 주황 */
+.grass-walk-active-3 { background-color: #FFB74D !important; } /* 진한 주황 */
+
+/* 런닝 단계별 색상 (기본 분홍: #FFD1DC) */
+.grass-run-active-1 { background-color: #FFF0F2 !important; } /* 매우 연한 분홍 */
+.grass-run-active-2 { background-color: #FFC0CB !important; } /* 중간 분홍 */
+.grass-run-active-3 { background-color: #FF9AA2 !important; } /* 진한 분홍 */
+
         /* ================= 🔮 4번: TOTAL 카운터 영역 초신성 폭발 ================= */
 .supernova-blast {
     position: absolute;
@@ -4082,7 +4102,7 @@ if (hasRun) activeColors.push(colors.run);
 
 // 3. 스타일 결정 로직 (통합 버전)
 if (activeColors.length >= 2) {
-    // [Case 1] 활동이 2개 이상이면 무조건 그라데이션
+    // [Case 1] 활동이 2개 이상이면 기존대로 그라데이션 표현
     if (activeColors.length === 2) {
         style = `background: linear-gradient(135deg, ${activeColors[0]} 50%, ${activeColors[1]} 50%);`;
     } else {
@@ -4091,39 +4111,27 @@ if (activeColors.length >= 2) {
     }
 } 
 else if (activeColors.length === 1) {
-    // [Case 2] 활동이 단 하나일 때
+    // [Case 2] 활동이 단 하나일 때 -> 횟수에 따른 3단계(산행은 4단계) 클래스 분기
     if (hasHike) {
-        // 오직 산행만 한 경우 -> 산행 횟수에 따른 단계별 클래스 적용
-        const level = Math.min(act.hike, 4);
+        const level = Math.min(act.hike, 4); // 산행은 기존 유지 (최대 4단계)
         cl += ` grass-active-${level}`;
-    } else {
-        // 그 외 단일 활동(런닝 등) -> 해당 활동의 고유 단색 적용
-        style = `background: ${activeColors[0]};`;
+    } else if (hasExtraHike) {
+        const level = Math.min(act.extraHike, 3); // 번외산행 (최대 3단계)
+        cl += ` grass-extra-active-${level}`;
+    } else if (hasTrek) {
+        const level = Math.min(act.trek, 3);      // 트레킹 (최대 3단계)
+        cl += ` grass-trek-active-${level}`;
+    } else if (hasWalk) {
+        const level = Math.min(act.walk, 3);      // 산책 (최대 3단계)
+        cl += ` grass-walk-active-${level}`;
+    } else if (hasRun) {
+        const level = Math.min(act.run, 3);       // 런닝 (최대 3단계)
+        cl += ` grass-run-active-${level}`;
     }
 }
 
+// ⚠️ [주의] 아래에 남아있던 중복된 `else if (hasExtraHike) ...` 구문(기존 Case 2~6)은 완전히 지워주셔야 코드가 꼬이지 않습니다.
 
-    else if (hasExtraHike) { 
-        // [Case 2] 번외산행만 한 경우 (민트색)
-        style = "background: #00CED1;"; 
-    }
-    else if (hasWalk) { 
-        // [Case 3] 산책만 한 경우 (주황색)
-        style = "background: #FFB347;"; 
-    } 
-    else if (hasRun) { 
-        // [Case 4] 런닝만 한 경우 (분홍색)
-        style = "background: #FFD1DC;"; 
-    } 
-    else if (hasTrek) { 
-        // [Case 5] 트레킹만 한 경우 (보라색)
-        style = "background: #E0B0FF;"; 
-    } 
-    else if (hasHike) {
-        // [Case 6] 순수 산행만 한 경우 (기본 초록색 레벨)
-        const level = Math.min(act.hike, 4);
-        cl += ` grass-active-${level}`;
-    }
 
 
             // HOT 멤버라면 30% 확률로 계절 꽃 추가 (정기산행이 아닐 때만)
