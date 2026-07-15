@@ -2247,6 +2247,14 @@ overflow: hidden;
 0% { transform: translateY(0) scale(1); opacity: 1; }
 100% { transform: translateY(-30px) scale(0.5); opacity: 0; }
 }
+
+  <link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#38bdf8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="운동일지">
+<link rel="apple-touch-icon" href="./icon-192.png">
+      
 </style>
 </head>
 <body>
@@ -6853,6 +6861,37 @@ document.addEventListener('touchstart', (e) => {
         popup.style.display = 'none';
     }
 }, { passive: true });
+
+        <script>
+  // 1. 서비스 워커 등록
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./service-worker.js')
+        .then(reg => console.log('서비스 워커 등록 성공!', reg))
+        .catch(err => console.error('서비스 워커 등록 실패:', err));
+    });
+  }
+
+  // 2. 브라우저 기본 설치 팝업 제어
+  let deferredPrompt;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    
+    // 페이지 로드 3초 후 사용자에게 설치 권장 팝업창 띄우기
+    setTimeout(() => {
+      if (confirm("📱 '산우리 운동 일지'를 어플로 다운로드하여 홈 화면에서 편하게 이용하시겠습니까?")) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then((choiceResult) => {
+          if (choiceResult.outcome === 'accepted') {
+            console.log('사용자가 앱 설치를 수락했습니다.');
+          }
+          deferredPrompt = null;
+        });
+      }
+    }, 3000);
+  });
+
 
 
 </script>
