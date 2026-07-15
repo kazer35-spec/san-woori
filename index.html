@@ -4219,7 +4219,7 @@ function setupTimelineTabs() {
         <div class="flex border-b border-gray-100 mb-4 text-xs font-bold text-gray-400 sticky top-0 bg-white z-10 py-2">
             <button onclick="window.filterMemberLogs('all')" id="mTab-all" class="flex-1 pb-2 border-b-2 border-sky-500 text-sky-600 transition-all text-center">전체</button>
             <button onclick="window.filterMemberLogs('hiking')" id="mTab-hiking" class="flex-1 pb-2 border-b-2 border-transparent hover:text-gray-600 transition-all text-center">산행/번외</button>
-            <button onclick="window.filterMemberLogs('running')" id="mTab-running" class="flex-1 pb-2 border-b-2 border-transparent hover:text-gray-600 transition-all text-center">러닝/트레킹/산책</button>
+            <button onclick="window.filterMemberLogs('running')" id="mTab-running" class="flex-1 pb-2 border-b-2 border-transparent hover:text-gray-600 transition-all text-center">런닝/트레킹</button>
         </div>
         <div id="filteredTimelineList"></div>
     `;
@@ -4250,20 +4250,19 @@ window.filterMemberLogs = (category) => {
         }
     });
 
-    // 2. 카테고리 필터 기준 정의 (🔥 수정된 핵심 포인트)
+    // 2. 카테고리 필터 기준 정의
     let filtered = [];
     if (category === 'all') {
         filtered = currentMemberLogs;
     } else if (category === 'hiking') {
         // [산행/번외산행]
-        // 1. 순수 산행 (러닝, 트레킹, 산책이 모두 거짓인 경우)
-        // 2. 또는 번외산행 플래그가 참인 경우 (isExtraHike === true)
+        // 순수 산행(러닝, 트레킹, 산책이 모두 거짓)이거나 또는 번외산행 플래그(isExtraHike)가 참인 경우
         filtered = currentMemberLogs.filter(log => 
             (!log.isRunning && !log.isTracking && !log.isWalking) || log.isExtraHike
         );
     } else if (category === 'running') {
-        // [런닝/트레킹]
-        // 번외산행(isExtraHike)은 확실히 제외하고, 순수 러닝/트레킹/산책 플래그가 있는 것만 필터링
+        // [러닝/트레킹/산책]
+        // 번외산행(isExtraHike)은 확실히 제외하고, 순수 러닝/트레킹/산책 플래그가 있는 것만
         filtered = currentMemberLogs.filter(log => 
             !log.isExtraHike && (log.isRunning || log.isTracking || log.isWalking)
         );
@@ -4284,12 +4283,14 @@ window.filterMemberLogs = (category) => {
         const bacTag = log.isBAC ? '<span class="bac-txt">BAC</span>' : '';
         
         const heightVal = log.height || 0;
-        // ⭐️ 번외산행일 때 단위가 'km'로 잘못 나오는 것을 방지하기 위해 조건 보강
+        
+        // 🎯 [단위 조건 수정] 번외산행(isExtraHike)은 무조건 'm' 단위를 쓰도록 처리
         const isKmActivity = (log.isRunning || log.isTracking || log.isWalking) && !log.isExtraHike;
         const unit = (isKmActivity && heightVal < 50) ? 'km' : 'm';
         
-        // 표시할 활동명 결정 (번외산행이면 '번외 산행' 출력)
-        const displayMountain = log.isExtraHike ? "번외 산행" : (log.mountain || '기록');
+        // 🎯 [명칭 노출 핵심 수정] 강제 변환을 없애고 저장된 산 이름(log.mountain)이 있으면 그대로 보여줍니다.
+        // 만약 비어있다면 가상으로 '기록' 또는 활동 유형을 보여주는 안전장치(Fallback)만 유지합니다.
+        const displayMountain = log.mountain || (log.isExtraHike ? "번외 산행" : "기록");
         
         return `
             <div class="timeline-item">
@@ -4301,7 +4302,6 @@ window.filterMemberLogs = (category) => {
             </div>`;
     }).join('');
 };
-
 
         
 
