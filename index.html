@@ -4561,40 +4561,61 @@ else { main.classList.add('hidden-view'); stats.classList.remove('hidden-view');
 };
 
 window.showMemberMap = async (mId, mName) => {
-toggleMapModal(true);
-document.getElementById('mapModalContent').scrollTop = 0;
-document.getElementById('mapViewMain').classList.remove('hidden-view');
-document.getElementById('mapViewStats').classList.add('hidden-view');
-document.getElementById('mapMemberName').innerText = mName;
-const pointsBoard = document.getElementById('conquerMapPoints');
-const regionBoard = document.getElementById('conquerRegionGrid');
-pointsBoard.innerHTML = regionBoard.innerHTML = "";
+window.showMemberMap = async (mId, mName) => {
+    toggleMapModal(true);
+    document.getElementById('mapModalContent').scrollTop = 0;
+    document.getElementById('mapViewMain').classList.remove('hidden-view');
+    document.getElementById('mapViewStats').classList.add('hidden-view');
+    document.getElementById('mapMemberName').innerText = mName;
+    const pointsBoard = document.getElementById('conquerMapPoints');
+    const regionBoard = document.getElementById('conquerRegionGrid');
+    pointsBoard.innerHTML = regionBoard.innerHTML = "";
 
-const snapAll = await getDocs(collection(db, `sanwoori/${mId}/logs`));
-let totalH = 0; let mapHtml = ""; let regionCounts = {}; let validLogsCount = 0;
+    const snapAll = await getDocs(collection(db, `sanwoori/${mId}/logs`));
+    let totalH = 0; let mapHtml = ""; let regionCounts = {}; let validLogsCount = 0;
 
-snapAll.forEach(doc => {
-const log = doc.data(); totalH += (log.height || 0);
-if(log.coords) {
-validLogsCount++; mapHtml += `<div class="map-point ${log.isTop100 ? 'top-100' : ''}" style="left:${log.coords.x}%; top:${log.coords.y}%;"></div>`;
-const rName = log.region || getRegionFromCoord(log.coords); regionCounts[rName] = (regionCounts[rName] || 0) + 1;
-}
-});
-document.getElementById('mapTotalHeight').innerText = totalH.toLocaleString();
-pointsBoard.innerHTML = mapHtml;
-const sortedRegions = Object.entries(regionCounts).sort((a,b) => b[1] - a[1]);
-if(sortedRegions.length === 0) regionBoard.innerHTML = "<p class='text-center text-[10px] py-10 text-slate-400'>좌표 기록 없음</p>";
-else regionBoard.innerHTML = sortedRegions.map(([name, count]) => {
-const percent = ((count / validLogsCount) * 100).toFixed(1);
-return `<div class="conquer-item-dark"><div class="flex justify-between items-center"><span class="conquer-region-name-dark">${name} <span class="opacity-40 ml-1 text-[8px]">${count}회</span></span><span class="conquer-region-percent-dark">${percent}%</span></div>
+    snapAll.forEach(doc => {
+        const log = doc.data(); totalH += (log.height || 0);
+        if(log.coords) {
+            validLogsCount++; mapHtml += `<div class="map-point ${log.isTop100 ? 'top-100' : ''}" style="left:${log.coords.x}%; top:${log.coords.y}%;"></div>`;
+            const rName = log.region || getRegionFromCoord(log.coords); regionCounts[rName] = (regionCounts[rName] || 0) + 1;
+        }
+    });
+
+    // =========================================================
+    // 🏔️ [정복지도 메인] 개인 누적 고도 km 축약 표시 적용
+    // =========================================================
+    const displayTotalH = totalH >= 1000 
+        ? (totalH / 1000).toFixed(1) + 'km' 
+        : totalH.toLocaleString() + 'm';
+    
+    document.getElementById('mapTotalHeight').innerText = displayTotalH;
+    // =========================================================
+
+    pointsBoard.innerHTML = mapHtml;
+    const sortedRegions = Object.entries(regionCounts).sort((a,b) => b[1] - a[1]);
+    if(sortedRegions.length === 0) regionBoard.innerHTML = "<p class='text-center text-[10px] py-10 text-slate-400'>좌표 기록 없음</p>";
+    else regionBoard.innerHTML = sortedRegions.map(([name, count]) => {
+        const percent = ((count / validLogsCount) * 100).toFixed(1);
+        return `<div class="conquer-item-dark"><div class="flex justify-between items-center"><span class="conquer-region-name-dark">${name} <span class="opacity-40 ml-1 text-[8px]">${count}회</span></span><span class="conquer-region-percent-dark">${percent}%</span></div>
 <div class="conquer-bar-bg-dark"><div class="conquer-bar-fill-dark" style="width:${percent}%"></div></div></div>`;
-}).join('');
+    }).join('');
 
-const globalTotalH = currentData.reduce((acc, m) => acc + (m.totalHeight || 0), 0);
-document.getElementById('mapGlobalTotalHeight').innerText = globalTotalH.toLocaleString();
-const conquestCount = (globalTotalH / 8848).toFixed(1);
-document.getElementById('everestCount').innerText = conquestCount;
-document.getElementById('everestProgressBar').style.width = `${(conquestCount % 1) * 100}%`;
+    const globalTotalH = currentData.reduce((acc, m) => acc + (m.totalHeight || 0), 0);
+
+    // =========================================================
+    // 🌍 [정복지도 산맥창] 클럽 전체 누적 고도 km 축약 표시 적용
+    // =========================================================
+    const displayGlobalTotalH = globalTotalH >= 1000 
+        ? (globalTotalH / 1000).toFixed(1) + 'km' 
+        : globalTotalH.toLocaleString() + 'm';
+
+    document.getElementById('mapGlobalTotalHeight').innerText = displayGlobalTotalH;
+    // =========================================================
+
+    const conquestCount = (globalTotalH / 8848).toFixed(1);
+    document.getElementById('everestCount').innerText = conquestCount;
+    document.getElementById('everestProgressBar').style.width = `${(conquestCount % 1) * 100}%`;
 };
 
 window.toggleTimelineModal = (show) => { document.getElementById('timelineModal').style.display = show ? 'flex' : 'none'; };
