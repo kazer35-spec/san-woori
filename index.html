@@ -3551,10 +3551,8 @@ ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
 // 타이머 인터벌을 관리할 전역 변수 (중복 실행 방지 및 메모리 누수 차단)
 window.hallTimerInterval = null;
 
-                               
-
 /* ==========================================
-   1. 모달 열기/닫기 (닫기 버튼 및 전체 레이아웃 고정 통합)
+   1. 모달 열기/닫기 (레이아웃 제한 및 닫기 버튼 하단 강제 고정)
    ========================================== */
 window.toggleHallModal = async (show) => {
     const modal = document.getElementById('hallModal');
@@ -3563,18 +3561,16 @@ window.toggleHallModal = async (show) => {
     modal.style.display = show ? 'flex' : 'none';
     
     if (show) {
-        // [레이아웃 고정] 모달 본체(컨테이너)가 화면 밖으로 탈출하지 않도록 고정
+        // [1] 모달 본체 레이아웃 강제 교정 (화면 높이를 초과하지 않도록 함)
         const modalContent = modal.querySelector('.modal-content') || modal.firstElementChild;
         if (modalContent) {
-            modalContent.setAttribute('style', `
-                display: flex !important;
-                flex-direction: column !important;
-                max-height: 80vh !important; /* 모달 최대 높이를 화면의 80%로 제한 */
-                overflow: hidden !important;   /* 모달 자체의 스크롤은 차단 */
-                padding-bottom: 0px !important; /* 하단 패딩 제거해 닫기 버튼이 바닥에 딱 붙게 설정 */
-                box-sizing: border-box !important;
-                position: relative !important;
-            `);
+            modalContent.style.setProperty('display', 'flex', 'important');
+            modalContent.style.setProperty('flex-direction', 'column', 'important');
+            modalContent.style.setProperty('max-height', '80vh', 'important'); /* 화면의 80% 크기로 딱 맞춤 */
+            modalContent.style.setProperty('height', 'auto', 'important');
+            modalContent.style.setProperty('overflow', 'hidden', 'important'); /* 내부 스크롤 외의 탈출 차단 */
+            modalContent.style.setProperty('position', 'relative', 'important');
+            modalContent.style.setProperty('padding-bottom', '60px', 'important'); /* 하단 고정 닫기 버튼 공간 확보 */
         }
 
         if (!window.currentHallTab) {
@@ -3583,20 +3579,18 @@ window.toggleHallModal = async (show) => {
         renderHallModalStructure();
         renderHallList();
 
-        // [닫기 버튼 고정] 모달 최하단의 닫기 버튼을 아래에 완전히 고정
+        // [2] 닫기 버튼 레이아웃 강제 교정 (모달 우측 하단 절대 배치로 부동의 고정)
         const closeBtn = modal.querySelector('button[onclick*="toggleHallModal"]') || 
                          modal.querySelector('.modal-footer') || 
                          modal.querySelector('button:last-of-type');
         if (closeBtn) {
-            closeBtn.setAttribute('style', `
-                margin-top: auto !important;
-                position: sticky !important;
-                bottom: 0 !important;
-                background-color: #ffffff !important;
-                z-index: 50 !important;
-                width: 100% !important;
-                box-sizing: border-box !important;
-            `);
+            closeBtn.style.setProperty('position', 'absolute', 'important');
+            closeBtn.style.setProperty('bottom', '10px', 'important');
+            closeBtn.style.setProperty('left', '5%', 'important');
+            closeBtn.style.setProperty('width', '90%', 'important');
+            closeBtn.style.setProperty('margin', '0 auto', 'important');
+            closeBtn.style.setProperty('background-color', '#f1f5f9', 'important'); /* 뒤쪽 스크롤 내용이 안 비치도록 채움 */
+            closeBtn.style.setProperty('z-index', '9999', 'important');
         }
 
     } else {
@@ -3676,21 +3670,20 @@ window.switchHallTab = (tabType) => {
 };
 
 /* ==========================================
-   3. 명단 리스트 렌더링 (리스트 한정 스크롤 지정 완료)
+   3. 명단 리스트 렌더링 (리스트 한정 고정 높이 및 내부 스크롤 적용)
    ========================================== */
 function renderHallList() {
     const listArea = document.getElementById('hallListArea');
     if (!listArea) return;
     
-    // [스크롤 고정 핵심] 이 영역 내부에서만 스크롤이 발생하도록 제한된 높이 적용
-    listArea.setAttribute('style', `
-        padding-top: 0px !important; 
-        margin-top: 0px !important; 
-        max-height: 380px !important; /* 모달 내부에서 알맞게 굴러가도록 세로폭 조정 */
-        overflow-y: auto !important; 
-        width: 100%; 
-        box-sizing: border-box;
-    `);
+    // 모바일 브라우저 화면 안에서 명단 리스트만 스크롤되도록 고정 높이(Max-height) 강제 설정
+    listArea.style.setProperty('padding-top', '0px', 'important');
+    listArea.style.setProperty('margin-top', '0px', 'important');
+    listArea.style.setProperty('max-height', 'calc(80vh - 190px)', 'important'); /* 헤더와 탭 영역 크기를 뺀 가변 높이 */
+    listArea.style.setProperty('overflow-y', 'auto', 'important');
+    listArea.style.setProperty('-webkit-overflow-scrolling', 'touch', 'important'); /* iOS 스크롤 탄력 적용 */
+    listArea.style.setProperty('width', '100%', 'important');
+    listArea.style.setProperty('box-sizing', 'border-box', 'important');
     
     let combinedHtml = "";
     
@@ -3974,9 +3967,11 @@ function renderHallList() {
     
     listArea.innerHTML = combinedHtml;
 }
+                               
 
-                                     
 
+            
+                    
             
     
 window.toggleVibeModal = (show) => { document.getElementById('vibeModal').style.display = show ? 'flex' : 'none'; };
