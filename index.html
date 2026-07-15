@@ -3028,104 +3028,114 @@ await setDoc(doc(db, "sub_rooms", roomId), { isActive: nextActive, statusMsg: ms
 window.copySubRoomUrl = (url, name) => { navigator.clipboard.writeText(url); alert(`[${name}] 링크 복사 완료`); };
 
 window.renderStatusTable = () => {
-const list = document.getElementById('statusList');
-const search = document.getElementById('searchInput').value.trim();
-const sort = document.getElementById('statusSortOrder').value;
-if(!list) return;
-list.innerHTML = "";
+    const list = document.getElementById('statusList');
+    const search = document.getElementById('searchInput').value.trim();
+    const sort = document.getElementById('statusSortOrder').value;
+    if(!list) return;
+    list.innerHTML = "";
 
-const today = new Date();
-const todayZero = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+    const today = new Date();
+    const todayZero = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
 
-let processedData = currentData.map(m => {
-const last = m.lastDate ? m.lastDate.toDate() : new Date();
-const lastZero = new Date(last.getFullYear(), last.getMonth(), last.getDate()).getTime();
-const diffDays = Math.floor((todayZero - lastZero) / (1000 * 60 * 60 * 24));
-const baseLimit = (m.level === 0 ? 30 : 122);
-return { ...m, ddayVal: (baseLimit + (m.bonusDays || 0)) - diffDays };
-});
+    let processedData = currentData.map(m => {
+        const last = m.lastDate ? m.lastDate.toDate() : new Date();
+        const lastZero = new Date(last.getFullYear(), last.getMonth(), last.getDate()).getTime();
+        const diffDays = Math.floor((todayZero - lastZero) / (1000 * 60 * 60 * 24));
+        const baseLimit = (m.level === 0 ? 30 : 122);
+        return { ...m, ddayVal: (baseLimit + (m.bonusDays || 0)) - diffDays };
+    });
 
-processedData.sort((a, b) => {
-if (sort === 'qCount') return b.qCount - a.qCount || b.level - a.level;
-if (sort === 'totalHeight') return b.totalHeight - a.totalHeight;
-if (sort === 'level') return b.level - a.level || b.qCount - a.qCount;
-if (sort === 'name') return a.name.localeCompare(b.name, 'ko');
-if (sort === 'dday') return a.ddayVal - b.ddayVal;
-return 0;
-});
+    processedData.sort((a, b) => {
+        if (sort === 'qCount') return b.qCount - a.qCount || b.level - a.level;
+        if (sort === 'totalHeight') return b.totalHeight - a.totalHeight;
+        if (sort === 'level') return b.level - a.level || b.qCount - a.qCount;
+        if (sort === 'name') return a.name.localeCompare(b.name, 'ko');
+        if (sort === 'dday') return a.ddayVal - b.ddayVal;
+        return 0;
+    });
 
-const topNames = [...processedData].filter(m => !m.isHidden && m.name !== "오즈").sort((a, b) => b.qCount - a.qCount || b.level - a.level).slice(0, 3).map(m => m.name);
+    const topNames = [...processedData].filter(m => !m.isHidden && m.name !== "오즈").sort((a, b) => b.qCount - a.qCount || b.level - a.level).slice(0, 3).map(m => m.name);
 
-// 첫 번째 노출되는 행에만 CLICK 문구를 넣기 위한 플래그
-let isFirstVisible = true;
+    // 첫 번째 노출되는 행에만 CLICK 문구를 넣기 위한 플래그
+    let isFirstVisible = true;
 
-processedData.forEach((m) => {
-if (!isAdminLoggedIn && m.isHidden) return;
-if (search && !m.name.includes(search)) return;
+    processedData.forEach((m) => {
+        if (!isAdminLoggedIn && m.isHidden) return;
+        if (search && !m.name.includes(search)) return;
 
-// ✨ [핵심 수정] 첫 번째 보이는 데이터 행인 경우 모든 열에 들어갈 네온 태그 생성
-let clickTag = "";
-if (isFirstVisible && !m.isHidden) {
-clickTag = `<span class="click-neon">CLICK</span>`;
-isFirstVisible = false; // 한 번 그렸으면 플래그 해제
-}
+        // ✨ [핵심 수정] 첫 번째 보이는 데이터 행인 경우 모든 열에 들어갈 네온 태그 생성
+        let clickTag = "";
+        if (isFirstVisible && !m.isHidden) {
+            clickTag = `<span class="click-neon">CLICK</span>`;
+            isFirstVisible = false; // 한 번 그렸으면 플래그 해제
+        }
 
-let rankT = ""; let rankC = "";
-if (m.name !== "오즈" && m.qCount > 0 && !m.isHidden) {
-const idx = topNames.indexOf(m.name);
-if (idx === 0) { rankT = "🥇산대장"; rankC = "rank-1"; }
-else if (idx === 1) { rankT = "🥈길잡이"; rankC = "rank-2"; }
-else if (idx === 2) { rankT = "🥉마당발"; rankC = "rank-3"; }
-}
+        let rankT = ""; let rankC = "";
+        if (m.name !== "오즈" && m.qCount > 0 && !m.isHidden) {
+            const idx = topNames.indexOf(m.name);
+            if (idx === 0) { rankT = "🥇산대장"; rankC = "rank-1"; }
+            else if (idx === 1) { rankT = "🥈길잡이"; rankC = "rank-2"; }
+            else if (idx === 2) { rankT = "🥉마당발"; rankC = "rank-3"; }
+        }
 
-const style = getLevelStyle(m.level);
-const ddayClass = getDDayStyle(m.ddayVal, m.level);
-const nameColor = m.gender === '여' ? 'text-pink-600' : (m.gender === '남' ? 'text-blue-600' : 'text-slate-800');
+        const style = getLevelStyle(m.level);
+        const ddayClass = getDDayStyle(m.ddayVal, m.level);
+        const nameColor = m.gender === '여' ? 'text-pink-600' : (m.gender === '남' ? 'text-blue-600' : 'text-slate-800');
 
-list.innerHTML += `<tr class="${m.isHidden ? 'opacity-40' : ''}">
-<td class="text-xs text-center" style="position: relative; vertical-align: middle; height: 65px; padding-top: 15px;">
+        // =========================================================
+        // 🏔️ [메인 테이블 고도 축약 로직 추가]
+        // =========================================================
+        const rawHeight = m.totalHeight || 0;
+        const displayHeight = rawHeight >= 1000 
+            ? (rawHeight / 1000).toFixed(1) + 'km' 
+            : rawHeight + 'm';
+        // =========================================================
 
-<div style="position: absolute; top: -2.8px; left: 50%; transform: translateX(-50%); width: 100%;">
-${clickTag}
-</div>
+        list.innerHTML += `<tr class="${m.isHidden ? 'opacity-40' : ''}">
+        <td class="text-xs text-center" style="position: relative; vertical-align: middle; height: 65px; padding-top: 15px;">
 
-<div class="flex flex-col items-center justify-center">
-${rankT ? `<span class="rank-badge ${rankC}" style="margin-bottom: 2px;">${rankT}</span>` : ''}
-<span class="font-bold ${nameColor} cursor-pointer hover:underline"
-onclick="showMemberMountain('${m.id}', '${m.name}')">
-${m.name}
-</span>
-</div>
-</td>
-<td>
-${clickTag}
-<div class="badge-level">
-<div class="badge-icon-box ${style.blink} cursor-pointer"
-onclick="showMilkyWay('${m.id}', '${m.name}')"
-style="background-color: ${style.bg}; border: 1.5px solid ${style.border} !important;">
-<span class="badge-icon-txt" style="color:${style.text}; font-weight: bold;">${getLevelBadge(m.level)}</span>
-</div>
-<span class="badge-lv-txt" style="color:${style.text}; font-weight: bold;">Lv ${m.level}</span>
-</div>
-</td>
-<td>
-${clickTag}
-<button onclick="showMemberTimeline('${m.id}', '${m.name}')" class="qcount-box bg-gray-soft border-none hover:bg-slate-200 text-slate-600">${m.qCount}점 📈</button>
-</td>
-<td>
-${clickTag}
-<button onclick="showMemberMap('${m.id}', '${m.name}')" class="height-badge hover:scale-105 active:scale-95 transition-all">🚩${m.totalHeight || 0}m</button>
-</td>
-<td>
-${clickTag}
-<span class="dday-box ${ddayClass} cursor-pointer"
-onclick="window.showFadingScroll('${m.id}', ${m.ddayVal}, ${m.level})">
-${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
-</span>
-</td>
-</tr>`;
-});
+        <div style="position: absolute; top: -2.8px; left: 50%; transform: translateX(-50%); width: 100%;">
+        ${clickTag}
+        </div>
+
+        <div class="flex flex-col items-center justify-center">
+        ${rankT ? `<span class="rank-badge ${rankC}" style="margin-bottom: 2px;">${rankT}</span>` : ''}
+        <span class="font-bold ${nameColor} cursor-pointer hover:underline"
+        onclick="showMemberMountain('${m.id}', '${m.name}')">
+        ${m.name}
+        </span>
+        </div>
+        </td>
+        <td>
+        ${clickTag}
+        <div class="badge-level">
+        <div class="badge-icon-box ${style.blink} cursor-pointer"
+        onclick="showMilkyWay('${m.id}', '${m.name}')"
+        style="background-color: ${style.bg}; border: 1.5px solid ${style.border} !important;">
+        <span class="badge-icon-txt" style="color:${style.text}; font-weight: bold;">${getLevelBadge(m.level)}</span>
+        </div>
+        <span class="badge-lv-txt" style="color:${style.text}; font-weight: bold;">Lv ${m.level}</span>
+        </div>
+        </td>
+        <td>
+        ${clickTag}
+        <button onclick="showMemberTimeline('${m.id}', '${m.name}')" class="qcount-box bg-gray-soft border-none hover:bg-slate-200 text-slate-600">${m.qCount}점 📈</button>
+        </td>
+        <td>
+        ${clickTag}
+        <button onclick="showMemberMap('${m.id}', '${m.name}')" class="height-badge hover:scale-105 active:scale-95 transition-all">🚩${displayHeight}</button>
+        </td>
+        <td>
+        ${clickTag}
+        <span class="dday-box ${ddayClass} cursor-pointer"
+        onclick="window.showFadingScroll('${m.id}', ${m.ddayVal}, ${m.level})">
+        ${m.ddayVal >= 0 ? `D-${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
+        </span>
+        </td>
+        </tr>`;
+    });
 };
+
 
     
 // ⭐ 이름을 화면에서 긁어오지 않고, 클릭한 대상의 이름과 ID를 직접 매개변수로
@@ -4560,62 +4570,41 @@ if (main.classList.contains('hidden-view')) { main.classList.remove('hidden-view
 else { main.classList.add('hidden-view'); stats.classList.remove('hidden-view'); }
 };
 
-
 window.showMemberMap = async (mId, mName) => {
-    toggleMapModal(true);
-    document.getElementById('mapModalContent').scrollTop = 0;
-    document.getElementById('mapViewMain').classList.remove('hidden-view');
-    document.getElementById('mapViewStats').classList.add('hidden-view');
-    document.getElementById('mapMemberName').innerText = mName;
-    const pointsBoard = document.getElementById('conquerMapPoints');
-    const regionBoard = document.getElementById('conquerRegionGrid');
-    pointsBoard.innerHTML = regionBoard.innerHTML = "";
+toggleMapModal(true);
+document.getElementById('mapModalContent').scrollTop = 0;
+document.getElementById('mapViewMain').classList.remove('hidden-view');
+document.getElementById('mapViewStats').classList.add('hidden-view');
+document.getElementById('mapMemberName').innerText = mName;
+const pointsBoard = document.getElementById('conquerMapPoints');
+const regionBoard = document.getElementById('conquerRegionGrid');
+pointsBoard.innerHTML = regionBoard.innerHTML = "";
 
-    const snapAll = await getDocs(collection(db, `sanwoori/${mId}/logs`));
-    let totalH = 0; let mapHtml = ""; let regionCounts = {}; let validLogsCount = 0;
+const snapAll = await getDocs(collection(db, `sanwoori/${mId}/logs`));
+let totalH = 0; let mapHtml = ""; let regionCounts = {}; let validLogsCount = 0;
 
-    snapAll.forEach(doc => {
-        const log = doc.data(); totalH += (log.height || 0);
-        if(log.coords) {
-            validLogsCount++; mapHtml += `<div class="map-point ${log.isTop100 ? 'top-100' : ''}" style="left:${log.coords.x}%; top:${log.coords.y}%;"></div>`;
-            const rName = log.region || getRegionFromCoord(log.coords); regionCounts[rName] = (regionCounts[rName] || 0) + 1;
-        }
-    });
-
-    // =========================================================
-    // 🏔️ [정복지도 메인] 개인 누적 고도 km 축약 표시 적용
-    // =========================================================
-    const displayTotalH = totalH >= 1000 
-        ? (totalH / 1000).toFixed(1) + 'km' 
-        : totalH.toLocaleString() + 'm';
-    
-    document.getElementById('mapTotalHeight').innerText = displayTotalH;
-    // =========================================================
-
-    pointsBoard.innerHTML = mapHtml;
-    const sortedRegions = Object.entries(regionCounts).sort((a,b) => b[1] - a[1]);
-    if(sortedRegions.length === 0) regionBoard.innerHTML = "<p class='text-center text-[10px] py-10 text-slate-400'>좌표 기록 없음</p>";
-    else regionBoard.innerHTML = sortedRegions.map(([name, count]) => {
-        const percent = ((count / validLogsCount) * 100).toFixed(1);
-        return `<div class="conquer-item-dark"><div class="flex justify-between items-center"><span class="conquer-region-name-dark">${name} <span class="opacity-40 ml-1 text-[8px]">${count}회</span></span><span class="conquer-region-percent-dark">${percent}%</span></div>
+snapAll.forEach(doc => {
+const log = doc.data(); totalH += (log.height || 0);
+if(log.coords) {
+validLogsCount++; mapHtml += `<div class="map-point ${log.isTop100 ? 'top-100' : ''}" style="left:${log.coords.x}%; top:${log.coords.y}%;"></div>`;
+const rName = log.region || getRegionFromCoord(log.coords); regionCounts[rName] = (regionCounts[rName] || 0) + 1;
+}
+});
+document.getElementById('mapTotalHeight').innerText = totalH.toLocaleString();
+pointsBoard.innerHTML = mapHtml;
+const sortedRegions = Object.entries(regionCounts).sort((a,b) => b[1] - a[1]);
+if(sortedRegions.length === 0) regionBoard.innerHTML = "<p class='text-center text-[10px] py-10 text-slate-400'>좌표 기록 없음</p>";
+else regionBoard.innerHTML = sortedRegions.map(([name, count]) => {
+const percent = ((count / validLogsCount) * 100).toFixed(1);
+return `<div class="conquer-item-dark"><div class="flex justify-between items-center"><span class="conquer-region-name-dark">${name} <span class="opacity-40 ml-1 text-[8px]">${count}회</span></span><span class="conquer-region-percent-dark">${percent}%</span></div>
 <div class="conquer-bar-bg-dark"><div class="conquer-bar-fill-dark" style="width:${percent}%"></div></div></div>`;
-    }).join('');
+}).join('');
 
-    const globalTotalH = currentData.reduce((acc, m) => acc + (m.totalHeight || 0), 0);
-
-    // =========================================================
-    // 🌍 [정복지도 산맥창] 클럽 전체 누적 고도 km 축약 표시 적용
-    // =========================================================
-    const displayGlobalTotalH = globalTotalH >= 1000 
-        ? (globalTotalH / 1000).toFixed(1) + 'km' 
-        : globalTotalH.toLocaleString() + 'm';
-
-    document.getElementById('mapGlobalTotalHeight').innerText = displayGlobalTotalH;
-    // =========================================================
-
-    const conquestCount = (globalTotalH / 8848).toFixed(1);
-    document.getElementById('everestCount').innerText = conquestCount;
-    document.getElementById('everestProgressBar').style.width = `${(conquestCount % 1) * 100}%`;
+const globalTotalH = currentData.reduce((acc, m) => acc + (m.totalHeight || 0), 0);
+document.getElementById('mapGlobalTotalHeight').innerText = globalTotalH.toLocaleString();
+const conquestCount = (globalTotalH / 8848).toFixed(1);
+document.getElementById('everestCount').innerText = conquestCount;
+document.getElementById('everestProgressBar').style.width = `${(conquestCount % 1) * 100}%`;
 };
 
 window.toggleTimelineModal = (show) => { document.getElementById('timelineModal').style.display = show ? 'flex' : 'none'; };
