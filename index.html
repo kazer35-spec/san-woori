@@ -6862,35 +6862,52 @@ document.addEventListener('touchstart', (e) => {
     }
 }, { passive: true });
 
-        <script>
-  // 1. 서비스 워커 등록
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./service-worker.js')
-        .then(reg => console.log('서비스 워커 등록 성공!', reg))
-        .catch(err => console.error('서비스 워커 등록 실패:', err));
-    });
-  }
 
-  // 2. 브라우저 기본 설치 팝업 제어
-  let deferredPrompt;
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    
-    // 페이지 로드 3초 후 사용자에게 설치 권장 팝업창 띄우기
-    setTimeout(() => {
-      if (confirm("📱 '산우리 운동 일지'를 어플로 다운로드하여 홈 화면에서 편하게 이용하시겠습니까?")) {
+    // 1. 서비스 워커 등록
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./service-worker.js')
+                .then(reg => console.log('서비스 워커 등록 성공!', reg))
+                .catch(err => console.error('서비스 워커 등록 실패:', err));
+        });
+    }
+
+    // 2. 자동 팝업은 막고, 사용자가 버튼을 눌렀을 때만 설치 창 띄우기
+    let deferredPrompt = null;
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+        // 브라우저가 기본으로 띄우는 팝업 차단
+        e.preventDefault();
+        deferredPrompt = e;
+        
+        // 화면에 설치 버튼이 있다면 활성화/노출시키기
+        const installBtn = document.getElementById('pwaInstallBtn');
+        if (installBtn) {
+            installBtn.style.display = 'inline-block'; // 숨겨져 있던 설치 버튼을 보여줌
+        }
+    });
+
+    // 3. 실제 설치를 실행하는 함수 (버튼 클릭 이벤트와 연결)
+    window.triggerPwaInstall = () => {
+        if (!deferredPrompt) {
+            alert("이미 설치되어 있거나, 이 브라우저에서는 설치를 지원하지 않습니다. (아이폰/사파리는 공유 버튼 -> [홈 화면에 추가]를 이용해 주세요!)");
+            return;
+        }
+        
+        // 사용자가 설치 버튼을 눌렀을 때만 비로소 설치 창 노출
         deferredPrompt.prompt();
         deferredPrompt.userChoice.then((choiceResult) => {
-          if (choiceResult.outcome === 'accepted') {
-            console.log('사용자가 앱 설치를 수락했습니다.');
-          }
-          deferredPrompt = null;
+            if (choiceResult.outcome === 'accepted') {
+                console.log('사용자가 앱 설치를 완료했습니다.');
+                // 설치가 완료되면 설치 버튼 숨기기
+                const installBtn = document.getElementById('pwaInstallBtn');
+                if (installBtn) installBtn.style.display = 'none';
+            }
+            deferredPrompt = null;
         });
-      }
-    }, 3000);
-  });
+    };
+    // ───────────────────────────────────────────
+
 
 
 
