@@ -4284,8 +4284,9 @@ function setupTimelineTabs() {
 
 // 🌟 [추가 함수 2] 탭 클릭 시 클라이언트 사이드 즉시 필터링
 
+<div id="timelineLegend" class="flex flex-wrap items-center justify-center gap-y-2 gap-x-3.5 py-2.5 px-4 my-2 bg-slate-50/60 rounded-xl border border-slate-100"></div>
 
-        window.filterMemberLogs = (category) => {
+  window.filterMemberLogs = (category) => {
     const tabs = {
         all: document.getElementById('mTab-all'),
         hiking: document.getElementById('mTab-hiking'),
@@ -4316,6 +4317,51 @@ function setupTimelineTabs() {
         filtered = currentMemberLogs.filter(log => 
             !log.isExtraHike && (log.isRunning || log.isTracking || log.isWalking)
         );
+    }
+
+    // 🎨 [추가] 선택된 탭(카테고리)에 따른 색상 범례 가이드 동적 생성
+    const legendArea = document.getElementById('timelineLegend');
+    if (legendArea) {
+        // 범례 조각 정의
+        const legends = {
+            regular: `<div class="flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
+                <span class="inline-block w-2.5 h-2.5 rounded-full border border-black/5" style="background: linear-gradient(135deg, #FF69B4, #ADFF2F, #A020F0);"></span>
+                <span>정기산행</span>
+            </div>`,
+            hike: `<div class="flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
+                <span class="inline-block w-2.5 h-2.5 rounded-full border border-black/5 bg-[#2ecc71]"></span>
+                <span>산행</span>
+            </div>`,
+            extraHike: `<div class="flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
+                <span class="inline-block w-2.5 h-2.5 rounded-full border border-black/5 bg-[#5CE1D6]"></span>
+                <span>번외산행</span>
+            </div>`,
+            trek: `<div class="flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
+                <span class="inline-block w-2.5 h-2.5 rounded-full border border-black/5 bg-[#E0B0FF]"></span>
+                <span>트레킹</span>
+            </div>`,
+            run: `<div class="flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
+                <span class="inline-block w-2.5 h-2.5 rounded-full border border-black/5 bg-[#FFD1DC]"></span>
+                <span>러닝</span>
+            </div>`,
+            walk: `<div class="flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
+                <span class="inline-block w-2.5 h-2.5 rounded-full border border-black/5 bg-[#FFCC80]"></span>
+                <span>산책</span>
+            </div>`
+        };
+
+        // 탭 종류에 따라 알맞은 범례 아이템 배치
+        if (category === 'hiking') {
+            legendArea.innerHTML = [legends.regular, legends.hike, legends.extraHike].join('');
+            legendArea.style.display = 'flex';
+        } else if (category === 'running') {
+            legendArea.innerHTML = [legends.run, legends.trek, legends.walk].join('');
+            legendArea.style.display = 'flex';
+        } else {
+            // '전체' 보기일 때는 전부 출력
+            legendArea.innerHTML = Object.values(legends).join('');
+            legendArea.style.display = 'flex';
+        }
     }
 
     // 3. 필터링된 영역만 리렌더링
@@ -4386,7 +4432,8 @@ function setupTimelineTabs() {
             </div>`;
     }).join('');
 };
-
+      
+    
 
 
 
