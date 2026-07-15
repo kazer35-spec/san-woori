@@ -4255,14 +4255,10 @@ window.filterMemberLogs = (category) => {
     if (category === 'all') {
         filtered = currentMemberLogs;
     } else if (category === 'hiking') {
-        // [산행/번외산행]
-        // 순수 산행(러닝, 트레킹, 산책이 모두 거짓)이거나 또는 번외산행 플래그(isExtraHike)가 참인 경우
         filtered = currentMemberLogs.filter(log => 
             (!log.isRunning && !log.isTracking && !log.isWalking) || log.isExtraHike
         );
     } else if (category === 'running') {
-        // [러닝/트레킹/산책]
-        // 번외산행(isExtraHike)은 확실히 제외하고, 순수 러닝/트레킹/산책 플래그가 있는 것만
         filtered = currentMemberLogs.filter(log => 
             !log.isExtraHike && (log.isRunning || log.isTracking || log.isWalking)
         );
@@ -4283,25 +4279,62 @@ window.filterMemberLogs = (category) => {
         const bacTag = log.isBAC ? '<span class="bac-txt">BAC</span>' : '';
         
         const heightVal = log.height || 0;
-        
-        // 🎯 [단위 조건 수정] 번외산행(isExtraHike)은 무조건 'm' 단위를 쓰도록 처리
         const isKmActivity = (log.isRunning || log.isTracking || log.isWalking) && !log.isExtraHike;
         const unit = (isKmActivity && heightVal < 50) ? 'km' : 'm';
-        
-        // 🎯 [명칭 노출 핵심 수정] 강제 변환을 없애고 저장된 산 이름(log.mountain)이 있으면 그대로 보여줍니다.
-        // 만약 비어있다면 가상으로 '기록' 또는 활동 유형을 보여주는 안전장치(Fallback)만 유지합니다.
         const displayMountain = log.mountain || (log.isExtraHike ? "번외 산행" : "기록");
+
+        // 🎨 [핵심 추가] 운동 종류별 잔디 색상 도트 생성 로직
+        let dotStyle = "";
         
+        if (log.isRegular) {
+            // 정기산행: 프리미엄 그라데이션
+            dotStyle = "background: linear-gradient(135deg, #FF69B4, #ADFF2F, #A020F0);";
+        } else {
+            // 일반 활동별 정의된 잔디 색상
+            const colors = {
+                hike: "#2ecc71",      // 등산 기본 (초록)
+                extraHike: "#5CE1D6", // 번외산행 (민트)
+                walk: "#FFCC80",      // 산책 (주황)
+                trek: "#E0B0FF",      // 트레킹 (보라)
+                run: "#FFD1DC"        // 런닝 (분홍)
+            };
+
+            let activeColors = [];
+            // 각 로그의 플래그에 맞춰 잔디 로직과 동일하게 색상 수집
+            if (log.isExtraHike) activeColors.push(colors.extraHike);
+            else if (log.isRunning) activeColors.push(colors.run);
+            else if (log.isTracking) activeColors.push(colors.trek);
+            else if (log.isWalking) activeColors.push(colors.walk);
+            else activeColors.push(colors.hike); // 아무것도 해당 안 되면 순수등산
+
+            if (activeColors.length >= 2) {
+                if (activeColors.length === 2) {
+                    dotStyle = `background: linear-gradient(135deg, ${activeColors[0]} 50%, ${activeColors[1]} 50%);`;
+                } else {
+                    dotStyle = `background: linear-gradient(135deg, ${activeColors[0]} 33.3%, ${activeColors[1]} 33.3%, ${activeColors[1]} 66.6%, ${activeColors[2]} 66.6%);`;
+                }
+            } else {
+                dotStyle = `background: ${activeColors[0]};`;
+            }
+        }
+
+        // 색상 배지 태그 구성 (둥근 도트 형태)
+        const colorDotTag = `<span class="inline-block w-2.5 h-2.5 rounded-full ml-1.5 align-middle shadow-sm border border-black/5" style="${dotStyle}"></span>`;
+
         return `
             <div class="timeline-item">
                 <div class="timeline-dot"></div>
-                <div class="timeline-date">${log.date.getFullYear()}.${log.date.getMonth()+1}.${log.date.getDate()} (${dayName})</div>
+                <div class="timeline-date">
+                    ${log.date.getFullYear()}.${log.date.getMonth()+1}.${log.date.getDate()} (${dayName})
+                    ${colorDotTag}
+                </div>
                 <div class="timeline-desc ${top100Class}">
                     ${bacTag}${displayMountain} (${heightVal}${unit}) ${log.isTop100 ? '⭐' : '✔️'}
                 </div>
             </div>`;
     }).join('');
 };
+
 
         
 
