@@ -4250,16 +4250,23 @@ window.filterMemberLogs = (category) => {
         }
     });
 
-    // 2. 카테고리 필터 기준 정의
+    // 2. 카테고리 필터 기준 정의 (🔥 수정된 핵심 포인트)
     let filtered = [];
     if (category === 'all') {
         filtered = currentMemberLogs;
     } else if (category === 'hiking') {
-        // 산행/번외산행: 러닝/트레킹/산책 플래그가 없거나 번외산행 플래그가 설정된 것
-        filtered = currentMemberLogs.filter(log => (!log.isRunning && !log.isTracking && !log.isWalking) || log.isExtraHike);
+        // [산행/번외산행]
+        // 1. 순수 산행 (러닝, 트레킹, 산책이 모두 거짓인 경우)
+        // 2. 또는 번외산행 플래그가 참인 경우 (isExtraHike === true)
+        filtered = currentMemberLogs.filter(log => 
+            (!log.isRunning && !log.isTracking && !log.isWalking) || log.isExtraHike
+        );
     } else if (category === 'running') {
-        // 러닝/트레킹/산책
-        filtered = currentMemberLogs.filter(log => log.isRunning || log.isTracking || log.isWalking);
+        // [런닝/트레킹]
+        // 번외산행(isExtraHike)은 확실히 제외하고, 순수 러닝/트레킹/산책 플래그가 있는 것만 필터링
+        filtered = currentMemberLogs.filter(log => 
+            !log.isExtraHike && (log.isRunning || log.isTracking || log.isWalking)
+        );
     }
 
     // 3. 필터링된 영역만 리렌더링
@@ -4277,19 +4284,24 @@ window.filterMemberLogs = (category) => {
         const bacTag = log.isBAC ? '<span class="bac-txt">BAC</span>' : '';
         
         const heightVal = log.height || 0;
-        const isKmActivity = (log.isRunning || log.isTracking || log.isWalking);
+        // ⭐️ 번외산행일 때 단위가 'km'로 잘못 나오는 것을 방지하기 위해 조건 보강
+        const isKmActivity = (log.isRunning || log.isTracking || log.isWalking) && !log.isExtraHike;
         const unit = (isKmActivity && heightVal < 50) ? 'km' : 'm';
+        
+        // 표시할 활동명 결정 (번외산행이면 '번외 산행' 출력)
+        const displayMountain = log.isExtraHike ? "번외 산행" : (log.mountain || '기록');
         
         return `
             <div class="timeline-item">
                 <div class="timeline-dot"></div>
                 <div class="timeline-date">${log.date.getFullYear()}.${log.date.getMonth()+1}.${log.date.getDate()} (${dayName})</div>
                 <div class="timeline-desc ${top100Class}">
-                    ${bacTag}${log.mountain || '기록'} (${heightVal}${unit}) ${log.isTop100 ? '⭐' : '✔️'}
+                    ${bacTag}${displayMountain} (${heightVal}${unit}) ${log.isTop100 ? '⭐' : '✔️'}
                 </div>
             </div>`;
     }).join('');
 };
+
 
         
 
