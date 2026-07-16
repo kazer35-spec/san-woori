@@ -4299,11 +4299,12 @@ function setupTimelineTabs() {
 
 // 🌟 [추가 함수 2] 탭 클릭 시 클라이언트 사이드 즉시 필터링
 
-window.filterMemberLogs = (category) => {
-    // 탭 UI 엘리먼트 정의 (순수산행 vs 번외/산책/트레킹/러닝 2개 구조로 변경)
+Window.filterMemberLogs = (category) => {
+    // 기존 HTML의 3개 탭 ID를 그대로 유지합니다.
     const tabs = {
-        hiking: document.getElementById('mTab-hiking'), // 순수산행 탭
-        other: document.getElementById('mTab-other')    // 번외, 산책, 트레킹, 러닝 탭
+        all: document.getElementById('mTab-all'),
+        hiking: document.getElementById('mTab-hiking'),
+        running: document.getElementById('mTab-running') // UI상 '기타' 혹은 '러닝/산책' 역할을 하게 됩니다.
     };
 
     // 1. 탭 UI 활성화 클래스 조절
@@ -4320,27 +4321,26 @@ window.filterMemberLogs = (category) => {
 
     // 2. 카테고리 필터 기준 정의
     let filtered = [];
-    if (category === 'hiking') {
-        // 순수산행: 러닝, 트레킹, 산책이 아니고 번외산행도 아닌 순수 등산
+    if (category === 'all') {
+        // [전체] 모든 기록 표시
+        filtered = currentMemberLogs;
+    } else if (category === 'hiking') {
+        // [순수산행] 러닝, 트레킹, 산책이 아니고 번외산행도 아닌 순수 등산만 필터링
         filtered = currentMemberLogs.filter(log => 
             !log.isRunning && !log.isTracking && !log.isWalking && !log.isExtraHike
         );
-    } else if (category === 'other') {
-        // 번외, 산책, 트레킹, 러닝: 번외산행이거나 러닝/트레킹/산책 중 하나라도 해당하는 기록
+    } else if (category === 'running') {
+        // [번외/산책/트레킹/러닝] 번외산행이거나 러닝, 트레킹, 산책에 해당하는 기록 필터링
         filtered = currentMemberLogs.filter(log => 
             log.isExtraHike || log.isRunning || log.isTracking || log.isWalking
         );
     }
 
-    // 🎨 범례 가이드 영역 조율
+    // 🎨 범례 가이드 영역 조율 (카테고리에 맞게 노출)
     const legendArea = document.getElementById('timelineLegend');
     if (legendArea) {
-        // 범례 조각 정의
         const legends = {
-            regular: `<div class="flex items-center gap-1 text-[10px] font-semibold text-slate-500">
-                <span class="inline-block w-2 h-2 rounded-full border border-black/5" style="background: linear-gradient(135deg, #FF69B4, #ADFF2F, #A020F0);"></span>
-                <span>정기산행</span>
-            </div>`,
+            
             hike: `<div class="flex items-center gap-1 text-[10px] font-semibold text-slate-500">
                 <span class="inline-block w-2 h-2 rounded-full border border-black/5 bg-[#2ecc71]"></span>
                 <span>순수산행</span>
@@ -4363,12 +4363,15 @@ window.filterMemberLogs = (category) => {
             </div>`
         };
 
-        // 선택한 탭에 맞는 범례 매칭
-        if (category === 'hiking') {
-            // 순수산행 탭: 정기산행 범례와 순수산행 범례 표시
+        // 탭 종류에 따라 알맞은 범례 아이템 배치
+        if (category === 'all') {
+            // 전체 탭: 모든 범례 노출
+            legendArea.innerHTML = Object.values(legends).join('');
+        } else if (category === 'hiking') {
+            // 순수산행 탭: 정기산행과 순수산행만 노출
             legendArea.innerHTML = [legends.regular, legends.hike].join('');
-        } else if (category === 'other') {
-            // 기타 활동 탭: 번외, 트레킹, 러닝, 산책 범례 표시
+        } else if (category === 'running') {
+            // 번외/기타 탭: 번외, 트레킹, 러닝, 산책 노출
             legendArea.innerHTML = [legends.extraHike, legends.trek, legends.run, legends.walk].join('');
         }
         legendArea.style.display = 'flex';
@@ -4389,7 +4392,7 @@ window.filterMemberLogs = (category) => {
         const bacTag = log.isBAC ? '<span class="bac-txt">BAC</span>' : '';
         
         const heightVal = log.height || 0;
-        // 거리를 나타내는 km 단위 조건 수정 (순수산행이 아니고 50 미만인 기록)
+        // 번외, 러닝, 트레킹, 산책이면서 50 미만인 기록은 km로 표시
         const isKmActivity = (log.isRunning || log.isTracking || log.isWalking || log.isExtraHike) && heightVal < 50;
         const unit = isKmActivity ? 'km' : 'm';
         const displayMountain = log.mountain || (log.isExtraHike ? "번외 산행" : "기록");
@@ -4398,10 +4401,8 @@ window.filterMemberLogs = (category) => {
         let dotStyle = "";
         
         if (log.isRegular) {
-            // 정기산행: 프리미엄 그라데이션
             dotStyle = "background: linear-gradient(135deg, #FF69B4, #ADFF2F, #A020F0);";
         } else {
-            // 일반 활동별 정의된 잔디 색상
             const colors = {
                 hike: "#2ecc71",      // 등산 기본 (초록)
                 extraHike: "#5CE1D6", // 번외산행 (민트)
@@ -4443,7 +4444,7 @@ window.filterMemberLogs = (category) => {
     }).join('');
 };
 
-  
+                                
 
 
 // 1. 계절 색상 판별 함수 (파일 상단에 위치)
