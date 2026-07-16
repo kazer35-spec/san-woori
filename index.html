@@ -4299,12 +4299,11 @@ function setupTimelineTabs() {
 
 // 🌟 [추가 함수 2] 탭 클릭 시 클라이언트 사이드 즉시 필터링
 
-
-  window.filterMemberLogs = (category) => {
+Window.filterMemberLogs = (category) => {
+    // 탭 UI 엘리먼트 정의 (순수산행 vs 번외/산책/트레킹/러닝 2개 구조로 변경)
     const tabs = {
-        all: document.getElementById('mTab-all'),
-        hiking: document.getElementById('mTab-hiking'),
-        running: document.getElementById('mTab-running')
+        hiking: document.getElementById('mTab-hiking'), // 순수산행 탭
+        other: document.getElementById('mTab-other')    // 번외, 산책, 트레킹, 러닝 탭
     };
 
     // 1. 탭 UI 활성화 클래스 조절
@@ -4321,28 +4320,30 @@ function setupTimelineTabs() {
 
     // 2. 카테고리 필터 기준 정의
     let filtered = [];
-    if (category === 'all') {
-        filtered = currentMemberLogs;
-    } else if (category === 'hiking') {
+    if (category === 'hiking') {
+        // 순수산행: 러닝, 트레킹, 산책이 아니고 번외산행도 아닌 순수 등산
         filtered = currentMemberLogs.filter(log => 
-            (!log.isRunning && !log.isTracking && !log.isWalking) || log.isExtraHike
+            !log.isRunning && !log.isTracking && !log.isWalking && !log.isExtraHike
         );
-    } else if (category === 'running') {
+    } else if (category === 'other') {
+        // 번외, 산책, 트레킹, 러닝: 번외산행이거나 러닝/트레킹/산책 중 하나라도 해당하는 기록
         filtered = currentMemberLogs.filter(log => 
-            !log.isExtraHike && (log.isRunning || log.isTracking || log.isWalking)
+            log.isExtraHike || log.isRunning || log.isTracking || log.isWalking
         );
     }
 
-
-            // 🎨 [수정] 범례 가이드 영역 조율 (도트 크기 8px, 텍스트 10px로 축소)
+    // 🎨 범례 가이드 영역 조율
     const legendArea = document.getElementById('timelineLegend');
     if (legendArea) {
-        // 범례 조각 정의 (w-2 h-2로 도트 크기 축소, text-[10px]로 폰트 축소, 간격 정밀 조정)
+        // 범례 조각 정의
         const legends = {
-
+            regular: `<div class="flex items-center gap-1 text-[10px] font-semibold text-slate-500">
+                <span class="inline-block w-2 h-2 rounded-full border border-black/5" style="background: linear-gradient(135deg, #FF69B4, #ADFF2F, #A020F0);"></span>
+                <span>정기산행</span>
+            </div>`,
             hike: `<div class="flex items-center gap-1 text-[10px] font-semibold text-slate-500">
                 <span class="inline-block w-2 h-2 rounded-full border border-black/5 bg-[#2ecc71]"></span>
-                <span>일정산행</span>
+                <span>순수산행</span>
             </div>`,
             extraHike: `<div class="flex items-center gap-1 text-[10px] font-semibold text-slate-500">
                 <span class="inline-block w-2 h-2 rounded-full border border-black/5 bg-[#5CE1D6]"></span>
@@ -4354,7 +4355,7 @@ function setupTimelineTabs() {
             </div>`,
             run: `<div class="flex items-center gap-1 text-[10px] font-semibold text-slate-500">
                 <span class="inline-block w-2 h-2 rounded-full border border-black/5 bg-[#FFD1DC]"></span>
-                <span>런닝</span>
+                <span>러닝</span>
             </div>`,
             walk: `<div class="flex items-center gap-1 text-[10px] font-semibold text-slate-500">
                 <span class="inline-block w-2 h-2 rounded-full border border-black/5 bg-[#FFCC80]"></span>
@@ -4362,19 +4363,16 @@ function setupTimelineTabs() {
             </div>`
         };
 
-        // 탭 종류에 따라 알맞은 범례 아이템 배치
+        // 선택한 탭에 맞는 범례 매칭
         if (category === 'hiking') {
-            legendArea.innerHTML = [legends.regular, legends.hike, legends.extraHike].join('');
-            legendArea.style.display = 'flex';
-        } else if (category === 'running') {
-            legendArea.innerHTML = [legends.run, legends.trek, legends.walk].join('');
-            legendArea.style.display = 'flex';
-        } else {
-            legendArea.innerHTML = Object.values(legends).join('');
-            legendArea.style.display = 'flex';
+            // 순수산행 탭: 정기산행 범례와 순수산행 범례 표시
+            legendArea.innerHTML = [legends.regular, legends.hike].join('');
+        } else if (category === 'other') {
+            // 기타 활동 탭: 번외, 트레킹, 러닝, 산책 범례 표시
+            legendArea.innerHTML = [legends.extraHike, legends.trek, legends.run, legends.walk].join('');
         }
+        legendArea.style.display = 'flex';
     }
-
 
     // 3. 필터링된 영역만 리렌더링
     const listArea = document.getElementById('filteredTimelineList');
@@ -4391,8 +4389,9 @@ function setupTimelineTabs() {
         const bacTag = log.isBAC ? '<span class="bac-txt">BAC</span>' : '';
         
         const heightVal = log.height || 0;
-        const isKmActivity = (log.isRunning || log.isTracking || log.isWalking) && !log.isExtraHike;
-        const unit = (isKmActivity && heightVal < 50) ? 'km' : 'm';
+        // 거리를 나타내는 km 단위 조건 수정 (순수산행이 아니고 50 미만인 기록)
+        const isKmActivity = (log.isRunning || log.isTracking || log.isWalking || log.isExtraHike) && heightVal < 50;
+        const unit = isKmActivity ? 'km' : 'm';
         const displayMountain = log.mountain || (log.isExtraHike ? "번외 산행" : "기록");
 
         // 🎨 운동 종류별 잔디 색상 도트 생성 로직
@@ -4408,7 +4407,7 @@ function setupTimelineTabs() {
                 extraHike: "#5CE1D6", // 번외산행 (민트)
                 walk: "#FFCC80",      // 산책 (주황)
                 trek: "#E0B0FF",      // 트레킹 (보라)
-                run: "#FFD1DC"        // 런닝 (분홍)
+                run: "#FFD1DC"        // 러닝 (분홍)
             };
 
             let activeColors = [];
@@ -4429,7 +4428,6 @@ function setupTimelineTabs() {
             }
         }
 
-        // 🎯 텍스트(산 이름) 바로 앞에 오도록 여백 수정 (mr-1.5)
         const colorDotTag = `<span class="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle shadow-sm border border-black/5" style="${dotStyle}"></span>`;
 
         return `
@@ -4444,9 +4442,8 @@ function setupTimelineTabs() {
             </div>`;
     }).join('');
 };
-      
-    
 
+  
 
 
 // 1. 계절 색상 판별 함수 (파일 상단에 위치)
