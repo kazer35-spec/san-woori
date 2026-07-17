@@ -3166,46 +3166,42 @@ window.renderStatusTable = () => {
     const todayZero = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
 
     let processedData = currentData.map(m => {
-        // 1) [모달용] 마지막 산행 기준 D-Day 계산 (기존 로직)
+        // [기존 코드 그대로 유지] 마지막 산행 기준 D-Day 계산
         const last = m.lastDate ? m.lastDate.toDate() : new Date();
         const lastZero = new Date(last.getFullYear(), last.getMonth(), last.getDate()).getTime();
-        const diffDaysLast = Math.floor((todayZero - lastZero) / (1000 * 60 * 60 * 24));
+        const diffDays = Math.floor((todayZero - lastZero) / (1000 * 60 * 60 * 24));
         const baseLimit = (m.level === 0 ? 30 : 122);
-        const ddayVal = (baseLimit + (m.bonusDays || 0)) - diffDaysLast;
+        const ddayVal = (baseLimit + (m.bonusDays || 0)) - diffDays;
 
-        // 2) [메인 화면 겉표시용] 가입일 기준 D+ 계산
+        // ⭐ [새로 추가된 코드] 메인 화면 표시용: 가입일 기준 D+ 계산
         let dPlusVal = 0;
         if (m.regDate) {
             const reg = m.regDate.toDate();
             const regZero = new Date(reg.getFullYear(), reg.getMonth(), reg.getDate()).getTime();
-            // 가입 당일을 1일로 칠 경우 +1을 더하고, 만으로 계산하려면 뺀 값만 둡니다. (여기서는 +1 적용)
-            dPlusVal = Math.floor((todayZero - regZero) / (1000 * 60 * 60 * 24)) + 1; 
+            // 가입한 당일을 1일로 계산하기 위해 뒤에 + 1을 붙였습니다.
+            dPlusVal = Math.floor((todayZero - regZero) / (1000 * 60 * 60 * 24)) + 1;
         }
 
+        // 기존 데이터에 새롭게 계산한 dPlusVal을 함께 담아서 반환합니다.
         return { 
             ...m, 
-            ddayVal: ddayVal,   // 창 열었을 때 보여줄 데이터 (내부 저장용)
-            dPlusVal: dPlusVal  // 겉에 화면(텍스트)으로 찍어줄 가입일 D+ 데이터
+            ddayVal: ddayVal,   // 모달창(window.showFadingScroll)으로 전달될 D-Day 값
+            dPlusVal: dPlusVal  // 메인 화면에 텍스트로 그려질 D+ 값
         };
     });
 
-    // 정렬 로직 (D-Day 순 정렬 시 마지막 산행 기준 D-Day가 낮은 순으로 정렬)
+    // [기존 코드 그대로 유지] 정렬 로직
     processedData.sort((a, b) => {
         if (sort === 'qCount') return b.qCount - a.qCount || b.level - a.level;
         if (sort === 'totalHeight') return b.totalHeight - a.totalHeight;
         if (sort === 'level') return b.level - a.level || b.qCount - a.qCount;
         if (sort === 'name') return a.name.localeCompare(b.name, 'ko');
-        if (sort === 'dday') return a.ddayVal - b.ddayVal; // 혹은 가입일 기준 정렬을 원하시면 a.dPlusVal - b.dPlusVal로 변경
+        if (sort === 'dday') return a.ddayVal - b.ddayVal;
         return 0;
     });
 
+    // [기존 코드 그대로 유지] 탑 리스트 추출
     const topNames = [...processedData].filter(m => !m.isHidden && m.name !== "오즈").sort((a, b) => b.qCount - a.qCount || b.level - a.level).slice(0, 3).map(m => m.name);
-
-    // 💡 참고: 이 아래에서 실제 HTML(로우)을 그릴 때 
-    // 배지나 텍스트 부분에 `D+ ${m.dPlusVal}`를 넣어 화면에 그려주시면 됩니다!
-    // 그리고 클릭 이벤트(onclick)로 모달을 호출할 때는 원래대로 `m.ddayVal`을 넘겨주시면 되구요.
-    // ex) onclick="window.showFadingScroll('${m.id}', ${m.ddayVal}, ${m.level})"
-};
 
     // 첫 번째 노출되는 행에만 CLICK 문구를 넣기 위한 플래그
     let isFirstVisible = true;
