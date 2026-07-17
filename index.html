@@ -13,38 +13,6 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
-        /* 운동일지 전용 스크롤 상태 상자 스타일 */
-.journal-status-box.status-gold {
-    border-left: 4px solid #d4af37 !important;
-    background: linear-gradient(90deg, rgba(212, 175, 55, 0.08) 0%, rgba(255, 255, 255, 0) 100%) !important;
-}
-.journal-status-box.status-warn {
-    border-left: 4px solid #f97316 !important;
-    background: linear-gradient(90deg, rgba(249, 115, 22, 0.08) 0%, rgba(255, 255, 255, 0) 100%) !important;
-}
-.journal-status-box.status-danger {
-    border-left: 4px solid #ef4444 !important;
-    background: linear-gradient(90deg, rgba(239, 68, 68, 0.08) 0%, rgba(255, 255, 255, 0) 100%) !important;
-    animation: pulseBorder 2s infinite ease-in-out;
-}
-
-@keyframes pulseBorder {
-    0%, 100% { border-left-color: #ef4444; }
-    50% { border-left-color: #b91c1c; }
-}
-
-/* 스크롤바 커스텀 */
-.journal-timeline::-webkit-scrollbar {
-    width: 4px;
-}
-.journal-timeline::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.03);
-}
-.journal-timeline::-webkit-scrollbar-thumb {
-    background: rgba(141, 119, 95, 0.3);
-    border-radius: 4px;
-}
-
         /* 번외산행 단계별 색상 (기본 민트: #00CED1) */
 .grass-extra-active-1 { background-color: #5CE1D6 !important; } /* 매우 연한 민트 */
 .grass-extra-active-2 { background-color: #48D1CC !important; } /* 중간 민트 */
@@ -6721,10 +6689,138 @@ setTimeout(() => s.remove(), 500);
 }, 850);
 }
 
-<!-- ========================================== -->
-<!-- 1. HTML 마크업 구조 레이어 (산맥 & 나이테) -->
-<!-- ========================================== -->
-<div id="mountainViewModal" class="mountain-modal" style="display: none;" onclick="this.style.display='none'">
+ window.showFadingScroll = async function(mId, dday, level = 0) {
+    const modal = document.getElementById('scrollModal');
+    const content = document.getElementById('scrollContent');
+    const scrollWrap = document.querySelector('.fading-scroll'); 
+    
+    if(!modal || !content) return;
+
+    let effectClass = "";
+    let statusMsg = "";
+    let subMsg = "";
+    let isGold = false;
+
+    // 1. D-Day 상태 로직
+    if (dday > 30) {
+        isGold = true;
+        statusMsg = "기록이 황금빛으로 선명하게 빛나고 있습니다.";
+        subMsg = "당신의 발자취가 찬란한 역사가 되고 있습니다.";
+    } else if (dday <= 30 && dday > 20) {
+        effectClass = "fading-normal"; 
+        statusMsg = "기록의 빛이 조금씩 약해지기 시작합니다.";
+        subMsg = "역사의 페이지가 넘어가기 전에 새로운 기록을 새겨주세요.";
+    } else if (dday <= 20 && dday > 10) {
+        effectClass = "fading-20";
+        statusMsg = "기록의 온기가 식어가며 흐릿해집니다.";
+        subMsg = "조금 더 힘을 내어 당신의 문장을 완성해 보세요.";
+    } else {
+        effectClass = "fading-10";
+        statusMsg = "기록이 거의 증발하여 사라지고 있습니다!";
+        subMsg = "지금 당장 기록을 지속하여 문장을 복원하세요.";
+    }
+
+    // [추가] 가입일(regDate) 및 나이테 개월 수 동적 파싱 및 UI 반영
+    let formattedRegDateKo = "----년 --월 --일";
+    let formattedRegDateDot = "----.--.--";
+
+    try {
+        // 멤버 메인 문서에서 regDate 가져오기
+        const memberSnap = await getDoc(doc(db, `sanwoori`, mId));
+        if (memberSnap.exists()) {
+            const memberData = memberSnap.data();
+            if (memberData.regDate) {
+                const rDate = memberData.regDate.toDate();
+                const yyyy = rDate.getFullYear();
+                const mm = String(rDate.getMonth() + 1).padStart(2, '0');
+                const dd = String(rDate.getDate()).padStart(2, '0');
+                
+                formattedRegDateKo = `${yyyy}년 ${mm}월 ${dd}일`;
+                formattedRegDateDot = `${yyyy}.${mm}.${dd}`;
+
+                // 나이테 영역에 착륙일 실시간 바인딩
+                const ringLaunchedEl = document.getElementById('ringLaunchedDate');
+                if (ringLaunchedEl) {
+                    ringLaunchedEl.innerText = `LAUNCHED: ${formattedRegDateDot}`;
+                }
+            }
+        }
+    } catch (e) {
+        console.error("가입일 로드 실패:", e);
+    }
+
+    // 2. 연대기 목록 (5개 호출하되, 보이는 높이는 고정)
+    let chronicleHTML = `
+        <div class="chronicle-container" style="min-height: 90px; max-height: 90px; overflow-y: auto; padding-right: 5px; margin-bottom: 10px;">
+    `;
+    
+    try {
+        const snap = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc"), limit(5)));
+        if (snap.empty) {
+            chronicleHTML += `<div class="chronicle-item" style="text-align: center; padding-top: 30px;"><p class="chronicle-text" style="color: #8d775f; font-size: 11px;">새겨진 역사가 없습니다.</p></div>`;
+        } else {
+            snap.forEach(doc => {
+                const data = doc.data();
+                const date = data.date ? data.date.toDate().toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' }) : '??.??';
+                
+                // 활동 아이콘 조건 복구
+                let typeIcon = ""; 
+                if (data.run === true || data.run > 0) {
+                    typeIcon = ""; 
+                } else if (data.trek === true || data.trek > 0) {
+                    typeIcon = ""; 
+                }
+             
+                const textColor = isGold ? "color: #d4af37; font-weight: bold;" : "color: #5a4a3a;";
+                const dotColor = isGold ? "background: #d4af37;" : "background: #8d775f;";
+
+                chronicleHTML += `
+                    <div class="chronicle-item" style="margin-bottom: 10px; display: flex; align-items: center;">
+                        <div class="chronicle-dot" style="${dotColor} width: 6px; height: 6px; border-radius: 50%; margin-right: 8px;"></div>
+                        <div class="chronicle-date" style="${textColor} font-size: 11px; margin-right: 10px;">${date}</div>
+                        <div class="chronicle-text" style="${textColor} font-size: 11px;">${typeIcon} ${data.mountain || '활동'} 정복</div>
+                    </div>`;
+            });
+        }
+    } catch (e) {
+        chronicleHTML += `<div class="chronicle-item">기록 로드 실패</div>`;
+    }
+    chronicleHTML += `</div>`;
+
+    // 3. UI 렌더링 (고대 예언서 내 "혼자 가면 기록..." 하단에 가입일 서사적 배치)
+    content.innerHTML = `
+        <div style="text-align: center;">
+            <p class="${isGold ? 'gold-glow' : effectClass}" style="font-weight: 500; margin-bottom: 6px;">
+                "혼자 가면 기록이지만<br>함께 가면 역사"
+            </p>
+            <p class="ancient-origin-date" style="font-size: 10px; color: #8d775f; font-style: italic; margin: 0 0 15px 0; opacity: 0.8; letter-spacing: 0.5px;">
+                - 始原(시원) : ${formattedRegDateKo}의 문장 -
+            </p>
+        </div>
+        <div style="margin-top: 20px; font-size: 10px; line-height: 1.8; color: #5a4a3a;">
+            <strong style="font-size: 12px; display: block; margin-bottom: 10px; color: #3e2723; font-weight: 800;">${statusMsg}</strong>
+            ${subMsg}
+        </div>
+        <hr style="border: 0; border-top: 1px dashed #d4c4a8; margin: 20px 0;">
+        ${chronicleHTML}
+    `;
+
+    // 4. 전방위 클릭 닫기
+    modal.onclick = () => { modal.style.display = 'none'; };
+    if(scrollWrap) {
+        scrollWrap.onclick = (e) => {
+            if (e.target.closest('.chronicle-container')) return; 
+            modal.style.display = 'none';
+            e.stopPropagation(); 
+        };
+    }
+
+    modal.style.display = 'flex';
+};
+</script>
+
+<!-- 마크업 구조 레이어 -->
+<div id="mountainViewModal" class="mountain-modal" onclick="this.style.display='none'">
     <div id="integratedCard" class="integrated-member-card" onclick="event.stopPropagation()">
 
         <!-- [나이테 섹션] -->
@@ -6768,269 +6864,55 @@ setTimeout(() => s.remove(), 500);
     </div>
 </div>
 
-<!-- [최근 운동 일지 모달 레이어 (구 고대 예언서)] -->
-<div id="scrollModal" class="scroll-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 10000; justify-content: center; align-items: center;" onclick="this.style.display='none'">
-    <div class="fading-scroll" style="background: #ffffff; width: 90%; max-width: 380px; border-radius: 24px; padding: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); position: relative; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;" onclick="event.stopPropagation()">
-        
-        <!-- 헤더 영역 -->
-        <div class="flex justify-between items-center mb-4">
-            <h3 class="text-base font-black text-slate-800 flex items-center gap-1.5">
-                📜 최근 운동 일지
-            </h3>
-            <button onclick="document.getElementById('scrollModal').style.display='none'" class="text-gray-400 text-xl font-bold hover:text-gray-600 transition-all">&times;</button>
+<!-- [고대 예언서 모달 레이어] -->
+<div id="scrollModal" class="scroll-overlay" onclick="this.style.display='none'">
+    <div class="fading-scroll" onclick="event.stopPropagation()">
+
+        <div class="ancient-mountain-bg">
+            <svg viewBox="0 0 500 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M150 180L250 50L350 180" stroke="#8b4513" stroke-width="2" stroke-opacity="0.2"/>
+                <path d="M50 180L180 80L280 180" stroke="#8b4513" stroke-width="2" stroke-opacity="0.1"/>
+                <path d="M280 180L380 90L480 180" stroke="#8b4513" stroke-width="2" stroke-opacity="0.1"/>
+                <path d="M230 75L250 50L270 75" stroke="#8b4513" stroke-width="1" stroke-opacity="0.2"/>
+            </svg>
         </div>
 
-        <!-- 스크롤 가능한 일지 영역 및 동적 탭 컨테이너 -->
-        <div class="timeline-scroll-area max-h-[50vh] overflow-y-auto pr-1" id="timelineScrollContainer">
-            <!-- setupTimelineTabs() 실행 시 탭 메뉴와 리스트가 이곳에 주입됩니다 -->
-            <div id="timelineContent" class="timeline-container"></div>
+        <div class="scroll-header">
+            <div class="scroll-title-sub">SAN WOORI</div>
+            <h3 class="scroll-title-main">고대 예언서</h3>
         </div>
 
-        <!-- 하단 범례 표시 가이드 영역 -->
-        <div id="timelineLegend" class="flex flex-wrap gap-2 justify-center items-center py-3 border-t border-gray-100 mt-4">
-            <!-- 카테고리 탭 선택에 따라 알맞은 범례 도트들이 주입됩니다 -->
+        <div id="scrollContent" class="scroll-body">
+            <!-- 자바스크립트에서 텍스트 및 가입일 명언 레이아웃이 여기에 채워집니다. -->
         </div>
 
-        <!-- 하단 닫기 버튼 -->
-        <button onclick="document.getElementById('scrollModal').style.display='none'" class="w-100 w-full mt-2 bg-sky-50 text-sky-600 hover:bg-sky-100 transition-colors py-3.5 rounded-2xl text-xs font-black cursor-pointer text-center">
-            일지 창 닫기
-        </button>
+        <div class="scroll-footer">
+            <hr class="scroll-divider">
+            
+            <div class="ancient-seal">
+                <div class="seal-text">SAN<br>WOORI</div>
+            </div>
+            
+            <p class="footer-note" style="font-weight: bold; color: #5a4a3a; margin-top: 15px;">
+                기록 연장이 필요하면 요청해 주세요.
+            </p>
+            
+            <p class="ancient-signature">San:woori Management</p>
+        </div>
     </div>
 </div>
 
-<!-- 잔디 상세 팝업 레이어 -->
-<div id="grassPopup" class="hidden" style="position: fixed; z-index: 999999; background: white; border: 1px solid #e2e8f0; padding: 12px; border-radius: 12px; display: none; min-width: 140px; pointer-events: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+
+<div id="grassPopup" class="hidden" style="position: absolute; z-index: 9999; background: white; border: 1px solid #e2e8f0; padding: 12px; border-radius: 12px; shadow: 0 10px 15px -3px rgba(0,0,0,0.1); min-width: 140px; pointer-events: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
     <div id="popupDate" style="font-size: 10px; font-weight: bold; color: #94a3b8; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; margin-bottom: 8px;"></div>
     <div id="popupContent" style="display: flex; flex-direction: column; gap: 4px;"></div>
 </div>
 
-
-<!-- ========================================== -->
-<!-- 2. 자바스크립트 통합 제어 로직 -->
-<!-- ========================================== -->
 <script>
-// 전역 상태 변수 관리
-let currentMemberLogs = [];
+   // --- 잔디 상세 팝업 및 이벤트 제어 (통합본) ---
 
-/**
- * 🌟 D-Day 버튼 클릭 시 호출되어 운동일지 창을 띄우는 메인 진입 함수
- */
-window.showFadingScroll = async function(mId, dday, level = 0) {
-    const modal = document.getElementById('scrollModal');
-    const container = document.getElementById('timelineContent');
-    const scrollContainer = document.getElementById('timelineScrollContainer');
-
-    if(!modal || !container) return;
-
-    // 초기 상태 초기화 및 표시
-    container.innerHTML = `<div class="text-center py-10 text-xs text-gray-400">일지를 불러오는 중...</div>`;
-    modal.style.display = 'flex';
-    if (scrollContainer) scrollContainer.scrollTop = 0;
-
-    try {
-        // Firebase 등 DB가 유효하게 바인딩되어 있는지 체크 후 로드
-        if (typeof db !== 'undefined' && typeof getDocs !== 'undefined' && typeof query !== 'undefined') {
-            const snap = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc")));
-            currentMemberLogs = [];
-
-            snap.forEach(doc => {
-                const data = doc.data();
-                // date 데이터 파싱 처리
-                if (data.date && typeof data.date.toDate === 'function') {
-                    data.date = data.date.toDate();
-                } else if (data.date) {
-                    data.date = new Date(data.date);
-                } else {
-                    data.date = new Date();
-                }
-                currentMemberLogs.push(data);
-            });
-        } else {
-            // [테스트 및 예외 디버깅용 데모데이터 로직] - 라이브러리가 로드되지 않았을 때의 방어 코드
-            console.warn("Firestore 라이브러리가 정의되지 않았습니다. 데모 일지 데이터로 실행합니다.");
-            currentMemberLogs = [
-                { date: new Date(), mountain: "모락산", height: 385, isRegular: true },
-                { date: new Date(Date.now() - 86400000), mountain: "번외 관악산", height: 629, isExtraHike: true },
-                { date: new Date(Date.now() - 86400000 * 2), mountain: "동네 운동", height: 5.4, isWalking: true },
-                { date: new Date(Date.now() - 86400000 * 3), mountain: "러닝 트레이닝", height: 10, isRunning: true }
-            ];
-        }
-
-        // 탭 구성 실행
-        setupTimelineTabs();
-
-    } catch (e) {
-        console.error("운동 일지 연동 로드 실패:", e);
-        container.innerHTML = `<div class="text-center py-10 text-xs text-red-500">기록 데이터를 불러오지 못했습니다.</div>`;
-    }
-};
-
-// 🌟 [추가 함수 1] 타임라인 상단 탭 배치 & 초기화
-function setupTimelineTabs() {
-    const container = document.getElementById('timelineContent');
-    if (!container) return;
-    
-    const tabsHtml = `
-        <div class="flex border-b border-gray-100 mb-4 text-xs font-bold text-gray-400 sticky top-0 bg-white z-10 py-2">
-            <button onclick="window.filterMemberLogs('all')" id="mTab-all" class="flex-1 pb-2 border-b-2 border-sky-500 text-sky-600 transition-all text-center">전체</button>
-            <button onclick="window.filterMemberLogs('hiking')" id="mTab-hiking" class="flex-1 pb-2 border-b-2 border-transparent hover:text-gray-600 transition-all text-center">일정산행</button>
-            <button onclick="window.filterMemberLogs('running')" id="mTab-running" class="flex-1 pb-2 border-b-2 border-transparent hover:text-gray-600 transition-all text-center">개인/기타</button>
-        </div>
-        <div id="filteredTimelineList"></div>
-    `;
-    
-    container.innerHTML = tabsHtml;
-    
-    // 기본 'all' 상태로 즉시 필터링 및 렌더링
-    window.filterMemberLogs('all');
-}
-
-// 🌟 [추가 함수 2] 탭 클릭 시 클라이언트 사이드 즉시 필터링
-window.filterMemberLogs = (category) => {
-    const tabs = {
-        all: document.getElementById('mTab-all'),
-        hiking: document.getElementById('mTab-hiking'),
-        running: document.getElementById('mTab-running')
-    };
-
-    // 1. 탭 UI 활성화 클래스 조절
-    Object.keys(tabs).forEach(key => {
-        if (!tabs[key]) return;
-        if (key === category) {
-            tabs[key].classList.add('border-sky-500', 'text-sky-600');
-            tabs[key].classList.remove('border-transparent', 'text-gray-400');
-        } else {
-            tabs[key].classList.remove('border-sky-500', 'text-sky-600');
-            tabs[key].classList.add('border-transparent', 'text-gray-400');
-        }
-    });
-
-    // 2. 카테고리 필터 기준 정의
-    let filtered = [];
-    if (category === 'all') {
-        filtered = currentMemberLogs;
-    } else if (category === 'hiking') {
-        // 순수산행 (런닝, 트레킹, 산책, 번외산행 모두 제외)
-        filtered = currentMemberLogs.filter(log => 
-            (!log.isRunning && !log.isTracking && !log.isWalking) && !log.isExtraHike
-        );
-    } else if (category === 'running') {
-        // 번외산행 및 런닝/트레킹/산책 포함
-        filtered = currentMemberLogs.filter(log => 
-            log.isExtraHike || log.isRunning || log.isTracking || log.isWalking
-        );
-    }
-
-    // 🎨 범례 가이드 영역 조율 (도트 크기 8px, 텍스트 10px로 축소)
-    const legendArea = document.getElementById('timelineLegend');
-    if (legendArea) {
-        const legends = {
-            regular: `<div class="flex items-center gap-1 text-[10px] font-semibold text-slate-500 mr-2">
-                <span class="inline-block w-2 h-2 rounded-full border border-black/5" style="background: linear-gradient(135deg, #FF69B4, #ADFF2F, #A020F0);"></span>
-                <span>정기산행</span>
-            </div>`,
-            hike: `<div class="flex items-center gap-1 text-[10px] font-semibold text-slate-500 mr-2">
-                <span class="inline-block w-2 h-2 rounded-full border border-black/5 bg-[#2ecc71]"></span>
-                <span>일정산행</span>
-            </div>`,
-            extraHike: `<div class="flex items-center gap-1 text-[10px] font-semibold text-slate-500 mr-2">
-                <span class="inline-block w-2 h-2 rounded-full border border-black/5 bg-[#5CE1D6]"></span>
-                <span>개인산행</span>
-            </div>`,
-            trek: `<div class="flex items-center gap-1 text-[10px] font-semibold text-slate-500 mr-2">
-                <span class="inline-block w-2 h-2 rounded-full border border-black/5 bg-[#E0B0FF]"></span>
-                <span>트레킹</span>
-            </div>`,
-            run: `<div class="flex items-center gap-1 text-[10px] font-semibold text-slate-500 mr-2">
-                <span class="inline-block w-2 h-2 rounded-full border border-black/5 bg-[#FFD1DC]"></span>
-                <span>런닝</span>
-            </div>`,
-            walk: `<div class="flex items-center gap-1 text-[10px] font-semibold text-slate-500 mr-2">
-                <span class="inline-block w-2 h-2 rounded-full border border-black/5 bg-[#FFCC80]"></span>
-                <span>산책</span>
-            </div>`
-        };
-
-        if (category === 'hiking') {
-            legendArea.innerHTML = [legends.regular, legends.hike, legends.extraHike].join('');
-            legendArea.style.display = 'flex';
-        } else if (category === 'running') {
-            legendArea.innerHTML = [legends.run, legends.trek, legends.walk].join('');
-            legendArea.style.display = 'flex';
-        } else {
-            legendArea.innerHTML = Object.values(legends).join('');
-            legendArea.style.display = 'flex';
-        }
-    }
-
-    // 3. 필터링된 영역만 리렌더링
-    const listArea = document.getElementById('filteredTimelineList');
-    if (!listArea) return;
-
-    if (filtered.length === 0) {
-        listArea.innerHTML = "<p class='text-center text-[10px] py-10 text-gray-400'>기록 없음</p>";
-        return;
-    }
-
-    listArea.innerHTML = filtered.map(log => {
-        const dayName = ['일','월','화','수','목','금','토'][log.date.getDay()];
-        const top100Class = log.isTop100 ? 'text-blue-600 font-black' : '';
-        const bacTag = log.isBAC ? '<span class="bac-txt">BAC</span>' : '';
-        
-        const heightVal = log.height || 0;
-        const isKmActivity = (log.isRunning || log.isTracking || log.isWalking) && !log.isExtraHike;
-        const unit = (isKmActivity && heightVal < 50) ? 'km' : 'm';
-        const displayMountain = log.mountain || (log.isExtraHike ? "번외 산행" : "기록");
-
-        // 🎨 운동 종류별 잔디 색상 도트 생성 로직
-        let dotStyle = "";
-        
-        if (log.isRegular) {
-            dotStyle = "background: linear-gradient(135deg, #FF69B4, #ADFF2F, #A020F0);";
-        } else {
-            const colors = {
-                hike: "#2ecc71",      
-                extraHike: "#5CE1D6", 
-                walk: "#FFCC80",      
-                trek: "#E0B0FF",      
-                run: "#FFD1DC"        
-            };
-
-            let activeColors = [];
-            if (log.isExtraHike) activeColors.push(colors.extraHike);
-            else if (log.isRunning) activeColors.push(colors.run);
-            else if (log.isTracking) activeColors.push(colors.trek);
-            else if (log.isWalking) activeColors.push(colors.walk);
-            else activeColors.push(colors.hike);
-
-            if (activeColors.length >= 2) {
-                if (activeColors.length === 2) {
-                    dotStyle = `background: linear-gradient(135deg, ${activeColors[0]} 50%, ${activeColors[1]} 50%);`;
-                } else {
-                    dotStyle = `background: linear-gradient(135deg, ${activeColors[0]} 33.3%, ${activeColors[1]} 33.3%, ${activeColors[1]} 66.6%, ${activeColors[2]} 66.6%);`;
-                }
-            } else {
-                dotStyle = `background: ${activeColors[0]};`;
-            }
-        }
-
-        const colorDotTag = `<span class="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle shadow-sm border border-black/5" style="${dotStyle}"></span>`;
-
-        return `
-            <div class="timeline-item">
-                <div class="timeline-dot"></div>
-                <div class="timeline-date">
-                    ${log.date.getFullYear()}.${log.date.getMonth()+1}.${log.date.getDate()} (${dayName})
-                </div>
-                <div class="timeline-desc ${top100Class}">
-                    ${colorDotTag}${bacTag}${displayMountain} (${heightVal}${unit}) ${log.isTop100 ? '⭐' : '✔️'}
-                </div>
-            </div>`;
-    }).join('');
-};
-
-// --- 잔디 상세 팝업 및 이벤트 제어 (통합본) ---
 window.showGrassPopup = (event, date, encodedAct) => {
+    // [중요] 클릭 이벤트가 body까지 퍼져서 바로 닫히는 것을 방지
     if (event.stopPropagation) event.stopPropagation();
 
     const popup = document.getElementById('grassPopup');
@@ -7038,13 +6920,12 @@ window.showGrassPopup = (event, date, encodedAct) => {
     const dateEl = document.getElementById('popupDate');
 
     if (!encodedAct) {
-        if (popup) {
-            popup.classList.add('hidden');
-            popup.style.display = 'none';
-        }
+        popup.classList.add('hidden');
+        popup.style.display = 'none';
         return;
     }
 
+    // 팝업 부모를 body로 강제 이동 (좌표 꼬임 방지)
     if (popup.parentElement !== document.body) {
         document.body.appendChild(popup);
     }
@@ -7062,15 +6943,20 @@ window.showGrassPopup = (event, date, encodedAct) => {
     
     content.innerHTML = items;
 
+    // 표시 및 레이어 설정
     popup.classList.remove('hidden');
     popup.style.display = 'block';
+    popup.style.position = 'fixed';
+    popup.style.zIndex = '999999';
 
+    // 좌표 계산
     const clientX = event.touches ? event.touches[0].clientX : event.clientX;
     const clientY = event.touches ? event.touches[0].clientY : event.clientY;
 
     let left = clientX + 15;
     let top = clientY - 85;
 
+    // 화면 밖으로 나감 방지
     if (left + 160 > window.innerWidth) left = clientX - 170;
     if (top < 10) top = clientY + 20;
 
@@ -7078,14 +6964,17 @@ window.showGrassPopup = (event, date, encodedAct) => {
     popup.style.top = `${top}px`;
 };
 
+// 화면 아무 곳이나 클릭하거나 터치하면 잔디 팝업 닫기
 document.addEventListener('mousedown', (e) => {
     const popup = document.getElementById('grassPopup');
+    // 팝업이 열려 있고, 클릭한 대상이 팝업 자체가 아닐 때만 닫음
     if (popup && !popup.classList.contains('hidden') && !popup.contains(e.target)) {
         popup.classList.add('hidden');
         popup.style.display = 'none';
     }
 });
 
+// 모바일 터치 대응
 document.addEventListener('touchstart', (e) => {
     const popup = document.getElementById('grassPopup');
     if (popup && !popup.classList.contains('hidden') && !popup.contains(e.target)) {
@@ -7093,6 +6982,8 @@ document.addEventListener('touchstart', (e) => {
         popup.style.display = 'none';
     }
 }, { passive: true });
+
+
 </script>
 </body>
     </html>
