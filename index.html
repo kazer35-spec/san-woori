@@ -6651,71 +6651,43 @@ setTimeout(() => s.remove(), 500);
 
     
             
-    <!-- [타임라인 모달 레이어] -->
-<div id="scrollModal" class="scroll-overlay" style="display: none; position: fixed; top: 0; left: 0; w-full: 100vw; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 9999; justify-content: center; items-center: center; align-items: center;" onclick="this.style.display='none'">
-    <!-- 본문 컨테이너 (이 내부를 클릭했을 때는 닫히지 않도록 이벤트 전파 차단) -->
-    <div class="fading-scroll bg-[#121824] border border-white/10 p-5 rounded-2xl w-[90%] max-w-[450px]" onclick="event.stopPropagation()">
+// 필터링 처리를 위해 현재 조회 중인 멤버의 로그 목록을 임시 저장할 전역 변수
+window.currentMemberLogs = []; 
 
-        <!-- 상단 헤더 영역 -->
-        <div class="flex justify-between items-start mb-4">
-            <div>
-                <span class="text-[#00CED1] text-[9px] font-black tracking-widest block uppercase mb-1">ACTIVITY TIMELINE</span>
-                <h3 class="text-white text-base font-black tracking-wide">활동 연대기</h3>
-            </div>
-            <!-- 모달 닫기 버튼 -->
-            <button onclick="document.getElementById('scrollModal').style.display='none'" class="text-slate-400 hover:text-white text-xl leading-none bg-none border-none cursor-pointer">&times;</button>
-        </div>
-
-        <!-- 🎨 범례 가이드 영역 -->
-        <div id="timelineLegend" class="flex flex-wrap items-center gap-x-2.5 gap-y-1 justify-end px-1 mb-2"></div>
-
-        <!-- 🌟 동적 타임라인 및 탭 세팅 컨테이너 -->
-        <div id="timelineContent"></div>
-
-        <!-- 잔디 팝업 -->
-        <div id="grassPopup" class="hidden" style="position: absolute; z-index: 9999; background: white; border: 1px solid #e2e8f0; padding: 12px; border-radius: 12px; min-width: 140px; pointer-events: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
-            <div id="popupDate" style="font-size: 10px; font-weight: bold; color: #94a3b8; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; margin-bottom: 8px;"></div>
-            <div id="popupContent" style="display: flex; flex-direction: column; gap: 4px;"></div>
-        </div>
-
-    </div>
-</div>
-
-<script>
 // 🌟 [통합 함수] 디데이 클릭 시 호출되는 타임라인 로드 & 오픈 함수
 window.showFadingScroll = async function(mId, dday, level = 0) {
     const modal = document.getElementById('scrollModal');
     const content = document.getElementById('timelineContent');
+    const legendArea = document.getElementById('timelineLegend');
     
     if(!modal || !content) {
         console.error("타임라인 모달 요소가 부재합니다.");
         return;
     }
 
-    // 1. 초기 로딩 스피너 표시 및 모달 열기
+    // 1. 초기 로딩 스피너/플레이스홀더 표시 및 창 열기
     content.innerHTML = `
-        <div class="flex flex-col items-center justify-center py-20 text-[#1ABC9C]/80 gap-2">
-            <div class="animate-spin rounded-full h-5 w-5 border-2 border-t-transparent border-[#1ABC9C]"></div>
-            <p class="text-[10px] tracking-wider font-semibold">은하수 관측소에서 기록을 땡겨오는 중...</p>
+        <div class="flex flex-col items-center justify-center py-20 text-sky-500 gap-2">
+            <div class="animate-spin rounded-full h-5 w-5 border-2 border-t-transparent border-sky-500"></div>
+            <p class="text-[10px] tracking-wider font-semibold text-gray-500">은하수 관측소에서 기록을 땡겨오는 중...</p>
         </div>
     `;
+    if(legendArea) legendArea.innerHTML = "";
     modal.style.display = 'flex';
 
     try {
-        // 🚨 디버깅용 로그: 함수가 올바른 mId를 받았는지 확인
-        console.log("요청된 멤버 ID (mId):", mId);
-
-        // Firebase 라이브러리가 전역에 없는 경우 예외 처리
+        // [안전장치] Firebase 라이브러리가 전역에 로드되어 있는지 검증
         if (typeof getDocs === 'undefined' || typeof db === 'undefined') {
-            throw new Error("Firebase(db 또는 getDocs)가 로드되지 않았거나 참조할 수 없습니다.");
+            throw new Error("Firebase(db 또는 getDocs) 라이브러리를 찾을 수 없습니다.");
         }
-        
-        // 2. Firebase 데이터 전송
+
+        // 2. Firebase에서 해당 멤버의 전체 로그 최신순 로드
         const logRef = collection(db, `sanwoori/${mId}/logs`);
         const q = query(logRef, orderBy("date", "desc"));
-        const snap = await getDocs(q);
+        const snapAll = await getDocs(q);
         
-        window.currentMemberLogs = snap.docs.map(doc => {
+        // 전역 필터용 변수에 가공 데이터 할당 (타임스탬프의 Date 객체 변환)
+        window.currentMemberLogs = snapAll.docs.map(doc => {
             const data = doc.data();
             return {
                 ...data,
@@ -6723,40 +6695,42 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
             };
         });
 
-        // 3. 탭 바인딩 및 첫 화면('all') 그리기
+        // 3. 상단 탭 배치 및 첫 화면('all') 리스트 그리기 연쇄 호출
         setupTimelineTabs();
 
     } catch (e) {
-        console.error("타임라인 에러 상세:", e);
-        // 💡 사용자 화면에 에러 원인을 직접 출력해서 개발자 도구를 안 켜도 볼 수 있게 합니다.
+        console.error("타임라인 로그 로드 에러:", e);
         content.innerHTML = `
             <div class="text-center py-10 px-4">
-                <p class="text-[11px] text-red-400 font-bold mb-1">🛸 우주 폭풍(에러) 발생</p>
-                <p class="text-[9px] text-slate-500 bg-black/30 p-2 rounded break-all font-mono">${e.message}</p>
+                <p class="text-[11px] text-red-500 font-bold mb-1">❌ 우주 폭풍(에러)이 발생했습니다.</p>
+                <p class="text-[9px] text-gray-400 bg-gray-50 p-2 rounded break-all font-mono">${e.message}</p>
             </div>
         `;
     }
 };
 
-// 🌟 [추가 함수 1] 타임라인 상단 탭 쉘 구축
+// 🌟 [추가 함수 1] 타임라인 상단 탭 배치 & 구조 초기화
 function setupTimelineTabs() {
     const container = document.getElementById('timelineContent');
     if (!container) return;
     
+    // 제공된 디자인 가이드에 맞춘 상단 탭 HTML 구성
     const tabsHtml = `
-        <div class="flex border-b border-white/5 mb-4 text-[11px] font-bold text-slate-400 sticky top-0 bg-[#121824] z-10 py-2.5 px-1 gap-1">
-            <button onclick="window.filterMemberLogs('all')" id="mTab-all" class="flex-1 py-1.5 rounded-md text-center timeline-tab-btn">전체</button>
-            <button onclick="window.filterMemberLogs('hiking')" id="mTab-hiking" class="flex-1 py-1.5 rounded-md text-center timeline-tab-btn">일정산행</button>
-            <button onclick="window.filterMemberLogs('running')" id="mTab-running" class="flex-1 py-1.5 rounded-md text-center timeline-tab-btn">개인/기타</button>
+        <div class="flex border-b border-gray-100 mb-4 text-xs font-bold text-gray-400 sticky top-0 bg-white z-10 py-2">
+            <button onclick="window.filterMemberLogs('all')" id="mTab-all" class="flex-1 pb-2 border-b-2 border-sky-500 text-sky-600 transition-all text-center font-bold">전체</button>
+            <button onclick="window.filterMemberLogs('hiking')" id="mTab-hiking" class="flex-1 pb-2 border-b-2 border-transparent hover:text-gray-600 transition-all text-center font-bold">일정산행</button>
+            <button onclick="window.filterMemberLogs('running')" id="mTab-running" class="flex-1 pb-2 border-b-2 border-transparent hover:text-gray-600 transition-all text-center font-bold">개인/기타</button>
         </div>
-        <div id="filteredTimelineList" class="space-y-3 px-0.5 max-h-[300px] overflow-y-auto custom-scrollbar"></div>
+        <div id="filteredTimelineList" class="space-y-3 px-0.5 max-h-[300px] overflow-y-auto"></div>
     `;
     
     container.innerHTML = tabsHtml;
+    
+    // 최초 실행 시 '전체' 탭을 가동시켜 첫 목록을 출력
     window.filterMemberLogs('all');
 }
 
-// 🌟 [추가 함수 2] 활성화 탭에 맞게 클라이언트 단에서 즉각 정렬 및 렌더링
+// 🌟 [추가 함수 2] 탭 클릭 시 실시간 클라이언트 사이드 데이터 정렬 및 렌더링
 window.filterMemberLogs = (category) => {
     const tabs = {
         all: document.getElementById('mTab-all'),
@@ -6764,35 +6738,46 @@ window.filterMemberLogs = (category) => {
         running: document.getElementById('mTab-running')
     };
 
+    // 1. 탭 UI 활성화/비활성화 클래스 스위칭 공정
     Object.keys(tabs).forEach(key => {
         if (!tabs[key]) return;
         if (key === category) {
-            tabs[key].className = "flex-1 py-1.5 rounded-md border border-[#1ABC9C]/30 bg-[#1ABC9C]/10 text-[#00FFFF] text-center timeline-tab-btn font-extrabold shadow-[0_0_8px_rgba(26,188,156,0.2)]";
+            tabs[key].classList.add('border-sky-500', 'text-sky-600');
+            tabs[key].classList.remove('border-transparent', 'text-gray-400');
         } else {
-            tabs[key].className = "flex-1 py-1.5 rounded-md border border-transparent text-slate-400 text-center timeline-tab-btn font-semibold hover:text-slate-200";
+            tabs[key].classList.remove('border-sky-500', 'text-sky-600');
+            tabs[key].classList.add('border-transparent', 'text-gray-400');
         }
     });
 
+    // 2. 전역 변수에서 카테고리 필터 기준 정의 검사
     let filtered = [];
     const logs = window.currentMemberLogs || [];
 
     if (category === 'all') {
         filtered = logs;
     } else if (category === 'hiking') {
-        filtered = logs.filter(log => (!log.isRunning && !log.isTracking && !log.isWalking) && !log.isExtraHike);
+        // 순수산행 (런닝, 트레킹, 산책, 번외산행 모두 제외)
+        filtered = logs.filter(log => 
+            (!log.isRunning && !log.isTracking && !log.isWalking) && !log.isExtraHike
+        );
     } else if (category === 'running') {
-        filtered = logs.filter(log => log.isExtraHike || log.isRunning || log.isTracking || log.isWalking);
+        // 번외산행 및 런닝/트레킹/산책 포함
+        filtered = logs.filter(log => 
+            log.isExtraHike || log.isRunning || log.isTracking || log.isWalking
+        );
     }
 
+    // 🎨 범례 가이드 영역 조율 (도트 크기 8px, 텍스트 10px 스펙 적용)
     const legendArea = document.getElementById('timelineLegend');
     if (legendArea) {
         const legends = {
-            regular: `<div class="flex items-center gap-1 text-[9px] font-semibold text-slate-300"><span class="inline-block w-2 h-2 rounded-full border border-white/10" style="background: linear-gradient(135deg, #FF69B4, #ADFF2F, #A020F0);"></span><span>정기</span></div>`,
-            hike: `<div class="flex items-center gap-1 text-[9px] font-semibold text-slate-400"><span class="inline-block w-2 h-2 rounded-full border border-white/10 bg-[#2ecc71]"></span><span>일정</span></div>`,
-            extraHike: `<div class="flex items-center gap-1 text-[9px] font-semibold text-slate-400"><span class="inline-block w-2 h-2 rounded-full border border-white/10 bg-[#5CE1D6]"></span><span>개인</span></div>`,
-            trek: `<div class="flex items-center gap-1 text-[9px] font-semibold text-slate-400"><span class="inline-block w-2 h-2 rounded-full border border-white/10 bg-[#E0B0FF]"></span><span>트레킹</span></div>`,
-            run: `<div class="flex items-center gap-1 text-[9px] font-semibold text-slate-400"><span class="inline-block w-2 h-2 rounded-full border border-white/10 bg-[#FFD1DC]"></span><span>런닝</span></div>`,
-            walk: `<div class="flex items-center gap-1 text-[9px] font-semibold text-slate-400"><span class="inline-block w-2 h-2 rounded-full border border-white/10 bg-[#FFCC80]"></span><span>산책</span></div>`
+            regular: `<div class="flex items-center gap-1 text-[10px] font-semibold text-slate-500"><span class="inline-block w-2 h-2 rounded-full border border-black/5" style="background: linear-gradient(135deg, #FF69B4, #ADFF2F, #A020F0);"></span><span>정기산행</span></div>`,
+            hike: `<div class="flex items-center gap-1 text-[10px] font-semibold text-slate-500"><span class="inline-block w-2 h-2 rounded-full border border-black/5 bg-[#2ecc71]"></span><span>일정산행</span></div>`,
+            extraHike: `<div class="flex items-center gap-1 text-[10px] font-semibold text-slate-500"><span class="inline-block w-2 h-2 rounded-full border border-black/5 bg-[#5CE1D6]"></span><span>개인산행</span></div>`,
+            trek: `<div class="flex items-center gap-1 text-[10px] font-semibold text-slate-500"><span class="inline-block w-2 h-2 rounded-full border border-black/5 bg-[#E0B0FF]"></span><span>트레킹</span></div>`,
+            run: `<div class="flex items-center gap-1 text-[10px] font-semibold text-slate-500"><span class="inline-block w-2 h-2 rounded-full border border-black/5 bg-[#FFD1DC]"></span><span>런닝</span></div>`,
+            walk: `<div class="flex items-center gap-1 text-[10px] font-semibold text-slate-500"><span class="inline-block w-2 h-2 rounded-full border border-black/5 bg-[#FFCC80]"></span><span>산책</span></div>`
         };
 
         if (category === 'hiking') {
@@ -6802,30 +6787,29 @@ window.filterMemberLogs = (category) => {
         } else {
             legendArea.innerHTML = Object.values(legends).join('');
         }
+        legendArea.style.display = 'flex';
     }
 
+    // 3. 필터링된 영역만 리렌더링
     const listArea = document.getElementById('filteredTimelineList');
     if (!listArea) return;
 
     if (filtered.length === 0) {
-        listArea.innerHTML = `
-            <div class="flex flex-col items-center justify-center py-16 text-slate-500 gap-2">
-                <span class="text-sm">🛸</span>
-                <p class="text-[10px] font-medium tracking-wide">해당 우주 영역에는 흔적이 없네요.</p>
-            </div>`;
+        listArea.innerHTML = "<p class='text-center text-[10px] py-10 text-gray-400'>기록 없음</p>";
         return;
     }
 
     listArea.innerHTML = filtered.map(log => {
         const dayName = ['일','월','화','수','목','금','토'][log.date.getDay()];
-        const top100Class = log.isTop100 ? 'text-[#00FFFF] font-extrabold drop-shadow-[0_0_2px_rgba(0,255,255,0.4)]' : 'text-slate-200';
-        const bacTag = log.isBAC ? '<span class="inline-block px-1 py-0.5 rounded text-[8px] font-black bg-red-500/10 text-red-400 border border-red-500/20 mr-1 align-middle">BAC</span>' : '';
+        const top100Class = log.isTop100 ? 'text-blue-600 font-black' : 'text-gray-700';
+        const bacTag = log.isBAC ? '<span class="bac-txt" style="display:inline-block; padding: 1px 3px; border-radius: 3px; font-size: 8px; font-weight: 900; background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); margin-right: 4px; vertical-align: middle;">BAC</span>' : '';
         
         const heightVal = log.height || 0;
         const isKmActivity = (log.isRunning || log.isTracking || log.isWalking) && !log.isExtraHike;
         const unit = (isKmActivity && heightVal < 50) ? 'km' : 'm';
         const displayMountain = log.mountain || (log.isExtraHike ? "번외 산행" : "기록");
 
+        // 🎨 운동 종류별 잔디 색상 도트 생성 로직 반영
         let dotStyle = "";
         if (log.isRegular) {
             dotStyle = "background: linear-gradient(135deg, #FF69B4, #ADFF2F, #A020F0);";
@@ -6840,34 +6824,31 @@ window.filterMemberLogs = (category) => {
             else activeColors.push(colors.hike);
 
             if (activeColors.length >= 2) {
-                dotStyle = `background: linear-gradient(135deg, ${activeColors[0]} 50%, ${activeColors[1]} 50%);`;
+                if (activeColors.length === 2) {
+                    dotStyle = `background: linear-gradient(135deg, ${activeColors[0]} 50%, ${activeColors[1]} 50%);`;
+                } else {
+                    dotStyle = `background: linear-gradient(135deg, ${activeColors[0]} 33.3%, ${activeColors[1]} 33.3%, ${activeColors[1]} 66.6%, ${activeColors[2]} 66.6%);`;
+                }
             } else {
                 dotStyle = `background: ${activeColors[0]};`;
             }
         }
 
-        const colorDotTag = `<span class="inline-block w-2 h-2 rounded-full mr-1.5 align-middle shadow-[0_0_4px_rgba(255,255,255,0.1)] border border-white/10" style="${dotStyle}"></span>`;
+        const colorDotTag = `<span class="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle shadow-sm border border-black/5" style="${dotStyle}"></span>`;
 
         return `
-            <div class="relative pl-5 py-1.5 group">
-                <div class="absolute left-1 top-0 bottom-0 w-[1px] bg-slate-800 group-last:h-1/2"></div>
-                <div class="absolute left-0 top-[11px] w-2 h-2 rounded-full bg-[#121824] border-2 border-[#00CED1] shadow-[0_0_4px_rgba(0,206,209,0.5)]"></div>
-                
-                <div class="bg-white/[0.02] border border-white/[0.04] p-2 rounded-lg transition-all duration-200">
-                    <div class="text-[9px] text-slate-500 font-bold tracking-wider mb-0.5">
-                        ${log.date.getFullYear()}.${log.date.getMonth()+1}.${log.date.getDate()} (${dayName})
-                    </div>
-                    <div class="text-[11px] ${top100Class} flex items-center flex-wrap leading-relaxed">
-                        ${colorDotTag}${bacTag}
-                        <span class="font-bold mr-1">${displayMountain}</span>
-                        <span class="text-slate-400 text-[10px]">(${heightVal}${unit})</span>
-                        ${log.isTop100 ? '<span class="ml-1 text-[9px]">⭐</span>' : '<span class="ml-1 text-[#1ABC9C]/80 text-[9px]">✔</span>'}
-                    </div>
+            <div class="timeline-item" style="position: relative; padding-left: 20px; padding-top: 6px; padding-bottom: 6px;">
+                <div class="timeline-dot" style="position: absolute; left: 0; top: 12px; width: 8px; height: 8px; border-radius: 50%; background: #cbd5e1;"></div>
+                <div class="timeline-date" style="font-size: 10px; color: #94a3b8; font-weight: bold; margin-bottom: 2px;">
+                    ${log.date.getFullYear()}.${log.date.getMonth()+1}.${log.date.getDate()} (${dayName})
+                </div>
+                <div class="timeline-desc ${top100Class}" style="font-size: 12px; display: flex; align-items: center;">
+                    ${colorDotTag}${bacTag}${displayMountain} (${heightVal}${unit}) ${log.isTop100 ? '⭐' : '✔️'}
                 </div>
             </div>`;
     }).join('');
 };
-</script>
+        </script>
 
    // --- 잔디 상세 팝업 및 이벤트 제어 (통합본) ---
 
