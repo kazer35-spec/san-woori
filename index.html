@@ -180,15 +180,11 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
     display: inline-block;
     border: 1px solid rgba(0,0,0,0.06);
 }
-    
-/* CSS 파일 내의 이 클래스 속성에 color가 강제 지정되어 있다면 지워주시거나 아래처럼 변경해 주세요! */
 .scroll-item-name {
     font-size: 11.5px;
     font-weight: 800;
-    /* color: #2563eb; <--- 이 부분을 삭제하거나 주석 처리하고 아래 스타일을 사용합니다 */
-    color: inherit; /* JS가 건네주는 인라인 스타일 컬러를 그대로 따르도록 상속 */
+    color: #2563eb;
 }
-
 
 .bac-badge-mini {
     font-size: 8px;
@@ -6763,7 +6759,7 @@ window.currentScrollLogs = [];
 
     
 
-             window.showFadingScroll = async function(mId, dday, level = 0) {
+            window.showFadingScroll = async function(mId, dday, level = 0) {
     const modal = document.getElementById('scrollModal');
     const content = document.getElementById('scrollContent');
     const scrollWrap = document.querySelector('.fading-scroll'); 
@@ -6774,7 +6770,7 @@ window.currentScrollLogs = [];
     modal.style.display = 'flex';
     content.innerHTML = `
         <div style="text-align:center; padding:50px 0;">
-            <p style="font-size:12px; color:#a0aec0;">산우리의 소중한 발자취를 분석하는 중...</p>
+            <p style="font-size:12px; color:#a0aec0;">운동 데이터를 분석하는 중...</p>
         </div>
     `;
 
@@ -6806,27 +6802,18 @@ window.currentScrollLogs = [];
             };
         });
 
-        // 2. 모달 상단 정보 한 줄 구성 및 탭 뼈대 렌더링 (더 다정하고 이쁜 멘트로 변경!)
+        // 2. 모달 상단 정보 한 줄 구성 및 탭 뼈대 렌더링
         content.innerHTML = `
-            <!-- 1) D-Day 와 함께한 아름다운 여정을 한 줄로 배치 -->
+            <!-- 1) D-Day 와 함께한 날을 한 줄(Row)로 배치 -->
             <div class="user-status-row-bar">
                 <div class="dday-count-badge">D-Day ${dday}</div>
                 <div class="origin-membership-info-mini">
-                    <span class="member-since-label">산우리와 함께한 여정 : </span>
+                    <span class="member-since-label">함께한 날 : </span>
                     <strong class="member-since-date">${formattedRegDateKo}</strong>
                 </div>
             </div>
 
-            <!-- 2) 잔디 운동 색상별 명칭 (범례 바) -->
-            <div class="scroll-legend-bar">
-                <div class="legend-item"><span class="legend-dot" style="background: #2ecc71;"></span>일정산행</div>
-                <div class="legend-item"><span class="legend-dot" style="background: #5ce1d6;"></span>개인산행</div>
-                <div class="legend-item"><span class="legend-dot" style="background: #e0b0ff;"></span>트레킹</div>
-                <div class="legend-item"><span class="legend-dot" style="background: #ffd1dc;"></span>런닝</div>
-                <div class="legend-item"><span class="legend-dot" style="background: #ffcc80;"></span>산책</div>
-            </div>
-
-            <!-- 3) 탭 컨테이너 -->
+            <!-- 2) 탭 컨테이너 -->
             <div class="tab-scroll-container">
                 <div class="tab-header-buttons">
                     <button type="button" onclick="window.filterScrollLogs('all', event)" id="sTab-all" class="tab-btn active">전체</button>
@@ -6834,7 +6821,7 @@ window.currentScrollLogs = [];
                     <button type="button" onclick="window.filterScrollLogs('running', event)" id="sTab-running" class="tab-btn">개인/기타</button>
                 </div>
                 
-                <!-- 필터링된 결과 일지 리스트가 그려지는 곳 (딱 6개 들어가는 컴팩트 뷰포트) -->
+                <!-- 필터링된 결과 일지 리스트가 그려지는 곳 -->
                 <div id="scrollFilteredList" class="scroll-filtered-list-box"></div>
             </div>
         `;
@@ -6859,7 +6846,7 @@ window.currentScrollLogs = [];
         }
     };
 
-    // 모달 자체를 클릭했을 때는 이벤트 버블링 차단
+    // 하얀색 모달 박스 자체를 클릭했을 때는 이벤트가 바깥 배경(modal)으로 올라가서 꺼지지 않도록 원천 차단
     if (scrollWrap) {
         scrollWrap.onclick = function(e) {
             e.stopPropagation(); 
@@ -6867,7 +6854,7 @@ window.currentScrollLogs = [];
     }
 };
 
-// [탭 필터링 및 렌더링 함수]
+// 🌟 [탭 필터링 함수] - 이벤트 버블링 수동 전파 방지용 event 인자 추가
 window.filterScrollLogs = (category, event) => {
     if (event) {
         event.stopPropagation(); // 버튼 클릭 시 부모 클릭 이벤트가 발동되는 것을 이중 차단
@@ -6879,7 +6866,7 @@ window.filterScrollLogs = (category, event) => {
         running: document.getElementById('sTab-running')
     };
 
-    // 모든 탭 엘리먼트 스타일 토글 처리
+    // 1. 모든 탭 엘리먼트 스타일 토글 처리
     Object.keys(tabs).forEach(key => {
         if (!tabs[key]) return;
         if (key === category) {
@@ -6889,15 +6876,17 @@ window.filterScrollLogs = (category, event) => {
         }
     });
 
-    // 카테고리 필터링 분기
+    // 2. 카테고리 필터링 분기
     let filtered = [];
     if (category === 'all') {
         filtered = window.currentScrollLogs;
     } else if (category === 'hiking') {
+        // 일정산행 탭: 연두색 일정산행(!isRunning && !isTracking && !isWalking && !isExtraHike) 혹은 정기산행(isRegular)
         filtered = window.currentScrollLogs.filter(log => 
             log.isRegular || ((!log.isRunning && !log.isTracking && !log.isWalking) && !log.isExtraHike)
         );
     } else if (category === 'running') {
+        // 개인/기타 탭: 개인산행(isExtraHike), 런닝, 트레킹, 산책 분류
         filtered = window.currentScrollLogs.filter(log => 
             log.isExtraHike || log.isRunning || log.isTracking || log.isWalking
         );
@@ -6907,11 +6896,11 @@ window.filterScrollLogs = (category, event) => {
     if (!listBox) return;
 
     if (filtered.length === 0) {
-        listBox.innerHTML = `<p style="text-align:center; padding:40px 0; font-size:11px; color:#a0aec0;">남겨진 활동 기록이 없습니다.</p>`;
+        listBox.innerHTML = `<p style="text-align:center; padding:40px 0; font-size:11px; color:#a0aec0;">기록이 없습니다.</p>`;
         return;
     }
 
-    // 필터링 데이터 리스트 렌더링
+    // 3. 필터링 데이터 리스트 렌더링
     listBox.innerHTML = filtered.map(log => {
         let dateStr = "----.--.--";
         let dayName = "";
@@ -6961,18 +6950,7 @@ window.filterScrollLogs = (category, event) => {
         
         const displayMountain = log.mountain || (log.isExtraHike ? "개인 산행" : "활동 기록");
         const bacTag = log.isBAC ? '<span class="bac-badge-mini">BAC</span>' : '';
-        
-        // 🌟 [파란색 폰트 충돌 해결] 
-        // 100대 명산(isTop100) 여부에 따라 세련된 다크민트 또는 네온 블루 포인트, 일반 기록은 고급스러운 다크 그레이 처리
-        let starTag = "";
-        let nameStyle = "color: #334155; font-weight: 700;"; // 기본 차분한 다크 차콜 (파란색 무조건 적용 방지)
-        
-        if (log.isTop100) {
-            starTag = '<span style="color: #f59e0b; font-size: 11px; margin-left: 2px;">★</span>';
-            nameStyle = "color: #1abc9c; font-weight: 800;"; // 100대 명산만 산우리 산뜻한 다크민트로 강조!
-        } else {
-            starTag = '<span style="color: #94a3b8; font-size: 11px; margin-left: 2px;">✔</span>';
-        }
+        const starTag = log.isTop100 ? '<span style="color: #f59e0b; font-size: 11px; margin-left: 2px;">★</span>' : '<span style="color: #94a3b8; font-size: 11px; margin-left: 2px;">✔</span>';
 
         return `
             <div class="scroll-timeline-item">
@@ -6980,14 +6958,13 @@ window.filterScrollLogs = (category, event) => {
                 <div class="scroll-item-body">
                     <span class="scroll-item-dot" style="${dotStyle}"></span>
                     ${bacTag}
-                    <span class="scroll-item-name" style="${nameStyle}">${displayMountain} (${heightVal}${unit})</span>
+                    <span class="scroll-item-name">${displayMountain} (${heightVal}${unit})</span>
                     ${starTag}
                 </div>
             </div>
         `;
     }).join('');
 };
-
 
 </script>
 
