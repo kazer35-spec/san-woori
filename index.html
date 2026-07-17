@@ -109,36 +109,41 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
     margin: 12px 0;
 }
 
-/* 탭 영역 클릭 및 포인터 확실히 보장 */
+/* 4. 탭 및 데이터 리스트 영역 */
+.tab-scroll-container {
+    background: #f8fafc;
+    border-radius: 16px;
+    padding: 12px;
+    border: 1px solid #edf2f7;
+}
 .tab-header-buttons {
     display: flex;
     border-bottom: 2px solid #e2e8f0;
     margin-bottom: 10px;
     gap: 4px;
-    position: relative;
-    z-index: 10; /* 앞으로 끌어올림 */
 }
 .tab-btn {
     flex: 1;
     text-align: center;
-    padding: 10px 0;
-    font-size: 12px;
+    padding: 8px 0;
+    font-size: 11px;
     font-weight: 800;
     color: #94a3b8;
-    background: transparent !important;
-    border: none !important;
-    border-bottom: 2px solid transparent !important;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
     margin-bottom: -2px;
-    cursor: pointer !important;
-    -webkit-tap-highlight-color: transparent;
-    outline: none;
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
 }
 .tab-btn.active {
-    color: #0284c7 !important;
-    border-bottom: 2px solid #0284c7 !important;
+    color: #0284c7;
+    border-bottom: 2px solid #0284c7;
     font-weight: 900;
 }
-
+.tab-btn:hover {
+    color: #0f172a;
+}
 
 /* 5. 스크롤 일지 박스 */
 .scroll-filtered-list-box {
@@ -6756,17 +6761,14 @@ setTimeout(() => s.remove(), 500);
                 // 필터링 처리를 위해 모달 전용 로그 목록을 임시 저장할 전역 변수
 window.currentScrollLogs = []; 
 
-
-    
-
-            window.showFadingScroll = async function(mId, dday, level = 0) {
+window.showFadingScroll = async function(mId, dday, level = 0) {
     const modal = document.getElementById('scrollModal');
     const content = document.getElementById('scrollContent');
     const scrollWrap = document.querySelector('.fading-scroll'); 
     
     if(!modal || !content) return;
 
-    // 1. 모달 레이어 노출 및 임시 로딩 UI
+    // 모달 레이어 노출 및 임시 로딩 UI
     modal.style.display = 'flex';
     content.innerHTML = `
         <div style="text-align:center; padding:50px 0;">
@@ -6816,9 +6818,9 @@ window.currentScrollLogs = [];
             <!-- 2) 탭 컨테이너 -->
             <div class="tab-scroll-container">
                 <div class="tab-header-buttons">
-                    <button type="button" onclick="window.filterScrollLogs('all', event)" id="sTab-all" class="tab-btn active">전체</button>
-                    <button type="button" onclick="window.filterScrollLogs('hiking', event)" id="sTab-hiking" class="tab-btn">일정산행</button>
-                    <button type="button" onclick="window.filterScrollLogs('running', event)" id="sTab-running" class="tab-btn">개인/기타</button>
+                    <button onclick="window.filterScrollLogs('all')" id="sTab-all" class="tab-btn active">전체</button>
+                    <button onclick="window.filterScrollLogs('hiking')" id="sTab-hiking" class="tab-btn">일정산행</button>
+                    <button onclick="window.filterScrollLogs('running')" id="sTab-running" class="tab-btn">개인/기타</button>
                 </div>
                 
                 <!-- 필터링된 결과 일지 리스트가 그려지는 곳 -->
@@ -6839,34 +6841,27 @@ window.currentScrollLogs = [];
         `;
     }
 
-    // 🌟 [안전장치] 바깥 어두운 배경(오버레이)을 정확히 눌렀을 때만 닫히게 처리
-    modal.onclick = function(e) {
-        if (e.target === modal) {
+    // 모달 닫기 이벤트 핸들러 바인딩 (바깥 오버레이 클릭 시 닫기)
+    modal.onclick = () => { modal.style.display = 'none'; };
+    if(scrollWrap) {
+        scrollWrap.onclick = (e) => {
+            // 안쪽 영역 조작 시 모달이 꺼지는 문제 방지
+            if (e.target.closest('.scroll-filtered-list-box') || e.target.closest('.tab-header-buttons') || e.target.closest('.tab-btn')) return; 
             modal.style.display = 'none';
-        }
-    };
-
-    // 하얀색 모달 박스 자체를 클릭했을 때는 이벤트가 바깥 배경(modal)으로 올라가서 꺼지지 않도록 원천 차단
-    if (scrollWrap) {
-        scrollWrap.onclick = function(e) {
             e.stopPropagation(); 
         };
     }
 };
 
-// 🌟 [탭 필터링 함수] - 이벤트 버블링 수동 전파 방지용 event 인자 추가
-window.filterScrollLogs = (category, event) => {
-    if (event) {
-        event.stopPropagation(); // 버튼 클릭 시 부모 클릭 이벤트가 발동되는 것을 이중 차단
-    }
-
+// 🌟 [탭 필터링 함수]
+window.filterScrollLogs = (category) => {
     const tabs = {
         all: document.getElementById('sTab-all'),
         hiking: document.getElementById('sTab-hiking'),
         running: document.getElementById('sTab-running')
     };
 
-    // 1. 모든 탭 엘리먼트 스타일 토글 처리
+    // 1. 모든 탭 엘리먼트 스타일 토글 처리 (클래스 누락 방지)
     Object.keys(tabs).forEach(key => {
         if (!tabs[key]) return;
         if (key === category) {
@@ -6881,7 +6876,7 @@ window.filterScrollLogs = (category, event) => {
     if (category === 'all') {
         filtered = window.currentScrollLogs;
     } else if (category === 'hiking') {
-        // 일정산행 탭: 연두색 일정산행(!isRunning && !isTracking && !isWalking && !isExtraHike) 혹은 정기산행(isRegular)
+        // 일정산행 탭: 연두색 일정산행 및 그라데이션 정기산행만 분류
         filtered = window.currentScrollLogs.filter(log => 
             log.isRegular || ((!log.isRunning && !log.isTracking && !log.isWalking) && !log.isExtraHike)
         );
@@ -6900,7 +6895,7 @@ window.filterScrollLogs = (category, event) => {
         return;
     }
 
-    // 3. 필터링 데이터 리스트 렌더링
+    // 3. 필터링된 데이터를 두 번째 이미지의 리스트 형태로 매핑
     listBox.innerHTML = filtered.map(log => {
         let dateStr = "----.--.--";
         let dayName = "";
