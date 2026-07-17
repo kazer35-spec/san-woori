@@ -6721,173 +6721,138 @@ setTimeout(() => s.remove(), 500);
 }, 850);
 }
 
- // 기존 showFadingScroll을 완전히 대체하는 "새로운 운동일지" 오픈 함수
+
+    // 전역 캐싱 변수 (탭 전환 시 매번 DB를 새로 읽지 않고 부드럽게 필터링하기 위함)
+let currentJournalLogs = [];
+
 window.showFadingScroll = async function(mId, dday, level = 0) {
     const modal = document.getElementById('scrollModal');
     const content = document.getElementById('scrollContent');
-    const scrollWrap = document.querySelector('.fading-scroll'); 
     
     if(!modal || !content) return;
 
-    let statusMsg = "";
-    let subMsg = "";
-    let statusClass = "status-good";
-
-    // D-Day 기반 서사 문구 및 상태 정의
-    if (dday > 30) {
-        statusMsg = "기록이 황금빛으로 찬란하게 빛납니다.";
-        subMsg = "당신의 땀방울이 산:우리의 역사가 되고 있습니다.";
-        statusClass = "status-gold";
-    } else if (dday <= 30 && dday > 20) {
-        statusMsg = "기록의 온기가 서서히 약해지고 있습니다.";
-        subMsg = "사라지기 전에 새로운 발자국을 채워주세요.";
-        statusClass = "status-warn";
-    } else {
-        statusMsg = "기록이 흐려져 거의 소멸 직전입니다!";
-        subMsg = "지금 즉시 함께 발걸음을 옮겨 기록을 깨워주세요.";
-        statusClass = "status-danger";
-    }
-
-    // 가입일 포맷팅 정보 로드
-    let formattedRegDateKo = "----년 --월 --일";
-    let formattedRegDateDot = "----.--.--";
+    // UI 초기 로딩 표시
+    content.innerHTML = `<div style="text-align: center; padding: 40px 0; color: #64748b; font-size: 12px;">데이터를 불러오는 중...</div>`;
+    modal.style.display = 'flex';
 
     try {
-        const memberSnap = await getDoc(doc(db, `sanwoori`, mId));
-        if (memberSnap.exists()) {
-            const memberData = memberSnap.data();
-            if (memberData.regDate) {
-                const rDate = memberData.regDate.toDate();
-                const yyyy = rDate.getFullYear();
-                const mm = String(rDate.getMonth() + 1).padStart(2, '0');
-                const dd = String(rDate.getDate()).padStart(2, '0');
-                
-                formattedRegDateKo = `${yyyy}년 ${mm}월 ${dd}일`;
-                formattedRegDateDot = `${yyyy}.${mm}.${dd}`;
+        // [1] Firebase에서 회원의 모든 운동 로그 정렬하여 취득
+        const snap = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc")));
+        currentJournalLogs = [];
+        
+        snap.forEach(doc => {
+            currentJournalLogs.push(doc.data());
+        });
 
-                // 나이테 영역이 존재할 경우 실시간 동기화
-                const ringLaunchedEl = document.getElementById('ringLaunchedDate');
-                if (ringLaunchedEl) {
-                    ringLaunchedEl.innerText = `LAUNCHED: ${formattedRegDateDot}`;
-                }
-            }
-        }
-    } catch (e) {
-        console.error("가입일 로드 실패:", e);
-    }
+        // [2] 기본 탭인 '전체' 탭 활성화 상태로 첫 화면 렌더링
+        switchJournalTab('all');
 
-    // --- [핵심] 정교하게 가공된 최신 운동일지 타임라인 (최대 5개) ---
-    let timelineHTML = `
-        <div class="journal-timeline" style="display: flex; flex-direction: column; gap: 12px; max-height: 220px; overflow-y: auto; padding-right: 4px;">
-    `;
-    
-    try {
-        const snap = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc"), limit(5)));
-        if (snap.empty) {
-            timelineHTML += `
-                <div style="text-align: center; padding: 40px 0; color: #8d775f; font-size: 12px;">
-                    🐾 아직 새겨진 운동 기록이 없습니다.
-                </div>`;
-        } else {
-            snap.forEach(doc => {
-                const data = doc.data();
-                const date = data.date ? data.date.toDate().toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' }) : '??.??';
-                
-                // 활동 유형 판별 및 맞춤 아이콘/컬러 테마 지정 (러닝: 핑크, 트레킹: 보라, 산책: 주황, 산행: 다크민트)
-                let actType = "Hike";
-                let actIcon = "⛰️";
-                let themeColor = "#1ABC9C"; // 기본 Dark Mint
-                let actName = "일반 산행";
-
-                if (data.run === true || data.run > 0) {
-                    actType = "Run";
-                    actIcon = "🏃‍♀️";
-                    themeColor = "#ec4899"; // Hot Pink
-                    actName = "런닝 페이스";
-                } else if (data.trek === true || data.trek > 0) {
-                    actType = "Trek";
-                    actIcon = "🥾";
-                    themeColor = "#a855f7"; // Purple
-                    actName = "트레킹 코스";
-                } else if (data.walk === true || data.walk > 0) {
-                    actType = "Walk";
-                    actIcon = "🚶";
-                    themeColor = "#f97316"; // Orange
-                    actName = "가벼운 산책";
-                } else if (data.isRegular) {
-                    actType = "Regular";
-                    actIcon = "🌈";
-                    themeColor = "#2ecc71"; // Emerald
-                    actName = "정기 정외산행";
-                } else if (data.extraHike > 0) {
-                    actIcon = "🏔️";
-                    themeColor = "#00CED1"; // Turquoise
-                    actName = "개인 자유산행";
-                }
-
-                timelineHTML += `
-                    <div class="journal-card" style="border-left: 3px solid ${themeColor}; background: rgba(141, 119, 95, 0.06); padding: 10px 12px; border-radius: 4px 8px 8px 4px; display: flex; align-items: center; justify-content: space-between;">
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <span class="journal-badge" style="background: ${themeColor}15; color: ${themeColor}; font-size: 14px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%;">
-                                ${actIcon}
-                            </span>
-                            <div>
-                                <div style="font-size: 11px; font-weight: bold; color: #3e2723;">${data.mountain || '기록지'} ${actName}</div>
-                                <div style="font-size: 9px; color: #8d775f; margin-top: 1px;">${data.altitude ? data.altitude + 'm 정복' : '페이스 기록 완료'}</div>
-                            </div>
-                        </div>
-                        <div style="font-size: 11px; font-weight: 700; color: #5a4a3a; font-family: monospace;">
-                            ${date}
-                        </div>
-                    </div>`;
-            });
-        }
     } catch (e) {
         console.error("운동일지 로드 실패:", e);
-        timelineHTML += `<div style="text-align: center; color: red; font-size: 11px; padding: 20px;">일지 분석 과정에서 오류가 발생했습니다.</div>`;
+        content.innerHTML = `<div style="text-align: center; color: #ef4444; font-size: 12px; padding: 20px;">일지를 가져오지 못했습니다.</div>`;
     }
-    timelineHTML += `</div>`;
-
-    // 2. 전체 수려한 UI 구조 렌더링
-    content.innerHTML = `
-        <div style="text-align: center;">
-            <p class="ancient-quote" style="font-weight: 800; font-size: 13px; color: #3e2723; margin-bottom: 4px; letter-spacing: -0.3px;">
-                "혼자 가면 기록이지만 함께 가면 역사"
-            </p>
-            <p style="font-size: 9px; color: #8d775f; font-style: italic; margin: 0 0 16px 0; opacity: 0.8;">
-                - 始原(시원) : ${formattedRegDateKo}의 약속 -
-            </p>
-        </div>
-
-        <div class="journal-status-box ${statusClass}" style="background: rgba(141, 119, 95, 0.08); padding: 12px; border-radius: 8px; margin-bottom: 18px; border: 1px solid rgba(141, 119, 95, 0.15);">
-            <div style="font-size: 11px; font-weight: 800; color: #2e1c0c; display: flex; align-items: center; gap: 6px;">
-                ⏱️ <span id="statusMessage">${statusMsg}</span>
-            </div>
-            <div style="font-size: 10px; color: #705e4d; margin-top: 4px; line-height: 1.4;">
-                ${subMsg}
-            </div>
-        </div>
-
-        <div style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 10px; font-weight: 800; color: #8d775f; letter-spacing: 0.5px;">RECENT LOGS</span>
-            <span style="font-size: 9px; color: #8d775f; opacity: 0.8;">최근 5개 기록</span>
-        </div>
-        
-        ${timelineHTML}
-    `;
-
-    // 3. 전방위 클릭 닫기 바인딩
-    modal.onclick = () => { modal.style.display = 'none'; };
-    if(scrollWrap) {
-        scrollWrap.onclick = (e) => {
-            if (e.target.closest('.journal-timeline')) return; 
-            modal.style.display = 'none';
-            e.stopPropagation(); 
-        };
-    }
-
-    modal.style.display = 'flex';
 };
+
+// [3] 탭을 클릭했을 때 실시간 분기 필터링 처리기
+window.switchJournalTab = function(tabType) {
+    const content = document.getElementById('scrollContent');
+    if (!content) return;
+
+    // 탭 스타일 초기화 및 선택 효과 활성화
+    const tabs = {
+        all: document.getElementById('tab-all'),
+        regular: document.getElementById('tab-regular'),
+        private: document.getElementById('tab-private')
+    };
+
+    Object.keys(tabs).forEach(key => {
+        if (tabs[key]) {
+            if (key === tabType) {
+                tabs[key].style.color = '#3b82f6';
+                tabs[key].style.borderBottom = '2px solid #3b82f6';
+            } else {
+                tabs[key].style.color = '#64748b';
+                tabs[key].style.borderBottom = '2px solid transparent';
+            }
+        }
+    });
+
+    // 데이터 필터링 분기
+    let filtered = [];
+    if (tabType === 'all') {
+        filtered = currentJournalLogs;
+    } else if (tabType === 'regular') {
+        // 정기산행 또는 일정산행 데이터 필터
+        filtered = currentJournalLogs.filter(log => log.isRegular === true);
+    } else if (tabType === 'private') {
+        // 개인산행, 런닝, 트레킹, 산책 등 개인 기록 필터
+        filtered = currentJournalLogs.filter(log => log.isRegular !== true);
+    }
+
+    if (filtered.length === 0) {
+        content.innerHTML = `<div style="text-align: center; padding: 50px 0; color: #94a3b8; font-size: 12px;">일치하는 운동 기록이 없습니다.</div>`;
+        return;
+    }
+
+    // [4] 리스트 렌더링 시작
+    let listHTML = `<ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 16px;">`;
+
+    filtered.forEach(log => {
+        // 요일 및 날짜 포맷
+        let formattedDate = "??.??";
+        if (log.date) {
+            const d = log.date.toDate();
+            const days = ['일', '월', '화', '수', '목', '금', '토'];
+            formattedDate = `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()} (${days[d.getDay()]})`;
+        }
+
+        // 아이콘 및 도트 색상 지정 분기 logic
+        let dotColor = '#22c55e'; // 기본 초록색 (산행)
+        let checkIcon = "✓";
+        let isTopBadge = "";
+
+        // 운동 유형 판별 (기존 성분 데이터 활용)
+        if (log.run === true || log.run > 0) {
+            dotColor = '#ec4899'; // 런닝 (핫핑크)
+        } else if (log.trek === true || log.trek > 0) {
+            dotColor = '#a855f7'; // 트레킹 (보라)
+        } else if (log.walk === true || log.walk > 0) {
+            dotColor = '#f97316'; // 산책 (주황)
+        } else if (log.isRegular) {
+            dotColor = '#2ecc71'; // 정기산행 (밝은 에메랄드)
+        }
+
+        // BAC 등급 표시 여부
+        if (log.isTop100) {
+            isTopBadge = `<span style="color: #ef4444; font-weight: 800; font-size: 10px; margin-right: 4px;">BAC</span>`;
+            checkIcon = "⭐";
+        }
+
+        // 고도 표시
+        const altitudeText = log.altitude ? ` (${log.altitude}m)` : '';
+
+        listHTML += `
+            <li style="position: relative; padding-left: 14px;">
+                <!-- 타임라인 라인 장식효과 -->
+                <div style="position: absolute; left: 0; top: 12px; bottom: -20px; width: 1.5px; background: #e2e8f0;"></div>
+                
+                <!-- 날짜 헤더 -->
+                <div style="font-size: 11px; font-weight: 800; color: #475569; margin-bottom: 4px;">
+                    ${formattedDate}
+                </div>
+                
+                <!-- 운동 세부 내역 -->
+                <div style="display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 800; color: #1e293b;">
+                    <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: ${dotColor};"></span>
+                    <span>${isTopBadge}${log.mountain || '기록지'}${altitudeText} ${checkIcon}</span>
+                </div>
+            </li>`;
+    });
+
+    listHTML += `</ul>`;
+    content.innerHTML = listHTML;
+};
+
 
     
         
@@ -6938,47 +6903,37 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
     </div>
 </div>
 
-<!-- [운동일지 모달 레이어 (구 고대 예언서)] -->
-<div id="scrollModal" class="scroll-overlay" onclick="this.style.display='none'">
-    <div class="fading-scroll" onclick="event.stopPropagation()">
-
-        <!-- 고풍스러운 산맥 일러스트는 운동 기록과 잘 어울려 그대로 유지합니다 -->
-        <div class="ancient-mountain-bg">
-            <svg viewBox="0 0 500 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M150 180L250 50L350 180" stroke="#8b4513" stroke-width="2" stroke-opacity="0.2"/>
-                <path d="M50 180L180 80L280 180" stroke="#8b4513" stroke-width="2" stroke-opacity="0.1"/>
-                <path d="M280 180L380 90L480 180" stroke="#8b4513" stroke-width="2" stroke-opacity="0.1"/>
-                <path d="M230 75L250 50L270 75" stroke="#8b4513" stroke-width="1" stroke-opacity="0.2"/>
-            </svg>
+<!-- [최근 운동 일지 모달 레이어 (새로운 버전)] -->
+<div id="scrollModal" class="scroll-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 10000; justify-content: center; align-items: center;" onclick="this.style.display='none'">
+    <div class="fading-scroll" style="background: #ffffff; width: 90%; max-width: 380px; border-radius: 24px; padding: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); position: relative; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;" onclick="event.stopPropagation()">
+        
+        <!-- 헤더 영역 -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
+            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: #1e293b; display: flex; align-items: center; gap: 6px;">
+                📜 최근 운동 일지
+            </h3>
+            <button onclick="document.getElementById('scrollModal').style.display='none'" style="background: none; border: none; font-size: 20px; color: #94a3b8; cursor: pointer; font-weight: bold;">&times;</button>
         </div>
 
-        <div class="scroll-header">
-            <div class="scroll-title-sub">SAN WOORI</div>
-            <!-- ✏️ 타이틀을 '고대 예언서'에서 '서사적 운동일지'로 변경하여 직관성을 높입니다 -->
-            <h3 class="scroll-title-main">산우리의 발자취</h3>
+        <!-- 탭 네비게이션 -->
+        <div style="display: flex; border-bottom: 2px solid #f1f5f9; margin-bottom: 16px;">
+            <button id="tab-all" onclick="switchJournalTab('all')" style="flex: 1; padding: 10px 0; background: none; border: none; font-size: 13px; font-weight: 800; color: #3b82f6; border-bottom: 2px solid #3b82f6; cursor: pointer; transition: all 0.2s;">전체</button>
+            <button id="tab-regular" onclick="switchJournalTab('regular')" style="flex: 1; padding: 10px 0; background: none; border: none; font-size: 13px; font-weight: 800; color: #64748b; border-bottom: 2px solid transparent; cursor: pointer; transition: all 0.2s;">일정산행</button>
+            <button id="tab-private" onclick="switchJournalTab('private')" style="flex: 1; padding: 10px 0; background: none; border: none; font-size: 13px; font-weight: 800; color: #64748b; border-bottom: 2px solid transparent; cursor: pointer; transition: all 0.2s;">개인/기타</button>
         </div>
 
-        <div id="scrollContent" class="scroll-body">
-            <!-- 자바스크립트에서 동적 타임라인과 상태 박스가 여기에 채워집니다. -->
+        <!-- 스크롤 가능한 일지 리스트 영역 -->
+        <div id="scrollContent" style="background: #f8fafc; border-radius: 16px; padding: 16px 12px; max-height: 350px; overflow-y: auto; margin-bottom: 18px; border: 1px solid #f1f5f9;">
+            <!-- 자바스크립트에서 리스트 내용들이 동적으로 빌드되어 들어갑니다. -->
         </div>
 
-        <div class="scroll-footer">
-            <hr class="scroll-divider">
-            
-            <div class="ancient-seal">
-                <div class="seal-text">SAN<br>WOORI</div>
-            </div>
-            
-            <!-- ✏️ 하단 가이드 문구도 운동 기록 관리에 걸맞게 다듬었습니다 -->
-            <p class="footer-note" style="font-weight: bold; color: #5a4a3a; margin-top: 15px;">
-                꾸준한 운동 기록으로 당신의 역사를 이어가세요.
-            </p>
-            
-            <p class="ancient-signature">San:woori Athletic Journal</p>
-        </div>
+        <!-- 하단 닫기 버튼 -->
+        <button onclick="document.getElementById('scrollModal').style.display='none'" style="width: 100%; background: #f0f7ff; border: none; color: #007aff; padding: 14px 0; border-radius: 14px; font-size: 14px; font-weight: 800; cursor: pointer; transition: background 0.2s;">
+            일지 창 닫기
+        </button>
     </div>
 </div>
-
+        
 <!-- 잔디 팝업 레이어 (이 부분은 우정점수 개인 창 등에서 계속 호출되므로 '완전히 그대로' 둡니다) -->
 <div id="grassPopup" class="hidden" style="position: absolute; z-index: 9999; background: white; border: 1px solid #e2e8f0; padding: 12px; border-radius: 12px; shadow: 0 10px 15px -3px rgba(0,0,0,0.1); min-width: 140px; pointer-events: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
     <div id="popupDate" style="font-size: 10px; font-weight: bold; color: #94a3b8; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; margin-bottom: 8px;"></div>
