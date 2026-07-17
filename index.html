@@ -6722,129 +6722,221 @@ setTimeout(() => s.remove(), 500);
 }
 
 
-// 기존 프로젝트 내 운동일지 데이터 캐싱용 전역 객체
-let journalLogsCache = [];
 
+    // 데이터를 담아둘 전역 상태 변수
+let currentMemberLogs = [];
+
+/**
+ * 🌟 D-Day 버튼을 누르면 호출되어 운동일지 창을 띄우는 메인 진입 함수
+ * (기존 showFadingScroll 명칭을 그대로 유지하여 바인딩 손실을 방지합니다)
+ */
 window.showFadingScroll = async function(mId, dday, level = 0) {
     const modal = document.getElementById('scrollModal');
-    const content = document.getElementById('scrollContent');
-    
-    if(!modal || !content) return;
+    const container = document.getElementById('timelineContent');
+    const scrollContainer = document.getElementById('timelineScrollContainer');
 
-    content.innerHTML = `<div style="text-align: center; padding: 40px 0; color: #64748b; font-size: 12px;">일지를 분석하는 중...</div>`;
+    if(!modal || !container) return;
+
+    // 초기 상태 초기화 및 표시
+    container.innerHTML = `<div class="text-center py-10 text-xs text-gray-400">일지를 불러오는 중...</div>`;
     modal.style.display = 'flex';
+    if (scrollContainer) scrollContainer.scrollTop = 0;
 
     try {
-        // [1] 기존 데이터 조회 쿼리 실행
+        // Firebase 등 DB에서 해당 회원의 로그 데이터 전체 로드 (날짜 내림차순)
         const snap = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc")));
-        journalLogsCache = [];
-        
+        currentMemberLogs = [];
+
         snap.forEach(doc => {
-            journalLogsCache.push(doc.data());
+            const data = doc.data();
+            // date 데이터가 Timestamp 객체인 경우 JS Date 객체로 파싱하여 할당
+            if (data.date && typeof data.date.toDate === 'function') {
+                data.date = data.date.toDate();
+            } else if (data.date) {
+                data.date = new Date(data.date);
+            } else {
+                data.date = new Date();
+            }
+            currentMemberLogs.push(data);
         });
 
-        // [2] 기본값인 '전체' 보기 필터 실행
-        filterJournal('all');
+        // 데이터 정리가 끝나면 사용자가 제공한 탭 빌드 및 초기 렌더링 함수 실행
+        setupTimelineTabs();
 
     } catch (e) {
-        console.error("기존 운동일지 조회 실패:", e);
-        content.innerHTML = `<div style="text-align: center; color: #ef4444; font-size: 12px; padding: 20px;">기록을 로드하지 못했습니다.</div>`;
+        console.error("운동 일지 연동 로드 실패:", e);
+        container.innerHTML = `<div class="text-center py-10 text-xs text-red-500">기록 데이터를 불러오지 못했습니다.</div>`;
     }
 };
 
-// [3] 프로젝트 오리지널 필터 및 렌더링 함수
-window.filterJournal = function(type) {
-    const content = document.getElementById('scrollContent');
-    if (!content) return;
+// 🌟 [제공해주신 함수 1] 타임라인 상단 탭 배치 & 초기화
+function setupTimelineTabs() {
+    const container = document.getElementById('timelineContent');
+    if (!container) return;
+    
+    // 타임라인 상단에 들어갈 탭 디자인 구성 (Tailwind class 적용)
+    const tabsHtml = `
+        <div class="flex border-b border-gray-100 mb-4 text-xs font-bold text-gray-400 sticky top-0 bg-white z-10 py-2">
+            <button onclick="window.filterMemberLogs('all')" id="mTab-all" class="flex-1 pb-2 border-b-2 border-sky-500 text-sky-600 transition-all text-center">전체</button>
+            <button onclick="window.filterMemberLogs('hiking')" id="mTab-hiking" class="flex-1 pb-2 border-b-2 border-transparent hover:text-gray-600 transition-all text-center">일정산행</button>
+            <button onclick="window.filterMemberLogs('running')" id="mTab-running" class="flex-1 pb-2 border-b-2 border-transparent hover:text-gray-600 transition-all text-center">개인/기타</button>
+        </div>
+        <div id="filteredTimelineList"></div>
+    `;
+    
+    container.innerHTML = tabsHtml;
+    
+    // 기본 'all' 상태로 리스트 출력
+    window.filterMemberLogs('all');
+}
 
-    // 탭 UI 하이라이트 제어
-    const tabAll = document.getElementById('tab-all');
-    const tabRegular = document.getElementById('tab-regular');
-    const tabPrivate = document.getElementById('tab-private');
+// 🌟 [제공해주신 함수 2] 탭 클릭 시 클라이언트 사이드 즉시 필터링
+window.filterMemberLogs = (category) => {
+    const tabs = {
+        all: document.getElementById('mTab-all'),
+        hiking: document.getElementById('mTab-hiking'),
+        running: document.getElementById('mTab-running')
+    };
 
-    if (tabAll && tabRegular && tabPrivate) {
-        [tabAll, tabRegular, tabPrivate].forEach(t => {
-            t.style.color = '#64748b';
-            t.style.borderBottom = '2px solid transparent';
-        });
-        
-        const activeTab = document.getElementById(`tab-${type}`);
-        if (activeTab) {
-            activeTab.style.color = '#3b82f6';
-            activeTab.style.borderBottom = '2px solid #3b82f6';
+    // 1. 탭 UI 활성화 클래스 조절
+    Object.keys(tabs).forEach(key => {
+        if (!tabs[key]) return;
+        if (key === category) {
+            tabs[key].classList.add('border-sky-500', 'text-sky-600');
+            tabs[key].classList.remove('border-transparent', 'text-gray-400');
+        } else {
+            tabs[key].classList.remove('border-sky-500', 'text-sky-600');
+            tabs[key].classList.add('border-transparent', 'text-gray-400');
+        }
+    });
+
+    // 2. 카테고리 필터 기준 정의
+    let filtered = [];
+    if (category === 'all') {
+        filtered = currentMemberLogs;
+    } else if (category === 'hiking') {
+        // 순수산행 (런닝, 트레킹, 산책, 번외산행 모두 제외)
+        filtered = currentMemberLogs.filter(log => 
+            (!log.isRunning && !log.isTracking && !log.isWalking) && !log.isExtraHike
+        );
+    } else if (category === 'running') {
+        // 번외산행 및 런닝/트레킹/산책 포함
+        filtered = currentMemberLogs.filter(log => 
+            log.isExtraHike || log.isRunning || log.isTracking || log.isWalking
+        );
+    }
+
+    // 🎨 범례 가이드 영역 조율 (도트 크기 8px, 텍스트 10px로 축소)
+    const legendArea = document.getElementById('timelineLegend');
+    if (legendArea) {
+        // 범례 조각 정의
+        const legends = {
+            regular: `<div class="flex items-center gap-1 text-[10px] font-semibold text-slate-500 mr-2">
+                <span class="inline-block w-2 h-2 rounded-full border border-black/5" style="background: linear-gradient(135deg, #FF69B4, #ADFF2F, #A020F0);"></span>
+                <span>정기산행</span>
+            </div>`,
+            hike: `<div class="flex items-center gap-1 text-[10px] font-semibold text-slate-500 mr-2">
+                <span class="inline-block w-2 h-2 rounded-full border border-black/5 bg-[#2ecc71]"></span>
+                <span>일정산행</span>
+            </div>`,
+            extraHike: `<div class="flex items-center gap-1 text-[10px] font-semibold text-slate-500 mr-2">
+                <span class="inline-block w-2 h-2 rounded-full border border-black/5 bg-[#5CE1D6]"></span>
+                <span>개인산행</span>
+            </div>`,
+            trek: `<div class="flex items-center gap-1 text-[10px] font-semibold text-slate-500 mr-2">
+                <span class="inline-block w-2 h-2 rounded-full border border-black/5 bg-[#E0B0FF]"></span>
+                <span>트레킹</span>
+            </div>`,
+            run: `<div class="flex items-center gap-1 text-[10px] font-semibold text-slate-500 mr-2">
+                <span class="inline-block w-2 h-2 rounded-full border border-black/5 bg-[#FFD1DC]"></span>
+                <span>런닝</span>
+            </div>`,
+            walk: `<div class="flex items-center gap-1 text-[10px] font-semibold text-slate-500 mr-2">
+                <span class="inline-block w-2 h-2 rounded-full border border-black/5 bg-[#FFCC80]"></span>
+                <span>산책</span>
+            </div>`
+        };
+
+        // 탭 종류에 따라 알맞은 범례 아이템 배치
+        if (category === 'hiking') {
+            legendArea.innerHTML = [legends.regular, legends.hike, legends.extraHike].join('');
+            legendArea.style.display = 'flex';
+        } else if (category === 'running') {
+            legendArea.innerHTML = [legends.run, legends.trek, legends.walk].join('');
+            legendArea.style.display = 'flex';
+        } else {
+            legendArea.innerHTML = Object.values(legends).join('');
+            legendArea.style.display = 'flex';
         }
     }
 
-    // 탭 분류 조건 정의
-    let filtered = [];
-    if (type === 'all') {
-        filtered = journalLogsCache;
-    } else if (type === 'regular') {
-        filtered = journalLogsCache.filter(log => log.isRegular === true);
-    } else if (type === 'private') {
-        filtered = journalLogsCache.filter(log => log.isRegular !== true);
-    }
+    // 3. 필터링된 영역만 리렌더링
+    const listArea = document.getElementById('filteredTimelineList');
+    if (!listArea) return;
 
     if (filtered.length === 0) {
-        content.innerHTML = `<div style="text-align: center; padding: 50px 0; color: #94a3b8; font-size: 12px;">기록이 없습니다.</div>`;
+        listArea.innerHTML = "<p class='text-center text-[10px] py-10 text-gray-400'>기록 없음</p>";
         return;
     }
 
-    // [4] 기존 운동일지 포맷팅 리스트 출력
-    let html = `<ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 16px;">`;
+    listArea.innerHTML = filtered.map(log => {
+        const dayName = ['일','월','화','수','목','금','토'][log.date.getDay()];
+        const top100Class = log.isTop100 ? 'text-blue-600 font-black' : '';
+        const bacTag = log.isBAC ? '<span class="bac-txt">BAC</span>' : '';
+        
+        const heightVal = log.height || 0;
+        const isKmActivity = (log.isRunning || log.isTracking || log.isWalking) && !log.isExtraHike;
+        const unit = (isKmActivity && heightVal < 50) ? 'km' : 'm';
+        const displayMountain = log.mountain || (log.isExtraHike ? "번외 산행" : "기록");
 
-    filtered.forEach(log => {
-        let dateStr = "??.??";
-        if (log.date) {
-            const d = log.date.toDate();
-            const days = ['일', '월', '화', '수', '목', '금', '토'];
-            dateStr = `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()} (${days[d.getDay()]})`;
+        // 🎨 운동 종류별 잔디 색상 도트 생성 로직
+        let dotStyle = "";
+        
+        if (log.isRegular) {
+            // 정기산행: 프리미엄 그라데이션
+            dotStyle = "background: linear-gradient(135deg, #FF69B4, #ADFF2F, #A020F0);";
+        } else {
+            // 일반 활동별 정의된 잔디 색상
+            const colors = {
+                hike: "#2ecc71",      // 등산 기본 (초록)
+                extraHike: "#5CE1D6", // 번외산행 (민트)
+                walk: "#FFCC80",      // 산책 (주황)
+                trek: "#E0B0FF",      // 트레킹 (보라)
+                run: "#FFD1DC"        // 런닝 (분홍)
+            };
+
+            let activeColors = [];
+            if (log.isExtraHike) activeColors.push(colors.extraHike);
+            else if (log.isRunning) activeColors.push(colors.run);
+            else if (log.isTracking) activeColors.push(colors.trek);
+            else if (log.isWalking) activeColors.push(colors.walk);
+            else activeColors.push(colors.hike);
+
+            if (activeColors.length >= 2) {
+                if (activeColors.length === 2) {
+                    dotStyle = `background: linear-gradient(135deg, ${activeColors[0]} 50%, ${activeColors[1]} 50%);`;
+                } else {
+                    dotStyle = `background: linear-gradient(135deg, ${activeColors[0]} 33.3%, ${activeColors[1]} 33.3%, ${activeColors[1]} 66.6%, ${activeColors[2]} 66.6%);`;
+                }
+            } else {
+                dotStyle = `background: ${activeColors[0]};`;
+            }
         }
 
-        // 기존 시스템 색상 팔레트 매핑
-        let dotColor = '#22c55e'; // 기본 녹색 (산행)
-        let checkIcon = "✓";
-        let bacPrefix = "";
+        // 🎯 텍스트(산 이름) 바로 앞에 오도록 여백 수정 (mr-1.5)
+        const colorDotTag = `<span class="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle shadow-sm border border-black/5" style="${dotStyle}"></span>`;
 
-        // 기존 활동 분류 규칙 적용
-        if (log.run === true || log.run > 0) {
-            dotColor = '#ec4899'; // 런닝 (핑크)
-        } else if (log.trek === true || log.trek > 0) {
-            dotColor = '#a855f7'; // 트레킹 (보라)
-        } else if (log.walk === true || log.walk > 0) {
-            dotColor = '#f97316'; // 산책 (오렌지)
-        } else if (log.isRegular) {
-            dotColor = '#2ecc71'; // 정기산행 (에메랄드)
-        } else if (log.extraHike > 0) {
-            dotColor = '#00B36B'; // 개인 산행 (딥그린)
-        }
-
-        // 100대 명산 스페셜 케이스 처리
-        if (log.isTop100) {
-            bacPrefix = `<span style="color: #ef4444; font-weight: 800; font-size: 10px; margin-right: 4px;">BAC</span>`;
-            checkIcon = "⭐";
-        }
-
-        const altText = log.altitude ? ` (${log.altitude}m)` : '';
-
-        html += `
-            <li style="position: relative; padding-left: 14px; list-style-type: none;">
-                <!-- 세로 타임라인 장식선 -->
-                <div style="position: absolute; left: 0; top: 12px; bottom: -20px; width: 1.5px; background: #e2e8f0;"></div>
-                
-                <div style="font-size: 11px; font-weight: 800; color: #475569; margin-bottom: 4px;">
-                    ${dateStr}
+        return `
+            <div class="timeline-item">
+                <div class="timeline-dot"></div>
+                <div class="timeline-date">
+                    ${log.date.getFullYear()}.${log.date.getMonth()+1}.${log.date.getDate()} (${dayName})
                 </div>
-                
-                <div style="display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 800; color: #1e293b;">
-                    <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: ${dotColor}; flex-shrink: 0;"></span>
-                    <span>${bacPrefix}${log.mountain || '일반 활동'}${altText} ${checkIcon}</span>
+                <div class="timeline-desc ${top100Class}">
+                    ${colorDotTag}${bacTag}${displayMountain} (${heightVal}${unit}) ${log.isTop100 ? '⭐' : '✔️'}
                 </div>
-            </li>`;
-    });
-
-    html += `</ul>`;
-    content.innerHTML = html;
+            </div>`;
+    }).join('');
 };
 
         
@@ -6897,32 +6989,31 @@ window.filterJournal = function(type) {
     </div>
 </div>
 
-<!-- [최근 운동 일지 모달 레이어] -->
-<div id="scrollModal" class="scroll-overlay" style="display: none;" onclick="this.style.display='none'">
-    <div class="fading-scroll" onclick="event.stopPropagation()" style="background: #ffffff; width: 90%; max-width: 380px; border-radius: 24px; padding: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
+<!-- [최근 운동 일지 모달 레이어 (구 고대 예언서)] -->
+<div id="scrollModal" class="scroll-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 10000; justify-content: center; align-items: center;" onclick="this.style.display='none'">
+    <div class="fading-scroll" style="background: #ffffff; width: 90%; max-width: 380px; border-radius: 24px; padding: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); position: relative; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;" onclick="event.stopPropagation()">
         
-        <!-- 헤더 -->
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
-            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: #1e293b; display: flex; align-items: center; gap: 6px;">
+        <!-- 헤더 영역 -->
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-base font-black text-slate-800 flex items-center gap-1.5">
                 📜 최근 운동 일지
             </h3>
-            <button onclick="document.getElementById('scrollModal').style.display='none'" style="background: none; border: none; font-size: 20px; color: #94a3b8; cursor: pointer; font-weight: bold;">&times;</button>
+            <button onclick="document.getElementById('scrollModal').style.display='none'" class="text-gray-400 text-xl font-bold hover:text-gray-600 transition-all">&times;</button>
         </div>
 
-        <!-- 탭 네비게이션 (기존 프로젝트 탭 스타일 고수) -->
-        <div style="display: flex; border-bottom: 2px solid #f1f5f9; margin-bottom: 16px;">
-            <button id="tab-all" onclick="filterJournal('all')" style="flex: 1; padding: 10px 0; background: none; border: none; font-size: 13px; font-weight: 800; color: #3b82f6; border-bottom: 2px solid #3b82f6; cursor: pointer;">전체</button>
-            <button id="tab-regular" onclick="filterJournal('regular')" style="flex: 1; padding: 10px 0; background: none; border: none; font-size: 13px; font-weight: 800; color: #64748b; border-bottom: 2px solid transparent; cursor: pointer;">일정산행</button>
-            <button id="tab-private" onclick="filterJournal('private')" style="flex: 1; padding: 10px 0; background: none; border: none; font-size: 13px; font-weight: 800; color: #64748b; border-bottom: 2px solid transparent; cursor: pointer;">개인/기타</button>
+        <!-- 스크롤 가능한 일지 영역 및 동적 탭 컨테이너 -->
+        <div class="timeline-scroll-area max-h-[50vh] overflow-y-auto pr-1" id="timelineScrollContainer">
+            <!-- setupTimelineTabs() 실행 시 탭 메뉴와 리스트가 이곳에 주입됩니다 -->
+            <div id="timelineContent" class="timeline-container"></div>
         </div>
 
-        <!-- 일지 목록 바디 -->
-        <div id="scrollContent" style="background: #f8fafc; border-radius: 16px; padding: 16px 12px; max-height: 350px; overflow-y: auto; margin-bottom: 18px; border: 1px solid #f1f5f9;">
-            <!-- 기존 프로젝트 내부 운동일지 리스트 템플릿이 삽입됩니다 -->
+        <!-- 하단 범례 표시 가이드 영역 -->
+        <div id="timelineLegend" class="flex flex-wrap gap-2 justify-center items-center py-3 border-t border-gray-100 mt-4">
+            <!-- 카테고리 탭 선택에 따라 알맞은 범례 도트들이 주입됩니다 -->
         </div>
 
         <!-- 하단 닫기 버튼 -->
-        <button onclick="document.getElementById('scrollModal').style.display='none'" style="width: 100%; background: #f0f7ff; border: none; color: #007aff; padding: 14px 0; border-radius: 14px; font-size: 14px; font-weight: 800; cursor: pointer;">
+        <button onclick="document.getElementById('scrollModal').style.display='none'" class="w-100 w-full mt-2 bg-sky-50 text-sky-600 hover:bg-sky-100 transition-colors py-3.5 rounded-2xl text-xs font-black cursor-pointer text-center">
             일지 창 닫기
         </button>
     </div>
