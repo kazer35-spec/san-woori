@@ -6534,9 +6534,8 @@ if (finalSynergy >= 60) {
 };
 
     
-  <!-- [별 가이드 모달용 스크립트] -->
-<script>
-Window.toggleStarGuide = (show) => {
+// --- [가이드 렌더링 함수] ---
+window.toggleStarGuide = (show) => {
     const gModal = document.getElementById('starGuideModal');
     if (!gModal) return;
     if (show) {
@@ -6580,28 +6579,29 @@ function renderStarGuideItems() {
 }
 
 function createShootingStar(board, tx, ty) {
-    const s = document.createElement('div');
-    s.className = 'shooting-star';
-    const startX = tx - 20;
-    const startY = ty - 20;
-    s.style.left = startX + "%";
-    s.style.top = startY + "%";
-    s.style.transform = "rotate(45deg)";
-    board.appendChild(s);
+const s = document.createElement('div');
+s.className = 'shooting-star';
+const startX = tx - 20;
+const startY = ty - 20;
+s.style.left = startX + "%";
+s.style.top = startY + "%";
+s.style.transform = "rotate(45deg)";
+board.appendChild(s);
 
-    setTimeout(() => {
-        s.style.transition = "all 0.8s cubic-bezier(0.25, 0.1, 0.25, 1)";
-        s.style.left = tx + "%";
-        s.style.top = ty + "%";
-        s.style.opacity = "1";
-    }, 50);
+setTimeout(() => {
+s.style.transition = "all 0.8s cubic-bezier(0.25, 0.1, 0.25, 1)";
+s.style.left = tx + "%";
+s.style.top = ty + "%";
+s.style.opacity = "1";
+}, 50);
 
-    setTimeout(() => {
-        s.style.opacity = "0";
-        setTimeout(() => s.remove(), 500);
-    }, 850);
+setTimeout(() => {
+s.style.opacity = "0";
+setTimeout(() => s.remove(), 500);
+}, 850);
 }
-</script>
+
+        </script>
 
 <!-- 마크업 구조 레이어 -->
 <div id="mountainViewModal" class="mountain-modal" onclick="this.style.display='none'">
@@ -6667,18 +6667,16 @@ function createShootingStar(board, tx, ty) {
 
         <!-- 🌟 동적 타임라인 및 탭 세팅 컨테이너 -->
         <div id="timelineContent"></div>
-    </div>
-</div>
 
-<!-- [잔디 팝업 레이어] -->
-<div id="grassPopup" class="hidden" style="position: absolute; z-index: 9999; background: white; border: 1px solid #e2e8f0; padding: 12px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); min-width: 140px; pointer-events: auto;">
+            <div id="grassPopup" class="hidden" style="position: absolute; z-index: 9999; background: white; border: 1px solid #e2e8f0; padding: 12px; border-radius: 12px; shadow: 0 10px 15px -3px rgba(0,0,0,0.1); min-width: 140px; pointer-events: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
     <div id="popupDate" style="font-size: 10px; font-weight: bold; color: #94a3b8; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; margin-bottom: 8px;"></div>
     <div id="popupContent" style="display: flex; flex-direction: column; gap: 4px;"></div>
 </div>
 
-<!-- [비즈니스 로직 스크립트] -->
-<script>
-// 🌟 [통합 함수] 디데이 클릭 시 호출되는 타임라인 로드 & 오픈 함수
+    </div>
+</div>
+
+    // 🌟 [통합 함수] 디데이 클릭 시 호출되는 타임라인 로드 & 오픈 함수
 window.showFadingScroll = async function(mId, dday, level = 0) {
     const modal = document.getElementById('scrollModal');
     const content = document.getElementById('timelineContent');
@@ -6699,7 +6697,7 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
     modal.style.display = 'flex';
 
     try {
-        // 2. Firebase에서 해당 멤버의 전체 로그 최신순 로드
+        // 2. Firebase에서 해당 멤버의 전체 로그 최신순 로드 (100개 제한 등 비즈니스 룰에 맞춤 가능)
         const snap = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc")));
         
         // 탭 필터링 함수가 실시간 공유하도록 전역(window) 변수에 바인딩
@@ -6893,7 +6891,9 @@ window.filterMemberLogs = (category) => {
     }).join('');
 };
 
-// --- 잔디 상세 팝업 및 이벤트 제어 (통합본) ---
+<script>
+   // --- 잔디 상세 팝업 및 이벤트 제어 (통합본) ---
+
 window.showGrassPopup = (event, date, encodedAct) => {
     // [중요] 클릭 이벤트가 body까지 퍼져서 바로 닫히는 것을 방지
     if (event.stopPropagation) event.stopPropagation();
@@ -6950,6 +6950,7 @@ window.showGrassPopup = (event, date, encodedAct) => {
 // 화면 아무 곳이나 클릭하거나 터치하면 잔디 팝업 닫기
 document.addEventListener('mousedown', (e) => {
     const popup = document.getElementById('grassPopup');
+    // 팝업이 열려 있고, 클릭한 대상이 팝업 자체가 아닐 때만 닫음
     if (popup && !popup.classList.contains('hidden') && !popup.contains(e.target)) {
         popup.classList.add('hidden');
         popup.style.display = 'none';
@@ -6964,8 +6965,9 @@ document.addEventListener('touchstart', (e) => {
         popup.style.display = 'none';
     }
 }, { passive: true });
-</script>
 
+
+</script>
 </body>
     </html>
     
