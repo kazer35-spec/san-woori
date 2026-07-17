@@ -18,7 +18,7 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
     position: relative;
     padding-left: 18px;
     margin-left: 8px;
-    border-left: 1px solid rgba(26, 188, 156, 0.3);
+    border-left: 1px solid rgba(26, 188, 156, 0.35);
 }
 .timeline-item-node {
     position: relative;
@@ -32,23 +32,24 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
     height: 8px;
     border-radius: 50%;
     background: #1ABC9C;
-    box-shadow: 0 0 8px #1ABC9C;
+    box-shadow: 0 0 6px #1ABC9C;
     border: 1.5px solid #101830;
 }
 .timeline-node-date {
-    font-size: 9.5px;
+    font-size: 9px;
     color: rgba(255, 255, 255, 0.4);
     font-weight: 700;
     font-family: monospace;
-    margin-bottom: 3px;
+    margin-bottom: 2px;
 }
 .timeline-node-desc {
-    font-size: 11.5px;
+    font-size: 11px;
     color: #e0e6ed;
     display: flex;
     align-items: center;
     font-weight: 500;
 }
+
 /* 스크롤바 커스텀 */
 #timelineScrollContainer::-webkit-scrollbar {
     width: 4px;
@@ -57,23 +58,30 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
     background: rgba(26, 188, 156, 0.3);
     border-radius: 2px;
 }
-/* 텍스트 효과 */
+
+/* 라이팅 텍스트 효과 */
 .text-neon-cyan {
     color: #00FFFF !important;
-    text-shadow: 0 0 8px rgba(0, 255, 255, 0.4);
+    text-shadow: 0 0 6px rgba(0, 255, 255, 0.4);
 }
 .text-neon-mint {
     color: #1ABC9C !important;
-    text-shadow: 0 0 8px rgba(26, 188, 156, 0.4);
+    text-shadow: 0 0 6px rgba(26, 188, 156, 0.4);
 }
-.fading-normal { opacity: 1; }
-.fading-20 { opacity: 0.75; color: #a0aec0 !important; }
-.fading-10 { opacity: 0.5; color: #718096 !important; animation: pulse 2s infinite; }
+.text-faded-warn {
+    color: #FFB300 !important;
+    text-shadow: 0 0 6px rgba(255, 179, 0, 0.3);
+}
+.text-faded-danger {
+    color: #FF5252 !important;
+    text-shadow: 0 0 6px rgba(255, 82, 82, 0.4);
+    animation: critical-pulse 1.5s infinite;
+}
 
-@keyframes pulse {
-    0% { opacity: 0.5; }
-    50% { opacity: 0.25; }
-    100% { opacity: 0.5; }
+@keyframes critical-pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
 }
         
         /* 번외산행 단계별 색상 (기본 민트: #00CED1) */
@@ -6752,49 +6760,52 @@ setTimeout(() => s.remove(), 500);
 }, 850);
 }
 
- // 데이터를 담아둘 전역 상태 변수
-let currentMemberLogs = [];
+ let currentMemberLogs = [];
 
 /**
- * 🌟 D-Day/우정점수 버튼 누를 시 모달 트리거
+ * 🌟 개인 디데이 클릭 시 호출되어 데이터를 조회하고 모달을 구성하는 메인 함수
  */
 window.showFadingScroll = async function(mId, dday, level = 0) {
     const modal = document.getElementById('scrollModal');
-    const quoteArea = document.getElementById('ancientQuoteArea');
+    const dashboardArea = document.getElementById('ddayDashboardArea');
     const container = document.getElementById('timelineContent');
     const scrollContainer = document.getElementById('timelineScrollContainer');
 
-    if (!modal || !container || !quoteArea) return;
+    if (!modal || !container || !dashboardArea) return;
 
-    // 초기 상태 로딩
-    container.innerHTML = `<div class="text-center py-10 text-xs text-gray-500">SYSTEM: LOADING LOGS...</div>`;
+    // 초기 상태 로딩 애니메이션 대입
+    container.innerHTML = `<div class="text-center py-12 text-xs text-gray-500" style="font-family: monospace;">SYS: FETCHING ACTIVITY LOGS...</div>`;
     modal.style.display = 'flex';
     if (scrollContainer) scrollContainer.scrollTop = 0;
 
     let textClass = "";
-    let statusMsg = "";
-    let subMsg = "";
+    let statusTitle = "";
+    let statusDesc = "";
+    let progressColor = "";
 
-    // D-Day 상태 로직 정의
+    // 디데이에 따른 담백하고 직관적인 상태 데이터 세팅
     if (dday > 30) {
         textClass = "text-neon-cyan";
-        statusMsg = "기록 동기화 최상 (활성화 상태)";
-        subMsg = "현재 시스템에 기록이 선명하게 동기화되어 실시간으로 반짝이고 있습니다.";
+        statusTitle = "활동 주기 최상 (ACTIVE)";
+        statusDesc = "정기 및 개인 활동이 매우 활발히 동기화되고 있는 안전 상태입니다.";
+        progressColor = "#00FFFF";
     } else if (dday <= 30 && dday > 20) {
         textClass = "text-neon-mint"; 
-        statusMsg = "신호 감쇠 시작 (동기화 레벨 2)";
-        subMsg = "에너지가 서서히 소모되고 있습니다. 주파수가 꺼지기 전 새로운 운동 로그를 등록해 주세요.";
+        statusTitle = "활동 주기 정상 (STABLE)";
+        statusDesc = "원활한 주기 상태입니다. 유지를 위해 조만간 일지를 추가 등록해 주세요.";
+        progressColor = "#1ABC9C";
     } else if (dday <= 20 && dday > 10) {
-        textClass = "fading-20";
-        statusMsg = "주의: 연결 신호 미약 (동기화 레벨 1)";
-        subMsg = "조금씩 데이터가 흐려집니다. 지속적인 활동 링크를 연결하여 로그를 갱신하세요.";
+        textClass = "text-faded-warn";
+        statusTitle = "활동 주기 감소 경고 (WARNING)";
+        statusDesc = "마지막 기록 이후 시간이 꽤 흘렀습니다. 다시 발자취를 남겨 주기를 회복하세요.";
+        progressColor = "#FFB300";
     } else {
-        textClass = "fading-10";
-        statusMsg = "위험: 신호 증발 경고 (시스템 경고)";
-        subMsg = "기록이 완전히 증발하기 직전입니다! 지금 즉시 동반 운동을 통해 노드를 리셋하세요.";
+        textClass = "text-faded-danger";
+        statusTitle = "활동 만료 직전 (CRITICAL)";
+        statusDesc = "기록 동기화가 거의 소멸되었습니다. 즉시 일지 추가가 요구됩니다.";
+        progressColor = "#FF5252";
     }
 
-    let formattedRegDateKo = "----년 --월 --일";
     let formattedRegDateDot = "----.--.--";
 
     try {
@@ -6803,7 +6814,7 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
                             typeof getDocs !== 'undefined';
 
         if (hasFirebase && mId) {
-            // A. 가입일 동적 연동
+            // A. 가입일 조회
             const memberSnap = await getDoc(doc(db, `sanwoori`, mId));
             if (memberSnap.exists()) {
                 const memberData = memberSnap.data();
@@ -6812,18 +6823,11 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
                     const yyyy = rDate.getFullYear();
                     const mm = String(rDate.getMonth() + 1).padStart(2, '0');
                     const dd = String(rDate.getDate()).padStart(2, '0');
-                    
-                    formattedRegDateKo = `${yyyy}년 ${mm}월 ${dd}일`;
                     formattedRegDateDot = `${yyyy}.${mm}.${dd}`;
-
-                    const ringLaunchedEl = document.getElementById('ringLaunchedDate');
-                    if (ringLaunchedEl) {
-                        ringLaunchedEl.innerText = `LAUNCHED: ${formattedRegDateDot}`;
-                    }
                 }
             }
 
-            // B. 운동 기록 로그 가져오기
+            // B. 운동 기록 로그 로드
             const snap = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc")));
             currentMemberLogs = [];
 
@@ -6839,8 +6843,8 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
                 currentMemberLogs.push(data);
             });
         } else {
-            console.warn("DEMO MODE: 가상 데이터를 로딩합니다.");
-            formattedRegDateKo = "2024년 05월 12일";
+            // 오프라인 / 디버깅용 가상 더미 데이터 바인딩
+            formattedRegDateDot = "2025.11.15";
             currentMemberLogs = [
                 { date: new Date(), mountain: "모락산 정기산행", height: 385, isRegular: true },
                 { date: new Date(Date.now() - 86400000 * 2), mountain: "백운산 개인등반", height: 567, isExtraHike: true },
@@ -6849,43 +6853,46 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
             ];
         }
 
-        // 2. 상단 상태 카드 렌더링
-        quoteArea.innerHTML = `
-            <div style="text-align: center; margin-bottom: 12px;">
-                <p class="${textClass}" style="font-weight: 800; font-size: 13.5px; line-height: 1.5; margin: 0 0 4px 0; letter-spacing: -0.2px;">
-                    "혼자 가면 기록이지만<br>함께 가면 역사"
-                </p>
-                <p style="font-size: 9px; color: rgba(255,255,255,0.4); margin: 0 0 12px 0; letter-spacing: 0.5px; font-family: monospace;">
-                    INITIALIZED: ${formattedRegDateKo}
-                </p>
-            </div>
-            <div style="font-size: 10px; line-height: 1.6; color: #a0aec0; background: rgba(255, 255, 255, 0.03); padding: 12px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.05);">
-                <strong style="font-size: 11px; display: block; margin-bottom: 4px; color: #ffffff; font-weight: 800;">🛰️ ${statusMsg}</strong>
-                <span>${subMsg}</span>
+        // 2. [신규 디자인] 심플 대시보드 렌더링
+        dashboardArea.innerHTML = `
+            <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 14px; padding: 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                <div style="flex: 1;">
+                    <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                        <span class="${textClass}" style="font-size: 11px; font-weight: 800; letter-spacing: -0.2px;">${statusTitle}</span>
+                    </div>
+                    <p style="font-size: 10px; color: rgba(255, 255, 255, 0.6); margin: 0; line-height: 1.4;">${statusDesc}</p>
+                    <p style="font-size: 8px; color: rgba(255, 255, 255, 0.3); margin: 6px 0 0 0; font-family: monospace;">클럽 가입일: ${formattedRegDateDot}</p>
+                </div>
+                
+                <!-- D-Day 강조 서클 배지 -->
+                <div style="text-align: center; border-left: 1px solid rgba(255,255,255,0.08); padding-left: 14px; min-width: 75px;">
+                    <span style="font-size: 8px; display: block; color: rgba(255,255,255,0.4); font-weight: 700; margin-bottom: -2px; font-family: monospace;">MEMBERSHIP</span>
+                    <span class="${textClass}" style="font-size: 20px; font-weight: 900; font-family: monospace; letter-spacing: -1px;">D-${dday}</span>
+                </div>
             </div>
         `;
 
-        // 3. 탭 렌더링 시작
+        // 3. 하단 탭 및 필터 데이터 렌더링 시작
         setupTimelineTabs();
 
     } catch (e) {
-        console.error("데이터 로드 중 에러:", e);
-        container.innerHTML = `<div class="text-center py-10 text-xs text-red-400">ERROR: FAILED TO LOAD DATABASE</div>`;
+        console.error("데이터 로딩 중 에러 발생:", e);
+        container.innerHTML = `<div class="text-center py-10 text-xs text-red-400" style="font-family: monospace;">SYS.ERR: DATABASE_REF_FAIL</div>`;
     }
 };
 
 /**
- * 🌟 [탭 생성] 현대적인 느낌의 네온 언더라인 스타일
+ * 🌟 [탭 생성] 현대적 언더라인 탭 구조
  */
 function setupTimelineTabs() {
     const container = document.getElementById('timelineContent');
     if (!container) return;
     
     const tabsHtml = `
-        <div class="flex border-b border-gray-800 mb-4 text-xs font-bold text-gray-500 sticky top-0 bg-[#101830] z-10 py-1" style="background-color: #101830;">
-            <button onclick="window.filterMemberLogs('all')" id="mTab-all" class="flex-1 pb-2 border-b-2 border-[#1ABC9C] text-[#1ABC9C] transition-all text-center">전체</button>
-            <button onclick="window.filterMemberLogs('hiking')" id="mTab-hiking" class="flex-1 pb-2 border-b-2 border-transparent hover:text-gray-300 transition-all text-center">일정산행</button>
-            <button onclick="window.filterMemberLogs('running')" id="mTab-running" class="flex-1 pb-2 border-b-2 border-transparent hover:text-gray-300 transition-all text-center">개인/기타</button>
+        <div class="flex border-b border-gray-800 mb-3 text-xs font-bold text-gray-500 sticky top-0 bg-[#101830] z-10 py-1.5" style="background-color: #101830;">
+            <button onclick="window.filterMemberLogs('all')" id="mTab-all" class="flex-1 pb-1.5 border-b-2 border-[#1ABC9C] text-[#1ABC9C] transition-all text-center">전체 내역</button>
+            <button onclick="window.filterMemberLogs('hiking')" id="mTab-hiking" class="flex-1 pb-1.5 border-b-2 border-transparent hover:text-gray-300 transition-all text-center">산행기록</button>
+            <button onclick="window.filterMemberLogs('running')" id="mTab-running" class="flex-1 pb-1.5 border-b-2 border-transparent hover:text-gray-300 transition-all text-center">개인/기타</button>
         </div>
         <div id="filteredTimelineList" class="timeline-list-wrap"></div>
     `;
@@ -6895,7 +6902,7 @@ function setupTimelineTabs() {
 }
 
 /**
- * 🌟 [실시간 필터링] 
+ * 🌟 [필터링 및 렌더링]
  */
 window.filterMemberLogs = (category) => {
     const tabs = {
@@ -6904,7 +6911,6 @@ window.filterMemberLogs = (category) => {
         running: document.getElementById('mTab-running')
     };
 
-    // 탭 UI 전환 효과 적용
     Object.keys(tabs).forEach(key => {
         if (!tabs[key]) return;
         if (key === category) {
@@ -6929,31 +6935,31 @@ window.filterMemberLogs = (category) => {
         );
     }
 
-    // 🎨 범례 디자인 가이드
+    // 하단 범례 가이드
     const legendArea = document.getElementById('timelineLegend');
     if (legendArea) {
         const legends = {
-            regular: `<div class="flex items-center gap-1.5 text-[9px] font-semibold text-gray-400">
+            regular: `<div class="flex items-center gap-1.5 text-[8.5px] font-semibold text-gray-400">
                 <span class="inline-block w-2.5 h-2.5 rounded-full border border-black/10" style="background: linear-gradient(135deg, #FF69B4, #ADFF2F, #A020F0);"></span>
                 <span>정기</span>
             </div>`,
-            hike: `<div class="flex items-center gap-1.5 text-[9px] font-semibold text-gray-400">
+            hike: `<div class="flex items-center gap-1.5 text-[8.5px] font-semibold text-gray-400">
                 <span class="inline-block w-2.5 h-2.5 rounded-full border border-black/10 bg-[#2ecc71]"></span>
                 <span>일정</span>
             </div>`,
-            extraHike: `<div class="flex items-center gap-1.5 text-[9px] font-semibold text-gray-400">
+            extraHike: `<div class="flex items-center gap-1.5 text-[8.5px] font-semibold text-gray-400">
                 <span class="inline-block w-2.5 h-2.5 rounded-full border border-black/10 bg-[#5CE1D6]"></span>
                 <span>개인</span>
             </div>`,
-            trek: `<div class="flex items-center gap-1.5 text-[9px] font-semibold text-gray-400">
+            trek: `<div class="flex items-center gap-1.5 text-[8.5px] font-semibold text-gray-400">
                 <span class="inline-block w-2.5 h-2.5 rounded-full border border-black/10 bg-[#E0B0FF]"></span>
                 <span>트랙</span>
             </div>`,
-            run: `<div class="flex items-center gap-1.5 text-[9px] font-semibold text-gray-400">
+            run: `<div class="flex items-center gap-1.5 text-[8.5px] font-semibold text-gray-400">
                 <span class="inline-block w-2.5 h-2.5 rounded-full border border-black/10 bg-[#FFD1DC]"></span>
                 <span>런닝</span>
             </div>`,
-            walk: `<div class="flex items-center gap-1.5 text-[9px] font-semibold text-gray-400">
+            walk: `<div class="flex items-center gap-1.5 text-[8.5px] font-semibold text-gray-400">
                 <span class="inline-block w-2.5 h-2.5 rounded-full border border-black/10 bg-[#FFCC80]"></span>
                 <span>산책</span>
             </div>`
@@ -6975,7 +6981,7 @@ window.filterMemberLogs = (category) => {
     if (!listArea) return;
 
     if (filtered.length === 0) {
-        listArea.innerHTML = "<p class='text-center text-[10px] py-10 text-gray-500'>기록이 확인되지 않습니다.</p>";
+        listArea.innerHTML = "<p class='text-center text-[10px] py-8 text-gray-500' style='font-family: monospace;'>SYS: NO_RECORDS_FOUND</p>";
         return;
     }
 
@@ -7033,6 +7039,8 @@ window.filterMemberLogs = (category) => {
             </div>`;
     }).join('');
 };
+                    
+
 </script>
 
 
@@ -7082,46 +7090,52 @@ window.filterMemberLogs = (category) => {
 </div>
 
 <!-- [고대 예언서 모달 레이어] -->
-<div id="scrollModal" class="scroll-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(10, 15, 30, 0.85); backdrop-filter: blur(10px); z-index: 10000; justify-content: center; align-items: center;" onclick="this.style.display='none'">
-    <div class="fading-scroll" style="background: rgba(16, 24, 48, 0.95); width: 92%; max-width: 380px; border-radius: 24px; padding: 24px; box-shadow: 0 0 30px rgba(26, 188, 156, 0.25); position: relative; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; border: 1.5px solid rgba(26, 188, 156, 0.4); overflow: hidden;" onclick="event.stopPropagation()">
+<div id="scrollModal" class="scroll-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(10, 15, 30, 0.8); backdrop-filter: blur(8px); z-index: 10000; justify-content: center; align-items: center;" onclick="this.style.display='none'">
+    <div class="fading-scroll" style="background: rgba(16, 24, 48, 0.98); width: 92%; max-width: 380px; border-radius: 20px; padding: 24px; box-shadow: 0 0 25px rgba(26, 188, 156, 0.2); position: relative; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; border: 1.5px solid rgba(26, 188, 156, 0.35); overflow: hidden;" onclick="event.stopPropagation()">
         
-        <!-- 백그라운드 우주 네온 오라 효과 -->
-        <div style="position: absolute; top: -50px; right: -50px; width: 150px; height: 150px; background: radial-gradient(circle, rgba(26, 188, 156, 0.3) 0%, rgba(0, 0, 0, 0) 70%); pointer-events: none; z-index: 0;"></div>
-        <div style="position: absolute; bottom: -50px; left: -50px; width: 150px; height: 150px; background: radial-gradient(circle, rgba(0, 255, 255, 0.2) 0%, rgba(0, 0, 0, 0) 70%); pointer-events: none; z-index: 0;"></div>
+        <!-- 백그라운드 미래지향적 네온 오라 -->
+        <div style="position: absolute; top: -30px; right: -30px; width: 120px; height: 120px; background: radial-gradient(circle, rgba(26, 188, 156, 0.25) 0%, rgba(0, 0, 0, 0) 70%); pointer-events: none; z-index: 0;"></div>
 
-        <!-- 내부 콘텐츠 -->
         <div style="position: relative; z-index: 1; display: flex; flex-direction: column; height: 100%; max-height: 80vh;">
             
-            <!-- 헤더 영역 -->
-            <div class="scroll-header" style="text-align: center; margin-bottom: 20px;">
-                <div class="scroll-title-sub" style="font-size: 10px; font-weight: 800; letter-spacing: 3px; color: #1ABC9C; margin-bottom: 4px; text-shadow: 0 0 5px rgba(26, 188, 156, 0.5);">SAN:WOORI SYSTEM</div>
-                <h3 class="scroll-title-main" style="font-size: 19px; font-weight: 900; color: #ffffff; margin: 0; letter-spacing: -0.5px;">🏃 멤버 히스토리</h3>
+            <!-- 1. 상단 타이틀 영역 -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <div>
+                    <span style="font-size: 9px; font-weight: 800; letter-spacing: 1.5px; color: #1ABC9C; text-transform: uppercase;">San:Woori Sync</span>
+                    <h3 style="font-size: 17px; font-weight: 800; color: #ffffff; margin: 2px 0 0 0; letter-spacing: -0.5px;">🏃 개인 활동 분석</h3>
+                </div>
+                <!-- 실시간 모달 닫기 버튼 -->
+                <button onclick="document.getElementById('scrollModal').style.display='none'" style="background: none; border: none; color: rgba(255,255,255,0.4); font-size: 20px; cursor: pointer; padding: 5px;">&times;</button>
             </div>
 
-            <!-- 1. 상태 및 락인 경고 (스페이스 테크니컬 디자인) -->
-            <div id="ancientQuoteArea" style="margin-bottom: 16px;">
-                <!-- 자바스크립트에서 현대적 정보 레이아웃이 여기에 채워집니다. -->
+            <!-- 2. [신규 디자인] D-Day 및 주기 상태 대시보드 (자바스크립트에서 동적 매핑) -->
+            <div id="ddayDashboardArea" style="margin-bottom: 16px;">
+                <!-- D-Day 수치와 그에 맞는 심플한 상태 카드가 여기에 들어갑니다 -->
             </div>
 
-            <!-- 2. 동적 탭 및 타임라인 스크롤 컨테이너 -->
-            <div class="timeline-scroll-area" id="timelineScrollContainer" style="flex: 1; overflow-y: auto; max-height: 250px; padding-right: 4px; margin-bottom: 8px;">
+            <hr style="border: 0; border-top: 1px solid rgba(255, 255, 255, 0.08); margin: 12px 0;">
+
+            <!-- 3. 타임라인 카테고리 탭 & 스크롤 목록 -->
+            <div class="timeline-scroll-area" id="timelineScrollContainer" style="flex: 1; overflow-y: auto; max-height: 260px; padding-right: 4px; margin-bottom: 8px;">
                 <div id="timelineContent" class="timeline-container">
-                    <!-- setupTimelineTabs() 실행 시 주입됨 -->
+                    <!-- setupTimelineTabs()로 탭 메뉴와 리스트가 주입됩니다 -->
                 </div>
             </div>
 
-            <!-- 3. 하단 범례 표시 영역 -->
-            <div id="timelineLegend" style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; padding: 12px 0; border-top: 1px solid rgba(255, 255, 255, 0.08); margin-top: 10px;">
-                <!-- 카테고리에 맞는 범례 조각들이 렌더링됩니다 -->
+            <!-- 4. 범례 영역 -->
+            <div id="timelineLegend" style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; padding: 12px 0; border-top: 1px solid rgba(255, 255, 255, 0.08); margin-top: 8px;">
+                <!-- 카테고리 범례 조각 자동 렌더링 -->
             </div>
 
-            <!-- 푸터 영역 -->
-            <div class="scroll-footer" style="text-align: center; margin-top: 12px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 14px;">
-                <p class="ancient-signature" style="font-size: 8px; color: rgba(255, 255, 255, 0.3); margin: 0; font-family: monospace; letter-spacing: 1px;">SYS.STATUS: ACTIVE</p>
-                <p class="footer-note" style="font-size: 9.5px; font-weight: bold; color: #00FFFF; margin: 0; text-shadow: 0 0 5px rgba(0, 255, 255, 0.3);">
-                    기록을 이어가며 링크를 동기화하세요.
-                </p>
+            <!-- 5. 푸터 정보 -->
+            <div style="text-align: center; margin-top: 8px; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 8px; color: rgba(255, 255, 255, 0.3);">
+                <span style="font-family: monospace;">SYS.VER: 2.4.0</span>
+                <span style="font-weight: 600; color: #1ABC9C;">SAN:WOORI DIGITAL BOARD</span>
             </div>
+
+        </div>
+    </div>
+</div>
 
 <div id="grassPopup" class="hidden" style="position: absolute; z-index: 9999; background: white; border: 1px solid #e2e8f0; padding: 12px; border-radius: 12px; shadow: 0 10px 15px -3px rgba(0,0,0,0.1); min-width: 140px; pointer-events: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
     <div id="popupDate" style="font-size: 10px; font-weight: bold; color: #94a3b8; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; margin-bottom: 8px;"></div>
