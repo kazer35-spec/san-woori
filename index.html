@@ -6841,17 +6841,23 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
         `;
     }
 
-    // 모달 닫기 이벤트 핸들러 바인딩 (바깥 오버레이 클릭 시 닫기)
-    modal.onclick = () => { modal.style.display = 'none'; };
-    if(scrollWrap) {
+        // [기존 코드 대치] 모달 닫기 이벤트 핸들러 바인딩
+
+    // 1. 오버레이(배경)를 정확히 클릭했을 때만 닫히도록 설정
+    modal.onclick = (e) => { 
+        if (e.target === modal) {
+            modal.style.display = 'none'; 
+        }
+    };
+
+    // 2. 카드 내부(.fading-scroll)를 클릭할 때는 어떤 경우에도 이벤트가 바깥(modal)으로 퍼지지 않도록 원천 차단
+    if (scrollWrap) {
         scrollWrap.onclick = (e) => {
-            // 안쪽 영역 조작 시 모달이 꺼지는 문제 방지
-            if (e.target.closest('.scroll-filtered-list-box') || e.target.closest('.tab-header-buttons') || e.target.closest('.tab-btn')) return; 
-            modal.style.display = 'none';
-            e.stopPropagation(); 
+            e.stopPropagation(); // 카드 내부 클릭 시 버블링을 완벽히 차단하여 닫힘 방지
         };
     }
 };
+
 
 // 🌟 [탭 필터링 함수]
 window.filterScrollLogs = (category) => {
