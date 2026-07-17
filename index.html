@@ -3165,33 +3165,31 @@ window.renderStatusTable = () => {
     const today = new Date();
     const todayZero = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
 
-    // 1. 여기서 날짜 계산을 확실하게 2개로 분리합니다.
     let processedData = currentData.map(m => {
-        // [계산 ①] 창 열어서 보일 '마지막 산행 기준' ddayVal (기존 코드 그대로 유지)
+        // [기존 코드 그대로] 창 열었을 때 보여줄 마지막 산행 기준 계산
         const last = m.lastDate ? m.lastDate.toDate() : new Date();
         const lastZero = new Date(last.getFullYear(), last.getMonth(), last.getDate()).getTime();
         const diffDays = Math.floor((todayZero - lastZero) / (1000 * 60 * 60 * 24));
         const baseLimit = (m.level === 0 ? 30 : 122);
         const ddayVal = (baseLimit + (m.bonusDays || 0)) - diffDays;
 
-        // [계산 ②] ⭐ 메인화면(밖)에 표시할 '들어온 날짜(가입일) 기준' dPlusVal (새로 추가)
+        // ⭐ [추가] 메인화면 겉에만 표시해줄 들어온 날짜(가입일) 기준 계산
         let dPlusVal = 0;
         if (m.regDate) {
             const reg = m.regDate.toDate();
             const regZero = new Date(reg.getFullYear(), reg.getMonth(), reg.getDate()).getTime();
-            // 가입 당일을 1일로 치기 위해 +1을 더함
-            dPlusVal = Math.floor((todayZero - regZero) / (1000 * 60 * 60 * 24)) + 1; 
+            dPlusVal = Math.floor((todayZero - regZero) / (1000 * 60 * 60 * 24)) + 1; // 당일 1일 기준
         }
 
-        // 2개의 값을 각각 독립된 이름으로 담아서 넘겨줍니다.
+        // 기존 껍데기에 ddayVal과 dPlusVal을 둘 다 안전하게 담아서 보냅니다.
         return { 
             ...m, 
-            ddayVal: ddayVal,   // 모달창용 데이터
-            dPlusVal: dPlusVal  // 메인화면용 데이터
+            ddayVal: ddayVal,   // 모달창에 넘겨줄 값
+            dPlusVal: dPlusVal  // 메인화면 글자로 보여줄 값
         };
     });
 
-    // 정렬 로직 (기존 코드 유지)
+    // [기존 코드 그대로] 정렬 로직
     processedData.sort((a, b) => {
         if (sort === 'qCount') return b.qCount - a.qCount || b.level - a.level;
         if (sort === 'totalHeight') return b.totalHeight - a.totalHeight;
@@ -3201,31 +3199,12 @@ window.renderStatusTable = () => {
         return 0;
     });
 
+    // [기존 코드 그대로] 탑 이름 추출
     const topNames = [...processedData].filter(m => !m.isHidden && m.name !== "오즈").sort((a, b) => b.qCount - a.qCount || b.level - a.level).slice(0, 3).map(m => m.name);
 
-    // 2. 🔥 [핵심 분리] 화면에 그려지는 HTML 템플릿 처리부
-    list.innerHTML = processedData.map(m => {
-        // 검색어 필터링이 필요하다면 여기에 적용 (예시 코드)
-        if (search && !m.name.includes(search)) return '';
 
-        // 이미지에 나온 UI 구조에 맞춰 최종 매핑합니다.
-        return `
-            <div class="member-status-row" style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #f7fafc;">
-                <div class="member-name-zone" style="font-weight:bold; color:#2d3748;">
-                    ${m.name}
-                </div>
-                
-                <!-- 💡 [클릭 이벤트 분리]: 누를 때는 마지막 산행 기준인 m.ddayVal을 모달창에 전송 -->
-                <div class="dday-click-badge" 
-                     onclick="window.showFadingScroll('${m.id}', ${m.ddayVal}, ${m.level})" 
-                     style="cursor:pointer; background-color:#edf2f7; padding:6px 12px; border-radius:20px; font-size:12px; color:#4a5568; font-weight:bold;">
-                    
-                    <!-- 💡 [화면 표시 분리]: 메인 화면 겉에는 무조건 들어온 날짜 기준인 m.dPlusVal만 표기 -->
-                    D+${m.dPlusVal}
-                    
-                </div>
-            </div>
-        
+    // --------------------------------------------------------------------
+    
     
     // 첫 번째 노출되는 행에만 CLICK 문구를 넣기 위한 플래그
     let isFirstVisible = true;
@@ -3332,10 +3311,12 @@ const nameColor = m.gender === '여' ? 'text-pink-600' : (m.gender === '남' ? '
         </td>
         <td>
         ${clickTag}
-        <span class="dday-box ${ddayClass} cursor-pointer"
-        onclick="window.showFadingScroll('${m.id}', ${m.ddayVal}, ${m.level})">
-        ${m.ddayVal >= 0 ? `D+${m.ddayVal}` : `+${Math.abs(m.ddayVal)}일`}
-        </span>
+<span class="dday-box ${ddayClass} cursor-pointer"
+      onclick="window.showFadingScroll('${m.id}', ${m.ddayVal}, ${m.level})">
+    <!-- 💡 클릭할 때는 산행 기준(ddayVal)을 던지고, 화면 글자는 가입일 기준(dPlusVal)으로 보여줍니다 -->
+    D+${m.dPlusVal}
+</span>
+
         </td>
         </tr>`;
     });
