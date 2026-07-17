@@ -3166,11 +3166,18 @@ window.renderStatusTable = () => {
     const todayZero = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
 
     let processedData = currentData.map(m => {
-        const last = m.lastDate ? m.lastDate.toDate() : new Date();
-        const lastZero = new Date(last.getFullYear(), last.getMonth(), last.getDate()).getTime();
-        const diffDays = Math.floor((todayZero - lastZero) / (1000 * 60 * 60 * 24));
-        const baseLimit = (m.level === 0 ? 30 : 122);
-        return { ...m, ddayVal: (baseLimit + (m.bonusDays || 0)) - diffDays };
+        // 1. lastDate 대신 가입일(regDate)을 가져옵니다. (없으면 오늘 날짜 적용)
+        const reg = m.regDate ? m.regDate.toDate() : new Date();
+        // 2. 가입일의 시/분/초를 0으로 맞춘 타임스탬프를 구합니다.
+        const regZero = new Date(reg.getFullYear(), reg.getMonth(), reg.getDate()).getTime();
+        
+        // 3. 오늘 날짜에서 가입일을 빼서 '가입한 지 며칠째'인지 계산합니다. (D+Day)
+        // 당일을 1일째로 치고 싶다면 뒤에 + 1을 붙이고, 만 하루가 지난 기준이면 그대로 둡니다. (여기선 경과일수 기준)
+        const passedDays = Math.floor((todayZero - regZero) / (1000 * 60 * 60 * 24));
+        
+        // 4. ddayVal 대신 dplusVal(또는 기존 변수명을 유지해서 ddayVal)에 경과 일수를 넣어줍니다.
+        // 정렬 로직이 아래에서 'ddayVal'을 사용하므로, 변수명은 ddayVal로 유지하되 값은 D+Day 숫자가 들어가게 했습니다.
+        return { ...m, ddayVal: passedDays };
     });
 
     processedData.sort((a, b) => {
@@ -3178,7 +3185,10 @@ window.renderStatusTable = () => {
         if (sort === 'totalHeight') return b.totalHeight - a.totalHeight;
         if (sort === 'level') return b.level - a.level || b.qCount - a.qCount;
         if (sort === 'name') return a.name.localeCompare(b.name, 'ko');
-        if (sort === 'dday') return a.ddayVal - b.ddayVal;
+        
+        // 날짜순(dday) 정렬 시 가입한 지 가장 오래된 사람(D+ 숫자가 큰 사람)부터 보려면 b - a로, 
+        // 최근 가입자부터 보려면 a - b로 두시면 됩니다. 여기서는 오래된 사람부터 정렬되도록 순서를 맞췄습니다.
+        if (sort === 'dday') return b.ddayVal - a.ddayVal; 
         return 0;
     });
 
