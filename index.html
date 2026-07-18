@@ -6775,7 +6775,8 @@ setTimeout(() => s.remove(), 500);
 
  
   
-        // 필터링 처리를 위해 모달 전용 로그 목록을 임시 저장할 전역 변수
+        
+// 💡 필터링 및 캐시 처리를 위해 가져온 원본 snap.docs 객체들을 누적 저장할 전역 변수
 window.currentScrollLogs = []; 
 
 // 페이징 처리를 위해 상태를 기억할 전역 객체
@@ -6784,7 +6785,7 @@ window.scrollPagination = {
     currentCategory: 'all',
     mId: null,
     isEnd: false,       // 더 이상 가져올 데이터가 없는지 여부
-    accumulatedFiltered: [] 
+    dbEnd: false        // 💡 실제 DB 상에 더 이상 데이터가 없는지 여부
 };
 
 window.showFadingScroll = async function(mId, dday, level = 0) {
@@ -6794,12 +6795,13 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
     
     if(!modal || !content) return;
 
-    // 페이징 상태 초기화
+    // 페이징 및 캐시 상태 초기화
     window.scrollPagination.mId = mId;
     window.scrollPagination.lastDoc = null;
     window.scrollPagination.isEnd = false;
+    window.scrollPagination.dbEnd = false; // 💡 DB 종료 플래그 초기화
     window.scrollPagination.currentCategory = 'all';
-    window.scrollPagination.accumulatedFiltered = [];
+    window.currentScrollLogs = []; // 💡 모달이 열릴 때 캐시 비우기
 
     // 1. 모달 레이어 노출 및 임시 로딩 UI
     modal.style.display = 'flex';
@@ -6849,7 +6851,7 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
             </div>
         `;
 
-        // 첫 데이터 5개 로드
+        // 첫 데이터 로드
         await window.loadScrollLogsPage(true);
 
     } catch (e) {
@@ -6875,9 +6877,9 @@ window.switchScrollTab = async (category) => {
     if (window.scrollPagination.currentCategory === category) return;
     
     window.scrollPagination.currentCategory = category;
-    window.scrollPagination.lastDoc = null;
-    window.scrollPagination.isEnd = false;
-    window.scrollPagination.accumulatedFiltered = [];
+    
+    // 💡 중요: 탭만 바꿀 때는 렌더링할 끝 지점(isEnd)만 초기화하고, lastDoc과 캐시는 유지합니다.
+    window.scrollPagination.isEnd = false; 
 
     const tabs = {
         all: document.getElementById('sTab-all'),
@@ -6894,12 +6896,13 @@ window.switchScrollTab = async (category) => {
     const listBox = document.getElementById('scrollFilteredList');
     if (listBox) listBox.innerHTML = ''; 
 
+    // 💡 탭 전환 시 캐시 데이터를 활용하여 화면을 새로 그립니다.
     await window.loadScrollLogsPage(true);
 };
 
 // [페이지 단위 데이터 로드 함수]
 window.loadScrollLogsPage = async (isFirstPage = false) => {
-    const { mId, currentCategory, lastDoc, isEnd } = window.scrollPagination;
+    const { mId, currentCategory, lastDoc, isEnd, dbEnd } = window.scrollPagination;
     if (isEnd) return;
 
     const listBox = document.getElementById('scrollFilteredList');
@@ -6908,60 +6911,80 @@ window.loadScrollLogsPage = async (isFirstPage = false) => {
 
     moreBtnArea.innerHTML = `<span style="font-size:11px; color:#a0aec0;">기록을 가져오는 중...</span>`;
 
-      try {
-        let qConstraints = [orderBy("date", "desc")];
-        
-        // 🎯 PAGE_SIZE를 5에서 6으로 변경
-        const PAGE_SIZE = 6;
-        let fetchLimit = currentCategory === 'all' ? PAGE_SIZE : PAGE_SIZE * 4;
+    const PAGE_SIZE = 6;
 
-        qConstraints.push(limit(fetchLimit));
-
-      
-        if (!isFirstPage && lastDoc) {
-            qConstraints.push(startAfter(lastDoc));
-        }
-
-        const logsRef = collection(db, `sanwoori/${mId}/logs`);
-        const snap = await getDocs(query(logsRef, ...qConstraints));
-
-        if (snap.empty) {
-            window.scrollPagination.isEnd = true;
-            if (isFirstPage) {
-                listBox.innerHTML = `<p style="text-align:center; padding:40px 0; font-size:11px; color:#a0aec0;">기록이 없습니다.</p>`;
-            }
-            moreBtnArea.innerHTML = '';
-            return;
-        }
-
-        window.scrollPagination.lastDoc = snap.docs[snap.docs.length - 1];
-
-        let fetchedLogs = snap.docs.map(doc => {
-            const data = doc.data();
-            return { ...data, date: data.date ? data.date.toDate() : null };
-        });
-
+    try {
+        // 💡 1. 현재 캐시(`window.currentScrollLogs`)에 쌓여있는 데이터 분류(필터링) 처리
         let filtered = [];
         if (currentCategory === 'all') {
-            filtered = fetchedLogs;
+            filtered = window.currentScrollLogs;
         } else if (currentCategory === 'hiking') {
-            filtered = fetchedLogs.filter(log => 
+            filtered = window.currentScrollLogs.filter(log => 
                 log.isRegular || ((!log.isRunning && !log.isTracking && !log.isWalking) && !log.isExtraHike)
             );
         } else if (currentCategory === 'running') {
-            filtered = fetchedLogs.filter(log => 
+            filtered = window.currentScrollLogs.filter(log => 
                 log.isExtraHike || log.isRunning || log.isTracking || log.isWalking
             );
         }
 
-        if (isFirstPage && filtered.length === 0 && snap.docs.length < fetchLimit) {
+        // 💡 2. '더보기' 클릭이 아니거나(처음 렌더링), 혹은 현재 캐시된 필터 데이터가 부족하고 DB에 데이터가 남아있을 때 실데이터 호출
+        if (filtered.length < PAGE_SIZE && !dbEnd) {
+            let fetchLimit = currentCategory === 'all' ? PAGE_SIZE : PAGE_SIZE * 4;
+            let qConstraints = [orderBy("date", "desc"), limit(fetchLimit)];
+            
+            if (lastDoc) {
+                qConstraints.push(startAfter(lastDoc));
+            }
+
+            const logsRef = collection(db, `sanwoori/${mId}/logs`);
+            const snap = await getDocs(query(logsRef, ...qConstraints));
+
+            if (!snap.empty) {
+                // 커서 업데이트
+                window.scrollPagination.lastDoc = snap.docs[snap.docs.length - 1];
+
+                // 가져온 raw document를 정형화하여 전역 캐시 배열에 누적 저장
+                let fetchedLogs = snap.docs.map(doc => {
+                    const data = doc.data();
+                    return { ...data, date: data.date ? data.date.toDate() : null };
+                });
+                
+                // 💡 전역 캐시에 누적 저장!!
+                window.currentScrollLogs.push(...fetchedLogs);
+
+                // 실데이터가 추가되었으므로 다시 필터링
+                if (currentCategory === 'all') {
+                    filtered = window.currentScrollLogs;
+                } else if (currentCategory === 'hiking') {
+                    filtered = window.currentScrollLogs.filter(log => 
+                        log.isRegular || ((!log.isRunning && !log.isTracking && !log.isWalking) && !log.isExtraHike)
+                    );
+                } else if (currentCategory === 'running') {
+                    filtered = window.currentScrollLogs.filter(log => 
+                        log.isExtraHike || log.isRunning || log.isTracking || log.isWalking
+                    );
+                }
+
+                if (snap.docs.length < fetchLimit) {
+                    window.scrollPagination.dbEnd = true; // DB 상의 완전 끝 도달
+                }
+            } else {
+                window.scrollPagination.dbEnd = true;
+            }
+        }
+
+        // 💡 3. 최종 데이터 유무 예외 검증
+        if (filtered.length === 0 && window.scrollPagination.dbEnd) {
             listBox.innerHTML = `<p style="text-align:center; padding:40px 0; font-size:11px; color:#a0aec0;">기록이 없습니다.</p>`;
             moreBtnArea.innerHTML = '';
             return;
         }
 
-        // 🎯 최대 5개 아이템만 추출해서 렌더링
-        const finalItems = filtered.slice(0, PAGE_SIZE);
+        // 🎯 캐시/분류된 데이터에서 현재 탭이 보여줘야 할 개수(PAGE_SIZE)만큼만 최종 슬라이싱
+        // '더보기' 연동을 위해 처음이라면 6개, 더보기라면 전체 필터 목록을 출력하게 세팅
+        const displayCount = isFirstPage ? PAGE_SIZE : filtered.length;
+        const finalItems = filtered.slice(0, displayCount);
          
         const htmlContent = finalItems.map(log => {
             let dateStr = "----.--.--";
@@ -7019,13 +7042,11 @@ window.loadScrollLogsPage = async (isFirstPage = false) => {
             `;
         }).join('');
 
-        if (isFirstPage) {
-            listBox.innerHTML = htmlContent;
-        } else {
-            listBox.insertAdjacentHTML('beforeend', htmlContent);
-        }
+        listBox.innerHTML = htmlContent;
 
-        if (snap.docs.length === fetchLimit) {
+        // 💡 4. '이전 기록 더 보기' 버튼 노출 조건 관리
+        // DB에 데이터가 아직 더 남아있거나, 캐시된 필터 항목이 현재 보여지는 것보다 더 뒤에 존재할 때만 더보기 출력
+        if (!window.scrollPagination.dbEnd || filtered.length > displayCount) {
             moreBtnArea.innerHTML = `
                 <button type="button" onclick="window.loadScrollLogsPage(false)" 
                         style="background: #f7fafc; border: 1px solid #e2e8f0; color: #4a5568; padding: 8px 12px; border-radius: 6px; font-size: 11px; cursor: pointer; width: 100%;">
@@ -7042,6 +7063,7 @@ window.loadScrollLogsPage = async (isFirstPage = false) => {
         moreBtnArea.innerHTML = `<span style="font-size:11px; color:#e53e3e;">데이터 로드 오류</span>`;
     }
 };
+
 
                              </script>
 
