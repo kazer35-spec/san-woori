@@ -6774,55 +6774,117 @@ setTimeout(() => s.remove(), 500);
 }
 
  
-  // 필터링 처리를 위해 모달 전용 로그 목록을 임시 저장할 전역 변수
+  
+        // 필터링 처리를 위해 모달 전용 로그 목록을 임시 저장할 전역 변수
 window.currentScrollLogs = []; 
 
-// 💾 탭별로 데이터와 페이징 상태를 격리하여 기억하는 캐시 객체
-window.scrollCache = {
-    all:    { docs: [], lastDoc: null, isEnd: false },
-    hiking: { docs: [], lastDoc: null, isEnd: false },
-    running:{ docs: [], lastDoc: null, isEnd: false }
-};
-
-// 현재 활성화된 탭 상태만 관리
+// 페이징 처리를 위해 상태를 기억할 전역 객체
 window.scrollPagination = {
+    lastDoc: null,      // 다음 페이지를 가져오기 위한 커서 (QueryDocumentSnapshot)
     currentCategory: 'all',
-    mId: null
+    mId: null,
+    isEnd: false,       // 더 이상 가져올 데이터가 없는지 여부
+    accumulatedFiltered: [] 
 };
 
-// [모달 열기 함수] 모달이 새로 열릴 때 전체 캐시를 초기화합니다.
 window.showFadingScroll = async function(mId, dday, level = 0) {
     const modal = document.getElementById('scrollModal');
     const content = document.getElementById('scrollContent');
+    const scrollWrap = document.querySelector('.fading-scroll'); 
     
     if(!modal || !content) return;
 
-    // 모달을 새로 열 때는 이전 캐시 데이터를 깨끗하게 비웁니다.
+    // 페이징 상태 초기화
     window.scrollPagination.mId = mId;
+    window.scrollPagination.lastDoc = null;
+    window.scrollPagination.isEnd = false;
     window.scrollPagination.currentCategory = 'all';
-    window.scrollCache = {
-        all:    { docs: [], lastDoc: null, isEnd: false },
-        hiking: { docs: [], lastDoc: null, isEnd: false },
-        running:{ docs: [], lastDoc: null, isEnd: false }
-    };
+    window.scrollPagination.accumulatedFiltered = [];
 
-    // ... (중간 가입일 로딩 및 모달 뼈대 HTML 렌더링 부분은 기존과 동일) ...
-    
-    await window.loadScrollLogsPage(true);
+    // 1. 모달 레이어 노출 및 임시 로딩 UI
+    modal.style.display = 'flex';
+    content.innerHTML = `
+        <div style="text-align:center; padding:50px 0;">
+            <p style="font-size:12px; color:#a0aec0;">운동 데이터를 분석하는 중...</p>
+        </div>
+    `;
+
+    let formattedRegDateKo = "--년 --월 --일";
+
+    try {
+        // [A] 가입일 정보 로딩
+        const memberSnap = await getDoc(doc(db, `sanwoori`, mId));
+        if (memberSnap.exists()) {
+            const memberData = memberSnap.data();
+            if (memberData.regDate) {
+                const rDate = memberData.regDate.toDate();
+                const yy = String(rDate.getFullYear()).slice(-2); 
+                const mm = String(rDate.getMonth() + 1).padStart(2, '0');
+                const dd = String(rDate.getDate()).padStart(2, '0');
+                formattedRegDateKo = `${yy}년 ${mm}월 ${dd}일`;
+            }
+        }
+
+        // 2. 모달 뼈대 및 탭 레이아웃 렌더링
+        content.innerHTML = `
+            <div class="user-status-row-bar">
+                <div class="dday-count-badge">D-Day ${dday}</div>
+                <div class="origin-membership-info-mini">
+                    <span class="member-since-label">✨ 우리, 여기서부터 : </span>
+                    <strong class="member-since-date">${formattedRegDateKo}</strong>
+                </div>
+            </div>
+
+            <div class="tab-scroll-container">
+                <div class="tab-header-buttons">
+                    <button type="button" onclick="window.switchScrollTab('all')" id="sTab-all" class="tab-btn active">전체</button>
+                    <button type="button" onclick="window.switchScrollTab('hiking')" id="sTab-hiking" class="tab-btn">일정산행</button>
+                    <button type="button" onclick="window.switchScrollTab('running')" id="sTab-running" class="tab-btn">개인/기타</button>
+                </div>
+                
+                <!-- 로그가 쌓일 박스 -->
+                <div id="scrollFilteredList" class="scroll-filtered-list-box"></div>
+                <!-- 더보기 버튼 영역 -->
+                <div id="scrollMoreBtnArea" style="text-align:center; margin-top:15px;"></div>
+            </div>
+        `;
+
+        // 첫 데이터 5개 로드
+        await window.loadScrollLogsPage(true);
+
+    } catch (e) {
+        console.error("데이터 로딩 중 치명적 오류:", e);
+        content.innerHTML = `
+            <div style="text-align:center; padding:30px 0; color:#e53e3e; font-size:12px;">
+                일지 로딩 실패<br>
+                <span style="font-size:10px; color:#a0aec0;">(${e.message})</span>
+            </div>
+        `;
+    }
+
+    modal.onclick = (e) => { 
+        if (e.target === modal) modal.style.display = 'none'; 
+    };
+    if(scrollWrap) {
+        scrollWrap.onclick = (e) => e.stopPropagation();
+    }
 };
 
-// [탭 전환 함수] 캐시에 데이터가 있으면 서버 호출 없이 즉시 렌더링!
+// [탭 전환 함수]
 window.switchScrollTab = async (category) => {
     if (window.scrollPagination.currentCategory === category) return;
     
     window.scrollPagination.currentCategory = category;
+    window.scrollPagination.lastDoc = null;
+    window.scrollPagination.isEnd = false;
+    window.scrollPagination.accumulatedFiltered = [];
 
-    // 탭 버튼 active 클래스 전환 토글
     const tabs = {
         all: document.getElementById('sTab-all'),
         hiking: document.getElementById('sTab-hiking'),
         running: document.getElementById('sTab-running')
     };
+
     Object.keys(tabs).forEach(key => {
         if (!tabs[key]) return;
         if (key === category) tabs[key].classList.add('active');
@@ -6830,38 +6892,15 @@ window.switchScrollTab = async (category) => {
     });
 
     const listBox = document.getElementById('scrollFilteredList');
-    const moreBtnArea = document.getElementById('scrollMoreBtnArea');
     if (listBox) listBox.innerHTML = ''; 
 
-    const cache = window.scrollCache[category];
-    
-    // 🎯 캐싱된 데이터가 있다면 서버 호출 없이 즉시 화면 복원 (비용 절약)
-    if (cache.docs.length > 0) {
-        listBox.innerHTML = cache.docs.map(log => window.renderScrollItemHtml(log)).join('');
-        
-        if (!cache.isEnd) {
-            moreBtnArea.innerHTML = `
-                <button type="button" onclick="window.loadScrollLogsPage(false)" 
-                        style="background: #f7fafc; border: 1px solid #e2e8f0; color: #4a5568; padding: 6px 12px; border-radius: 6px; font-size: 11px; cursor: pointer; width: 100%;">
-                    이전 기록 더 보기
-                </button>
-            `;
-        } else {
-            moreBtnArea.innerHTML = '';
-        }
-        return; 
-    }
-
-    // 캐시된 게 없다면 서버에서 첫 페이지를 가져옵니다.
     await window.loadScrollLogsPage(true);
 };
 
-// [페이지 단위 데이터 로드 함수] 읽어온 데이터를 캐시에 완벽하게 누적합니다.
+// [페이지 단위 데이터 로드 함수]
 window.loadScrollLogsPage = async (isFirstPage = false) => {
-    const { mId, currentCategory } = window.scrollPagination;
-    const cache = window.scrollCache[currentCategory];
-
-    if (cache.isEnd) return;
+    const { mId, currentCategory, lastDoc, isEnd } = window.scrollPagination;
+    if (isEnd) return;
 
     const listBox = document.getElementById('scrollFilteredList');
     const moreBtnArea = document.getElementById('scrollMoreBtnArea');
@@ -6869,75 +6908,116 @@ window.loadScrollLogsPage = async (isFirstPage = false) => {
 
     moreBtnArea.innerHTML = `<span style="font-size:11px; color:#a0aec0;">기록을 가져오는 중...</span>`;
 
-    try {
+      try {
         let qConstraints = [orderBy("date", "desc")];
-        const PAGE_SIZE = 6;
         
-        // 🎯 클라이언트 필터링 손실 방지를 위해 한 번에 땡겨올 한도 설정
-        let fetchLimit = currentCategory === 'all' ? PAGE_SIZE : 30; 
+        // 🎯 PAGE_SIZE를 5에서 6으로 변경
+        const PAGE_SIZE = 6;
+        let fetchLimit = currentCategory === 'all' ? PAGE_SIZE : PAGE_SIZE * 4;
+
         qConstraints.push(limit(fetchLimit));
 
-        // 캐시에 저장된 정확한 커서(lastDoc)가 있다면 이어서 가져옴
-        if (!isFirstPage && cache.lastDoc) {
-            qConstraints.push(startAfter(cache.lastDoc));
+      
+        if (!isFirstPage && lastDoc) {
+            qConstraints.push(startAfter(lastDoc));
         }
 
         const logsRef = collection(db, `sanwoori/${mId}/logs`);
         const snap = await getDocs(query(logsRef, ...qConstraints));
 
         if (snap.empty) {
-            cache.isEnd = true;
-            if (isFirstPage && cache.docs.length === 0) {
+            window.scrollPagination.isEnd = true;
+            if (isFirstPage) {
                 listBox.innerHTML = `<p style="text-align:center; padding:40px 0; font-size:11px; color:#a0aec0;">기록이 없습니다.</p>`;
             }
             moreBtnArea.innerHTML = '';
             return;
         }
 
-        // 🎯 중요: 필터링 전 원본 문서 배열 매핑
-        let rawItems = snap.docs.map(docSnapshot => {
-            const data = docSnapshot.data();
-            return {
-                _rawDoc: docSnapshot, // 👈 페이징 커서 유지를 위해 원본 스냅샷을 품고 갑니다
-                ...data,
-                date: data.date ? data.date.toDate() : null
-            };
+        window.scrollPagination.lastDoc = snap.docs[snap.docs.length - 1];
+
+        let fetchedLogs = snap.docs.map(doc => {
+            const data = doc.data();
+            return { ...data, date: data.date ? data.date.toDate() : null };
         });
 
-        // 카테고리 필터링 조건 분기
         let filtered = [];
         if (currentCategory === 'all') {
-            filtered = rawItems;
+            filtered = fetchedLogs;
         } else if (currentCategory === 'hiking') {
-            filtered = rawItems.filter(log => 
+            filtered = fetchedLogs.filter(log => 
                 log.isRegular || ((!log.isRunning && !log.isTracking && !log.isWalking) && !log.isExtraHike)
             );
         } else if (currentCategory === 'running') {
-            filtered = rawItems.filter(log => 
+            filtered = fetchedLogs.filter(log => 
                 log.isExtraHike || log.isRunning || log.isTracking || log.isWalking
             );
         }
 
-        // 이번 페이지에 렌더링할 6개 슬라이싱
-        const finalItems = filtered.slice(0, PAGE_SIZE);
-
-        if (finalItems.length === 0) {
-            cache.isEnd = true;
-            if (isFirstPage && cache.docs.length === 0) {
-                listBox.innerHTML = `<p style="text-align:center; padding:40px 0; font-size:11px; color:#a0aec0;">기록이 없습니다.</p>`;
-            }
+        if (isFirstPage && filtered.length === 0 && snap.docs.length < fetchLimit) {
+            listBox.innerHTML = `<p style="text-align:center; padding:40px 0; font-size:11px; color:#a0aec0;">기록이 없습니다.</p>`;
             moreBtnArea.innerHTML = '';
             return;
         }
 
-        // 🎯 [버그 수정 핵심] 이번에 노출된 마지막 데이터의 원본 스냅샷을 다음 페이징 커서로 임명!
-        cache.lastDoc = finalItems[finalItems.length - 1]._rawDoc;
+        // 🎯 최대 5개 아이템만 추출해서 렌더링
+        const finalItems = filtered.slice(0, PAGE_SIZE);
+         
+        const htmlContent = finalItems.map(log => {
+            let dateStr = "----.--.--";
+            let dayName = "";
+            if (log.date) {
+                const jsDate = log.date;
+                dateStr = `${jsDate.getFullYear()}.${String(jsDate.getMonth() + 1).padStart(2, '0')}.${String(jsDate.getDate()).padStart(2, '0')}`;
+                dayName = ['일','월','화','수','목','금','토'][jsDate.getDay()];
+            }
 
-        // 캐시 데이터 저장소에는 무거운 스냅샷 객체를 제외하고 순수 로그 데이터만 누적
-        cache.docs = cache.docs.concat(finalItems);
+            let dotStyle = "";
+            if (log.isRegular) {
+                dotStyle = "background: linear-gradient(135deg, #FF69B4, #ADFF2F, #A020F0);";
+            } else {
+                const colors = { hike: "#2ecc71", extraHike: "#5CE1D6", walk: "#FFCC80", trek: "#E0B0FF", run: "#FFD1DC" };
+                let activeColors = [];
+                if (log.isExtraHike) activeColors.push(colors.extraHike);
+                else if (log.isRunning) activeColors.push(colors.run);
+                else if (log.isTracking) activeColors.push(colors.trek);
+                else if (log.isWalking) activeColors.push(colors.walk);
+                else activeColors.push(colors.hike);
 
-        // HTML 렌더링 생성
-        const htmlContent = finalItems.map(log => window.renderScrollItemHtml(log)).join('');
+                if (activeColors.length >= 2) {
+                    dotStyle = activeColors.length === 2 
+                        ? `background: linear-gradient(135deg, ${activeColors[0]} 50%, ${activeColors[1]} 50%);`
+                        : `background: linear-gradient(135deg, ${activeColors[0]} 33.3%, ${activeColors[1]} 33.3%, ${activeColors[1]} 66.6%, ${activeColors[2]} 66.6%);`;
+                } else {
+                    dotStyle = `background: ${activeColors[0]};`;
+                }
+            }
+
+            const heightVal = log.height || 0;
+            const isKmActivity = (log.isRunning || log.isTracking || log.isWalking) && !log.isExtraHike;
+            const unit = (isKmActivity && heightVal < 50) ? 'km' : 'm';
+            
+            const displayMountain = log.mountain || (log.isExtraHike ? "개인 산행" : "활동 기록");
+            const bacTag = log.isBAC ? '<span class="bac-badge-mini">BAC</span>' : '';
+            
+            const starTag = log.isTop100 
+                ? '<span style="color: #f59e0b; font-size: 12px; margin-left: 2px;">★</span>' 
+                : '<span style="color: #94a3b8; font-size: 11px; margin-left: 2px;">✔</span>';
+                
+            const blueClass = log.isTop100 ? "top100-blue" : "";
+
+            return `
+                <div class="scroll-timeline-item">
+                    <div class="scroll-item-date">${dateStr} (${dayName})</div>
+                    <div class="scroll-item-body">
+                        <span class="scroll-item-dot" style="${dotStyle}"></span>
+                        ${bacTag}
+                        <span class="scroll-item-name ${blueClass}">${displayMountain} (${heightVal}${unit})</span>
+                        ${starTag}
+                    </div>
+                </div>
+            `;
+        }).join('');
 
         if (isFirstPage) {
             listBox.innerHTML = htmlContent;
@@ -6945,16 +7025,15 @@ window.loadScrollLogsPage = async (isFirstPage = false) => {
             listBox.insertAdjacentHTML('beforeend', htmlContent);
         }
 
-        // 다음 페이지가 더 존재하는지 체크 (가져온 원본 갯수가 limit과 같고, 필터링 후 남은게 있을 때)
-        if (snap.docs.length === fetchLimit && filtered.length >= PAGE_SIZE) {
+        if (snap.docs.length === fetchLimit) {
             moreBtnArea.innerHTML = `
                 <button type="button" onclick="window.loadScrollLogsPage(false)" 
-                        style="background: #f7fafc; border: 1px solid #e2e8f0; color: #4a5568; padding: 6px 12px; border-radius: 6px; font-size: 11px; cursor: pointer; width: 100%;">
+                        style="background: #f7fafc; border: 1px solid #e2e8f0; color: #4a5568; padding: 8px 12px; border-radius: 6px; font-size: 11px; cursor: pointer; width: 100%;">
                     이전 기록 더 보기
                 </button>
             `;
         } else {
-            cache.isEnd = true;
+            window.scrollPagination.isEnd = true;
             moreBtnArea.innerHTML = ``; 
         }
 
@@ -6964,64 +7043,6 @@ window.loadScrollLogsPage = async (isFirstPage = false) => {
     }
 };
 
-// 🛠️ 모달 아이템 전용 렌더링 함수 (기존과 동일)
-window.renderScrollItemHtml = function(log) {
-    let dateStr = "----.--.--";
-    let dayName = "";
-    if (log.date) {
-        const jsDate = log.date;
-        dateStr = `${jsDate.getFullYear()}.${String(jsDate.getMonth() + 1).padStart(2, '0')}.${String(jsDate.getDate()).padStart(2, '0')}`;
-        dayName = ['일','월','화','수','목','금','토'][jsDate.getDay()];
-    }
-
-    let dotStyle = "";
-    if (log.isRegular) {
-        dotStyle = "background: linear-gradient(135deg, #FF69B4, #ADFF2F, #A020F0);";
-    } else {
-        const colors = { hike: "#2ecc71", extraHike: "#5CE1D6", walk: "#FFCC80", trek: "#E0B0FF", run: "#FFD1DC" };
-        let activeColors = [];
-        if (log.isExtraHike) activeColors.push(colors.extraHike);
-        else if (log.isRunning) activeColors.push(colors.run);
-        else if (log.isTracking) activeColors.push(colors.trek);
-        else if (log.isWalking) activeColors.push(colors.walk);
-        else activeColors.push(colors.hike);
-
-        if (activeColors.length >= 2) {
-            dotStyle = activeColors.length === 2 
-                ? `background: linear-gradient(135deg, ${activeColors[0]} 50%, ${activeColors[1]} 50%);`
-                : `background: linear-gradient(135deg, ${activeColors[0]} 33.3%, ${activeColors[1]} 33.3%, ${activeColors[1]} 66.6%, ${activeColors[2]} 66.6%);`;
-        } else {
-            dotStyle = `background: ${activeColors[0]};`;
-        }
-    }
-
-    const heightVal = log.height || 0;
-    const isKmActivity = (log.isRunning || log.isTracking || log.isWalking) && !log.isExtraHike;
-    const unit = (isKmActivity && heightVal < 50) ? 'km' : 'm';
-    
-    const displayMountain = log.mountain || (log.isExtraHike ? "개인 산행" : "활동 기록");
-    const bacTag = log.isBAC ? '<span class="bac-badge-mini">BAC</span>' : '';
-    
-    const starTag = log.isTop100 
-        ? '<span style="color: #f59e0b; font-size: 12px; margin-left: 2px;">★</span>' 
-        : '<span style="color: #94a3b8; font-size: 11px; margin-left: 2px;">✔</span>';
-        
-    const blueClass = log.isTop100 ? "top100-blue" : "";
-
-    return `
-        <div class="scroll-timeline-item">
-            <div class="scroll-item-date">${dateStr} (${dayName})</div>
-            <div class="scroll-item-body">
-                <span class="scroll-item-dot" style="${dotStyle}"></span>
-                ${bacTag}
-                <span class="scroll-item-name ${blueClass}">${displayMountain} (${heightVal}${unit})</span>
-                ${starTag}
-            </div>
-        </div>
-    `;
-};
-
-        
                              </script>
 
 <!-- 마크업 구조 레이어 -->
