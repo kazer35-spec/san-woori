@@ -6769,14 +6769,28 @@ setTimeout(() => s.remove(), 500);
   // 필터링 처리를 위해 모달 전용 로그 목록을 임시 저장할 전역 변수
 window.currentScrollLogs = []; 
 
-window.showFadingScroll = async function(mId, dday, level = 0) {
+ // 페이징 처리를 위해 상태를 기억할 전역 객체
+window.scrollPagination = {
+    lastDoc: null,      // 다음 페이지를 가져오기 위한 커서 (QueryDocumentSnapshot)
+    currentCategory: 'all',
+    mId: null,
+    isEnd: false        // 더 이상 가져올 데이터가 없는지 여부
+};
+
+Window.showFadingScroll = async function(mId, dday, level = 0) {
     const modal = document.getElementById('scrollModal');
     const content = document.getElementById('scrollContent');
     const scrollWrap = document.querySelector('.fading-scroll'); 
     
     if(!modal || !content) return;
 
-    // 모달 레이어 노출 및 임시 로딩 UI
+    // 페이징 상태 초기화
+    window.scrollPagination.mId = mId;
+    window.scrollPagination.lastDoc = null;
+    window.scrollPagination.isEnd = false;
+    window.scrollPagination.currentCategory = 'all';
+
+    // 1. 모달 레이어 노출 및 임시 로딩 UI
     modal.style.display = 'flex';
     content.innerHTML = `
         <div style="text-align:center; padding:50px 0;">
@@ -6793,53 +6807,39 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
             const memberData = memberSnap.data();
             if (memberData.regDate) {
                 const rDate = memberData.regDate.toDate();
-                
-                // 🎯 연도의 뒤 두 자리만 추출 (예: 2026 -> "26")
                 const yy = String(rDate.getFullYear()).slice(-2); 
-                
                 const mm = String(rDate.getMonth() + 1).padStart(2, '0');
                 const dd = String(rDate.getDate()).padStart(2, '0');
-                
-                // 🎯 "26년 07월 18일" 형태로 변경
                 formattedRegDateKo = `${yy}년 ${mm}월 ${dd}일`;
             }
         }
 
-        // [B] 데이터 전체 로드 (탭 필터링 지원용)
-        const snap = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "desc")));
-        
-        // 전역 변수에 파싱한 로그 객체 배열 저장
-        window.currentScrollLogs = snap.docs.map(doc => {
-            const data = doc.data();
-            return {
-                ...data,
-                date: data.date ? data.date.toDate() : null
-            };
-        });
-
-        // 모달 상단 정보 한 줄 구성 및 탭 뼈대 렌더링 ("🌲 산우리가 된 날" 적용)
+        // 2. 모달 뼈대 및 탭 레이아웃 렌더링
         content.innerHTML = `
             <div class="user-status-row-bar">
                 <div class="dday-count-badge">D-Day ${dday}</div>
                 <div class="origin-membership-info-mini">
-                    <span class="member-since-label">✨️ 우리, 여기서부터 : </span>
+                    <span class="member-since-label">✨ 우리, 여기서부터 : </span>
                     <strong class="member-since-date">${formattedRegDateKo}</strong>
                 </div>
             </div>
 
             <div class="tab-scroll-container">
                 <div class="tab-header-buttons">
-                    <button onclick="window.filterScrollLogs('all')" id="sTab-all" class="tab-btn active">전체</button>
-                    <button onclick="window.filterScrollLogs('hiking')" id="sTab-hiking" class="tab-btn">일정산행</button>
-                    <button onclick="window.filterScrollLogs('running')" id="sTab-running" class="tab-btn">개인/기타</button>
+                    <button type="button" onclick="window.switchScrollTab('all')" id="sTab-all" class="tab-btn active">전체</button>
+                    <button type="button" onclick="window.switchScrollTab('hiking')" id="sTab-hiking" class="tab-btn">일정산행</button>
+                    <button type="button" onclick="window.switchScrollTab('running')" id="sTab-running" class="tab-btn">개인/기타</button>
                 </div>
                 
+                <!-- 로그가 쌓일 박스 -->
                 <div id="scrollFilteredList" class="scroll-filtered-list-box"></div>
+                <!-- 더보기 버튼 영역 -->
+                <div id="scrollMoreBtnArea" style="text-align:center; margin-top:15px;"></div>
             </div>
         `;
 
-        // 초기 로드 시 '전체' 탭 자동 호출
-        window.filterScrollLogs('all');
+        // 첫 데이터 6개 로드
+        await window.loadScrollLogsPage(true);
 
     } catch (e) {
         console.error("데이터 로딩 중 치명적 오류:", e);
@@ -6851,131 +6851,199 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
         `;
     }
 
-    // [닫기 이벤트 버블링 분리 해결]
     modal.onclick = (e) => { 
-        if (e.target === modal) {
-            modal.style.display = 'none'; 
-        }
+        if (e.target === modal) modal.style.display = 'none'; 
     };
     if(scrollWrap) {
-        scrollWrap.onclick = (e) => {
-            e.stopPropagation(); // 카드 내부 클릭 시 모달이 닫히지 않도록 버블링 차단
-        };
+        scrollWrap.onclick = (e) => e.stopPropagation();
     }
 };
 
-// [탭 필터링 및 리스트 렌더링 함수]
-window.filterScrollLogs = (category) => {
+// 🌟 [탭 전환 함수] 탭 클릭 시 상태를 초기화하고 첫 페이지를 새로 부릅니다.
+window.switchScrollTab = async (category) => {
+    if (window.scrollPagination.currentCategory === category) return;
+    
+    window.scrollPagination.currentCategory = category;
+    window.scrollPagination.lastDoc = null;
+    window.scrollPagination.isEnd = false;
+
     const tabs = {
         all: document.getElementById('sTab-all'),
         hiking: document.getElementById('sTab-hiking'),
         running: document.getElementById('sTab-running')
     };
 
-    // 1. 모든 탭 엘리먼트 활성화/비활성화 클래스 처리
     Object.keys(tabs).forEach(key => {
         if (!tabs[key]) return;
-        if (key === category) {
-            tabs[key].classList.add('active');
-        } else {
-            tabs[key].classList.remove('active');
-        }
+        if (key === category) tabs[key].classList.add('active');
+        else tabs[key].classList.remove('active');
     });
 
-    // 2. 카테고리별 필터링 분기
-    let filtered = [];
-    if (category === 'all') {
-        filtered = window.currentScrollLogs;
-    } else if (category === 'hiking') {
-        filtered = window.currentScrollLogs.filter(log => 
-            log.isRegular || ((!log.isRunning && !log.isTracking && !log.isWalking) && !log.isExtraHike)
-        );
-    } else if (category === 'running') {
-        filtered = window.currentScrollLogs.filter(log => 
-            log.isExtraHike || log.isRunning || log.isTracking || log.isWalking
-        );
-    }
+    const listBox = document.getElementById('scrollFilteredList');
+    if (listBox) listBox.innerHTML = ''; // 기존 리스트 비우기
+
+    await window.loadScrollLogsPage(true);
+};
+
+// 🌟 [핵심: 페이지 단위 데이터 로드 함수]
+window.loadScrollLogsPage = async (isFirstPage = false) => {
+    const { mId, currentCategory, lastDoc, isEnd } = window.scrollPagination;
+    if (isEnd) return;
 
     const listBox = document.getElementById('scrollFilteredList');
-    if (!listBox) return;
+    const moreBtnArea = document.getElementById('scrollMoreBtnArea');
+    if (!listBox || !moreBtnArea) return;
 
-    if (filtered.length === 0) {
-        listBox.innerHTML = `<p style="text-align:center; padding:40px 0; font-size:11px; color:#a0aec0;">기록이 없습니다.</p>`;
-        return;
-    }
+    // 로딩 처리
+    moreBtnArea.innerHTML = `<span style="font-size:11px; color:#a0aec0;">기록을 가져오는 중...</span>`;
 
-    // 3. 필터링된 데이터 일지 매핑
-    listBox.innerHTML = filtered.map(log => {
-        let dateStr = "----.--.--";
-        let dayName = "";
-        if (log.date) {
-            const jsDate = log.date;
-            const yyyy = jsDate.getFullYear();
-            const mm = String(jsDate.getMonth() + 1).padStart(2, '0');
-            const dd = String(jsDate.getDate()).padStart(2, '0');
-            dateStr = `${yyyy}.${mm}.${dd}`;
-            dayName = ['일','월','화','수','목','금','토'][jsDate.getDay()];
+    try {
+        // 1. 카테고리 조건 구성 (Firestore에서 효율적으로 필터링하도록 쿼리 분기)
+        let qConstraints = [orderBy("date", "desc")];
+        
+        // Firestore 쿼리 제약상 여러 복합 필터 처리를 위해 애플리케이션 필터와 결합하거나 분기 최적화가 필요합니다.
+        // 여기서는 Limit을 여유있게 주어 가져온 뒤 클라이언트에서 한 번 더 정리하는 '하이브리드 페이징'을 적용합니다.
+        const PAGE_SIZE = 6;
+        let fetchLimit = PAGE_SIZE;
+
+        // 특정 카테고리인 경우 원하는 타겟 개수(6개)를 채우기 위해 버퍼를 조금 더 둡니다.
+        if (currentCategory !== 'all') {
+            fetchLimit = PAGE_SIZE * 3; 
         }
 
-        // 도트 그라데이션 및 단일 색상 설정
-        let dotStyle = "";
-        if (log.isRegular) {
-            dotStyle = "background: linear-gradient(135deg, #FF69B4, #ADFF2F, #A020F0);";
-        } else {
-            const colors = {
-                hike: "#2ecc71",
-                extraHike: "#5CE1D6",
-                walk: "#FFCC80",
-                trek: "#E0B0FF",
-                run: "#FFD1DC"
-            };
+        qConstraints.push(limit(fetchLimit));
 
-            let activeColors = [];
-            if (log.isExtraHike) activeColors.push(colors.extraHike);
-            else if (log.isRunning) activeColors.push(colors.run);
-            else if (log.isTracking) activeColors.push(colors.trek);
-            else if (log.isWalking) activeColors.push(colors.walk);
-            else activeColors.push(colors.hike);
+        if (!isFirstPage && lastDoc) {
+            qConstraints.push(startAfter(lastDoc));
+        }
 
-            if (activeColors.length >= 2) {
-                if (activeColors.length === 2) {
-                    dotStyle = `background: linear-gradient(135deg, ${activeColors[0]} 50%, ${activeColors[1]} 50%);`;
-                } else {
-                    dotStyle = `background: linear-gradient(135deg, ${activeColors[0]} 33.3%, ${activeColors[1]} 33.3%, ${activeColors[1]} 66.6%, ${activeColors[2]} 66.6%);`;
-                }
-            } else {
-                dotStyle = `background: ${activeColors[0]};`;
+        // 2. DB 요청 (딱 필요한 limit 만큼만 읽음 💸)
+        const logsRef = collection(db, `sanwoori/${mId}/logs`);
+        const snap = await getDocs(query(logsRef, ...qConstraints));
+
+        if (snap.empty) {
+            window.scrollPagination.isEnd = true;
+            if (isFirstPage) {
+                listBox.innerHTML = `<p style="text-align:center; padding:40px 0; font-size:11px; color:#a0aec0;">기록이 없습니다.</p>`;
             }
+            moreBtnArea.innerHTML = '';
+            return;
         }
 
-        const heightVal = log.height || 0;
-        const isKmActivity = (log.isRunning || log.isTracking || log.isWalking) && !log.isExtraHike;
-        const unit = (isKmActivity && heightVal < 50) ? 'km' : 'm';
-        
-        const displayMountain = log.mountain || (log.isExtraHike ? "개인 산행" : "활동 기록");
-        const bacTag = log.isBAC ? '<span class="bac-badge-mini">BAC</span>' : '';
-        
-        // ⭐ 100대 명산(isTop100) 여부에 따른 아이콘 및 글씨색 처리
-        const starTag = log.isTop100 
-            ? '<span style="color: #f59e0b; font-size: 12px; margin-left: 2px;">★</span>' 
-            : '<span style="color: #94a3b8; font-size: 11px; margin-left: 2px;">✔</span>';
-            
-        // 100대 명산일 때만 .top100-blue 클래스를 동적으로 주입
-        const blueClass = log.isTop100 ? "top100-blue" : "";
+        // 다음 페이지 조회를 위해 가져온 도큐먼트 중 마지막 요소를 마커로 기억
+        window.scrollPagination.lastDoc = snap.docs[snap.docs.length - 1];
 
-        return `
-            <div class="scroll-timeline-item">
-                <div class="scroll-item-date">${dateStr} (${dayName})</div>
-                <div class="scroll-item-body">
-                    <span class="scroll-item-dot" style="${dotStyle}"></span>
-                    ${bacTag}
-                    <span class="scroll-item-name ${blueClass}">${displayMountain} (${heightVal}${unit})</span>
-                    ${starTag}
+        // 3. 데이터 파싱
+        let fetchedLogs = snap.docs.map(doc => {
+            const data = doc.data();
+            return { ...data, date: data.date ? data.date.toDate() : null };
+        });
+
+        // 4. 클라이언트 카테고리 필터 매칭
+        let filtered = [];
+        if (currentCategory === 'all') {
+            filtered = fetchedLogs;
+        } else if (currentCategory === 'hiking') {
+            filtered = fetchedLogs.filter(log => 
+                log.isRegular || ((!log.isRunning && !log.isTracking && !log.isWalking) && !log.isExtraHike)
+            );
+        } else if (currentCategory === 'running') {
+            filtered = fetchedLogs.filter(log => 
+                log.isExtraHike || log.isRunning || log.isTracking || log.isWalking
+            );
+        }
+
+        // 카테고리 탭에서 타겟 개수(6개) 조절
+        const finalItems = filtered.slice(0, PAGE_SIZE);
+
+        if (isFirstPage && finalItems.length === 0) {
+            listBox.innerHTML = `<p style="text-align:center; padding:40px 0; font-size:11px; color:#a0aec0;">기록이 없습니다.</p>`;
+            moreBtnArea.innerHTML = '';
+            return;
+        }
+
+        // 5. HTML 렌더링 생성
+        const htmlContent = finalItems.map(log => {
+            let dateStr = "----.--.--";
+            let dayName = "";
+            if (log.date) {
+                const jsDate = log.date;
+                dateStr = `${jsDate.getFullYear()}.${String(jsDate.getMonth() + 1).padStart(2, '0')}.${String(jsDate.getDate()).padStart(2, '0')}`;
+                dayName = ['일','월','화','수','목','금','토'][jsDate.getDay()];
+            }
+
+            let dotStyle = "";
+            if (log.isRegular) {
+                dotStyle = "background: linear-gradient(135deg, #FF69B4, #ADFF2F, #A020F0);";
+            } else {
+                const colors = { hike: "#2ecc71", extraHike: "#5CE1D6", walk: "#FFCC80", trek: "#E0B0FF", run: "#FFD1DC" };
+                let activeColors = [];
+                if (log.isExtraHike) activeColors.push(colors.extraHike);
+                else if (log.isRunning) activeColors.push(colors.run);
+                else if (log.isTracking) activeColors.push(colors.trek);
+                else if (log.isWalking) activeColors.push(colors.walk);
+                else activeColors.push(colors.hike);
+
+                if (activeColors.length >= 2) {
+                    dotStyle = activeColors.length === 2 
+                        ? `background: linear-gradient(135deg, ${activeColors[0]} 50%, ${activeColors[1]} 50%);`
+                        : `background: linear-gradient(135deg, ${activeColors[0]} 33.3%, ${activeColors[1]} 33.3%, ${activeColors[1]} 66.6%, ${activeColors[2]} 66.6%);`;
+                } else {
+                    dotStyle = `background: ${activeColors[0]};`;
+                }
+            }
+
+            const heightVal = log.height || 0;
+            const isKmActivity = (log.isRunning || log.isTracking || log.isWalking) && !log.isExtraHike;
+            const unit = (isKmActivity && heightVal < 50) ? 'km' : 'm';
+            
+            const displayMountain = log.mountain || (log.isExtraHike ? "개인 산행" : "활동 기록");
+            const bacTag = log.isBAC ? '<span class="bac-badge-mini">BAC</span>' : '';
+            
+            const starTag = log.isTop100 
+                ? '<span style="color: #f59e0b; font-size: 12px; margin-left: 2px;">★</span>' 
+                : '<span style="color: #94a3b8; font-size: 11px; margin-left: 2px;">✔</span>';
+                
+            const blueClass = log.isTop100 ? "top100-blue" : "";
+
+            return `
+                <div class="scroll-timeline-item">
+                    <div class="scroll-item-date">${dateStr} (${dayName})</div>
+                    <div class="scroll-item-body">
+                        <span class="scroll-item-dot" style="${dotStyle}"></span>
+                        ${bacTag}
+                        <span class="scroll-item-name ${blueClass}">${displayMountain} (${heightVal}${unit})</span>
+                        ${starTag}
+                    </div>
                 </div>
-            </div>
-        `;
-    }).join('');
+            `;
+        }).join('');
+
+        if (isFirstPage) {
+            listBox.innerHTML = htmlContent;
+        } else {
+            listBox.insertAdjacentHTML('beforeend', htmlContent);
+        }
+
+        // 6. 다음 페이지 버튼 노출 제어 (이번에 가져온 총 데이터 개수가 limit과 같다면 다음 데이터가 더 있을 가능성이 큼)
+        if (snap.docs.length === fetchLimit) {
+            moreBtnArea.innerHTML = `
+                <button type="button" onclick="window.loadScrollLogsPage(false)" 
+                        style="background: #f7fafc; border: 1px solid #e2e8f0; color: #4a5568; padding: 8px 12px; border-radius: 6px; font-size: 11px; cursor: pointer; width: 100%;">
+                    이전 기록 더 보기
+                </button>
+            `;
+        } else {
+            window.scrollPagination.isEnd = true;
+            moreBtnArea.innerHTML = ``; // 더 이상 데이터 없음
+        }
+
+    } catch (e) {
+        console.error("페이징 로드 실패:", e);
+        moreBtnArea.innerHTML = `<span style="font-size:11px; color:#e53e3e;">추가 데이터 로드 실패</span>`;
+    }
 };
+
   
                              </script>
 
