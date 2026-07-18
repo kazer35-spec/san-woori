@@ -6799,13 +6799,14 @@ window.scrollPagination = {
 // =========================================================================
 // 2. 모달 열기 함수 (기존 UI 로직 + 캐시 초기화 통합)
 // =========================================================================
+멤버 정보(이름, 가입일) 가져오기
 window.showFadingScroll = async function(mId, dday, level = 0) {
     const modal = document.getElementById('scrollModal');
     const content = document.getElementById('scrollContent');
     
     if(!modal || !content) return;
 
-    // 🎯 1. 캐시 데이터 초기화
+    // 🎯 1. 캐시 및 페이징 데이터 초기화
     window.scrollPagination.mId = mId;
     window.scrollPagination.currentCategory = 'all';
     window.scrollCache = {
@@ -6814,45 +6815,32 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
         running:{ docs: [], lastDoc: null, isEnd: false }
     };
 
-    // 모달창 띄우기
+    // 모달창 표시
     modal.style.display = 'flex';
 
-    // 🎯 2. 외곽 타이틀/엑스버튼/하단닫기는 HTML 껍데기를 유지하고, 
-    //      그 아래 알맹이 레이아웃(배지 + 탭 + 리스트)만 겹치지 않게 주입합니다.
+    // 🎯 2. 중복되는 헤더와 바깥 닫기 버튼 제거! 
+    //      오직 카드 내부의 메타 배지, 탭 메뉴, 리스트 스크롤 영역만 구성합니다.
     content.innerHTML = `
-        <div class="fading-scroll">
-            <div class="scroll-header">
-                <span class="scroll-subtitle">SAN WOORI RECORD</span>
-                <h2 class="scroll-title">개인 운동 상태 리포트</h2>
-                <button class="scroll-close-x" onclick="document.getElementById('scrollModal').style.display='none'">×</button>
-            </div>
-            
-            <!-- 메타 배지 영역 -->
-            <div class="scroll-meta-badges" style="margin-bottom: 12px; text-align: center;">
-                <span class="scroll-badge-dday" style="background: #e2e8f0; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">D-Day ${dday}</span>
-                <span class="scroll-badge-join" style="font-size: 11px; margin-left: 6px; color: #4a5568;">✨ 로딩 중...</span>
-            </div>
-
-            <!-- 🎯 탭 메뉴 레이아웃 복원 -->
-            <div class="scroll-tabs" style="display: flex; gap: 4px; margin-bottom: 12px; justify-content: center;">
-                <button id="sTab-all" class="scroll-tab-btn active" onclick="window.switchScrollTab('all')">전체</button>
-                <button id="sTab-hiking" class="scroll-tab-btn" onclick="window.switchScrollTab('hiking')">일정산행</button>
-                <button id="sTab-running" class="scroll-tab-btn" onclick="window.switchScrollTab('running')">개인/기타</button>
-            </div>
-
-            <!-- 🎯 일지 리스트 스크롤 박스 복원 -->
-            <div id="scrollFilteredList" class="scroll-filtered-list-box" style="max-height: 350px; overflow-y: auto;">
-                <div style="text-align:center; padding:40px 0; color:#a0aec0; font-size:12px;">기록을 불러오는 중...</div>
-            </div>
-
-            <!-- 🎯 더보기 버튼 영역 복원 -->
-            <div id="scrollMoreBtnArea" style="text-align:center; margin-top:8px;"></div>
-
-            <!-- 하단 닫기 버튼 -->
-            <button type="button" class="scroll-bottom-close-btn" onclick="document.getElementById('scrollModal').style.display='none'" style="margin-top: 15px;">
-                일지 창 닫기
-            </button>
+        <!-- 메타 배지 영역 -->
+        <div class="scroll-meta-badges" style="margin-bottom: 16px; text-align: center;">
+            <span class="scroll-badge-dday" style="background: #e2e8f0; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; color: #4a5568;">D-Day ${dday}</span>
+            <span class="scroll-badge-join" style="font-size: 11px; margin-left: 6px; color: #718096;">✨ 로딩 중...</span>
         </div>
+
+        <!-- 탭 메뉴 영역 -->
+        <div class="scroll-tabs" style="display: flex; gap: 8px; margin-bottom: 16px; justify-content: center;">
+            <button id="sTab-all" class="scroll-tab-btn active" onclick="window.switchScrollTab('all')">전체</button>
+            <button id="sTab-hiking" class="scroll-tab-btn" onclick="window.switchScrollTab('hiking')">일정산행</button>
+            <button id="sTab-running" class="scroll-tab-btn" onclick="window.switchScrollTab('running')">개인/기타</button>
+        </div>
+
+        <!-- 일지 리스트 스크롤 박스 -->
+        <div id="scrollFilteredList" class="scroll-filtered-list-box" style="max-height: 340px; overflow-y: auto;">
+            <div style="text-align:center; padding:30px 0; color:#a0aec0; font-size:12px;">기록을 불러오는 중...</div>
+        </div>
+
+        <!-- 더보기 버튼 영역 -->
+        <div id="scrollMoreBtnArea" style="text-align:center; margin-top:12px;"></div>
     `;
 
     try {
@@ -6870,13 +6858,13 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
             }
         }
 
-        // 가져온 데이터로 가입일 문구 업데이트
+        // 가입일 문구 맵핑
         const badgeJoin = content.querySelector('.scroll-badge-join');
         if (badgeJoin) {
             badgeJoin.innerHTML = `✨ <strong>${userName}</strong>, 여기서부터 : <strong>${joinDateStr}</strong>`;
         }
 
-        // 🎯 4. 첫 페이지 데이터 호출하여 리스트 박스 채우기
+        // 🎯 4. 첫 페이지 데이터 호출 및 렌더링
         await window.loadScrollLogsPage(true);
 
     } catch (err) {
@@ -6885,7 +6873,6 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
         if (listBox) listBox.innerHTML = `<div style="text-align:center; padding:20px 0; color:#e53e3e;">데이터를 불러오지 못했습니다.</div>`;
     }
 };
-
 
 // =========================================================================
 // 3. 탭 전환 함수 (메모리 캐시 우선 조회 방식)
