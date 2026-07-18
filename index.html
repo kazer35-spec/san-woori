@@ -6774,8 +6774,7 @@ setTimeout(() => s.remove(), 500);
 }
 
  
-  
-        // 필터링 처리를 위해 모달 전용 로그 목록을 임시 저장할 전역 변수
+  // 필터링 처리를 위해 모달 전용 로그 목록을 임시 저장할 전역 변수
 window.currentScrollLogs = []; 
 
 // 💾 탭별로 데이터와 페이징 상태를 격리하여 기억하는 캐시 객체
@@ -6791,11 +6790,10 @@ window.scrollPagination = {
     mId: null
 };
 
-// [모달 열기 함수 수정] 모달이 새로 열릴 때 전체 캐시를 초기화합니다.
+// [모달 열기 함수] 모달이 새로 열릴 때 전체 캐시를 초기화합니다.
 window.showFadingScroll = async function(mId, dday, level = 0) {
     const modal = document.getElementById('scrollModal');
     const content = document.getElementById('scrollContent');
-    const scrollWrap = document.querySelector('.fading-scroll'); 
     
     if(!modal || !content) return;
 
@@ -6809,11 +6807,11 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
     };
 
     // ... (중간 가입일 로딩 및 모달 뼈대 HTML 렌더링 부분은 기존과 동일) ...
-    // 단, 마지막에 첫 페이지 호출 시 아래 캐시 버전을 사용합니다.
+    
     await window.loadScrollLogsPage(true);
 };
 
-// [탭 전환 함수 수정] 캐시에 데이터가 있으면 긁어오지 않고 즉시 보여줍니다.
+// [탭 전환 함수] 캐시에 데이터가 있으면 서버 호출 없이 즉시 렌더링!
 window.switchScrollTab = async (category) => {
     if (window.scrollPagination.currentCategory === category) return;
     
@@ -6835,12 +6833,12 @@ window.switchScrollTab = async (category) => {
     const moreBtnArea = document.getElementById('scrollMoreBtnArea');
     if (listBox) listBox.innerHTML = ''; 
 
-    // 🎯 핵심: 해당 탭에 이미 캐싱된 데이터(docs)가 있다면 서버 호출 없이 즉시 화면 렌더링!
     const cache = window.scrollCache[category];
+    
+    // 🎯 캐싱된 데이터가 있다면 서버 호출 없이 즉시 화면 복원 (비용 절약)
     if (cache.docs.length > 0) {
         listBox.innerHTML = cache.docs.map(log => window.renderScrollItemHtml(log)).join('');
         
-        // 더보기 버튼 상태 복원
         if (!cache.isEnd) {
             moreBtnArea.innerHTML = `
                 <button type="button" onclick="window.loadScrollLogsPage(false)" 
@@ -6851,14 +6849,14 @@ window.switchScrollTab = async (category) => {
         } else {
             moreBtnArea.innerHTML = '';
         }
-        return; // 서버 요청 차단 (비용 절약)
+        return; 
     }
 
     // 캐시된 게 없다면 서버에서 첫 페이지를 가져옵니다.
     await window.loadScrollLogsPage(true);
 };
 
-// [페이지 단위 데이터 로드 함수 수정] 읽어온 데이터를 캐시에 축적합니다.
+// [페이지 단위 데이터 로드 함수] 읽어온 데이터를 캐시에 완벽하게 누적합니다.
 window.loadScrollLogsPage = async (isFirstPage = false) => {
     const { mId, currentCategory } = window.scrollPagination;
     const cache = window.scrollCache[currentCategory];
@@ -6875,11 +6873,11 @@ window.loadScrollLogsPage = async (isFirstPage = false) => {
         let qConstraints = [orderBy("date", "desc")];
         const PAGE_SIZE = 6;
         
-        // 필터링 손실을 막기 위해 전체가 아니면 조금 넉넉히 받아옵니다.
-        let fetchLimit = currentCategory === 'all' ? PAGE_SIZE : PAGE_SIZE * 4;
+        // 🎯 클라이언트 필터링 손실 방지를 위해 한 번에 땡겨올 한도 설정
+        let fetchLimit = currentCategory === 'all' ? PAGE_SIZE : 30; 
         qConstraints.push(limit(fetchLimit));
 
-        // 캐시에 저장된 lastDoc 커서가 있다면 이어서 가져옴
+        // 캐시에 저장된 정확한 커서(lastDoc)가 있다면 이어서 가져옴
         if (!isFirstPage && cache.lastDoc) {
             qConstraints.push(startAfter(cache.lastDoc));
         }
@@ -6896,35 +6894,49 @@ window.loadScrollLogsPage = async (isFirstPage = false) => {
             return;
         }
 
-        // 다음 페이지 커서 갱신
-        cache.lastDoc = snap.docs[snap.docs.length - 1];
-
-        // 데이터 가공
-        let fetchedLogs = snap.docs.map(doc => {
-            const data = doc.data();
-            return { ...data, date: data.date ? data.date.toDate() : null };
+        // 🎯 중요: 필터링 전 원본 문서 배열 매핑
+        let rawItems = snap.docs.map(docSnapshot => {
+            const data = docSnapshot.data();
+            return {
+                _rawDoc: docSnapshot, // 👈 페이징 커서 유지를 위해 원본 스냅샷을 품고 갑니다
+                ...data,
+                date: data.date ? data.date.toDate() : null
+            };
         });
 
-        // 카테고리 필터링
+        // 카테고리 필터링 조건 분기
         let filtered = [];
         if (currentCategory === 'all') {
-            filtered = fetchedLogs;
+            filtered = rawItems;
         } else if (currentCategory === 'hiking') {
-            filtered = fetchedLogs.filter(log => 
+            filtered = rawItems.filter(log => 
                 log.isRegular || ((!log.isRunning && !log.isTracking && !log.isWalking) && !log.isExtraHike)
             );
         } else if (currentCategory === 'running') {
-            filtered = fetchedLogs.filter(log => 
+            filtered = rawItems.filter(log => 
                 log.isExtraHike || log.isRunning || log.isTracking || log.isWalking
             );
         }
 
+        // 이번 페이지에 렌더링할 6개 슬라이싱
         const finalItems = filtered.slice(0, PAGE_SIZE);
 
-        // 🎯 가져온 데이터를 기존 캐시 배열에 누적(저장)합니다.
+        if (finalItems.length === 0) {
+            cache.isEnd = true;
+            if (isFirstPage && cache.docs.length === 0) {
+                listBox.innerHTML = `<p style="text-align:center; padding:40px 0; font-size:11px; color:#a0aec0;">기록이 없습니다.</p>`;
+            }
+            moreBtnArea.innerHTML = '';
+            return;
+        }
+
+        // 🎯 [버그 수정 핵심] 이번에 노출된 마지막 데이터의 원본 스냅샷을 다음 페이징 커서로 임명!
+        cache.lastDoc = finalItems[finalItems.length - 1]._rawDoc;
+
+        // 캐시 데이터 저장소에는 무거운 스냅샷 객체를 제외하고 순수 로그 데이터만 누적
         cache.docs = cache.docs.concat(finalItems);
 
-        // HTML 출력 생성
+        // HTML 렌더링 생성
         const htmlContent = finalItems.map(log => window.renderScrollItemHtml(log)).join('');
 
         if (isFirstPage) {
@@ -6933,8 +6945,8 @@ window.loadScrollLogsPage = async (isFirstPage = false) => {
             listBox.insertAdjacentHTML('beforeend', htmlContent);
         }
 
-        // 더보기 버튼 활성화 여부 판단
-        if (snap.docs.length === fetchLimit && finalItems.length > 0) {
+        // 다음 페이지가 더 존재하는지 체크 (가져온 원본 갯수가 limit과 같고, 필터링 후 남은게 있을 때)
+        if (snap.docs.length === fetchLimit && filtered.length >= PAGE_SIZE) {
             moreBtnArea.innerHTML = `
                 <button type="button" onclick="window.loadScrollLogsPage(false)" 
                         style="background: #f7fafc; border: 1px solid #e2e8f0; color: #4a5568; padding: 6px 12px; border-radius: 6px; font-size: 11px; cursor: pointer; width: 100%;">
@@ -6952,7 +6964,7 @@ window.loadScrollLogsPage = async (isFirstPage = false) => {
     }
 };
 
-// 🛠️ 가독성과 중복 방지를 분리한 모달 아이템 전용 렌더링 함수
+// 🛠️ 모달 아이템 전용 렌더링 함수 (기존과 동일)
 window.renderScrollItemHtml = function(log) {
     let dateStr = "----.--.--";
     let dayName = "";
@@ -7009,9 +7021,7 @@ window.renderScrollItemHtml = function(log) {
     `;
 };
 
-            
-
-            
+        
                              </script>
 
 <!-- 마크업 구조 레이어 -->
