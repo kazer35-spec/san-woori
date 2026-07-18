@@ -6766,15 +6766,17 @@ setTimeout(() => s.remove(), 500);
 }
 
  
-  // 필터링 처리를 위해 모달 전용 로그 목록을 임시 저장할 전역 변수
+  
+        // 필터링 처리를 위해 모달 전용 로그 목록을 임시 저장할 전역 변수
 window.currentScrollLogs = []; 
 
- // 페이징 처리를 위해 상태를 기억할 전역 객체
+// 페이징 처리를 위해 상태를 기억할 전역 객체
 window.scrollPagination = {
     lastDoc: null,      // 다음 페이지를 가져오기 위한 커서 (QueryDocumentSnapshot)
     currentCategory: 'all',
     mId: null,
-    isEnd: false        // 더 이상 가져올 데이터가 없는지 여부
+    isEnd: false,       // 더 이상 가져올 데이터가 없는지 여부
+    accumulatedFiltered: [] 
 };
 
 window.showFadingScroll = async function(mId, dday, level = 0) {
@@ -6789,6 +6791,7 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
     window.scrollPagination.lastDoc = null;
     window.scrollPagination.isEnd = false;
     window.scrollPagination.currentCategory = 'all';
+    window.scrollPagination.accumulatedFiltered = [];
 
     // 1. 모달 레이어 노출 및 임시 로딩 UI
     modal.style.display = 'flex';
@@ -6838,7 +6841,7 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
             </div>
         `;
 
-        // 첫 데이터 6개 로드
+        // 첫 데이터 5개 로드
         await window.loadScrollLogsPage(true);
 
     } catch (e) {
@@ -6859,13 +6862,14 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
     }
 };
 
-// 🌟 [탭 전환 함수] 탭 클릭 시 상태를 초기화하고 첫 페이지를 새로 부릅니다.
+// [탭 전환 함수]
 window.switchScrollTab = async (category) => {
     if (window.scrollPagination.currentCategory === category) return;
     
     window.scrollPagination.currentCategory = category;
     window.scrollPagination.lastDoc = null;
     window.scrollPagination.isEnd = false;
+    window.scrollPagination.accumulatedFiltered = [];
 
     const tabs = {
         all: document.getElementById('sTab-all'),
@@ -6880,12 +6884,12 @@ window.switchScrollTab = async (category) => {
     });
 
     const listBox = document.getElementById('scrollFilteredList');
-    if (listBox) listBox.innerHTML = ''; // 기존 리스트 비우기
+    if (listBox) listBox.innerHTML = ''; 
 
     await window.loadScrollLogsPage(true);
 };
 
-// 🌟 [핵심: 페이지 단위 데이터 로드 함수]
+// [페이지 단위 데이터 로드 함수]
 window.loadScrollLogsPage = async (isFirstPage = false) => {
     const { mId, currentCategory, lastDoc, isEnd } = window.scrollPagination;
     if (isEnd) return;
@@ -6894,22 +6898,14 @@ window.loadScrollLogsPage = async (isFirstPage = false) => {
     const moreBtnArea = document.getElementById('scrollMoreBtnArea');
     if (!listBox || !moreBtnArea) return;
 
-    // 로딩 처리
     moreBtnArea.innerHTML = `<span style="font-size:11px; color:#a0aec0;">기록을 가져오는 중...</span>`;
 
     try {
-        // 1. 카테고리 조건 구성 (Firestore에서 효율적으로 필터링하도록 쿼리 분기)
         let qConstraints = [orderBy("date", "desc")];
         
-        // Firestore 쿼리 제약상 여러 복합 필터 처리를 위해 애플리케이션 필터와 결합하거나 분기 최적화가 필요합니다.
-        // 여기서는 Limit을 여유있게 주어 가져온 뒤 클라이언트에서 한 번 더 정리하는 '하이브리드 페이징'을 적용합니다.
-        const PAGE_SIZE = 6;
-        let fetchLimit = PAGE_SIZE;
-
-        // 특정 카테고리인 경우 원하는 타겟 개수(6개)를 채우기 위해 버퍼를 조금 더 둡니다.
-        if (currentCategory !== 'all') {
-            fetchLimit = PAGE_SIZE * 3; 
-        }
+        // 🎯 PAGE_SIZE를 기존 6에서 5로 변경했습니다.
+        const PAGE_SIZE = 5;
+        let fetchLimit = currentCategory === 'all' ? PAGE_SIZE : PAGE_SIZE * 4;
 
         qConstraints.push(limit(fetchLimit));
 
@@ -6917,7 +6913,6 @@ window.loadScrollLogsPage = async (isFirstPage = false) => {
             qConstraints.push(startAfter(lastDoc));
         }
 
-        // 2. DB 요청 (딱 필요한 limit 만큼만 읽음 💸)
         const logsRef = collection(db, `sanwoori/${mId}/logs`);
         const snap = await getDocs(query(logsRef, ...qConstraints));
 
@@ -6930,16 +6925,13 @@ window.loadScrollLogsPage = async (isFirstPage = false) => {
             return;
         }
 
-        // 다음 페이지 조회를 위해 가져온 도큐먼트 중 마지막 요소를 마커로 기억
         window.scrollPagination.lastDoc = snap.docs[snap.docs.length - 1];
 
-        // 3. 데이터 파싱
         let fetchedLogs = snap.docs.map(doc => {
             const data = doc.data();
             return { ...data, date: data.date ? data.date.toDate() : null };
         });
 
-        // 4. 클라이언트 카테고리 필터 매칭
         let filtered = [];
         if (currentCategory === 'all') {
             filtered = fetchedLogs;
@@ -6953,16 +6945,15 @@ window.loadScrollLogsPage = async (isFirstPage = false) => {
             );
         }
 
-        // 카테고리 탭에서 타겟 개수(6개) 조절
-        const finalItems = filtered.slice(0, PAGE_SIZE);
-
-        if (isFirstPage && finalItems.length === 0) {
+        if (isFirstPage && filtered.length === 0 && snap.docs.length < fetchLimit) {
             listBox.innerHTML = `<p style="text-align:center; padding:40px 0; font-size:11px; color:#a0aec0;">기록이 없습니다.</p>`;
             moreBtnArea.innerHTML = '';
             return;
         }
 
-        // 5. HTML 렌더링 생성
+        // 🎯 최대 5개 아이템만 추출해서 렌더링
+        const finalItems = filtered.slice(0, PAGE_SIZE);
+
         const htmlContent = finalItems.map(log => {
             let dateStr = "----.--.--";
             let dayName = "";
@@ -7025,7 +7016,6 @@ window.loadScrollLogsPage = async (isFirstPage = false) => {
             listBox.insertAdjacentHTML('beforeend', htmlContent);
         }
 
-        // 6. 다음 페이지 버튼 노출 제어 (이번에 가져온 총 데이터 개수가 limit과 같다면 다음 데이터가 더 있을 가능성이 큼)
         if (snap.docs.length === fetchLimit) {
             moreBtnArea.innerHTML = `
                 <button type="button" onclick="window.loadScrollLogsPage(false)" 
@@ -7035,16 +7025,15 @@ window.loadScrollLogsPage = async (isFirstPage = false) => {
             `;
         } else {
             window.scrollPagination.isEnd = true;
-            moreBtnArea.innerHTML = ``; // 더 이상 데이터 없음
+            moreBtnArea.innerHTML = ``; 
         }
 
     } catch (e) {
         console.error("페이징 로드 실패:", e);
-        moreBtnArea.innerHTML = `<span style="font-size:11px; color:#e53e3e;">추가 데이터 로드 실패</span>`;
+        moreBtnArea.innerHTML = `<span style="font-size:11px; color:#e53e3e;">데이터 로드 오류</span>`;
     }
 };
 
-  
                              </script>
 
 <!-- 마크업 구조 레이어 -->
