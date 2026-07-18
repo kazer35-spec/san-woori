@@ -6805,7 +6805,7 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
     
     if(!modal || !content) return;
 
-    // 🎯 [캐시 최적화] 모달을 새로 열 때 이전 캐시 데이터를 깨끗하게 비웁니다.
+    // 🎯 1. 캐시 데이터 초기화
     window.scrollPagination.mId = mId;
     window.scrollPagination.currentCategory = 'all';
     window.scrollCache = {
@@ -6814,14 +6814,19 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
         running:{ docs: [], lastDoc: null, isEnd: false }
     };
 
-    // 모달 창 열고 로딩 표시
+    // 모달 표시
     modal.style.display = 'flex';
-    content.innerHTML = `<div style="text-align:center; padding:50px 0; color:#a0aec0; font-size:13px;">로딩 중...</div>`;
+
+    // 🎯 2. HTML에 이미 뼈대가 있으므로, 알맹이 영역만 초기화 및 로딩 표시
+    const listBox = document.getElementById('scrollFilteredList');
+    const moreBtnArea = document.getElementById('scrollMoreBtnArea');
+    if (listBox) listBox.innerHTML = `<div style="text-align:center; padding:40px 0; color:#a0aec0; font-size:13px;">로딩 중...</div>`;
+    if (moreBtnArea) moreBtnArea.innerHTML = '';
 
     try {
-        // 해당 멤버의 세부 정보(이름, 가입일 등) 가져오기
+        // 멤버 정보 가져오기
         const memberDoc = await getDoc(doc(db, "sanwoori", mId));
-        let joinDateStr = "25년 11월 24일"; // 기본값
+        let joinDateStr = "25년 11월 24일"; 
         let userName = "우리";
         
         if (memberDoc.exists()) {
@@ -6833,48 +6838,23 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
             }
         }
 
-        // 모달 기본 HTML 뼈대 구성
-        content.innerHTML = `
-            <div class="fading-scroll">
-                <div class="scroll-header">
-                    <span class="scroll-subtitle">SAN WOORI RECORD</span>
-                    <h2 class="scroll-title">개인 운동 상태 리포트</h2>
-                    <button class="scroll-close-x" onclick="document.getElementById('scrollModal').style.display='none'">×</button>
-                </div>
-                
-                <div class="scroll-meta-badges">
-                    <span class="scroll-badge-dday">D-Day ${dday}</span>
-                    <span class="scroll-badge-join">✨ ${userName}, 여기서부터 : <strong>${joinDateStr}</strong></span>
-                </div>
+        // 🎯 3. 이미 존재하는 메타 배지 영역 요소가 있다면 해당 텍스트만 변경합니다.
+        // (만약 클래스나 ID가 다르면 HTML에 맞춰 꽂아주거나, 아래처럼 텍스트 영역만 갱신)
+        const badgeDday = content.querySelector('.scroll-badge-dday');
+        const badgeJoin = content.querySelector('.scroll-badge-join');
+        
+        if (badgeDday) badgeDday.textContent = `D-Day ${dday}`;
+        if (badgeJoin) badgeJoin.innerHTML = `✨ ${userName}, 여기서부터 : <strong>${joinDateStr}</strong>`;
 
-                <!-- 탭 메뉴 -->
-                <div class="scroll-tabs">
-                    <button id="sTab-all" class="scroll-tab-btn active" onclick="window.switchScrollTab('all')">전체</button>
-                    <button id="sTab-hiking" class="scroll-tab-btn" onclick="window.switchScrollTab('hiking')">일정산행</button>
-                    <button id="sTab-running" class="scroll-tab-btn" onclick="window.switchScrollTab('running')">개인/기타</button>
-                </div>
-
-                <!-- 일지 리스트 스크롤 박스 -->
-                <div id="scrollFilteredList" class="scroll-filtered-list-box"></div>
-
-                <!-- 더보기 버튼 영역 -->
-                <div id="scrollMoreBtnArea" style="text-align:center; margin-top:8px;"></div>
-
-                <!-- 하단 닫기 버튼 -->
-                <button type="button" class="scroll-bottom-close-btn" onclick="document.getElementById('scrollModal').style.display='none'">
-                    일지 창 닫기
-                </button>
-            </div>
-        `;
-
-        // 뼈대 렌더링이 끝나면 첫 페이지 데이터를 캐시 로직으로 호출
+        // 🎯 4. 첫 페이지 데이터 호출하여 리스트 채우기
         await window.loadScrollLogsPage(true);
 
     } catch (err) {
         console.error("모달 초기화 실패:", err);
-        content.innerHTML = `<div style="text-align:center; padding:50px 0; color:#e53e3e;">모달을 여는 중 오류가 발생했습니다.</div>`;
+        if (listBox) listBox.innerHTML = `<div style="text-align:center; padding:20px 0; color:#e53e3e;">오류가 발생했습니다.</div>`;
     }
 };
+
 
 
 // =========================================================================
