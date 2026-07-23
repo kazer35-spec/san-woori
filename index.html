@@ -2894,7 +2894,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { 
   getFirestore, collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc, 
-  increment, query, orderBy, Timestamp, where, getDocs, getDoc, setDoc, limit, writeBatch, startAfter
+  increment, query, orderBy, Timestamp, where, getDocs, getDoc, setDoc, limit, writeBatch, startAfter, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -6869,47 +6869,59 @@ setTimeout(() => s.remove(), 500);
 
 
     
-            // 필터링 처리를 위해 모달 전용 로그 목록을 임시 저장할 전역 변수 (캐시)
+                                    
+    }
+
+    modal.onclick = (e) => { 
+        if (e.target === modal) modal.style.display = 'none'; 
+    };
+    if(scrollWrap) {
+        scrollWrap.onclick = (e) => e.stopPropagation();
+    }
+};
+
+
+// Firebase SDK에서 getCountFromServer가 import 되어 있어야 합니다.
+// import { getCountFromServer, query, where, collection, getDoc, doc, orderBy, startAfter, limit, getDocs } from "firebase/firestore";
+
+// 필터링 처리를 위해 모달 전용 로그 목록을 임시 저장할 전역 변수 (캐시)
 window.currentScrollLogs = []; 
 
 // 페이징 처리를 위해 상태를 기억할 전역 객체
 window.scrollPagination = {
-    lastDoc: null,      // 다음 페이지를 가져오기 위한 커서 (QueryDocumentSnapshot)
+    lastDoc: null,      // 다음 페이지를 가져오기 위한 커서
     currentCategory: 'all',
     mId: null,
-    isEnd: false,       // 더 이상 가져올 데이터가 없는지 여부
-    dbEnd: false,       // 실제 DB 상에 더 이상 데이터가 없는지 여부
-    currentPageSize: 6  // 💡 현재 화면에 노출할 누적 아이템 개수 상태 추가
+    isEnd: false,       
+    dbEnd: false,       
+    currentPageSize: 6  
 };
 
-
-
-    window.showFadingScroll = async function(mId, dday, level = 0) {
+window.showFadingScroll = async function(mId, dday, level = 0) {
     const modal = document.getElementById('scrollModal');
     const content = document.getElementById('scrollContent');
     const scrollWrap = document.querySelector('.fading-scroll'); 
     
     if(!modal || !content) return;
 
-    // 💡 mId 유효성 체크 및 공백 제거
+    // mId 유효성 체크 및 공백 제거
     const safeMemberId = mId ? String(mId).trim() : "";
     if (!safeMemberId) {
         alert("회원 정보(ID)를 찾을 수 없습니다.");
         return;
     }
 
-    // 페이징 및 캐시 상태 안전 초기화
+    // 초기화
     if (!window.scrollPagination) window.scrollPagination = {};
-    
     window.scrollPagination.mId = safeMemberId;
     window.scrollPagination.lastDoc = null;
     window.scrollPagination.isEnd = false;
     window.scrollPagination.dbEnd = false;
     window.scrollPagination.currentCategory = 'all';
-    window.scrollPagination.currentPageSize = 6; // 💡 초기 크기 세팅
+    window.scrollPagination.currentPageSize = 6;
     window.currentScrollLogs = [];
 
-    // 1. 모달 레이어 노출 및 임시 로딩 UI
+    // 1. 모달 레이어 노출 및 로딩 UI
     modal.style.display = 'flex';
     content.innerHTML = `
         <div style="text-align:center; padding:50px 0;">
@@ -6918,20 +6930,18 @@ window.scrollPagination = {
     `;
 
     let formattedRegDateKo = "--년 --월 --일";
+    let counts = { regular: 0, extraHike: 0, run: 0, trek: 0, walk: 0 };
 
     try {
-        // [A] 가입일 정보 로딩 (안전 예외 처리)
+        // [A] 가입일 정보 로딩 (읽기 1회)
         try {
             const memberSnap = await getDoc(doc(db, "sanwoori", safeMemberId));
             if (memberSnap.exists()) {
                 const memberData = memberSnap.data();
                 if (memberData.regDate) {
-                    let rDate = null;
-                    if (typeof memberData.regDate.toDate === 'function') {
-                        rDate = memberData.regDate.toDate();
-                    } else {
-                        rDate = new Date(memberData.regDate);
-                    }
+                    let rDate = typeof memberData.regDate.toDate === 'function' 
+                        ? memberData.regDate.toDate() 
+                        : new Date(memberData.regDate);
 
                     if (rDate && !isNaN(rDate.getTime())) {
                         const yy = String(rDate.getFullYear()).slice(-2); 
@@ -6942,10 +6952,33 @@ window.scrollPagination = {
                 }
             }
         } catch (regError) {
-            console.warn("가입일 정보 로딩 경고 (기존 화면 로직은 계속 진행됨):", regError);
+            console.warn("가입일 로딩 경고:", regError);
         }
 
-        // 2. 모달 뼈대 및 탭 레이아웃 렌더링
+        // [B] ⭐ 읽기 비용 최적화 카운트 (getCountFromServer 사용)
+        // 개별 문서를 안 받아오고 서버에서 개수만 집계 (1,000개 문서당 읽기 1회 청구)
+        try {
+            const logsRef = collection(db, `sanwoori/${safeMemberId}/logs`);
+
+            const [qReg, qExtra, qRun, qTrek, qWalk] = await Promise.all([
+                getCountFromServer(query(logsRef, where("isRegular", "==", true))),
+                getCountFromServer(query(logsRef, where("isExtraHike", "==", true))),
+                getCountFromServer(query(logsRef, where("isRunning", "==", true))),
+                getCountFromServer(query(logsRef, where("isTracking", "==", true))),
+                getCountFromServer(query(logsRef, where("isWalking", "==", true)))
+            ]);
+
+            counts.regular = qReg.data().count;
+            counts.extraHike = qExtra.data().count;
+            counts.run = qRun.data().count;
+            counts.trek = qTrek.data().count;
+            counts.walk = qWalk.data().count;
+
+        } catch (cntErr) {
+            console.warn("서버 카운트 집계 경고 (인덱스 미생성 등):", cntErr);
+        }
+
+        // 2. 모달 HTML 렌더링
         content.innerHTML = `
             <div class="user-status-row-bar">
                 <div class="dday-count-badge">D-Day ${dday !== undefined ? dday : 0}</div>
@@ -6955,6 +6988,30 @@ window.scrollPagination = {
                 </div>
             </div>
 
+            <!-- 운동 종류별 정확한 전체 카운트 뱃지 -->
+            <div class="activity-summary-bar" style="display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; align-items: center; margin: 10px 0 14px 0; padding: 8px 10px; background: #f8fafc; border-radius: 8px;">
+                <span style="font-size: 11px; font-weight: 600; color: #475569; display: inline-flex; align-items: center; gap: 4px;">
+                    <span style="width: 8px; height: 8px; border-radius: 50%; background: linear-gradient(135deg, #FF69B4, #ADFF2F, #A020F0);"></span>
+                    일정산행 <strong>${counts.regular}회</strong>
+                </span>
+                <span style="font-size: 11px; font-weight: 600; color: #475569; display: inline-flex; align-items: center; gap: 4px;">
+                    <span style="width: 8px; height: 8px; border-radius: 50%; background: #5CE1D6;"></span>
+                    개인산행 <strong>${counts.extraHike}회</strong>
+                </span>
+                <span style="font-size: 11px; font-weight: 600; color: #475569; display: inline-flex; align-items: center; gap: 4px;">
+                    <span style="width: 8px; height: 8px; border-radius: 50%; background: #FFD1DC;"></span>
+                    러닝 <strong>${counts.run}회</strong>
+                </span>
+                <span style="font-size: 11px; font-weight: 600; color: #475569; display: inline-flex; align-items: center; gap: 4px;">
+                    <span style="width: 8px; height: 8px; border-radius: 50%; background: #E0B0FF;"></span>
+                    트래킹 <strong>${counts.trek}회</strong>
+                </span>
+                <span style="font-size: 11px; font-weight: 600; color: #475569; display: inline-flex; align-items: center; gap: 4px;">
+                    <span style="width: 8px; height: 8px; border-radius: 50%; background: #FFCC80;"></span>
+                    산책 <strong>${counts.walk}회</strong>
+                </span>
+            </div>
+
             <div class="tab-scroll-container">
                 <div class="tab-header-buttons">
                     <button type="button" onclick="window.switchScrollTab('all')" id="sTab-all" class="tab-btn active">전체</button>
@@ -6962,14 +7019,12 @@ window.scrollPagination = {
                     <button type="button" onclick="window.switchScrollTab('running')" id="sTab-running" class="tab-btn">개인/기타</button>
                 </div>
                 
-                <!-- 로그가 쌓일 박스 -->
                 <div id="scrollFilteredList" class="scroll-filtered-list-box"></div>
-                <!-- 더보기 버튼 영역 -->
                 <div id="scrollMoreBtnArea" style="text-align:center; margin-top:15px;"></div>
             </div>
         `;
 
-        // 첫 데이터 6개 로드 호출
+        // 첫 페이지 로드
         await window.loadScrollLogsPage(true);
 
     } catch (e) {
@@ -6990,14 +7045,13 @@ window.scrollPagination = {
     }
 };
 
-
 // [탭 전환 함수]
 window.switchScrollTab = async (category) => {
     if (window.scrollPagination.currentCategory === category) return;
     
     window.scrollPagination.currentCategory = category;
     window.scrollPagination.isEnd = false; 
-    window.scrollPagination.currentPageSize = 6; // 💡 탭 전환 시 다시 6개부터 보여주기
+    window.scrollPagination.currentPageSize = 6;
 
     const tabs = {
         all: document.getElementById('sTab-all'),
@@ -7020,14 +7074,10 @@ window.switchScrollTab = async (category) => {
 window.loadScrollLogsPage = async (isFirstPage = false) => {
     if (!window.scrollPagination) return;
     
-    // 💡 [개선] mId 양끝 공백 자동 제거 (trim)
     let { mId, currentCategory, lastDoc, isEnd, dbEnd } = window.scrollPagination;
     mId = mId ? String(mId).trim() : "";
 
-    if (isEnd || !mId) {
-        console.warn("⚠️ mId가 없거나 이미 종료된 요청입니다. mId:", mId);
-        return;
-    }
+    if (isEnd || !mId) return;
 
     const listBox = document.getElementById('scrollFilteredList');
     const moreBtnArea = document.getElementById('scrollMoreBtnArea');
@@ -7071,9 +7121,6 @@ window.loadScrollLogsPage = async (isFirstPage = false) => {
             }
             
             qConstraints.push(limit(fetchLimit));
-
-            // 🎯 조회하려는 대상 경로 출력 디버깅
-            console.log(`🔍 [Firestore 조회 시도] 경로: sanwoori/${mId}/logs`);
 
             const logsRef = collection(db, `sanwoori/${mId}/logs`);
             const snap = await getDocs(query(logsRef, ...qConstraints));
@@ -7192,14 +7239,13 @@ window.loadScrollLogsPage = async (isFirstPage = false) => {
         }
 
     } catch (e) {
-        // 💡 디버깅용: 실패 원인을 콘솔에 상세히 출력합니다.
         console.error("❌ [페이징 로드 실패] 상세 원인:", e);
         moreBtnArea.innerHTML = `<span style="font-size:11px; color:#e53e3e;">데이터 로드 오류: ${e.message}</span>`;
     }
 };
 
-            
 
+            
                              </script>
 
 <!-- 마크업 구조 레이어 -->
