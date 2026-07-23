@@ -7041,11 +7041,11 @@ window.switchScrollTab = async (category) => {
         if (filtered.length < targetSize && !dbEnd) {
             let fetchLimit = currentCategory === 'all' ? MORE_PAGE_SIZE : MORE_PAGE_SIZE * 3;
             
-            // 💡 [핵심 수정] startAfter 조건문을 구체화하여 안전하게 쿼리 조건 생성
             let qConstraints = [orderBy("date", "desc")];
             
-            // lastDoc 존재 여부 및 정상 객체 여부 체크
-            if (lastDoc && typeof lastDoc === 'object') {
+            // 💡 [핵심 수정] lastDoc이 유효한 Firestore DocumentSnapshot인지 정확히 검증
+            const isValidSnapshot = lastDoc && (typeof lastDoc.exists === 'function' || lastDoc._document || lastDoc.ref);
+            if (isValidSnapshot) {
                 qConstraints.push(startAfter(lastDoc));
             }
             
@@ -7055,7 +7055,7 @@ window.switchScrollTab = async (category) => {
             const snap = await getDocs(query(logsRef, ...qConstraints));
 
             if (!snap.empty) {
-                // 커서 문서 갱신
+                // 커서 문서 갱신 (실제 snap.docs의 마지막 스냅샷을 저장)
                 window.scrollPagination.lastDoc = snap.docs[snap.docs.length - 1];
 
                 let fetchedLogs = snap.docs.map(doc => {
@@ -7063,7 +7063,7 @@ window.switchScrollTab = async (category) => {
                     return { 
                         ...data, 
                         docId: doc.id,
-                        date: (data.date && typeof data.date.toDate === 'function') ? data.date.toDate() : (data.date || null)
+                        date: (data.date && typeof data.date.toDate === 'function') ? data.date.toDate() : (data.date ? new Date(data.date) : null)
                     };
                 });
                 
@@ -7177,8 +7177,6 @@ window.switchScrollTab = async (category) => {
         moreBtnArea.innerHTML = `<span style="font-size:11px; color:#e53e3e;">데이터 로드 오류</span>`;
     }
 };
-
-
 
                              </script>
 
