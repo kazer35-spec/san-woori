@@ -6845,7 +6845,9 @@ setTimeout(() => s.remove(), 500);
 
  
   
-    // 필터링 및 페이징 처리를 위해 모달 전용 로그 목록을 임시 저장할 전역 변수 (캐시)
+
+        
+            // 필터링 및 페이징 처리를 위해 모달 전용 로그 목록을 임시 저장할 전역 변수 (캐시)
 window.currentScrollLogs = []; 
 
 // 페이징 처리를 위해 상태를 기억할 전역 객체
@@ -6947,54 +6949,63 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
             return acc;
         }, { regular: 0, schedule: 0, extra: 0, trekking: 0, running: 0, walking: 0 });
 
-        // 2. 모달 뼈대, 카운트 요약 바, 탭 레이아웃 렌더링
+        // 2. 🎯 [개선] D-Day와 운동 횟수가 하나의 상자(카드)로 통합 렌더링
         content.innerHTML = `
-            <div class="user-status-row-bar">
-                <div class="dday-count-badge">D-Day ${dday !== undefined ? dday : 0}</div>
-                <div class="origin-membership-info-mini">
-                    <span class="member-since-label">✨ 우리, 여기서부터 : </span>
-                    <strong class="member-since-date">${formattedRegDateKo}</strong>
+            <div class="user-report-summary-card" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 12px 14px; margin: 6px 0 12px 0;">
+                
+                <!-- [1구역] D-Day & 가입일 영역 -->
+                <div class="user-status-row-bar" style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; border-bottom: 1px dashed #cbd5e1;">
+                    <div class="dday-count-badge" style="background: #e0f2fe; color: #0284c7; font-weight: 700; font-size: 11px; padding: 3px 8px; border-radius: 20px;">
+                        D-Day ${dday !== undefined ? dday : 0}
+                    </div>
+                    <div class="origin-membership-info-mini" style="font-size: 11px; color: #64748b;">
+                        <span class="member-since-label">✨ 우리, 여기서부터 : </span>
+                        <strong class="member-since-date" style="color: #0f172a; font-weight: 700;">${formattedRegDateKo}</strong>
+                    </div>
                 </div>
+
+                <!-- [2구역] 운동 횟수 요약 영역 (3열 정렬 및 도트 라인 수직 맞춤) -->
+                <div class="activity-summary-grid" style="display: flex; flex-direction: column; gap: 6px; padding-top: 10px; font-size: 11px; color: #475569; font-weight: 500;">
+                    <!-- 1줄: 산행 계열 -->
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; align-items: center;">
+                        <span style="display: flex; align-items: center; gap: 3px; white-space: nowrap;">
+                            <i style="width: 7px; height: 7px; border-radius: 50%; background: linear-gradient(135deg, #FF69B4, #ADFF2F, #A020F0); display: inline-block; flex-shrink: 0;"></i>
+                            <span>정기산행</span>
+                            <strong style="color: #0f172a; margin-left: auto;">${counts.regular}회</strong>
+                        </span>
+                        <span style="display: flex; align-items: center; gap: 3px; white-space: nowrap;">
+                            <i style="width: 7px; height: 7px; border-radius: 50%; background: #2ecc71; display: inline-block; flex-shrink: 0;"></i>
+                            <span>일정산행</span>
+                            <strong style="color: #0f172a; margin-left: auto;">${counts.schedule}회</strong>
+                        </span>
+                        <span style="display: flex; align-items: center; gap: 3px; white-space: nowrap;">
+                            <i style="width: 7px; height: 7px; border-radius: 50%; background: #5CE1D6; display: inline-block; flex-shrink: 0;"></i>
+                            <span>개인산행</span>
+                            <strong style="color: #0f172a; margin-left: auto;">${counts.extra}회</strong>
+                        </span>
+                    </div>
+
+                    <!-- 2줄: 기타 운동 계열 -->
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; align-items: center;">
+                        <span style="display: flex; align-items: center; gap: 3px; white-space: nowrap;">
+                            <i style="width: 7px; height: 7px; border-radius: 50%; background: #FFD1DC; display: inline-block; flex-shrink: 0;"></i>
+                            <span>런닝</span>
+                            <strong style="color: #0f172a; margin-left: auto;">${counts.running}회</strong>
+                        </span>
+                        <span style="display: flex; align-items: center; gap: 3px; white-space: nowrap;">
+                            <i style="width: 7px; height: 7px; border-radius: 50%; background: #E0B0FF; display: inline-block; flex-shrink: 0;"></i>
+                            <span>트래킹</span>
+                            <strong style="color: #0f172a; margin-left: auto;">${counts.trekking}회</strong>
+                        </span>
+                        <span style="display: flex; align-items: center; gap: 3px; white-space: nowrap;">
+                            <i style="width: 7px; height: 7px; border-radius: 50%; background: #FFCC80; display: inline-block; flex-shrink: 0;"></i>
+                            <span>산책</span>
+                            <strong style="color: #0f172a; margin-left: auto;">${counts.walking}회</strong>
+                        </span>
+                    </div>
+                </div>
+
             </div>
-
-            <!-- 🎯 정기산행 / 일정산행 구분 적용된 요약 바 -->
-            <!-- 🎯 2줄 정렬 및 도트 라인 맞춤 요약 바 -->
-<div class="activity-summary-bar" style="background: #f8fafc; padding: 10px 12px; border-radius: 16px; font-size: 11px; margin: 10px 0; color: #475569; font-weight: 500; display: flex; flex-direction: column; gap: 6px;">
-    
-    <!-- 1줄: 산행 계열 -->
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-        <span style="display: flex; align-items: center; gap: 4px; flex: 1;">
-            <i style="width: 8px; height: 8px; border-radius: 50%; background: linear-gradient(135deg, #FF69B4, #ADFF2F, #A020F0); display: inline-block; shrink: 0;"></i>
-            정기산행 <strong style="color: #0f172a; margin-left: auto; padding-right: 8px;">${counts.regular}회</strong>
-        </span>
-        <span style="display: flex; align-items: center; gap: 4px; flex: 1;">
-            <i style="width: 8px; height: 8px; border-radius: 50%; background: #2ecc71; display: inline-block; shrink: 0;"></i>
-            일정산행 <strong style="color: #0f172a; margin-left: auto; padding-right: 8px;">${counts.schedule}회</strong>
-        </span>
-        <span style="display: flex; align-items: center; gap: 4px; flex: 1;">
-            <i style="width: 8px; height: 8px; border-radius: 50%; background: #5CE1D6; display: inline-block; shrink: 0;"></i>
-            개인산행 <strong style="color: #0f172a; margin-left: auto;">${counts.extra}회</strong>
-        </span>
-    </div>
-
-    <!-- 2줄: 기타 운동 계열 (도트 및 비율 수직 맞춤) -->
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-        <span style="display: flex; align-items: center; gap: 4px; flex: 1;">
-            <i style="width: 8px; height: 8px; border-radius: 50%; background: #FFD1DC; display: inline-block; shrink: 0;"></i>
-            런닝 <strong style="color: #0f172a; margin-left: auto; padding-right: 8px;">${counts.running}회</strong>
-        </span>
-        <span style="display: flex; align-items: center; gap: 4px; flex: 1;">
-            <i style="width: 8px; height: 8px; border-radius: 50%; background: #E0B0FF; display: inline-block; shrink: 0;"></i>
-            트래킹 <strong style="color: #0f172a; margin-left: auto; padding-right: 8px;">${counts.trekking}회</strong>
-        </span>
-        <span style="display: flex; align-items: center; gap: 4px; flex: 1;">
-            <i style="width: 8px; height: 8px; border-radius: 50%; background: #FFCC80; display: inline-block; shrink: 0;"></i>
-            산책 <strong style="color: #0f172a; margin-left: auto;">${counts.walking}회</strong>
-        </span>
-    </div>
-
-</div>
-
 
             <div class="tab-scroll-container">
                 <div class="tab-header-buttons">
@@ -7182,10 +7193,7 @@ window.loadScrollLogsPage = (isFirstPage = false) => {
         moreBtnArea.innerHTML = `<span style="font-size:11px; color:#e53e3e;">데이터 로드 오류: ${e.message}</span>`;
     }
 };
-    
 
-
-    
 
             
 
