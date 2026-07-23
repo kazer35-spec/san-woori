@@ -6864,21 +6864,20 @@ window.scrollPagination = {
     currentPageSize: 6
 };
 
-window.showFadingScroll = async function(mId, dday, level = 0) {
+// showFadingScroll 인자에 regDate를 전달받을 수 있도록 추가 (옵션)
+window.showFadingScroll = async function(mId, dday, level = 0, passedRegDate = null) {
     const modal = document.getElementById('scrollModal');
     const content = document.getElementById('scrollContent');
     const scrollWrap = document.querySelector('.fading-scroll'); 
     
     if(!modal || !content) return;
 
-    // mId 유효성 체크 및 공백 제거
     const safeMemberId = mId ? String(mId).trim() : "";
     if (!safeMemberId) {
         alert("회원 정보(ID)를 찾을 수 없습니다.");
         return;
     }
 
-    // 페이징 및 캐시 상태 초기화
     if (!window.scrollPagination) window.scrollPagination = {};
     
     window.scrollPagination.mId = safeMemberId;
@@ -6887,7 +6886,6 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
     window.scrollPagination.currentPageSize = 6;
     window.currentScrollLogs = [];
 
-    // 1. 모달 레이어 노출 및 임시 로딩 UI
     modal.style.display = 'flex';
     content.innerHTML = `
         <div style="text-align:center; padding:50px 0;">
@@ -6898,32 +6896,31 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
     let formattedRegDateKo = "--년 --월 --일";
 
     try {
-        // [A] 가입일 정보 로딩
-        try {
-            const memberSnap = await getDoc(doc(db, "sanwoori", safeMemberId));
-            if (memberSnap.exists()) {
-                const memberData = memberSnap.data();
-                if (memberData.regDate) {
-                    let rDate = null;
-                    if (typeof memberData.regDate.toDate === 'function') {
-                        rDate = memberData.regDate.toDate();
-                    } else {
-                        rDate = new Date(memberData.regDate);
-                    }
-
-                    if (rDate && !isNaN(rDate.getTime())) {
-                        const yy = String(rDate.getFullYear()).slice(-2); 
-                        const mm = String(rDate.getMonth() + 1).padStart(2, '0');
-                        const dd = String(rDate.getDate()).padStart(2, '0');
-                        formattedRegDateKo = `${yy}년 ${mm}월 ${dd}일`;
-                    }
+        // [A] 가입일 정보: 외부에서 전달받은 값이 있으면 getDoc 생략! (서버 읽기 1회 절약)
+        let rDate = passedRegDate;
+        
+        if (!rDate) {
+            try {
+                const memberSnap = await getDoc(doc(db, "sanwoori", safeMemberId));
+                if (memberSnap.exists()) {
+                    rDate = memberSnap.data().regDate;
                 }
+            } catch (regError) {
+                console.warn("가입일 정보 로딩 경고:", regError);
             }
-        } catch (regError) {
-            console.warn("가입일 정보 로딩 경고:", regError);
         }
 
-        // [B] 🔥 [읽기 비용 절약] 해당 유저의 전체 일지 데이터를 1회 전체 조회하여 메모리에 캐싱
+        if (rDate) {
+            const parsedDate = (typeof rDate.toDate === 'function') ? rDate.toDate() : new Date(rDate);
+            if (parsedDate && !isNaN(parsedDate.getTime())) {
+                const yy = String(parsedDate.getFullYear()).slice(-2); 
+                const mm = String(parsedDate.getMonth() + 1).padStart(2, '0');
+                const dd = String(parsedDate.getDate()).padStart(2, '0');
+                formattedRegDateKo = `${yy}년 ${mm}월 ${dd}일`;
+            }
+        }
+
+        // [B] 🔥 유저 전체 일지 데이터 1회 통합 조회 (메모리 캐스)
         const logsRef = collection(db, `sanwoori/${safeMemberId}/logs`);
         const q = query(logsRef, orderBy("date", "desc"));
         const snap = await getDocs(q);
@@ -6936,6 +6933,9 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
                 date: (data.date && typeof data.date.toDate === 'function') ? data.date.toDate() : (data.date ? new Date(data.date) : null)
             };
         });
+
+        // 이하 기존 통계 계산 및 UI 렌더링 로직 동일...
+
 
         // [C] 📊 전체 로그 데이터 기반 항목별 카운팅 계산 (정기 vs 일정 구분)
         const counts = window.currentScrollLogs.reduce((acc, log) => {
