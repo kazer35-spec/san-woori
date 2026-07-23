@@ -6864,12 +6864,12 @@ setTimeout(() => s.remove(), 500);
 }
 
  
-  // 필터링 처리를 위해 모달 전용 로그 목록을 임시 저장할 전역 변수 (캐시)
+// 필터링 처리를 위해 모달 전용 로그 목록을 임시 저장할 전역 변수 (캐시)
 window.currentScrollLogs = []; 
 
 // 페이징 처리를 위해 상태를 기억할 전역 객체
 window.scrollPagination = {
-    lastDoc: null,      
+    lastDoc: null,      // 다음 페이지를 가져오기 위한 커서
     currentCategory: 'all',
     mId: null,
     isEnd: false,       
@@ -6891,8 +6891,9 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
         return;
     }
 
-    // 초기화
+    // 페이징 및 캐시 상태 안전 초기화
     if (!window.scrollPagination) window.scrollPagination = {};
+    
     window.scrollPagination.mId = safeMemberId;
     window.scrollPagination.lastDoc = null;
     window.scrollPagination.isEnd = false;
@@ -6901,7 +6902,7 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
     window.scrollPagination.currentPageSize = 6;
     window.currentScrollLogs = [];
 
-    // 1. 모달 레이어 노출 및 로딩 UI
+    // 1. 모달 레이어 노출 및 임시 로딩 UI
     modal.style.display = 'flex';
     content.innerHTML = `
         <div style="text-align:center; padding:50px 0;">
@@ -6913,7 +6914,7 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
     let counts = { regular: 0, pureHike: 0, extraHike: 0, run: 0, trek: 0, walk: 0 };
 
     try {
-        // [A] 가입일 정보 로딩 (읽기 1회)
+        // [A] 가입일 정보 로딩
         try {
             const memberSnap = await getDoc(doc(db, "sanwoori", safeMemberId));
             if (memberSnap.exists()) {
@@ -6932,17 +6933,17 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
                 }
             }
         } catch (regError) {
-            console.warn("가입일 로딩 경고:", regError);
+            console.warn("가입일 정보 로딩 경고:", regError);
         }
 
-        // [B] 초저비용 전체 카운트 집계 (getCountFromServer)
+        // [B] DB에 기록되어 있는 데이터 카운트 정확히 집계
         try {
             const logsRef = collection(db, `sanwoori/${safeMemberId}/logs`);
 
             const [qReg, qPure, qExtra, qRun, qTrek, qWalk] = await Promise.all([
                 getCountFromServer(query(logsRef, where("isRegular", "==", true))),
-                getCountFromServer(query(logsRef, where("extraHike", "==", true))),   // 순수산행 (extraHike)
-                getCountFromServer(query(logsRef, where("isExtraHike", "==", true))), // 개인산행 (isExtraHike)
+                getCountFromServer(query(logsRef, where("extraHike", "==", true))),   // 순수산행
+                getCountFromServer(query(logsRef, where("isExtraHike", "==", true))), // 개인산행
                 getCountFromServer(query(logsRef, where("isRunning", "==", true))),   // 러닝
                 getCountFromServer(query(logsRef, where("isTracking", "==", true))),  // 트래킹
                 getCountFromServer(query(logsRef, where("isWalking", "==", true)))    // 산책
@@ -6959,7 +6960,7 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
             console.warn("서버 카운트 집계 경고:", cntErr);
         }
 
-        // 2. 모달 HTML 렌더링 (하단 '일지 창 닫기' 버튼 제거됨)
+        // 2. 모달 뼈대 및 6가지 수치 뱃지 + 탭 레이아웃 렌더링
         content.innerHTML = `
             <div class="user-status-row-bar">
                 <div class="dday-count-badge">D-Day ${dday !== undefined ? dday : 0}</div>
@@ -6969,7 +6970,7 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
                 </div>
             </div>
 
-            <!-- 운동 종류별 카운트 뱃지 (총 6종류) -->
+            <!-- 기록된 수치만 깔끔히 보여주는 카운트 바 -->
             <div class="activity-summary-bar" style="display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; align-items: center; margin: 10px 0 14px 0; padding: 8px 10px; background: #f8fafc; border-radius: 8px;">
                 <span style="font-size: 11px; font-weight: 600; color: #475569; display: inline-flex; align-items: center; gap: 4px;">
                     <span style="width: 8px; height: 8px; border-radius: 50%; background: linear-gradient(135deg, #FF69B4, #ADFF2F, #A020F0);"></span>
@@ -7009,7 +7010,7 @@ window.showFadingScroll = async function(mId, dday, level = 0) {
             </div>
         `;
 
-        // 첫 페이지 로드
+        // 첫 데이터 6개 로드 호출
         await window.loadScrollLogsPage(true);
 
     } catch (e) {
@@ -7158,26 +7159,17 @@ window.loadScrollLogsPage = async (isFirstPage = false) => {
                 }
             }
 
-            // [잔디/타임라인 점 색상 매핑]
+            // [사용자님의 원본 dotStyle 로직 그대로 적용]
             let dotStyle = "";
             if (log.isRegular) {
-                // 정기산행: 프리미엄 그라데이션
                 dotStyle = "background: linear-gradient(135deg, #FF69B4, #ADFF2F, #A020F0);";
             } else {
-                const colors = {
-                    hike: "#2ecc71",      // 순수산행 (extraHike: true일 때 기본 등산 초록)
-                    extraHike: "#5CE1D6", // 개인산행 (isExtraHike: true 민트)
-                    walk: "#FFCC80",      // 산책 (isWalking: true 주황)
-                    trek: "#E0B0FF",      // 트레킹 (isTracking: true 보라)
-                    run: "#FFD1DC"        // 런닝 (isRunning: true 분홍)
-                };
-
+                const colors = { hike: "#2ecc71", extraHike: "#5CE1D6", walk: "#FFCC80", trek: "#E0B0FF", run: "#FFD1DC" };
                 let activeColors = [];
                 if (log.isExtraHike) activeColors.push(colors.extraHike);
                 else if (log.isRunning) activeColors.push(colors.run);
                 else if (log.isTracking) activeColors.push(colors.trek);
                 else if (log.isWalking) activeColors.push(colors.walk);
-                else if (log.extraHike) activeColors.push(colors.hike);
                 else activeColors.push(colors.hike);
 
                 if (activeColors.length >= 2) {
@@ -7239,18 +7231,8 @@ window.loadScrollLogsPage = async (isFirstPage = false) => {
     }
 };
 
-        
-
-
-    
-
-    
-
-        
-        
-
-
             
+                                     
                              </script>
 
 <!-- 마크업 구조 레이어 -->
