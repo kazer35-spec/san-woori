@@ -7057,7 +7057,9 @@ window.switchScrollTab = async (category) => {
     await window.loadScrollLogsPage(true);
 };
 
-window.loadScrollLogsPage = async (isFirstPage = false) => {
+
+                
+                        window.loadScrollLogsPage = async (isFirstPage = false) => {
     if (!window.scrollPagination) return;
     
     let { mId, currentCategory, lastDoc, isEnd, dbEnd } = window.scrollPagination;
@@ -7081,14 +7083,18 @@ window.loadScrollLogsPage = async (isFirstPage = false) => {
         if (!window.currentScrollLogs) window.currentScrollLogs = [];
 
         let filtered = [];
+        
+        // 🎯 [핵심] 불러온 기록 데이터에서 색상/종류별로 정확히 탭 필터링
         const applyFilter = () => {
             if (currentCategory === 'all') {
                 filtered = window.currentScrollLogs;
             } else if (currentCategory === 'hiking') {
+                // [일정산행 탭] 정기산행 또는 순수산행 (개인/러닝/트래킹/산책이 아닌 기록)
                 filtered = window.currentScrollLogs.filter(log => 
-                    log.isRegular || log.extraHike
+                    log.isRegular || log.extraHike || (!log.isExtraHike && !log.isRunning && !log.isTracking && !log.isWalking)
                 );
             } else if (currentCategory === 'running') {
+                // [개인/기타 탭] 개인산행, 러닝, 트래킹, 산책
                 filtered = window.currentScrollLogs.filter(log => 
                     log.isExtraHike || log.isRunning || log.isTracking || log.isWalking
                 );
@@ -7097,6 +7103,7 @@ window.loadScrollLogsPage = async (isFirstPage = false) => {
         
         applyFilter();
 
+        // (데이터가 더 필요할 때 DB에서 가져오는 부분)
         if (filtered.length < targetSize && !dbEnd) {
             let fetchLimit = currentCategory === 'all' ? MORE_PAGE_SIZE : MORE_PAGE_SIZE * 3;
             let qConstraints = [orderBy("date", "desc")];
@@ -7148,6 +7155,7 @@ window.loadScrollLogsPage = async (isFirstPage = false) => {
         const startIndex = isFirstPage ? 0 : targetSize - MORE_PAGE_SIZE;
         const finalItems = filtered.slice(startIndex, targetSize);
          
+        // 🎨 각 기록별 점 색상 매핑
         const htmlContent = finalItems.map(log => {
             let dateStr = "----.--.--";
             let dayName = "";
@@ -7159,26 +7167,20 @@ window.loadScrollLogsPage = async (isFirstPage = false) => {
                 }
             }
 
-            // [사용자님의 원본 dotStyle 로직 그대로 적용]
             let dotStyle = "";
             if (log.isRegular) {
+                // 정기산행 (알록달록 그라데이션)
                 dotStyle = "background: linear-gradient(135deg, #FF69B4, #ADFF2F, #A020F0);";
             } else {
                 const colors = { hike: "#2ecc71", extraHike: "#5CE1D6", walk: "#FFCC80", trek: "#E0B0FF", run: "#FFD1DC" };
-                let activeColors = [];
-                if (log.isExtraHike) activeColors.push(colors.extraHike);
-                else if (log.isRunning) activeColors.push(colors.run);
-                else if (log.isTracking) activeColors.push(colors.trek);
-                else if (log.isWalking) activeColors.push(colors.walk);
-                else activeColors.push(colors.hike);
+                let activeColor = colors.hike; // 기본: 순수산행 (초록)
 
-                if (activeColors.length >= 2) {
-                    dotStyle = activeColors.length === 2 
-                        ? `background: linear-gradient(135deg, ${activeColors[0]} 50%, ${activeColors[1]} 50%);`
-                        : `background: linear-gradient(135deg, ${activeColors[0]} 33.3%, ${activeColors[1]} 33.3%, ${activeColors[1]} 66.6%, ${activeColors[2]} 66.6%);`;
-                } else {
-                    dotStyle = `background: ${activeColors[0]};`;
-                }
+                if (log.isExtraHike) activeColor = colors.extraHike; // 개인산행 (민트)
+                else if (log.isRunning) activeColor = colors.run;      // 러닝 (분홍)
+                else if (log.isTracking) activeColor = colors.trek;   // 트래킹 (보라)
+                else if (log.isWalking) activeColor = colors.walk;     // 산책 (주황)
+
+                dotStyle = `background: ${activeColor};`;
             }
 
             const heightVal = log.height || 0;
