@@ -2648,14 +2648,6 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 
 </div>
 
-   <!-- 관리자 전용 영역에 배치할 버튼 -->
-<button type="button" 
-        onclick="runMigrationProcess()" 
-        class="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs px-3 py-2 rounded-lg shadow transition-all flex items-center gap-1">
-    <span>🔄</span>
-    <span>회원 ID 한글 변환/정리</span>
-</button>
-
 <div class="card" style="background-color: #fff5f5; border: 1px solid #ffe3e3;">
     <div class="card-title text-red-600 font-bold mb-3">🗑️ 회원 상태 및 보너스 관리</div>
     
@@ -3623,7 +3615,6 @@ const nameColor = m.gender === '여' ? 'text-pink-600' : (m.gender === '남' ? '
             updateYearSlide(currentIdx);
         };
 
-       
         window.showQuarterlyPartnerList = (qYear, qKey, qLabel) => {
             const nameEl = document.querySelector('#forestModal h3');
             if(!nameEl) return;
@@ -4172,86 +4163,7 @@ listArea.setAttribute('style', `
 }
                              
   
-    // ==========================================================================
-// 1. 버튼 클릭 시 실행할 안전 확인 및 연결 함수
-// ==========================================================================
-window.runMigrationProcess = async () => {
-    const confirm1 = confirm("⚠️ [경고] 회원 데이터 정리 작업을 진행하시겠습니까?\n\n기존 랜덤 ID 데이터가 '한글 이름 ID'로 일괄 복사된 후, 이전 데이터는 자동으로 삭제됩니다.");
-    if (!confirm1) return;
-
-    const confirm2 = confirm("이 작업은 취소할 수 없습니다.\n정말로 진행하시겠습니까?");
-    if (!confirm2) return;
-
-    // 이관 작업 실행
-    await window.migrateAndCleanMembers();
-};
-
-// ==========================================================================
-// 2. 복사 + 구 데이터 자동 삭제 통합 실행 함수
-// ==========================================================================
-window.migrateAndCleanMembers = async () => {
-    try {
-        console.log("🚀 회원 데이터 한글 ID 이관 및 정형화 시작...");
-        const memberSnap = await getDocs(collection(db, "sanwoori"));
-
-        let successCount = 0;
-
-        for (const mDoc of memberSnap.docs) {
-            const oldId = mDoc.id;
-            const data = mDoc.data();
-            const memberName = data.name ? data.name.trim() : "";
-
-            // 이름이 없거나 이미 한글 이름 ID로 생성된 대상은 스킵
-            if (!memberName || oldId === memberName) {
-                console.log(`⏩ 스킵 (이미 완료되었거나 대상 아님): ${oldId}`);
-                continue;
-            }
-
-            console.log(`📦 [${memberName}] 데이터 이관 중... (구 ID: ${oldId})`);
-
-            // 1️⃣ 새 위치(한글 이름 ID)로 데이터 저장
-            const newDocRef = doc(db, "sanwoori", memberName);
-            await setDoc(newDocRef, data, { merge: true });
-
-            // 2️⃣ 하위 logs 기록이 있으면 새 위치로 복사
-            const oldLogsSnap = await getDocs(collection(db, `sanwoori/${oldId}/logs`));
-            if (!oldLogsSnap.empty) {
-                const copyBatch = writeBatch(db);
-                oldLogsSnap.forEach(logDoc => {
-                    const newLogRef = doc(db, `sanwoori/${memberName}/logs`, logDoc.id);
-                    copyBatch.set(newLogRef, logDoc.data());
-                });
-                await copyBatch.commit();
-                console.log(`   └ 🌲 logs 기록 ${oldLogsSnap.size}건 복사 완료`);
-            }
-
-            // 3️⃣ 기존 구 ID 데이터(logs 및 메인 문서) 삭제하여 중복 제거
-            if (!oldLogsSnap.empty) {
-                const deleteLogBatch = writeBatch(db);
-                oldLogsSnap.forEach(logDoc => {
-                    deleteLogBatch.delete(doc(db, `sanwoori/${oldId}/logs`, logDoc.id));
-                });
-                await deleteLogBatch.commit();
-            }
-            await deleteDoc(doc(db, "sanwoori", oldId));
-            console.log(`   └ 🗑️ 구 데이터(${oldId}) 깔끔하게 삭제 완료!`);
-
-            successCount++;
-        }
-
-        alert(`총 ${successCount}명의 회원 데이터가 한글 ID로 깔끔하게 정리되었습니다! 🎉`);
-        
-        // 목록 새로고침
-        if (typeof startRealtimeSync === 'function') {
-            startRealtimeSync();
-        }
-
-    } catch (error) {
-        console.error("이관 중 오류 발생:", error);
-        alert("이관 실패: " + error.message);
-    }
-};
-                                 
+                                     
 
             
     
