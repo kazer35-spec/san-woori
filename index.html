@@ -6989,10 +6989,13 @@ window.switchScrollTab = async (category) => {
     await window.loadScrollLogsPage(true);
 };
 
- // [페이지 단위 데이터 로드 함수]
-window.loadScrollLogsPage = async (isFirstPage = false) => {
+
+            window.loadScrollLogsPage = async (isFirstPage = false) => {
+    // 1. scrollPagination 객체 예외 방어
+    if (!window.scrollPagination) return;
+    
     const { mId, currentCategory, lastDoc, isEnd, dbEnd } = window.scrollPagination;
-    if (isEnd) return;
+    if (isEnd || !mId) return;
 
     const listBox = document.getElementById('scrollFilteredList');
     const moreBtnArea = document.getElementById('scrollMoreBtnArea');
@@ -7000,8 +7003,6 @@ window.loadScrollLogsPage = async (isFirstPage = false) => {
 
     moreBtnArea.innerHTML = `<span style="font-size:11px; color:#a0aec0;">기록을 가져오는 중...</span>`;
 
-    // 💡 첫 페이지는 6개, 이후 '더보기'를 누르면 20개씩 늘어납니다.
-    const FIRST_PAGE_SIZE = 6;
     const MORE_PAGE_SIZE = 20;
     
     if (!isFirstPage) {
@@ -7011,7 +7012,10 @@ window.loadScrollLogsPage = async (isFirstPage = false) => {
     const targetSize = window.scrollPagination.currentPageSize;
 
     try {
-        // 1. 현재 캐시 데이터 필터링
+        // 전역 캐시 배열 안전 초기화
+        if (!window.currentScrollLogs) window.currentScrollLogs = [];
+
+        // 필터링 함수
         let filtered = [];
         const applyFilter = () => {
             if (currentCategory === 'all') {
@@ -7029,28 +7033,43 @@ window.loadScrollLogsPage = async (isFirstPage = false) => {
         
         applyFilter();
 
-        // 2. 현재 필터링된 결과가 노출해야 할 목표 개수(targetSize)보다 적고, DB에 남은 데이터가 있다면 추가 로드
+        // 2. 추가 데이터 로드 필요한지 판별
         if (filtered.length < targetSize && !dbEnd) {
-            // 💡 20개씩 더보기를 하므로, 카테고리 필터링을 감안하여 한 번에 가져올 양(fetchLimit)을 넉넉하게 확장합니다.
-            let fetchLimit = currentCategory === 'all' ? MORE_PAGE_SIZE : MORE_PAGE_SIZE * 4;
-            let qConstraints = [orderBy("date", "desc"), limit(fetchLimit)];
+            let fetchLimit = currentCategory === 'all' ? MORE_PAGE_SIZE : MORE_PAGE_SIZE * 3;
             
-            if (lastDoc) {
+            // 💡 [핵심 수정] startAfter 조건문을 구체화하여 안전하게 쿼리 조건 생성
+            let qConstraints = [orderBy("date", "desc")];
+            
+            // lastDoc 존재 여부 및 정상 객체 여부 체크
+            if (lastDoc && typeof lastDoc === 'object') {
                 qConstraints.push(startAfter(lastDoc));
             }
+            
+            qConstraints.push(limit(fetchLimit));
 
             const logsRef = collection(db, `sanwoori/${mId}/logs`);
             const snap = await getDocs(query(logsRef, ...qConstraints));
 
             if (!snap.empty) {
+                // 커서 문서 갱신
                 window.scrollPagination.lastDoc = snap.docs[snap.docs.length - 1];
 
                 let fetchedLogs = snap.docs.map(doc => {
                     const data = doc.data();
-                    return { ...data, date: data.date ? data.date.toDate() : null };
+                    return { 
+                        ...data, 
+                        docId: doc.id,
+                        date: (data.date && typeof data.date.toDate === 'function') ? data.date.toDate() : (data.date || null)
+                    };
                 });
                 
-                window.currentScrollLogs.push(...fetchedLogs);
+                // 중복 방지하며 캐시 배열에 추가
+                fetchedLogs.forEach(newLog => {
+                    if (!window.currentScrollLogs.some(l => l.docId === newLog.docId)) {
+                        window.currentScrollLogs.push(newLog);
+                    }
+                });
+
                 applyFilter(); // 데이터 갱신 후 재필터링
 
                 if (snap.docs.length < fetchLimit) {
@@ -7061,15 +7080,14 @@ window.loadScrollLogsPage = async (isFirstPage = false) => {
             }
         }
 
-        // 3. 최종 데이터 유무 예외 검증
+        // 3. 기록 없을 때 처리
         if (filtered.length === 0 && window.scrollPagination.dbEnd) {
             listBox.innerHTML = `<p style="text-align:center; padding:40px 0; font-size:11px; color:#a0aec0;">기록이 없습니다.</p>`;
             moreBtnArea.innerHTML = '';
             return;
         }
 
-        // 💡 이번 턴에 화면에 추가로 '렌더링해야 할 항목'만 계산해서 추출합니다.
-        // 첫 페이지라면 0~6번째, 더보기라면 이전 targetSize에서 20개를 뺀 지점부터 targetSize까지 슬라이싱합니다.
+        // 4. 슬라이싱 및 HTML 렌더링
         const startIndex = isFirstPage ? 0 : targetSize - MORE_PAGE_SIZE;
         const finalItems = filtered.slice(startIndex, targetSize);
          
@@ -7077,9 +7095,11 @@ window.loadScrollLogsPage = async (isFirstPage = false) => {
             let dateStr = "----.--.--";
             let dayName = "";
             if (log.date) {
-                const jsDate = log.date;
-                dateStr = `${jsDate.getFullYear()}.${String(jsDate.getMonth() + 1).padStart(2, '0')}.${String(jsDate.getDate()).padStart(2, '0')}`;
-                dayName = ['일','월','화','수','목','금','토'][jsDate.getDay()];
+                const jsDate = new Date(log.date);
+                if (!isNaN(jsDate)) {
+                    dateStr = `${jsDate.getFullYear()}.${String(jsDate.getMonth() + 1).padStart(2, '0')}.${String(jsDate.getDate()).padStart(2, '0')}`;
+                    dayName = ['일','월','화','수','목','금','토'][jsDate.getDay()];
+                }
             }
 
             let dotStyle = "";
@@ -7129,19 +7149,18 @@ window.loadScrollLogsPage = async (isFirstPage = false) => {
             `;
         }).join('');
 
-        // 첫 페이지일 때만 밀어버리고, 더보기일 때는 밑에 차곡차곡 이어 붙입니다.
         if (isFirstPage) {
             listBox.innerHTML = htmlContent;
         } else {
             listBox.insertAdjacentHTML('beforeend', htmlContent);
         }
 
-        // 4. '이전 기록 더 보기' 버튼 노출 조건 제어
+        // 5. 버튼 상태 제어
         if (!window.scrollPagination.dbEnd || filtered.length > targetSize) {
             moreBtnArea.innerHTML = `
                 <button type="button" onclick="window.loadScrollLogsPage(false)" 
                         style="background: #f7fafc; border: 1px solid #e2e8f0; color: #4a5568; padding: 8px 12px; border-radius: 6px; font-size: 11px; cursor: pointer; width: 100%;">
-                    ​이전 기록 더보기 (+20)
+                    이전 기록 더보기 (+20)
                 </button>
             `;
         } else {
@@ -7150,10 +7169,11 @@ window.loadScrollLogsPage = async (isFirstPage = false) => {
         }
 
     } catch (e) {
-        console.error("페이징 로드 실패:", e);
+        console.error("페이징 로드 상세 실패원인:", e);
         moreBtnArea.innerHTML = `<span style="font-size:11px; color:#e53e3e;">데이터 로드 오류</span>`;
     }
 };
+
 
 
                              </script>
