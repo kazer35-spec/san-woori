@@ -6865,48 +6865,38 @@ setTimeout(() => s.remove(), 500);
 
  
   
-        
-
-
-    
-            // 필터링 처리를 위해 모달 전용 로그 목록을 임시 저장할 전역 변수 (캐시)
+    // 필터링 및 페이징 처리를 위해 모달 전용 로그 목록을 임시 저장할 전역 변수 (캐시)
 window.currentScrollLogs = []; 
 
 // 페이징 처리를 위해 상태를 기억할 전역 객체
 window.scrollPagination = {
-    lastDoc: null,      // 다음 페이지를 가져오기 위한 커서 (QueryDocumentSnapshot)
     currentCategory: 'all',
     mId: null,
-    isEnd: false,       // 더 이상 가져올 데이터가 없는지 여부
-    dbEnd: false,       // 실제 DB 상에 더 이상 데이터가 없는지 여부
-    currentPageSize: 6  // 💡 현재 화면에 노출할 누적 아이템 개수 상태 추가
+    isEnd: false,
+    currentPageSize: 6
 };
 
-
-
-    window.showFadingScroll = async function(mId, dday, level = 0) {
+window.showFadingScroll = async function(mId, dday, level = 0) {
     const modal = document.getElementById('scrollModal');
     const content = document.getElementById('scrollContent');
     const scrollWrap = document.querySelector('.fading-scroll'); 
     
     if(!modal || !content) return;
 
-    // 💡 mId 유효성 체크 및 공백 제거
+    // mId 유효성 체크 및 공백 제거
     const safeMemberId = mId ? String(mId).trim() : "";
     if (!safeMemberId) {
         alert("회원 정보(ID)를 찾을 수 없습니다.");
         return;
     }
 
-    // 페이징 및 캐시 상태 안전 초기화
+    // 페이징 및 캐시 상태 초기화
     if (!window.scrollPagination) window.scrollPagination = {};
     
     window.scrollPagination.mId = safeMemberId;
-    window.scrollPagination.lastDoc = null;
     window.scrollPagination.isEnd = false;
-    window.scrollPagination.dbEnd = false;
     window.scrollPagination.currentCategory = 'all';
-    window.scrollPagination.currentPageSize = 6; // 💡 초기 크기 세팅
+    window.scrollPagination.currentPageSize = 6;
     window.currentScrollLogs = [];
 
     // 1. 모달 레이어 노출 및 임시 로딩 UI
@@ -6920,7 +6910,7 @@ window.scrollPagination = {
     let formattedRegDateKo = "--년 --월 --일";
 
     try {
-        // [A] 가입일 정보 로딩 (안전 예외 처리)
+        // [A] 가입일 정보 로딩
         try {
             const memberSnap = await getDoc(doc(db, "sanwoori", safeMemberId));
             if (memberSnap.exists()) {
@@ -6942,10 +6932,42 @@ window.scrollPagination = {
                 }
             }
         } catch (regError) {
-            console.warn("가입일 정보 로딩 경고 (기존 화면 로직은 계속 진행됨):", regError);
+            console.warn("가입일 정보 로딩 경고:", regError);
         }
 
-        // 2. 모달 뼈대 및 탭 레이아웃 렌더링
+        // [B] 🔥 [읽기 비용 절약] 해당 유저의 전체 일지 데이터를 1회 전체 조회하여 메모리에 캐싱
+        const logsRef = collection(db, `sanwoori/${safeMemberId}/logs`);
+        const q = query(logsRef, orderBy("date", "desc"));
+        const snap = await getDocs(q);
+
+        window.currentScrollLogs = snap.docs.map(doc => {
+            const data = doc.data();
+            return {
+                ...data,
+                docId: doc.id,
+                date: (data.date && typeof data.date.toDate === 'function') ? data.date.toDate() : (data.date ? new Date(data.date) : null)
+            };
+        });
+
+        // [C] 📊 전체 로그 데이터 기반 항목별 카운팅 계산 (정기 vs 일정 구분)
+        const counts = window.currentScrollLogs.reduce((acc, log) => {
+            if (log.isRegular) {
+                acc.regular++; // 무지개 (정기산행)
+            } else if ((!log.isRunning && !log.isTracking && !log.isWalking) && !log.isExtraHike) {
+                acc.schedule++; // 연두색 (일정산행)
+            } else if (log.isExtraHike) {
+                acc.extra++;    // 개인산행
+            } else if (log.isTracking) {
+                acc.trekking++; // 트래킹
+            } else if (log.isRunning) {
+                acc.running++;  // 런닝
+            } else if (log.isWalking) {
+                acc.walking++;  // 산책
+            }
+            return acc;
+        }, { regular: 0, schedule: 0, extra: 0, trekking: 0, running: 0, walking: 0 });
+
+        // 2. 모달 뼈대, 카운트 요약 바, 탭 레이아웃 렌더링
         content.innerHTML = `
             <div class="user-status-row-bar">
                 <div class="dday-count-badge">D-Day ${dday !== undefined ? dday : 0}</div>
@@ -6953,6 +6975,34 @@ window.scrollPagination = {
                     <span class="member-since-label">✨ 우리, 여기서부터 : </span>
                     <strong class="member-since-date">${formattedRegDateKo}</strong>
                 </div>
+            </div>
+
+            <!-- 🎯 정기산행 / 일정산행 구분 적용된 요약 바 -->
+            <div class="activity-summary-bar" style="display: flex; justify-content: space-around; align-items: center; background: #f8fafc; padding: 8px 6px; border-radius: 20px; font-size: 10.5px; margin: 10px 0; color: #475569; font-weight: 500;">
+                <span style="display: flex; align-items: center; gap: 3px;">
+                    <i style="width: 7px; height: 7px; border-radius: 50%; background: linear-gradient(135deg, #FF69B4, #ADFF2F, #A020F0); display: inline-block;"></i>
+                    정기 <strong style="color: #0f172a;">${counts.regular}</strong>
+                </span>
+                <span style="display: flex; align-items: center; gap: 3px;">
+                    <i style="width: 7px; height: 7px; border-radius: 50%; background: #2ecc71; display: inline-block;"></i>
+                    일정 <strong style="color: #0f172a;">${counts.schedule}</strong>
+                </span>
+                <span style="display: flex; align-items: center; gap: 3px;">
+                    <i style="width: 7px; height: 7px; border-radius: 50%; background: #5CE1D6; display: inline-block;"></i>
+                    개인 <strong style="color: #0f172a;">${counts.extra}</strong>
+                </span>
+                <span style="display: flex; align-items: center; gap: 3px;">
+                    <i style="width: 7px; height: 7px; border-radius: 50%; background: #E0B0FF; display: inline-block;"></i>
+                    트래킹 <strong style="color: #0f172a;">${counts.trekking}</strong>
+                </span>
+                <span style="display: flex; align-items: center; gap: 3px;">
+                    <i style="width: 7px; height: 7px; border-radius: 50%; background: #FFD1DC; display: inline-block;"></i>
+                    런닝 <strong style="color: #0f172a;">${counts.running}</strong>
+                </span>
+                <span style="display: flex; align-items: center; gap: 3px;">
+                    <i style="width: 7px; height: 7px; border-radius: 50%; background: #FFCC80; display: inline-block;"></i>
+                    산책 <strong style="color: #0f172a;">${counts.walking}</strong>
+                </span>
             </div>
 
             <div class="tab-scroll-container">
@@ -6969,8 +7019,8 @@ window.scrollPagination = {
             </div>
         `;
 
-        // 첫 데이터 6개 로드 호출
-        await window.loadScrollLogsPage(true);
+        // 첫 페이지 로드
+        window.loadScrollLogsPage(true);
 
     } catch (e) {
         console.error("데이터 로딩 중 치명적 오류:", e);
@@ -6992,12 +7042,12 @@ window.scrollPagination = {
 
 
 // [탭 전환 함수]
-window.switchScrollTab = async (category) => {
+window.switchScrollTab = (category) => {
     if (window.scrollPagination.currentCategory === category) return;
     
     window.scrollPagination.currentCategory = category;
     window.scrollPagination.isEnd = false; 
-    window.scrollPagination.currentPageSize = 6; // 💡 탭 전환 시 다시 6개부터 보여주기
+    window.scrollPagination.currentPageSize = 6; 
 
     const tabs = {
         all: document.getElementById('sTab-all'),
@@ -7014,26 +7064,20 @@ window.switchScrollTab = async (category) => {
     const listBox = document.getElementById('scrollFilteredList');
     if (listBox) listBox.innerHTML = ''; 
 
-    await window.loadScrollLogsPage(true);
+    window.loadScrollLogsPage(true);
 };
 
-window.loadScrollLogsPage = async (isFirstPage = false) => {
+// [클라이언트 페이징 처리]
+window.loadScrollLogsPage = (isFirstPage = false) => {
     if (!window.scrollPagination) return;
     
-    // 💡 [개선] mId 양끝 공백 자동 제거 (trim)
-    let { mId, currentCategory, lastDoc, isEnd, dbEnd } = window.scrollPagination;
-    mId = mId ? String(mId).trim() : "";
+    let { currentCategory, isEnd } = window.scrollPagination;
 
-    if (isEnd || !mId) {
-        console.warn("⚠️ mId가 없거나 이미 종료된 요청입니다. mId:", mId);
-        return;
-    }
+    if (isEnd) return;
 
     const listBox = document.getElementById('scrollFilteredList');
     const moreBtnArea = document.getElementById('scrollMoreBtnArea');
     if (!listBox || !moreBtnArea) return;
-
-    moreBtnArea.innerHTML = `<span style="font-size:11px; color:#a0aec0;">기록을 가져오는 중...</span>`;
 
     const MORE_PAGE_SIZE = 20;
     if (!isFirstPage) {
@@ -7042,71 +7086,21 @@ window.loadScrollLogsPage = async (isFirstPage = false) => {
     const targetSize = window.scrollPagination.currentPageSize;
 
     try {
-        if (!window.currentScrollLogs) window.currentScrollLogs = [];
-
         let filtered = [];
-        const applyFilter = () => {
-            if (currentCategory === 'all') {
-                filtered = window.currentScrollLogs;
-            } else if (currentCategory === 'hiking') {
-                filtered = window.currentScrollLogs.filter(log => 
-                    log.isRegular || ((!log.isRunning && !log.isTracking && !log.isWalking) && !log.isExtraHike)
-                );
-            } else if (currentCategory === 'running') {
-                filtered = window.currentScrollLogs.filter(log => 
-                    log.isExtraHike || log.isRunning || log.isTracking || log.isWalking
-                );
-            }
-        };
-        
-        applyFilter();
-
-        if (filtered.length < targetSize && !dbEnd) {
-            let fetchLimit = currentCategory === 'all' ? MORE_PAGE_SIZE : MORE_PAGE_SIZE * 3;
-            let qConstraints = [orderBy("date", "desc")];
-            
-            const isValidSnapshot = lastDoc && (typeof lastDoc.exists === 'function' || lastDoc._document || lastDoc.ref);
-            if (isValidSnapshot) {
-                qConstraints.push(startAfter(lastDoc));
-            }
-            
-            qConstraints.push(limit(fetchLimit));
-
-            // 🎯 조회하려는 대상 경로 출력 디버깅
-            console.log(`🔍 [Firestore 조회 시도] 경로: sanwoori/${mId}/logs`);
-
-            const logsRef = collection(db, `sanwoori/${mId}/logs`);
-            const snap = await getDocs(query(logsRef, ...qConstraints));
-
-            if (!snap.empty) {
-                window.scrollPagination.lastDoc = snap.docs[snap.docs.length - 1];
-
-                let fetchedLogs = snap.docs.map(doc => {
-                    const data = doc.data();
-                    return { 
-                        ...data, 
-                        docId: doc.id,
-                        date: (data.date && typeof data.date.toDate === 'function') ? data.date.toDate() : (data.date ? new Date(data.date) : null)
-                    };
-                });
-                
-                fetchedLogs.forEach(newLog => {
-                    if (!window.currentScrollLogs.some(l => l.docId === newLog.docId)) {
-                        window.currentScrollLogs.push(newLog);
-                    }
-                });
-
-                applyFilter();
-
-                if (snap.docs.length < fetchLimit) {
-                    window.scrollPagination.dbEnd = true; 
-                }
-            } else {
-                window.scrollPagination.dbEnd = true;
-            }
+        if (currentCategory === 'all') {
+            filtered = window.currentScrollLogs;
+        } else if (currentCategory === 'hiking') {
+            // 정기산행(무지개)과 일정산행(연두색)을 모두 일정산행 탭에서 노출
+            filtered = window.currentScrollLogs.filter(log => 
+                log.isRegular || ((!log.isRunning && !log.isTracking && !log.isWalking) && !log.isExtraHike)
+            );
+        } else if (currentCategory === 'running') {
+            filtered = window.currentScrollLogs.filter(log => 
+                log.isExtraHike || log.isRunning || log.isTracking || log.isWalking
+            );
         }
 
-        if (filtered.length === 0 && window.scrollPagination.dbEnd) {
+        if (filtered.length === 0) {
             listBox.innerHTML = `<p style="text-align:center; padding:40px 0; font-size:11px; color:#a0aec0;">기록이 없습니다.</p>`;
             moreBtnArea.innerHTML = '';
             return;
@@ -7128,6 +7122,7 @@ window.loadScrollLogsPage = async (isFirstPage = false) => {
 
             let dotStyle = "";
             if (log.isRegular) {
+                // 정기산행: 무지개 그래디언트
                 dotStyle = "background: linear-gradient(135deg, #FF69B4, #ADFF2F, #A020F0);";
             } else {
                 const colors = { hike: "#2ecc71", extraHike: "#5CE1D6", walk: "#FFCC80", trek: "#E0B0FF", run: "#FFD1DC" };
@@ -7136,7 +7131,7 @@ window.loadScrollLogsPage = async (isFirstPage = false) => {
                 else if (log.isRunning) activeColors.push(colors.run);
                 else if (log.isTracking) activeColors.push(colors.trek);
                 else if (log.isWalking) activeColors.push(colors.walk);
-                else activeColors.push(colors.hike);
+                else activeColors.push(colors.hike); // 일정산행: 연두색 (#2ecc71)
 
                 if (activeColors.length >= 2) {
                     dotStyle = activeColors.length === 2 
@@ -7179,7 +7174,7 @@ window.loadScrollLogsPage = async (isFirstPage = false) => {
             listBox.insertAdjacentHTML('beforeend', htmlContent);
         }
 
-        if (!window.scrollPagination.dbEnd || filtered.length > targetSize) {
+        if (filtered.length > targetSize) {
             moreBtnArea.innerHTML = `
                 <button type="button" onclick="window.loadScrollLogsPage(false)" 
                         style="background: #f7fafc; border: 1px solid #e2e8f0; color: #4a5568; padding: 8px 12px; border-radius: 6px; font-size: 11px; cursor: pointer; width: 100%;">
@@ -7192,11 +7187,14 @@ window.loadScrollLogsPage = async (isFirstPage = false) => {
         }
 
     } catch (e) {
-        // 💡 디버깅용: 실패 원인을 콘솔에 상세히 출력합니다.
         console.error("❌ [페이징 로드 실패] 상세 원인:", e);
         moreBtnArea.innerHTML = `<span style="font-size:11px; color:#e53e3e;">데이터 로드 오류: ${e.message}</span>`;
     }
 };
+    
+
+
+    
 
             
 
