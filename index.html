@@ -5420,6 +5420,7 @@ updateData.qCount = _increment(qCountIncrement);
 };
                         
    // 📌 [신규 회원 등록 함수] - 한글 이름 또는 (번호_이름)으로 문서 ID 저장
+win// 📌 [신규 회원 등록 함수] - 수정본
 window.addMember = async () => {
     const nameInput = document.getElementById('newName');
     const genderInput = document.querySelector('input[name="newGender"]:checked');
@@ -5437,8 +5438,6 @@ window.addMember = async () => {
     const ts = (typeof Timestamp !== 'undefined') ? Timestamp.fromDate(regDateVal) : regDateVal;
 
     try {
-        // 🎯 핵심 변경점: addDoc이 아닌 setDoc(doc(db, "sanwoori", cleanName)) 사용!
-        // 파이어베이스 sanwoori 컬렉션에 랜덤 ID 대신 '한글 이름'이 바로 문서 ID로 들어갑니다.
         const userRef = doc(db, "sanwoori", cleanName);
 
         await setDoc(userRef, {
@@ -5451,9 +5450,10 @@ window.addMember = async () => {
             friendshipPoint: 0,
             qCount: 0,
             isHidden: false,
-            createdAt: ts,
+            regDate: ts,    // 👈 🎯 핵심! 이 필드가 추가되어야 가입일 조회가 정상 작동합니다.
+            createdAt: ts,  // 기존 createdAt도 유지
             lastDate: ts
-        }, { merge: true }); // merge: true를 통해 혹시 모를 기존 데이터 덮어쓰기 방어
+        }, { merge: true });
 
         alert(`신규 회원 [${cleanName}] 님이 정상 등록되었습니다! 🎉`);
 
@@ -5469,7 +5469,7 @@ window.addMember = async () => {
         alert("회원 등록 중 오류가 발생했습니다: " + error.message);
     }
 };
-             
+
  
 window.loadMemberLogs = async () => {
     const id = document.getElementById('memberSelectEdit').value;
