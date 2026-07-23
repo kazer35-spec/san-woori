@@ -7017,13 +7017,17 @@ window.switchScrollTab = async (category) => {
     await window.loadScrollLogsPage(true);
 };
 
-
-            window.loadScrollLogsPage = async (isFirstPage = false) => {
-    // 1. scrollPagination 객체 예외 방어
+window.loadScrollLogsPage = async (isFirstPage = false) => {
     if (!window.scrollPagination) return;
     
-    const { mId, currentCategory, lastDoc, isEnd, dbEnd } = window.scrollPagination;
-    if (isEnd || !mId) return;
+    // 💡 [개선] mId 양끝 공백 자동 제거 (trim)
+    let { mId, currentCategory, lastDoc, isEnd, dbEnd } = window.scrollPagination;
+    mId = mId ? String(mId).trim() : "";
+
+    if (isEnd || !mId) {
+        console.warn("⚠️ mId가 없거나 이미 종료된 요청입니다. mId:", mId);
+        return;
+    }
 
     const listBox = document.getElementById('scrollFilteredList');
     const moreBtnArea = document.getElementById('scrollMoreBtnArea');
@@ -7032,18 +7036,14 @@ window.switchScrollTab = async (category) => {
     moreBtnArea.innerHTML = `<span style="font-size:11px; color:#a0aec0;">기록을 가져오는 중...</span>`;
 
     const MORE_PAGE_SIZE = 20;
-    
     if (!isFirstPage) {
         window.scrollPagination.currentPageSize += MORE_PAGE_SIZE;
     }
-    
     const targetSize = window.scrollPagination.currentPageSize;
 
     try {
-        // 전역 캐시 배열 안전 초기화
         if (!window.currentScrollLogs) window.currentScrollLogs = [];
 
-        // 필터링 함수
         let filtered = [];
         const applyFilter = () => {
             if (currentCategory === 'all') {
@@ -7061,13 +7061,10 @@ window.switchScrollTab = async (category) => {
         
         applyFilter();
 
-        // 2. 추가 데이터 로드 필요한지 판별
         if (filtered.length < targetSize && !dbEnd) {
             let fetchLimit = currentCategory === 'all' ? MORE_PAGE_SIZE : MORE_PAGE_SIZE * 3;
-            
             let qConstraints = [orderBy("date", "desc")];
             
-            // 💡 [핵심 수정] lastDoc이 유효한 Firestore DocumentSnapshot인지 정확히 검증
             const isValidSnapshot = lastDoc && (typeof lastDoc.exists === 'function' || lastDoc._document || lastDoc.ref);
             if (isValidSnapshot) {
                 qConstraints.push(startAfter(lastDoc));
@@ -7075,11 +7072,13 @@ window.switchScrollTab = async (category) => {
             
             qConstraints.push(limit(fetchLimit));
 
+            // 🎯 조회하려는 대상 경로 출력 디버깅
+            console.log(`🔍 [Firestore 조회 시도] 경로: sanwoori/${mId}/logs`);
+
             const logsRef = collection(db, `sanwoori/${mId}/logs`);
             const snap = await getDocs(query(logsRef, ...qConstraints));
 
             if (!snap.empty) {
-                // 커서 문서 갱신 (실제 snap.docs의 마지막 스냅샷을 저장)
                 window.scrollPagination.lastDoc = snap.docs[snap.docs.length - 1];
 
                 let fetchedLogs = snap.docs.map(doc => {
@@ -7091,14 +7090,13 @@ window.switchScrollTab = async (category) => {
                     };
                 });
                 
-                // 중복 방지하며 캐시 배열에 추가
                 fetchedLogs.forEach(newLog => {
                     if (!window.currentScrollLogs.some(l => l.docId === newLog.docId)) {
                         window.currentScrollLogs.push(newLog);
                     }
                 });
 
-                applyFilter(); // 데이터 갱신 후 재필터링
+                applyFilter();
 
                 if (snap.docs.length < fetchLimit) {
                     window.scrollPagination.dbEnd = true; 
@@ -7108,14 +7106,12 @@ window.switchScrollTab = async (category) => {
             }
         }
 
-        // 3. 기록 없을 때 처리
         if (filtered.length === 0 && window.scrollPagination.dbEnd) {
             listBox.innerHTML = `<p style="text-align:center; padding:40px 0; font-size:11px; color:#a0aec0;">기록이 없습니다.</p>`;
             moreBtnArea.innerHTML = '';
             return;
         }
 
-        // 4. 슬라이싱 및 HTML 렌더링
         const startIndex = isFirstPage ? 0 : targetSize - MORE_PAGE_SIZE;
         const finalItems = filtered.slice(startIndex, targetSize);
          
@@ -7183,7 +7179,6 @@ window.switchScrollTab = async (category) => {
             listBox.insertAdjacentHTML('beforeend', htmlContent);
         }
 
-        // 5. 버튼 상태 제어
         if (!window.scrollPagination.dbEnd || filtered.length > targetSize) {
             moreBtnArea.innerHTML = `
                 <button type="button" onclick="window.loadScrollLogsPage(false)" 
@@ -7197,10 +7192,13 @@ window.switchScrollTab = async (category) => {
         }
 
     } catch (e) {
-        console.error("페이징 로드 상세 실패원인:", e);
-        moreBtnArea.innerHTML = `<span style="font-size:11px; color:#e53e3e;">데이터 로드 오류</span>`;
+        // 💡 디버깅용: 실패 원인을 콘솔에 상세히 출력합니다.
+        console.error("❌ [페이징 로드 실패] 상세 원인:", e);
+        moreBtnArea.innerHTML = `<span style="font-size:11px; color:#e53e3e;">데이터 로드 오류: ${e.message}</span>`;
     }
 };
+
+            
 
                              </script>
 
