@@ -5425,7 +5425,57 @@ window.addMultiActivity = async () => {
     }
 };
                         
-                
+   // 📌 [신규 회원 등록 함수] - 한글 이름 또는 (번호_이름)으로 문서 ID 저장
+window.addMember = async () => {
+    const nameInput = document.getElementById('newName');
+    const genderInput = document.querySelector('input[name="newGender"]:checked');
+    const dateInput = document.getElementById('regDate');
+
+    if (!nameInput || !nameInput.value.trim()) {
+        return alert("회원 이름을 입력해주세요.");
+    }
+
+    const cleanName = nameInput.value.trim(); // 한글 이름 공백 제거
+    const gender = genderInput ? genderInput.value : "여";
+    
+    // 날짜 선택이 안 되어있으면 오늘 날짜 적용
+    const regDateVal = dateInput && dateInput.value ? new Date(dateInput.value) : new Date();
+    const ts = (typeof Timestamp !== 'undefined') ? Timestamp.fromDate(regDateVal) : regDateVal;
+
+    try {
+        // 🎯 핵심 변경점: addDoc이 아닌 setDoc(doc(db, "sanwoori", cleanName)) 사용!
+        // 파이어베이스 sanwoori 컬렉션에 랜덤 ID 대신 '한글 이름'이 바로 문서 ID로 들어갑니다.
+        const userRef = doc(db, "sanwoori", cleanName);
+
+        await setDoc(userRef, {
+            name: cleanName,
+            gender: gender,
+            level: 1,
+            count: 0,
+            bonusDays: 0,
+            buddyCount: 0,
+            friendshipPoint: 0,
+            qCount: 0,
+            isHidden: false,
+            createdAt: ts,
+            lastDate: ts
+        }, { merge: true }); // merge: true를 통해 혹시 모를 기존 데이터 덮어쓰기 방어
+
+        alert(`신규 회원 [${cleanName}] 님이 정상 등록되었습니다! 🎉`);
+
+        // 입력 폼 초기화
+        nameInput.value = "";
+        
+        // 데이터 실시간 동기화 함수가 있다면 재실행
+        if (typeof startRealtimeSync === 'function') {
+            startRealtimeSync();
+        }
+    } catch (error) {
+        console.error("회원 등록 실패 원인:", error);
+        alert("회원 등록 중 오류가 발생했습니다: " + error.message);
+    }
+};
+             
  
 window.loadMemberLogs = async () => {
     const id = document.getElementById('memberSelectEdit').value;
