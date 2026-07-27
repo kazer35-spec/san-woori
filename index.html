@@ -6433,8 +6433,11 @@ async function updateVibeTemp() {
   }
 }
 
-    
-        window.showMemberMountain = async (mId, mName) => {
+// 🎯 [전역 캐시 객체 선언] 최초 1회만 Firestore에서 가져오고 이후 재활용합니다.
+window.mountainDataCache = window.mountainDataCache || {};
+window.treeRingCache = window.treeRingCache || {};
+
+window.showMemberMountain = async (mId, mName) => {
     const modal = document.getElementById('mountainViewModal');
     const card = document.getElementById('integratedCard');
     const peakLayer = document.getElementById('peakLayer');
@@ -6481,16 +6484,15 @@ async function updateVibeTemp() {
         mwMountainName.style.position = 'relative';
         mwMountainName.style.opacity = '1';
 
-        // ✏️ showMemberMountain 함수 내 mwMountainName 세팅 부분 교체
-mwMountainName.innerHTML = `
-    <span style="font-size: 10.5px !important; font-weight: 700 !important; white-space: nowrap; letter-spacing: -0.3px; display: inline-flex; align-items: center;">
-        ${mName}님의 산맥
-        <button class="info-help-btn" onclick="openMountainInfoModal('mountain')" title="산맥 안내">ⓘ</button>
-    </span>
-    <span id="mwHikeTotalWrapper" style="position: relative; display: inline-block;">
-        <span id="mwHikeTotalCount" style="font-size: 9px !important; font-weight: 700 !important; white-space: nowrap; margin-right: -12px !important; opacity: 0; transition: opacity 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);">🏔️TOTAL: --회</span>
-    </span>
-`;
+        mwMountainName.innerHTML = `
+            <span style="font-size: 10.5px !important; font-weight: 700 !important; white-space: nowrap; letter-spacing: -0.3px; display: inline-flex; align-items: center;">
+                ${mName}님의 산맥
+                <button class="info-help-btn" onclick="openMountainInfoModal('mountain')" title="산맥 안내">ⓘ</button>
+            </span>
+            <span id="mwHikeTotalWrapper" style="position: relative; display: inline-block;">
+                <span id="mwHikeTotalCount" style="font-size: 9px !important; font-weight: 700 !important; white-space: nowrap; margin-right: -12px !important; opacity: 0; transition: opacity 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);">🏔️TOTAL: --회</span>
+            </span>
+        `;
     }
 
     const initializeBeam = (b) => {
@@ -6535,15 +6537,12 @@ mwMountainName.innerHTML = `
         ringLaunchedEl.style.transition = 'opacity 0.4s ease-out';
     }
 
-            try {
-        // 🎯 [TOTAL 카운터 대상 보정]
+    try {
         let pureHikeCount = 0;
-        let hasQuarterlyHike = false; // 분기 hike 데이터 존재 여부 플래그
+        let hasQuarterlyHike = false;
         
         if (memberInfo && memberInfo.quarterlyStats) {
             const stats = memberInfo.quarterlyStats;
-            
-            // 1. 2026_q2를 베이스로 지정
             const baseCount = (stats['2026_q2'] && typeof stats['2026_q2'].hike === 'number') 
                 ? stats['2026_q2'].hike 
                 : 0;
@@ -6551,7 +6550,6 @@ mwMountainName.innerHTML = `
             if (baseCount > 0) hasQuarterlyHike = true;
             pureHikeCount += baseCount;
 
-            // 2. 2026_q3 포함 그 이후 분기 데이터 누적 합산
             Object.keys(stats).forEach(key => {
                 if (key >= '2026_q3') {
                     const quarter = stats[key];
@@ -6563,9 +6561,7 @@ mwMountainName.innerHTML = `
             });
         }
 
-        // 🎯 [핵심 예외 처리] 분기 기록이 없는 경우 'count' 필드를 토탈로 표기합니다.
         if (!hasQuarterlyHike || pureHikeCount === 0) {
-            // qCount 대신 이미지에 명시된 실제 필드명 'count'로 정확히 스위칭합니다.
             pureHikeCount = (memberInfo && typeof memberInfo.count === 'number') ? memberInfo.count : 0;
         }
 
@@ -6576,16 +6572,21 @@ mwMountainName.innerHTML = `
             totalCountEl.innerHTML = `🏔️TOTAL: ${pureHikeCount}회`;
         }
 
-        // 🎯 [산맥 그리기 대상] 100개 limit 쿼리 유지
-        const q = query(
-            collection(db, `sanwoori/${mId}/logs`),
-            limit(100)
-        );
-        const snap = await getDocs(q);
-        const allLogs = snap.docs.map(d => d.data());
+        // 🎯 [캐시 로직 적용] 캐시에 저장된 로그가 있으면 사용, 없으면 Firestore 1회 조회
+        let allLogs;
+        if (window.mountainDataCache[mId]) {
+            allLogs = window.mountainDataCache[mId];
+        } else {
+            const q = query(
+                collection(db, `sanwoori/${mId}/logs`),
+                limit(100)
+            );
+            const snap = await getDocs(q);
+            allLogs = snap.docs.map(d => d.data());
+            window.mountainDataCache[mId] = allLogs; // 캐시에 보관
+        }
         
         let logs = allLogs.filter(l => (l.height || 0) > 0 && (!l.isSpecial || l.isExtraHike));
-
 
         // [Case A] 산맥 데이터가 하나라도 잡히는 일반 유저군
         if (logs.length > 0) {
@@ -6726,12 +6727,10 @@ window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
 
     if (!container) return;
 
-    // [1] 초기화: 기존 내용 비우기 및 스타일 적용
     container.innerHTML = "";
     if (mainTitle) mainTitle.classList.add('cosmic-neon-text');
     if (mountainName) mountainName.classList.add('cosmic-neon-text');
 
-    // [2] 배경 별빛 생성
     const bgStarColors = ["#ffffff", "#facc15", "#3b82f6", "#ef4444"];
     for (let i = 0; i < 100; i++) {
         const star = document.createElement('div');
@@ -6754,7 +6753,6 @@ window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
         container.appendChild(star);
     }
 
-        // [3] 날짜 및 나이테 개수 계산 (만 개월수 로직 통합)
     const fixedList = ["오즈","나스","해수","용삼","지니","아랑","민이","몰랑","길치","등초","무니","식이","구름","뚜벅","윤윤","햄찌","이구","후후","튜브","피치","송돌","호프","애플","얌얌","태리","희야","멸치","성민","섭섭","하트"];
     const now = new Date();
     let jDate;
@@ -6763,70 +6761,76 @@ window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
     if (fixedList.includes(memberName)) {
         jDate = new Date('2025-11-24T00:00:00');
     } else if (regDate?.toDate) {
-        // regDate가 있으면 사용
         jDate = regDate.toDate();
     } else {
-        // B. regDate가 없으면? 첫 로그 날짜를 조회 (통합 로직)
-        try {
-            const logsSnap = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "asc"), limit(1)));
-            if (!logsSnap.empty) {
-                jDate = logsSnap.docs[0].data().date.toDate();
-            } else {
-                jDate = new Date(); // 로그도 없으면 오늘 날짜
+        // B. regDate가 없을 경우: DB 조회 전 캐시 데이터를 우선 탐색
+        const cachedLogs = window.mountainDataCache[mId] || [];
+        if (cachedLogs.length > 0) {
+            // 캐시 로그 중 가장 오래된 날짜 추출
+            const sortedDates = cachedLogs
+                .filter(l => l.date)
+                .map(l => l.date.toDate ? l.date.toDate() : new Date(l.date))
+                .sort((a, b) => a - b);
+            jDate = sortedDates[0] || new Date();
+        } else {
+            // 캐시에도 없을 때만 최소 1회 조회 후 캐싱
+            try {
+                const logsSnap = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "asc"), limit(1)));
+                if (!logsSnap.empty) {
+                    jDate = logsSnap.docs[0].data().date.toDate();
+                } else {
+                    jDate = new Date();
+                }
+            } catch (e) {
+                console.error("가입일 자동 산출 에러:", e);
+                jDate = new Date();
             }
-        } catch (e) {
-            console.error("가입일 자동 산출 에러:", e);
-            jDate = new Date();
         }
     }
 
-    // 만 개월 수 계산 함수
     function getFullMonths(start, end) {
         let months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
-        // 오늘 일자가 가입일보다 작으면 한 달이 아직 안 찬 것이므로 -1
         if (end.getDate() < start.getDate()) {
             months--;
         }
-        return Math.max(0, months); // 음수 방지
+        return Math.max(0, months);
     }
 
     const elapsedMonths = getFullMonths(jDate, now);
-    // 나이테 개수: 가입 직후(0개월) 1개, 한 달 경과(1개월) 2개... 방식 적용
     const diffMonths = Math.max(1, elapsedMonths + 1);
 
-    // 레벨별 스타일 및 색상 추출
     const style = getLevelStyle(memberLevel);
-    const ringColor = style.border; // 레벨 고유의 테두리 색상
+    const ringColor = style.border;
 
-    // 🪐 [수정] 가입일 텍스트 매핑 및 반짝임(애니메이션) 없이 색상만 고정 적용
     const ringLaunchedEl = document.getElementById('ringLaunchedDate');
-    // renderTreeRings 함수 내부 [3]번 영역 중 Launched 텍스트 세팅 부분 보정
-if (ringLaunchedEl && jDate) {
-    const yyyy = jDate.getFullYear();
-    const mm = String(jDate.getMonth() + 1).padStart(2, '0');
-    const dd = String(jDate.getDate()).padStart(2, '0');
-    
-    ringLaunchedEl.innerText = `LAUNCHED: ${yyyy}.${mm}.${dd}`;
-    
-    ringLaunchedEl.style.color = ringColor;
-    ringLaunchedEl.style.textShadow = `0 0 5px ${ringColor}, 0 0 10px ${ringColor}`;
-    ringLaunchedEl.style.animation = "none"; 
-    // 💡 초기 선언 시 opacity를 건드리지 않고, 위의 showMemberMountain에서 
-    // glow-active 시점에 1로 켜주도록 열어둡니다.
-}
+    if (ringLaunchedEl && jDate) {
+        const yyyy = jDate.getFullYear();
+        const mm = String(jDate.getMonth() + 1).padStart(2, '0');
+        const dd = String(jDate.getDate()).padStart(2, '0');
+        
+        ringLaunchedEl.innerText = `LAUNCHED: ${yyyy}.${mm}.${dd}`;
+        ringLaunchedEl.style.color = ringColor;
+        ringLaunchedEl.style.textShadow = `0 0 5px ${ringColor}, 0 0 10px ${ringColor}`;
+        ringLaunchedEl.style.animation = "none"; 
+    }
 
     const regularStarColors = ["#00FFFF", "#FF8C00", "#D32F2F", "#7C4DFF", "#A020F0", "#00FF7F"]; 
 
-
-    // [4] 정기산행 데이터 로드
+    // 🎯 [캐시 로직 적용] 정기산행 수거 시 DB 전체 조회를 하지 않고 메모리의 캐시 데이터를 활용
     let regularHikesByMonth = {};
     try {
-        const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
-        snap.forEach(doc => {
-            const data = doc.data();
+        let rawLogs = window.mountainDataCache[mId];
+        
+        // 만약 캐시가 없으면 1회 로드하여 저장
+        if (!rawLogs) {
+            const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
+            rawLogs = snap.docs.map(doc => doc.data());
+            window.mountainDataCache[mId] = rawLogs;
+        }
+
+        rawLogs.forEach(data => {
             if (data.isRegular && data.date) {
-                const hikeDate = data.date.toDate();
-                // 해당 산행이 가입일로부터 몇 번째 '만 개월' 영역에 있는지 계산
+                const hikeDate = data.date.toDate ? data.date.toDate() : new Date(data.date);
                 const monthIdx = getFullMonths(jDate, hikeDate);
                 if (monthIdx >= 0 && monthIdx < diffMonths) {
                     if (!regularHikesByMonth[monthIdx]) regularHikesByMonth[monthIdx] = [];
@@ -6847,42 +6851,35 @@ if (ringLaunchedEl && jDate) {
     svg.setAttribute("viewBox", "0 0 240 240");
     svg.style.cssText = "width:100%; height:100%; overflow:visible;";
 
-    // --- [중앙 코어 생성: 레벨별 모양 변경 로직] ---
-let coreShape;
-const cx = 120, cy = 120, r = 6; // 중심 좌표와 크기
+    let coreShape;
+    const cx = 120, cy = 120, r = 6;
 
-if (memberLevel >= 80) {
-// 80레벨 이상: 별 모양 (Polygon)
-coreShape = document.createElementNS(svgNS, "polygon");
-let points = "";
-for (let i = 0; i < 10; i++) {
-let angle = (i * Math.PI) / 5 - Math.PI / 2;
-let currR = (i % 2 === 0) ? r * 1.5 : r * 0.6;
-points += `${cx + currR * Math.cos(angle)},${cy + currR * Math.sin(angle)} `;
-}
-coreShape.setAttribute("points", points);
-} else if (memberLevel >= 50) {
-// 50~79레벨: 다이아몬드 (Polygon)
-coreShape = document.createElementNS(svgNS, "polygon");
-coreShape.setAttribute("points", `${cx},${cy-r*1.2} ${cx+r*1.2},${cy} ${cx},${cy+r*1.2} ${cx-r*1.2},${cy}`);
-} else if (memberLevel >= 20) {
-// 20~49레벨: 삼각형 (Polygon)
-coreShape = document.createElementNS(svgNS, "polygon");
-coreShape.setAttribute("points", `${cx},${cy-r*1.2} ${cx+r*1.2},${cy+r} ${cx-r*1.2},${cy+r}`);
-} else {
-// 1~19레벨: 원형 (Circle)
-coreShape = document.createElementNS(svgNS, "circle");
-coreShape.setAttribute("cx", cx);
-coreShape.setAttribute("cy", cy);
-coreShape.setAttribute("r", r);
-}
+    if (memberLevel >= 80) {
+        coreShape = document.createElementNS(svgNS, "polygon");
+        let points = "";
+        for (let i = 0; i < 10; i++) {
+            let angle = (i * Math.PI) / 5 - Math.PI / 2;
+            let currR = (i % 2 === 0) ? r * 1.5 : r * 0.6;
+            points += `${cx + currR * Math.cos(angle)},${cy + currR * Math.sin(angle)} `;
+        }
+        coreShape.setAttribute("points", points);
+    } else if (memberLevel >= 50) {
+        coreShape = document.createElementNS(svgNS, "polygon");
+        coreShape.setAttribute("points", `${cx},${cy-r*1.2} ${cx+r*1.2},${cy} ${cx},${cy+r*1.2} ${cx-r*1.2},${cy}`);
+    } else if (memberLevel >= 20) {
+        coreShape = document.createElementNS(svgNS, "polygon");
+        coreShape.setAttribute("points", `${cx},${cy-r*1.2} ${cx+r*1.2},${cy+r} ${cx-r*1.2},${cy+r}`);
+    } else {
+        coreShape = document.createElementNS(svgNS, "circle");
+        coreShape.setAttribute("cx", cx);
+        coreShape.setAttribute("cy", cy);
+        coreShape.setAttribute("r", r);
+    }
 
-// 공통 스타일 및 애니메이션 적용
-coreShape.setAttribute("fill", ringColor);
-coreShape.classList.add('tree-ring-core-moving');
-coreShape.style.filter = `drop-shadow(0 0 15px ${ringColor})`;
-svg.appendChild(coreShape);
-// --- [교체 완료] ---
+    coreShape.setAttribute("fill", ringColor);
+    coreShape.classList.add('tree-ring-core-moving');
+    coreShape.style.filter = `drop-shadow(0 0 15px ${ringColor})`;
+    svg.appendChild(coreShape);
 
     // [6] 나이테 및 위성 별 생성
     const rings = [];
@@ -6986,6 +6983,11 @@ svg.appendChild(coreShape);
         }
     }, 100);
 };
+    
+        
+
+        
+        
 
      
 window.showMilkyWay = async (mId, mName) => {
