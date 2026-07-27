@@ -7193,18 +7193,19 @@ if (!document.getElementById('starGuideBtn')) {
 function renderStarGuideItems() {
     const grid = document.getElementById('guideGrid');
     if (!grid) return;
+
     const stars = [
         { 
             name: "슈퍼별", prob: "3%", desc: "타오르는 태양의 전설", 
             style: "background: radial-gradient(circle, #FF0000 10%, #FFFF00 70%, #fff 100%); box-shadow: 0 0 10px 2px #FF0000, 0 0 18px 5px #FFFF00;", 
-            cardBg: "background: linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(245, 158, 11, 0.05) 100%); border: 1px solid rgba(239, 68, 68, 0.3);",
+            cardBg: "background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(245, 158, 11, 0.05) 100%); border: 1px solid rgba(239, 68, 68, 0.35);",
             tagBg: "background: rgba(239, 68, 68, 0.25); color: #fca5a5;",
             twinkle: true 
         },
         { 
             name: "스페셜별", prob: "7%", desc: "신비로운 에픽 오로라", 
             style: "background: radial-gradient(circle, #A020F0 10%, #00FF7F 70%, #fff 100%); box-shadow: 0 0 10px 2px #A020F0, 0 0 18px 5px #00FF7F;", 
-            cardBg: "background: linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, rgba(16, 185, 129, 0.05) 100%); border: 1px solid rgba(168, 85, 247, 0.3);",
+            cardBg: "background: linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(16, 185, 129, 0.05) 100%); border: 1px solid rgba(168, 85, 247, 0.35);",
             tagBg: "background: rgba(168, 85, 247, 0.25); color: #e9d5ff;",
             twinkle: true 
         },
@@ -7216,20 +7217,26 @@ function renderStarGuideItems() {
         { name: "일반 산행", prob: "상시", desc: "소중한 일상의 기록", style: "background: #FFFFFF; box-shadow: 0 0 5px #FFFFFF;", twinkle: false }
     ];
 
-    // 점선 구분선 HTML (그리드 두 칸 전체를 차지)
-    const dividerHTML = `<div style="grid-column: 1 / -1; border-top: 1px dashed rgba(147, 197, 253, 0.25); margin: 4px 0;"></div>`;
+    // 고급스러운 네온 구분선 & 카테고리 태그 함수
+    const createDivider = (label) => `
+        <div style="grid-column: 1 / -1; margin: 6px 0 2px 0; display: flex; align-items: center; gap: 10px;">
+            <div style="flex: 1; height: 1px; background: linear-gradient(90deg, rgba(56, 189, 248, 0) 0%, rgba(56, 189, 248, 0.3) 50%, rgba(56, 189, 248, 0) 100%);"></div>
+            <span style="color: #38bdf8; font-size: 8px; font-weight: 800; letter-spacing: 1.5px; opacity: 0.7; text-transform: uppercase;">${label}</span>
+            <div style="flex: 1; height: 1px; background: linear-gradient(90deg, rgba(56, 189, 248, 0) 0%, rgba(56, 189, 248, 0.3) 50%, rgba(56, 189, 248, 0) 100%);"></div>
+        </div>
+    `;
 
     grid.innerHTML = stars.map((s, index) => {
         const bgStyle = s.cardBg || "background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);";
         const tagStyle = s.tagBg || "background: rgba(59,130,246,0.15); color: #60a5fa;";
 
         const cardHTML = `
-        <div class="star-info-card" style="${bgStyle} border-radius: 14px; padding: 14px 10px; display: flex; align-items: center; gap: 10px; min-height: 60px; box-sizing: border-box; backdrop-filter: blur(4px); transition: transform 0.2s, border-color 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+        <div class="star-info-card" style="${bgStyle} border-radius: 14px; padding: 12px 10px; display: flex; align-items: center; gap: 10px; min-height: 56px; box-sizing: border-box; backdrop-filter: blur(4px); transition: all 0.25s ease;" onmouseover="this.style.transform='translateY(-2px)'; this.style.borderColor='rgba(56, 189, 248, 0.5)';" onmouseout="this.style.transform='translateY(0)';">
             <div style="width: 24px; height: 24px; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
                 <div class="star-preview ${s.twinkle ? 'animate-twinkle' : ''}" style="width: 10px; height: 10px; border-radius: 50%; ${s.style}"></div>
             </div>
             <div style="display: flex; flex-direction: column; justify-content: center; min-width: 0;">
-                <div style="display: flex; align-items: center; gap: 4px; margin-bottom: 3px;">
+                <div style="display: flex; align-items: center; gap: 4px; margin-bottom: 2px;">
                     <span style="color: #fff; font-size: 11px; font-weight: 800; letter-spacing: -0.2px; white-space: nowrap;">${s.name}</span>
                     <span style="${tagStyle} font-size: 8px; font-weight: 900; padding: 1px 4.5px; border-radius: 4px; flex-shrink: 0;">${s.prob}</span>
                 </div>
@@ -7237,13 +7244,19 @@ function renderStarGuideItems() {
             </div>
         </div>`;
 
-        // 2번째 항목(스페셜별) 뒤, 6번째 항목(정기 4호) 뒤에 점선 구분선 삽입
-        if (index === 1 || index === 5) {
-            return cardHTML + dividerHTML;
+        // 1. 스페셜별 뒤에 구분선 + REGULAR 라벨
+        if (index === 1) {
+            return cardHTML + createDivider('REGULAR STARS');
         }
+        // 2. 정기 4호 뒤에 구분선 + RECORD 라벨
+        if (index === 5) {
+            return cardHTML + createDivider('SPECIAL RECORDS');
+        }
+
         return cardHTML;
     }).join('');
 }
+
 
 
 function createShootingStar(board, tx, ty) {
