@@ -7216,14 +7216,17 @@ function renderStarGuideItems() {
         { name: "일반 산행", prob: "상시", desc: "소중한 일상의 기록", style: "background: #FFFFFF; box-shadow: 0 0 5px #FFFFFF;", twinkle: false }
     ];
 
-    grid.innerHTML = stars.map(s => {
+    // 점선 구분선 HTML (그리드 두 칸 전체를 차지)
+    const dividerHTML = `<div style="grid-column: 1 / -1; border-top: 1px dashed rgba(147, 197, 253, 0.25); margin: 4px 0;"></div>`;
+
+    grid.innerHTML = stars.map((s, index) => {
         const bgStyle = s.cardBg || "background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);";
         const tagStyle = s.tagBg || "background: rgba(59,130,246,0.15); color: #60a5fa;";
 
-        return `
+        const cardHTML = `
         <div class="star-info-card" style="${bgStyle} border-radius: 14px; padding: 14px 10px; display: flex; align-items: center; gap: 10px; min-height: 60px; box-sizing: border-box; backdrop-filter: blur(4px); transition: transform 0.2s, border-color 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
             <div style="width: 24px; height: 24px; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
-                <div class="star-preview ${s.twinkle ? 'animate-twinkle' : ''}" style="width: 12px; height: 12px; border-radius: 50%; ${s.style}"></div>
+                <div class="star-preview ${s.twinkle ? 'animate-twinkle' : ''}" style="width: 10px; height: 10px; border-radius: 50%; ${s.style}"></div>
             </div>
             <div style="display: flex; flex-direction: column; justify-content: center; min-width: 0;">
                 <div style="display: flex; align-items: center; gap: 4px; margin-bottom: 3px;">
@@ -7233,10 +7236,14 @@ function renderStarGuideItems() {
                 <span style="color: #94a3b8; font-size: 8.5px; line-height: 1.2; opacity: 0.85; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${s.desc}</span>
             </div>
         </div>`;
+
+        // 2번째 항목(스페셜별) 뒤, 6번째 항목(정기 4호) 뒤에 점선 구분선 삽입
+        if (index === 1 || index === 5) {
+            return cardHTML + dividerHTML;
+        }
+        return cardHTML;
     }).join('');
 }
-
-
 
 
 function createShootingStar(board, tx, ty) {
