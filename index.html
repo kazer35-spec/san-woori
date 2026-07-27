@@ -6985,12 +6985,7 @@ window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
 };
     
         
-
-        
-        
-
-     
-window.showMilkyWay = async (mId, mName) => {
+Window.showMilkyWay = async (mId, mName) => {
     const modal = document.getElementById('milkyWayModal');
     const board = document.getElementById('constellationBoard');
     const nameLabel = document.getElementById('mwMemberName');
@@ -6998,7 +6993,7 @@ window.showMilkyWay = async (mId, mName) => {
     if (!modal || !board) return;
 
     // --- [1. 가이드 UI 주입 (ⓘ 버튼 및 은하수 가이드 모달 추가)] ---
-        if (!document.getElementById('starGuideBtn')) {
+    if (!document.getElementById('starGuideBtn')) {
         const guideHTML = `
             <div class="mw-header-controls" style="position: absolute; top: 60px; right: 20px; z-index: 10010;">
                 <button id="starGuideBtn" onclick="toggleStarGuide(true)" class="star-guide-btn" style="border-color: rgba(255,255,255,0.3); background: rgba(0,0,0,0.4);">
@@ -7019,17 +7014,7 @@ window.showMilkyWay = async (mId, mName) => {
         modal.insertAdjacentHTML('afterbegin', guideHTML);
     }
 
-
-    // --- [2. 기초 데이터 정의] ---
-    const initialHikes = {
-        "오즈": 33, "지니": 24, "나스": 19, "해수": 15, "하트": 13, "아랑": 19, "쿠키": 8, "용삼": 14, 
-        "식이": 6, "몰랑": 10, "길치": 7, "등초": 7, "구름": 5, "튜브": 4, "햄찌": 5, "로드": 3, 
-        "애플": 5, "민이": 3, "운해": 5, "윤윤": 2, "무니": 3, "태리": 2, "이구": 2, "영규": 2, 
-        "후후": 6, "피치": 2, "호프": 2, "멸치": 1, "섭섭": 1, "뚜벅": 3, "송돌": 2, "여록": 1, 
-        "람쥐": 1, "몽꽁": 1, "란이": 2, "얌얌": 0, "수리": 1, "희야": 0, "성민": 0, 
-    };
-
-     // --- [UI 초기화: 글씨 완벽 중앙 고정 & 버튼 오른쪽 우회 배치] ---
+    // --- [2. UI 초기화: 글씨 완벽 중앙 고정 & 버튼 오른쪽 우회 배치] ---
     modal.style.display = 'flex';
     if (nameLabel) {
         nameLabel.style.textAlign = 'center';
@@ -7046,13 +7031,35 @@ window.showMilkyWay = async (mId, mName) => {
     board.innerHTML = '<div class="nebula-cloud"></div>';
 
     try {
-        // [4. 동행지수 계산]
-        const memberInfo = (typeof currentData !== 'undefined') ? currentData.find(m => m.id === mId) : null;
-        const baseHikes = initialHikes[mName] || 0;
-        const myMultiHikes = (memberInfo && memberInfo.buddyCount !== undefined) ? memberInfo.buddyCount : 0;
-        const finalSynergy = baseHikes > 0 ? Math.min(100, Math.round((myMultiHikes / baseHikes) * 100)) : 0;
+        // --- [3. DB 회원 데이터 조회 및 동행지수 연산] ---
+        let memberInfo = null;
+        
+        // 1순위: 전역 currentData에서 mId로 검색
+        if (typeof currentData !== 'undefined' && Array.isArray(currentData)) {
+            memberInfo = currentData.find(m => m.id === mId || m.name === mName);
+        }
 
-        // [5. 동행지수 60% 이상일 때만 배경 효과 실행]
+        // 2순위: currentData에 없으면 DB 개별 문서 직접 조회 (읽기 최소화)
+        if (!memberInfo && mId) {
+            const mDoc = await getDoc(doc(db, "sanwoori", mId));
+            if (mDoc.exists()) {
+                memberInfo = { id: mDoc.id, ...mDoc.data() };
+            }
+        }
+
+        // DB 필드 값 매칭 (count: 전체 산행, buddyCount: 동행 산행)
+        const finalTotalHikes = memberInfo ? (memberInfo.count || 0) : 0; 
+        const myMultiHikes = memberInfo ? (memberInfo.buddyCount || 0) : 0;
+        
+        // 동행 횟수가 전체 산행 횟수보다 크게 잡히는 구조적 예외 방어
+        const adjustedTotalHikes = Math.max(finalTotalHikes, myMultiHikes);
+        
+        // 동행지수 연산 (%)
+        const finalSynergy = adjustedTotalHikes > 0 ? Math.min(100, Math.round((myMultiHikes / adjustedTotalHikes) * 100)) : 0;
+
+        console.log(`🌌 [은하수 동행지수] ${mName}님 - 총 산행: ${adjustedTotalHikes}회 / 동행: ${myMultiHikes}회 / 동행지수: ${finalSynergy}%`);
+
+        // --- [4. 동행지수 60% 이상일 때 오로라 및 배경 별빛 효과 실행] ---
         if (finalSynergy >= 60) {
             const starColors = ["#E0F7FA", "#FFF0F5", "#FFECB3", "#F3E5F5", "#FFFFFF", "#80CBC4", "#FFAB91"];
             
@@ -7082,7 +7089,7 @@ window.showMilkyWay = async (mId, mName) => {
             requestAnimationFrame(() => aurora.classList.add('aurora-active'));
         }
      
-        // --- [6. 별자리 데이터 로드 및 그리기] ---
+        // --- [5. 별자리 데이터 로드 및 그리기] ---
         const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
         const logs = snap.docs
             .map(d => d.data())
@@ -7153,6 +7160,11 @@ window.showMilkyWay = async (mId, mName) => {
         console.error("은하수 로딩 에러:", e);
     }
 };
+
+        
+        
+
+     
 
 
 
