@@ -7115,7 +7115,7 @@ window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
 };
     
                 
-  // ======================= [별 가이드 & 은하수 모듈 통합 - 수정 완료] =======================
+  // ======================= [별 가이드 & 은하수 모듈 통합 - 연도 자동 저장 & 모달 최신화] =======================
 
 // 1. 회원 DB 문서(sanwoori/{memberId})에 레전드 별 획득 기록 저장하는 함수 (최초 1회만 등록)
 async function saveSpecialStarToMember(memberId, starType, quarterText, memberInfo) {
@@ -7128,9 +7128,12 @@ async function saveSpecialStarToMember(memberId, starType, quarterText, memberIn
             // 최초 등록이 아닐 경우(이미 저장된 기록이 있으면) 자동 저장 로직 실행 안 함
             if (isAlreadySaved) return;
 
+            const currentYear = new Date().getFullYear(); // 🎯 획득 연도 자동 추출
+
             const newRecord = {
                 starType: starType,
                 quarter: quarterText || "1Q",
+                year: currentYear, // 🎯 연도(year) 필드 추가 자동 저장
                 timestamp: Date.now()
             };
 
@@ -7345,16 +7348,18 @@ function getLegendStarHistoryFromLocal() {
                         legendHistory[item.starType].push({
                             name: member.name || "익명",
                             quarter: item.quarter || "1Q",
+                            year: item.year || (item.timestamp ? new Date(item.timestamp).getFullYear() : member.specialStarYear) || new Date().getFullYear(), // 🎯 year 우선 추출
                             timestamp: item.timestamp || 0
                         });
                     }
                 });
             }
+            // 레거시 필드 호환 대응
             if (member.hasSuperStar && !member.specialStars) {
-                legendHistory.super.push({ name: member.name, quarter: member.superStarQuarter || "1Q", timestamp: 0 });
+                legendHistory.super.push({ name: member.name, quarter: member.superStarQuarter || "1Q", year: member.superStarYear || new Date().getFullYear(), timestamp: 0 });
             }
             if (member.hasSpecialStar && !member.specialStars) {
-                legendHistory.special.push({ name: member.name, quarter: member.specialStarQuarter || "1Q", timestamp: 0 });
+                legendHistory.special.push({ name: member.name, quarter: member.specialStarQuarter || "1Q", year: member.specialStarYear || new Date().getFullYear(), timestamp: 0 });
             }
         });
     }
@@ -7365,13 +7370,13 @@ function getLegendStarHistoryFromLocal() {
     return legendHistory;
 }
 
-// 🌌 스타 갤러리 커스텀 모달 닫기 함수
+// 5. 🌌 스타 갤러리 커스텀 모달 닫기 함수 (닫기 동작 보장)
 window.closeSgModal = function(e) {
     const modal = document.getElementById('sgCustomModal');
     if (modal) modal.remove();
 };
 
-// 🌌 스타 갤러리 커스텀 모달 열기 함수
+// 6. 🌌 스타 갤러리 커스텀 모달 열기 함수 (X 버튼 제거 및 우측 연도 배치)
 function showStarGalleryModal(type, titleText, items) {
     const oldModal = document.getElementById('sgCustomModal');
     if (oldModal) oldModal.remove();
@@ -7380,26 +7385,26 @@ function showStarGalleryModal(type, titleText, items) {
     const icon = isSuper ? "🌟" : "✨";
     const themeClass = isSuper ? "super" : "special";
 
-    // 이름 + 획득 연도를 깔끔하게 분리한 카드 목록 생성
+    // 이름 + 우측 연도 레이아웃
     const listHtml = items.map(item => `
-        <div class="sg-owner-item" style="display: flex; justify-content: space-between; align-items: center;">
+        <div class="sg-owner-item" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 4px; border-bottom: 1px solid rgba(255,255,255,0.05);">
             <span style="font-weight: 600;">[${item.quarter}] ${item.name}</span>
-            <span style="font-size: 0.8rem; color: rgba(255, 255, 255, 0.5); font-weight: 400;">${item.displayYear}</span>
+            <span style="font-size: 0.82rem; color: rgba(255, 255, 255, 0.55); font-weight: 500;">${item.displayYear}</span>
         </div>
     `).join('');
 
     const modalHtml = `
-        <div id="sgCustomModal" class="sg-modal-overlay" onclick="window.closeSgModal(event)">
-            <div class="sg-modal-content ${themeClass}" onclick="event.stopPropagation()">
-                <div class="sg-modal-header">
-                    <div class="sg-modal-title">
+        <div id="sgCustomModal" class="sg-modal-overlay" onclick="window.closeSgModal(event)" style="position: fixed; top:0; left:0; width:100%; height:100%; z-index: 10050; background: rgba(0,0,0,0.7); display:flex; justify-content:center; align-items:center; backdrop-filter: blur(8px);">
+            <div class="sg-modal-content ${themeClass}" onclick="event.stopPropagation()" style="width: 85%; max-width: 320px; background: #0f172a; border: 1px solid rgba(255,255,255,0.15); border-radius: 20px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.8);">
+                <div class="sg-modal-header" style="margin-bottom: 14px; text-align: center;">
+                    <div class="sg-modal-title" style="color:#fff; font-size: 1.05rem; font-weight:800;">
                         <span>${icon}</span> ${titleText}
                     </div>
                 </div>
-                <div class="sg-owner-list">
+                <div class="sg-owner-list" style="max-height: 220px; overflow-y: auto; margin-bottom: 16px;">
                     ${listHtml}
                 </div>
-                <button class="sg-modal-btn" onclick="window.closeSgModal()">확인</button>
+                <button class="sg-modal-btn" onclick="window.closeSgModal()" style="width:100%; background: linear-gradient(135deg, #1e293b, #0f172a); border: 1px solid rgba(56,189,248,0.4); color:#38bdf8; font-weight:800; padding:10px 0; border-radius: 12px; cursor:pointer;">확인</button>
             </div>
         </div>
     `;
@@ -7407,36 +7412,24 @@ function showStarGalleryModal(type, titleText, items) {
     document.body.insertAdjacentHTML('beforeend', modalHtml);
 }
 
-// 🎯 기존 showAllHolders 연동 함수
+// 7. 🎯 전체 획득자 더보기 버튼 연동 함수
 window.showAllHolders = (starName, holdersJson) => {
-    // 1. JSON 데이터 파싱
     const list = JSON.parse(decodeURIComponent(holdersJson));
     
-    // 2. 연도 데이터 추출 및 포맷팅 (year, date, created_at 등 대응)
-    const formattedItems = list.map(h => {
-        let rawYear = h.year || h.date || h.createdAt || '';
-        // "2026-04-03" 같은 날짜 형태에서 연도 4자리만 추출 (필요시)
-        let displayYear = rawYear.toString().substring(0, 4);
-        if (displayYear) displayYear += '년';
+    const formattedItems = list.map(h => ({
+        quarter: h.quarter || '1Q',
+        name: h.name || '무명',
+        displayYear: h.year ? `${h.year}년` : (h.timestamp ? `${new Date(h.timestamp).getFullYear()}년` : '')
+    }));
 
-        return {
-            quarter: h.quarter,
-            name: h.name,
-            displayYear: displayYear
-        };
-    });
-
-    // 3. 별 이름(starName)에 따라 테마 타입 구분
     const isSuper = starName.includes("슈퍼");
     const starType = isSuper ? "super" : "special";
     const modalTitle = `${starName} 전체 획득자 목록`;
 
-    // 4. 커스텀 모달 띄우기
     showStarGalleryModal(starType, modalTitle, formattedItems);
 };
 
-
-// 5. 가이드 항목 랜더링 함수
+// 8. 가이드 항목 랜더링 함수
 async function renderStarGuideItems() {
     const grid = document.getElementById('guideGrid');
     if (!grid) return;
@@ -7552,6 +7545,7 @@ async function renderStarGuideItems() {
     grid.innerHTML = cardsHTML;
 }
 
+// 9. 슈팅스타(유성) 애니메이션 생성 함수
 function createShootingStar(board, tx, ty) {
     const s = document.createElement('div');
     s.className = 'shooting-star';
@@ -7571,8 +7565,10 @@ function createShootingStar(board, tx, ty) {
         setTimeout(() => s.remove(), 500);
     }, 850);
 }
-   
-    
+
+             
+            
+                
 
                     
     
