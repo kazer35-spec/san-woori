@@ -13,6 +13,26 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+    /* 🌟 슈퍼별 전용 입체 네온 광원 클래스 */
+.star-super-glow {
+    width: 12px !important;
+    height: 12px !important;
+    border-radius: 50% !important;
+    background: radial-gradient(circle at 35% 35%, #ffffff 0%, #ffaa00 35%, #ff2200 70%, #800000 100%) !important;
+    box-shadow: 0 0 10px #ff4500, 0 0 18px rgba(255, 69, 0, 0.8), inset 0 0 3px #ffffff !important;
+    display: block !important;
+}
+
+/* 🌟 스페셜별 전용 입체 네온 광원 클래스 */
+.star-special-glow {
+    width: 12px !important;
+    height: 12px !important;
+    border-radius: 50% !important;
+    background: radial-gradient(circle at 35% 35%, #ffffff 0%, #c084fc 35%, #7e22ce 70%, #3b0764 100%) !important;
+    box-shadow: 0 0 10px #a855f7, 0 0 18px rgba(168, 85, 247, 0.8), inset 0 0 3px #ffffff !important;
+    display: block !important;
+}
+
 
     /* 🌿/📊 타임라인 잔디&성장추이 전용 진한 안내 버튼 */
 .info-help-btn-timeline {
@@ -7204,7 +7224,9 @@ function getLegendStarHistoryFromLocal() {
 }
 
       
-// 이전 획득자 전체 보기 팝업
+
+            
+        // 이전 획득자 전체 보기 팝업
 window.showAllHolders = (starName, holdersJson) => {
     const list = JSON.parse(decodeURIComponent(holdersJson));
     const textList = list.map(h => `• [${h.quarter}] ${h.name}`).join('\n');
@@ -7246,8 +7268,7 @@ async function renderStarGuideItems() {
             name: "슈퍼별", 
             prob: "3%", 
             desc: "타오르는 태양의 전설", 
-            // 🌟 슈퍼별: !important 강제 적용 및 구체 글로우 광원
-            style: "background: radial-gradient(circle, #ffffff 0%, #ffaa00 35%, #ff2200 70%, #800000 100%) !important; box-shadow: 0 0 10px #ff4500, 0 0 18px rgba(255, 69, 0, 0.8), inset 0 0 3px #ffffff !important;", 
+            customClass: "star-super-glow", // 👈 전용 CSS 클래스 적용
             cardBg: "background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(245, 158, 11, 0.08) 100%); border: 1px solid rgba(239, 68, 68, 0.45); box-shadow: 0 0 10px rgba(239, 68, 68, 0.25);", 
             tagBg: "background: rgba(239, 68, 68, 0.3); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.5);", 
             twinkle: true 
@@ -7257,8 +7278,7 @@ async function renderStarGuideItems() {
             name: "스페셜별", 
             prob: "7%", 
             desc: "신비로운 에픽 오로라", 
-            // 🌟 스페셜별: !important 강제 적용 및 에픽 퍼플 글로우 광원
-            style: "background: radial-gradient(circle, #ffffff 0%, #c084fc 35%, #7e22ce 70%, #3b0764 100%) !important; box-shadow: 0 0 10px #a855f7, 0 0 18px rgba(168, 85, 247, 0.8), inset 0 0 3px #ffffff !important;", 
+            customClass: "star-special-glow", // 👈 전용 CSS 클래스 적용
             cardBg: "background: linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(16, 185, 129, 0.08) 100%); border: 1px solid rgba(168, 85, 247, 0.45); box-shadow: 0 0 10px rgba(168, 85, 247, 0.25);", 
             tagBg: "background: rgba(168, 85, 247, 0.3); color: #e9d5ff; border: 1px solid rgba(168, 85, 247, 0.5);", 
             twinkle: true 
@@ -7283,7 +7303,6 @@ async function renderStarGuideItems() {
         const bgStyle = s.cardBg || "background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08);";
         const tagStyle = s.tagBg || "background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3);";
 
-        // 슈퍼별/스페셜별 하단 중앙 정렬 획득자 영역
         let legendHoldersSection = "";
         if (s.id === "super" || s.id === "special") {
             const list = legendHolders[s.id] || [];
@@ -7318,12 +7337,15 @@ async function renderStarGuideItems() {
             `;
         }
 
+        // 별 모양 태그 (customClass가 있으면 우선 적용)
+        const starClass = s.customClass ? s.customClass : `${s.twinkle ? 'animate-twinkle' : ''}`;
+        const starInlineStyle = s.style ? `style="width: 12px; height: 12px; border-radius: 50%; box-sizing: border-box; ${s.style}"` : '';
+
         const cardHTML = `
         <div style="${bgStyle} border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; justify-content: center; box-sizing: border-box; backdrop-filter: blur(6px); min-height: 52px;">
             <div style="display: flex; align-items: center; gap: 10px;">
-                <!-- 부모 래퍼에서 외부 CSS 무시 속성 추가 -->
-                <div style="width: 20px !important; min-width: 20px !important; height: 20px !important; display: flex !important; align-items: center !important; justify-content: center !important; flex-shrink: 0 !important; margin: 0 !important; padding: 0 !important; background: transparent !important; border: none !important;">
-                    <div class="${s.twinkle ? 'animate-twinkle' : ''}" style="width: 12px !important; height: 12px !important; border-radius: 50% !important; box-sizing: border-box !important; display: block !important; ${s.style}"></div>
+                <div style="width: 20px; min-width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin: 0; padding: 0;">
+                    <div class="${starClass}" ${starInlineStyle}></div>
                 </div>
                 <div style="display: flex; flex-direction: column; justify-content: center; min-width: 0; flex: 1;">
                     <div style="display: flex; align-items: center; gap: 5px; margin-bottom: 2px;">
@@ -7345,6 +7367,7 @@ async function renderStarGuideItems() {
 
     grid.innerHTML = cardsHTML;
 }
+
 
 
          
