@@ -6987,9 +6987,12 @@ window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
     }, 100);
 };
     
-        // ======================= [별 가이드 & 은하수 모듈 통합] =======================
+                
+     
+    setTimeout(() => {
+    // ======================= [별 가이드 & 은하수 모듈 통합 - 수정 완료] =======================
 
-// 1. 회원 DB 문서(sanwoori/{memberId})에 레전드 별 획득 기록 저장하는 함수 (비용 0원용)
+// 1. 회원 DB 문서(sanwoori/{memberId})에 레전드 별 획득 기록 저장하는 함수
 async function saveSpecialStarToMember(memberId, starType, quarterText) {
     if (starType === "super" || starType === "special") {
         try {
@@ -6997,10 +7000,22 @@ async function saveSpecialStarToMember(memberId, starType, quarterText) {
             await updateDoc(memberRef, {
                 specialStars: arrayUnion({
                     starType: starType,
-                    quarter: quarterText,
+                    quarter: quarterText || "1Q",
                     timestamp: Date.now()
                 })
             });
+            
+            // 로컬 메모리(currentData)에도 즉시 반영하여 UI 갱신 시 Firestore 재조회 방지
+            if (typeof currentData !== 'undefined' && Array.isArray(currentData)) {
+                const target = currentData.find(m => m.id === memberId);
+                if (target) {
+                    if (!target.specialStars) target.specialStars = [];
+                    const exists = target.specialStars.some(s => s.starType === starType && s.quarter === quarterText);
+                    if (!exists) {
+                        target.specialStars.push({ starType, quarter: quarterText || "1Q", timestamp: Date.now() });
+                    }
+                }
+            }
         } catch (err) {
             console.error("레전드 별 기록 업데이트 실패:", err);
         }
@@ -7111,6 +7126,13 @@ window.showMilkyWay = async (mId, mName) => {
 
             if (log.starType) {
                 shouldTwinkle = true;
+                
+                // ⭐ [수정 핵심]: 레전드 별 발견 시 회원 DB 문서에 자동 저장 함수 호출
+                if (log.starType === "super" || log.starType === "special") {
+                    const quarterText = log.quarter || (log.date ? `${Math.floor(log.date.toDate().getMonth() / 3) + 1}Q` : "1Q");
+                    saveSpecialStarToMember(mId, log.starType, quarterText);
+                }
+
                 if (log.starType === "super") {
                     starSize = "w-2 h-2";
                     customStyle = `background: radial-gradient(circle, #FF0000 20%, #FFFF00 100%); box-shadow: 0 0 15px 5px rgba(255, 0, 0, 0.7), 0 0 35px 12px rgba(255, 255, 0, 0.5);`;
@@ -7163,12 +7185,12 @@ window.showMilkyWay = async (mId, mName) => {
     }
 };
 
-// 3. 가이드 모달 토글 함수 (HTML onclick 연결용 window 등록)
+// 3. 가이드 모달 토글 함수
 window.toggleStarGuide = async (show) => {
     const gModal = document.getElementById('starGuideModal');
     if (!gModal) return;
     if (show) {
-        renderStarGuideItems();
+        await renderStarGuideItems();
         gModal.style.display = 'flex';
         setTimeout(() => { gModal.style.opacity = '1'; }, 10);
     } else {
@@ -7183,6 +7205,7 @@ function getLegendStarHistoryFromLocal() {
 
     if (typeof currentData !== 'undefined' && Array.isArray(currentData)) {
         currentData.forEach(member => {
+            // specialStars 배열 구조 읽기
             if (member.specialStars && Array.isArray(member.specialStars)) {
                 member.specialStars.forEach(item => {
                     if (item.starType === "super" || item.starType === "special") {
@@ -7194,6 +7217,13 @@ function getLegendStarHistoryFromLocal() {
                     }
                 });
             }
+            // 기존 단일 플래그(hasSuperStar/hasSpecialStar) 호환성 보장
+            if (member.hasSuperStar && !member.specialStars) {
+                legendHistory.super.push({ name: member.name, quarter: member.superStarQuarter || "1Q", timestamp: 0 });
+            }
+            if (member.hasSpecialStar && !member.specialStars) {
+                legendHistory.special.push({ name: member.name, quarter: member.specialStarQuarter || "1Q", timestamp: 0 });
+            }
         });
     }
 
@@ -7203,17 +7233,13 @@ function getLegendStarHistoryFromLocal() {
     return legendHistory;
 }
 
-      
-
-
-         
-
 window.showAllHolders = (starName, holdersJson) => {
     const list = JSON.parse(decodeURIComponent(holdersJson));
     const textList = list.map(h => `• [${h.quarter}] ${h.name}`).join('\n');
     alert(`🌟 ${starName} 전체 획득자 목록\n\n${textList}`);
 };
 
+// 5. 가이드 항목 랜더링 함수 (비용 0원 - 로컬 데이터 우선 적용)
 async function renderStarGuideItems() {
     const grid = document.getElementById('guideGrid');
     if (!grid) return;
@@ -7222,28 +7248,9 @@ async function renderStarGuideItems() {
     grid.style.gridTemplateColumns = 'repeat(2, 1fr)';
     grid.style.gap = '8px';
 
-    const legendHolders = { super: [], special: [] };
+    // 로컬 메모리(currentData) 기반 수집으로 Firestore 비용 0원 유지
+    const legendHolders = getLegendStarHistoryFromLocal();
 
-    try {
-        if (typeof getDocs !== 'undefined' && typeof collection !== 'undefined' && typeof db !== 'undefined') {
-            const snapshot = await getDocs(collection(db, "sanwoori"));
-            snapshot.docs.forEach(doc => {
-                const data = doc.data();
-                const memberName = data.name || doc.id;
-
-                if (data.hasSuperStar === true) {
-                    legendHolders.super.push({ name: memberName, quarter: data.superStarQuarter || "1Q" });
-                }
-                if (data.hasSpecialStar === true) {
-                    legendHolders.special.push({ name: memberName, quarter: data.specialStarQuarter || "1Q" });
-                }
-            });
-        }
-    } catch (err) {
-        console.error("획득자 불러오기 에러:", err);
-    }
-
-    // 슈퍼별 및 스페셜별에 glowAnimation 및 광원 CSS 적용
     const stars = [
         { 
             id: "super", 
@@ -7288,14 +7295,13 @@ async function renderStarGuideItems() {
         const tagStyle = s.tagBg || "background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3);";
         const animStyle = s.glowAnimation || "";
 
-        // 슈퍼별/스페셜별 하단 중앙 정렬 획득자 영역
         let legendHoldersSection = "";
         if (s.id === "super" || s.id === "special") {
             const list = legendHolders[s.id] || [];
             let holdersHTML = "";
 
             if (list.length > 0) {
-                const latest = list[list.length - 1]; 
+                const latest = list[0]; 
                 holdersHTML = `
                     <span style="background: rgba(255, 255, 255, 0.12); border: 1px solid rgba(255, 255, 255, 0.25); color: #f8fafc; font-size: 8px; font-weight: 700; padding: 1px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px; white-space: nowrap;">
                         <span style="color: #38bdf8; font-weight: 900; font-size: 7.5px;">${latest.quarter}</span> ${latest.name}
@@ -7326,11 +7332,9 @@ async function renderStarGuideItems() {
         const cardHTML = `
         <div style="${bgStyle} border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; justify-content: center; box-sizing: border-box; backdrop-filter: blur(6px); min-height: 52px;">
             <div style="display: flex; align-items: center; gap: 10px;">
-                <!-- 별 크기 12px 고정 및 광원 애니메이션 추가 -->
                 <div style="width: 20px; min-width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin: 0; padding: 0;">
                     <div class="${s.twinkle ? 'animate-twinkle' : ''}" style="width: 12px; height: 12px; border-radius: 50%; box-sizing: border-box; ${s.style} ${animStyle}"></div>
                 </div>
-                <!-- 텍스트 영역 -->
                 <div style="display: flex; flex-direction: column; justify-content: center; min-width: 0; flex: 1;">
                     <div style="display: flex; align-items: center; gap: 5px; margin-bottom: 2px;">
                         <span style="color: #ffffff; font-size: 13px; font-weight: 800; letter-spacing: -0.3px; white-space: nowrap;">${s.name}</span>
@@ -7352,7 +7356,6 @@ async function renderStarGuideItems() {
     grid.innerHTML = cardsHTML;
 }
 
-   
 function createShootingStar(board, tx, ty) {
     const s = document.createElement('div');
     s.className = 'shooting-star';
@@ -7373,9 +7376,6 @@ function createShootingStar(board, tx, ty) {
     }, 850);
 }
 
-
-        
-        
         
             // 필터링 및 페이징 처리를 위해 모달 전용 로그 목록을 임시 저장할 전역 변수 (캐시)
 window.currentScrollLogs = []; 
