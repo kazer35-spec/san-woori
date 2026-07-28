@@ -13,6 +13,133 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+    /* 🌌 우주 다크 네온 획득자 모달 (기존 STAR GALLERY UI 핏) */
+.sg-modal-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background: rgba(5, 7, 15, 0.82);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    animation: sgModalFadeIn 0.2s ease-out;
+}
+
+.sg-modal-content {
+    width: 88%;
+    max-width: 340px;
+    background: linear-gradient(145deg, rgba(15, 20, 38, 0.96), rgba(8, 12, 24, 0.98));
+    border-radius: 18px;
+    padding: 22px;
+    color: #ffffff;
+    box-shadow: 0 0 30px rgba(0, 206, 209, 0.25), inset 0 0 15px rgba(0, 255, 255, 0.05);
+    box-sizing: border-box;
+    animation: sgModalPop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* 🌟 슈퍼별 전용 테마 */
+.sg-modal-content.super {
+    border: 1px solid rgba(255, 215, 0, 0.4);
+    box-shadow: 0 0 30px rgba(255, 215, 0, 0.25), inset 0 0 15px rgba(255, 215, 0, 0.08);
+}
+.sg-modal-content.super .sg-modal-title {
+    color: #ffd700;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+/* ✨ 스페셜별 전용 테마 */
+.sg-modal-content.special {
+    border: 1px solid rgba(0, 255, 255, 0.4);
+    box-shadow: 0 0 30px rgba(0, 206, 209, 0.25), inset 0 0 15px rgba(0, 255, 255, 0.08);
+}
+.sg-modal-content.special .sg-modal-title {
+    color: #00FFFF;
+    text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+}
+
+/* 모달 헤더 */
+.sg-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 12px;
+    margin-bottom: 14px;
+}
+
+.sg-modal-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.sg-modal-close {
+    background: transparent;
+    border: none;
+    color: #7a8b9e;
+    font-size: 1.4rem;
+    cursor: pointer;
+    line-height: 1;
+}
+.sg-modal-close:hover { color: #ffffff; }
+
+/* 획득자 리스트 박스 */
+.sg-owner-list {
+    max-height: 220px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.sg-owner-item {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: #e2e8f0;
+}
+
+/* 하단 확인 버튼 */
+.sg-modal-btn {
+    width: 100%;
+    padding: 11px;
+    border: none;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.2s;
+}
+
+.super .sg-modal-btn {
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 140, 0, 0.3));
+    border-color: rgba(255, 215, 0, 0.5);
+    color: #ffd700;
+}
+
+.special .sg-modal-btn {
+    background: linear-gradient(135deg, rgba(0, 255, 255, 0.15), rgba(26, 188, 156, 0.3));
+    border-color: rgba(0, 255, 255, 0.5);
+    color: #00FFFF;
+}
+
+/* 애니메이션 */
+@keyframes sgModalFadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sgModalPop { from { transform: scale(0.9) translateY(8px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
+
 
     /* 🌿/📊 타임라인 잔디&성장추이 전용 진한 안내 버튼 */
 .info-help-btn-timeline {
@@ -7238,11 +7365,63 @@ function getLegendStarHistoryFromLocal() {
     return legendHistory;
 }
 
+// 🌌 스타 갤러리 커스텀 모달 열기 함수
+function showStarGalleryModal(type, titleText, nameList) {
+    const oldModal = document.getElementById('sgCustomModal');
+    if (oldModal) oldModal.remove();
+
+    const isSuper = type === 'super';
+    const icon = isSuper ? "🌟" : "✨";
+    const themeClass = isSuper ? "super" : "special";
+
+    // 이름 항목 HTML 태그 생성
+    const listHtml = nameList.map(name => `
+        <div class="sg-owner-item">${name}</div>
+    `).join('');
+
+    const modalHtml = `
+        <div id="sgCustomModal" class="sg-modal-overlay" onclick="closeSgModal(event)">
+            <div class="sg-modal-content ${themeClass}" onclick="event.stopPropagation()">
+                <div class="sg-modal-header">
+                    <div class="sg-modal-title">
+                        <span>${icon}</span> ${titleText}
+                    </div>
+                    <button class="sg-modal-close" onclick="closeSgModal()">&times;</button>
+                </div>
+                <div class="sg-owner-list">
+                    ${listHtml}
+                </div>
+                <button class="sg-modal-btn" onclick="closeSgModal()">확인</button>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+// 모달 닫기 함수
+function closeSgModal(e) {
+    const modal = document.getElementById('sgCustomModal');
+    if (modal) modal.remove();
+}
+
+// 🎯 기존 showAllHolders 연동 함수
 window.showAllHolders = (starName, holdersJson) => {
+    // 1. JSON 데이터 파싱
     const list = JSON.parse(decodeURIComponent(holdersJson));
-    const textList = list.map(h => `• [${h.quarter}] ${h.name}`).join('\n');
-    alert(`🌟 ${starName} 전체 획득자 목록\n\n${textList}`);
+    
+    // 2. 모달에 보여줄 이름 목록 배열로 변환 (예: ["[2Q] 등초", "[3Q] 뚜벅"])
+    const formattedList = list.map(h => `[${h.quarter}] ${h.name}`);
+
+    // 3. 별 이름(starName)에 따라 테마 타입(super / special) 구분
+    const isSuper = starName.includes("슈퍼");
+    const starType = isSuper ? "super" : "special";
+    const modalTitle = `${starName} 전체 획득자 목록`;
+
+    // 4. 커스텀 모달 띄우기
+    showStarGalleryModal(starType, modalTitle, formattedList);
 };
+
 
 // 5. 가이드 항목 랜더링 함수
 async function renderStarGuideItems() {
