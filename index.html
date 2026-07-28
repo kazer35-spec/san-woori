@@ -7226,7 +7226,7 @@ function getLegendStarHistoryFromLocal() {
       
 
             
-        // 이전 획득자 전체 보기 팝업
+// 이전 획득자 전체 보기 팝업
 window.showAllHolders = (starName, holdersJson) => {
     const list = JSON.parse(decodeURIComponent(holdersJson));
     const textList = list.map(h => `• [${h.quarter}] ${h.name}`).join('\n');
@@ -7234,6 +7234,41 @@ window.showAllHolders = (starName, holdersJson) => {
 };
 
 async function renderStarGuideItems() {
+    // 1. 슈퍼별 & 스페셜별 전용 CSS 동적 자동 주입 (외부 CSS 파일 수정 불필요)
+    if (!document.getElementById('star-glow-dynamic-style')) {
+        const style = document.createElement('style');
+        style.id = 'star-glow-dynamic-style';
+        style.textContent = `
+            @keyframes superGlowPulse {
+                0%, 100% { transform: scale(1); box-shadow: 0 0 8px #ff4500, 0 0 14px rgba(255, 69, 0, 0.8); }
+                50% { transform: scale(1.15); box-shadow: 0 0 14px #ffaa00, 0 0 22px rgba(255, 69, 0, 1); }
+            }
+            @keyframes specialGlowPulse {
+                0%, 100% { transform: scale(1); box-shadow: 0 0 8px #a855f7, 0 0 14px rgba(168, 85, 247, 0.8); }
+                50% { transform: scale(1.15); box-shadow: 0 0 14px #c084fc, 0 0 22px rgba(168, 85, 247, 1); }
+            }
+            .star-super-glow {
+                width: 12px !important;
+                height: 12px !important;
+                border-radius: 50% !important;
+                background: radial-gradient(circle, #ffffff 0%, #ffaa00 35%, #ff2200 70%, #800000 100%) !important;
+                animation: superGlowPulse 2s infinite ease-in-out !important;
+                display: block !important;
+                box-sizing: border-box !important;
+            }
+            .star-special-glow {
+                width: 12px !important;
+                height: 12px !important;
+                border-radius: 50% !important;
+                background: radial-gradient(circle, #ffffff 0%, #c084fc 35%, #7e22ce 70%, #3b0764 100%) !important;
+                animation: specialGlowPulse 2s infinite ease-in-out !important;
+                display: block !important;
+                box-sizing: border-box !important;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
     const grid = document.getElementById('guideGrid');
     if (!grid) return;
 
@@ -7268,20 +7303,18 @@ async function renderStarGuideItems() {
             name: "슈퍼별", 
             prob: "3%", 
             desc: "타오르는 태양의 전설", 
-            customClass: "star-super-glow", // 👈 전용 CSS 클래스 적용
+            customClass: "star-super-glow",
             cardBg: "background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(245, 158, 11, 0.08) 100%); border: 1px solid rgba(239, 68, 68, 0.45); box-shadow: 0 0 10px rgba(239, 68, 68, 0.25);", 
-            tagBg: "background: rgba(239, 68, 68, 0.3); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.5);", 
-            twinkle: true 
+            tagBg: "background: rgba(239, 68, 68, 0.3); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.5);"
         },
         { 
             id: "special", 
             name: "스페셜별", 
             prob: "7%", 
             desc: "신비로운 에픽 오로라", 
-            customClass: "star-special-glow", // 👈 전용 CSS 클래스 적용
+            customClass: "star-special-glow",
             cardBg: "background: linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(16, 185, 129, 0.08) 100%); border: 1px solid rgba(168, 85, 247, 0.45); box-shadow: 0 0 10px rgba(168, 85, 247, 0.25);", 
-            tagBg: "background: rgba(168, 85, 247, 0.3); color: #e9d5ff; border: 1px solid rgba(168, 85, 247, 0.5);", 
-            twinkle: true 
+            tagBg: "background: rgba(168, 85, 247, 0.3); color: #e9d5ff; border: 1px solid rgba(168, 85, 247, 0.5);"
         },
         { id: "regular_1", name: "정기 1호", prob: "22.5%", desc: "청명한 시안 블루", style: "background: #00FFFF; box-shadow: 0 0 8px #00FFFF;", twinkle: true },
         { id: "regular_2", name: "정기 2호", prob: "22.5%", desc: "정열의 오렌지", style: "background: #D35400; box-shadow: 0 0 8px #D35400;", twinkle: true },
@@ -7337,9 +7370,9 @@ async function renderStarGuideItems() {
             `;
         }
 
-        // 별 모양 태그 (customClass가 있으면 우선 적용)
-        const starClass = s.customClass ? s.customClass : `${s.twinkle ? 'animate-twinkle' : ''}`;
-        const starInlineStyle = s.style ? `style="width: 12px; height: 12px; border-radius: 50%; box-sizing: border-box; ${s.style}"` : '';
+        // 클래스명 및 인라인 스타일 분기
+        const starClass = s.customClass ? s.customClass : (s.twinkle ? 'animate-twinkle' : '');
+        const starInlineStyle = s.style ? `style="width: 12px; height: 12px; border-radius: 50%; box-sizing: border-box; display: block; ${s.style}"` : '';
 
         const cardHTML = `
         <div style="${bgStyle} border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; justify-content: center; box-sizing: border-box; backdrop-filter: blur(6px); min-height: 52px;">
@@ -7367,6 +7400,7 @@ async function renderStarGuideItems() {
 
     grid.innerHTML = cardsHTML;
 }
+
 
 
 
