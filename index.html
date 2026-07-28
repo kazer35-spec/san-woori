@@ -3041,7 +3041,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { 
   getFirestore, collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc, 
-  increment, query, orderBy, Timestamp, where, getDocs, getDoc, setDoc, limit, writeBatch, startAfter, getCountFromServer
+  increment, query, orderBy, Timestamp, where, getDocs, getDoc, setDoc, limit, writeBatch, startAfter, getCountFromServer, arrayUnion
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -6987,7 +6987,27 @@ window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
     }, 100);
 };
     
-        
+        // ======================= [별 가이드 & 은하수 모듈 통합] =======================
+
+// 1. 회원 DB 문서(sanwoori/{memberId})에 레전드 별 획득 기록 저장하는 함수 (비용 0원용)
+async function saveSpecialStarToMember(memberId, starType, quarterText) {
+    if (starType === "super" || starType === "special") {
+        try {
+            const memberRef = doc(db, "sanwoori", memberId);
+            await updateDoc(memberRef, {
+                specialStars: arrayUnion({
+                    starType: starType,
+                    quarter: quarterText,
+                    timestamp: Date.now()
+                })
+            });
+        } catch (err) {
+            console.error("레전드 별 기록 업데이트 실패:", err);
+        }
+    }
+}
+
+// 2. 은하수 메인 실행 함수
 window.showMilkyWay = async (mId, mName) => {
     const modal = document.getElementById('milkyWayModal');
     const board = document.getElementById('constellationBoard');
@@ -6995,49 +7015,42 @@ window.showMilkyWay = async (mId, mName) => {
 
     if (!modal || !board) return;
 
-    // --- [1. 가이드 UI 주입 (ⓘ 버튼 및 은하수 가이드 모달 추가)] ---
-if (!document.getElementById('starGuideBtn')) {
-    const guideHTML = `
-        <div class="mw-header-controls" style="position: absolute; top: 60px; right: 20px; z-index: 10010;">
-            <button id="starGuideBtn" onclick="toggleStarGuide(true)" class="star-guide-btn" style="border-color: rgba(255,255,255,0.3); background: rgba(0,0,0,0.4);">
-                <span class="sparkle-icon">✨</span> 별 가이드
-            </button>
-        </div>
-        <!-- 반투명 오버레이 -->
-        <div id="starGuideModal" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10020; border-radius: inherit; background: rgba(3, 7, 18, 0.85); backdrop-filter: blur(14px); justify-content: center; align-items: center; opacity: 0; transition: opacity 0.25s ease;" onclick="toggleStarGuide(false)">
-            
-            <div style="width: 90%; max-width: 340px; height: auto; background: linear-gradient(160deg, #0f172a 0%, #080d1a 100%); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 24px; padding: 26px 20px 20px 20px; position: relative; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9), 0 0 25px rgba(99, 102, 241, 0.15); box-sizing: border-box; display: flex; flex-direction: column;" onclick="event.stopPropagation()">
-                
-                <!-- 상단 타이틀 -->
-                <div style="text-align: center; margin-bottom: 20px; flex-shrink: 0; position: relative;">
-                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 140px; height: 35px; background: rgba(99, 102, 241, 0.2); filter: blur(20px); border-radius: 50%; pointer-events: none;"></div>
-                    <h3 style="color: #fff; font-size: 1.1rem; font-weight: 900; letter-spacing: 3px; margin: 0; text-shadow: 0 0 12px rgba(165, 180, 252, 0.6); position: relative;">STAR GALLERY</h3>
-                    <p style="color: #94a3b8; font-size: 0.68rem; margin: 6px 0 0 0; opacity: 0.85; font-weight: 500; position: relative;">산우리의 밤하늘을 수놓는 특별한 별빛들</p>
-                </div>
-
-                <!-- 아이템 그리드 -->
-                <div id="guideGrid" style="display: grid; grid-template-columns: repeat(2, 1fr); row-gap: 10px; column-gap: 10px;">
-                </div>
-
-                <!-- 하단 블랙 네온 블루 확인 버튼 (팁 문구 제거됨) -->
-                <div style="margin-top: 18px;">
-                    <button onclick="toggleStarGuide(false)" style="width: 100%; background: linear-gradient(135deg, #090d16 0%, #0f1c3f 50%, #1e293b 100%); border: 1px solid rgba(56, 189, 248, 0.4); color: #e0f2fe; font-size: 0.88rem; font-weight: 800; letter-spacing: 2px; padding: 12px 0; border-radius: 14px; cursor: pointer; box-shadow: 0 0 15px rgba(56, 189, 248, 0.25), inset 0 0 10px rgba(56, 189, 248, 0.15); text-shadow: 0 0 8px rgba(56, 189, 248, 0.6); transition: all 0.3s ease; box-sizing: border-box;" onmouseover="this.style.borderColor='rgba(56, 189, 248, 0.8)'; this.style.boxShadow='0 0 22px rgba(56, 189, 248, 0.5), inset 0 0 15px rgba(56, 189, 248, 0.3)';" onmouseout="this.style.borderColor='rgba(56, 189, 248, 0.4)'; this.style.boxShadow='0 0 15px rgba(56, 189, 248, 0.25), inset 0 0 10px rgba(56, 189, 248, 0.15)';">
-                        확인
-                    </button>
-                </div>
-
+    // --- [ 가이드 UI 주입 ] ---
+    if (!document.getElementById('starGuideBtn')) {
+        const guideHTML = `
+            <div class="mw-header-controls" style="position: absolute; top: 60px; right: 20px; z-index: 10010;">
+                <button id="starGuideBtn" onclick="toggleStarGuide(true)" class="star-guide-btn" style="border-color: rgba(255,255,255,0.3); background: rgba(0,0,0,0.4);">
+                    <span class="sparkle-icon">✨</span> 별 가이드
+                </button>
             </div>
-        </div>`;
-    modal.insertAdjacentHTML('afterbegin', guideHTML);
-}
+            <div id="starGuideModal" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10020; border-radius: inherit; background: rgba(3, 7, 18, 0.85); backdrop-filter: blur(14px); justify-content: center; align-items: center; opacity: 0; transition: opacity 0.25s ease;" onclick="toggleStarGuide(false)">
+                <div style="width: 90%; max-width: 360px; max-height: 85vh; background: linear-gradient(160deg, #0f172a 0%, #080d1a 100%); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 24px; padding: 22px 18px 18px 18px; position: relative; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9), 0 0 25px rgba(99, 102, 241, 0.15); box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden;" onclick="event.stopPropagation()">
+                    
+                    <div style="text-align: center; margin-bottom: 16px; flex-shrink: 0; position: relative;">
+                        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 140px; height: 35px; background: rgba(99, 102, 241, 0.2); filter: blur(20px); border-radius: 50%; pointer-events: none;"></div>
+                        <h3 style="color: #fff; font-size: 1.1rem; font-weight: 900; letter-spacing: 3px; margin: 0; text-shadow: 0 0 12px rgba(165, 180, 252, 0.6); position: relative;">STAR GALLERY</h3>
+                        <p style="color: #94a3b8; font-size: 0.68rem; margin: 4px 0 0 0; opacity: 0.85; font-weight: 500; position: relative;">산우리의 밤하늘을 수놓는 특별한 별빛들</p>
+                    </div>
 
-    // --- [2. UI 초기화: 글씨 완벽 중앙 고정 & 버튼 오른쪽 우회 배치] ---
+                    <div id="guideGrid" style="display: grid; grid-template-columns: repeat(1, 1fr); row-gap: 10px; overflow-y: auto; padding-right: 4px; max-height: 60vh;">
+                    </div>
+
+                    <div style="margin-top: 14px; flex-shrink: 0;">
+                        <button onclick="toggleStarGuide(false)" style="width: 100%; background: linear-gradient(135deg, #090d16 0%, #0f1c3f 50%, #1e293b 100%); border: 1px solid rgba(56, 189, 248, 0.4); color: #e0f2fe; font-size: 0.88rem; font-weight: 800; letter-spacing: 2px; padding: 12px 0; border-radius: 14px; cursor: pointer; box-shadow: 0 0 15px rgba(56, 189, 248, 0.25), inset 0 0 10px rgba(56, 189, 248, 0.15); text-shadow: 0 0 8px rgba(56, 189, 248, 0.6); transition: all 0.3s ease; box-sizing: border-box;">
+                            확인
+                        </button>
+                    </div>
+                </div>
+            </div>`;
+        modal.insertAdjacentHTML('afterbegin', guideHTML);
+    }
+
+    // --- [ UI 초기화 ] ---
     modal.style.display = 'flex';
     if (nameLabel) {
         nameLabel.style.textAlign = 'center';
         nameLabel.style.width = '100%';
         nameLabel.style.position = 'relative';
-        
         nameLabel.innerHTML = `
             <span style="position: relative; display: inline-block;">
                 ${mName}님의 은하수
@@ -7048,65 +7061,40 @@ if (!document.getElementById('starGuideBtn')) {
     board.innerHTML = '<div class="nebula-cloud"></div>';
 
     try {
-        // --- [3. DB 회원 데이터 조회 및 동행지수 연산] ---
-        let memberInfo = null;
-        
-        // 1순위: 전역 currentData에서 mId로 검색
-        if (typeof currentData !== 'undefined' && Array.isArray(currentData)) {
-            memberInfo = currentData.find(m => m.id === mId || m.name === mName);
-        }
+        let memberInfo = (typeof currentData !== 'undefined' && Array.isArray(currentData)) 
+            ? currentData.find(m => m.id === mId || m.name === mName) : null;
 
-        // 2순위: currentData에 없으면 DB 개별 문서 직접 조회 (읽기 최소화)
         if (!memberInfo && mId) {
             const mDoc = await getDoc(doc(db, "sanwoori", mId));
-            if (mDoc.exists()) {
-                memberInfo = { id: mDoc.id, ...mDoc.data() };
-            }
+            if (mDoc.exists()) memberInfo = { id: mDoc.id, ...mDoc.data() };
         }
 
-        // DB 필드 값 매칭 (count: 전체 산행, buddyCount: 동행 산행)
         const finalTotalHikes = memberInfo ? (memberInfo.count || 0) : 0; 
         const myMultiHikes = memberInfo ? (memberInfo.buddyCount || 0) : 0;
-        
-        // 동행 횟수가 전체 산행 횟수보다 크게 잡히는 구조적 예외 방어
         const adjustedTotalHikes = Math.max(finalTotalHikes, myMultiHikes);
-        
-        // 동행지수 연산 (%)
         const finalSynergy = adjustedTotalHikes > 0 ? Math.min(100, Math.round((myMultiHikes / adjustedTotalHikes) * 100)) : 0;
 
-        console.log(`🌌 [은하수 동행지수] ${mName}님 - 총 산행: ${adjustedTotalHikes}회 / 동행: ${myMultiHikes}회 / 동행지수: ${finalSynergy}%`);
-
-        // --- [4. 동행지수 60% 이상일 때 오로라 및 배경 별빛 효과 실행] ---
         if (finalSynergy >= 60) {
             const starColors = ["#E0F7FA", "#FFF0F5", "#FFECB3", "#F3E5F5", "#FFFFFF", "#80CBC4", "#FFAB91"];
-            
             for (let i = 0; i < 70; i++) {
                 const bgStar = document.createElement('div');
                 bgStar.className = 'bg-star';
-                
                 const size = Math.random() * 1.5 + 0.5;
-                bgStar.style.width = `${size}px`;
-                bgStar.style.height = `${size}px`;
-                bgStar.style.left = `${Math.random() * 100}%`;
-                bgStar.style.top = `${Math.random() * 100}%`;
-                
+                bgStar.style.width = `${size}px`; bgStar.style.height = `${size}px`;
+                bgStar.style.left = `${Math.random() * 100}%`; bgStar.style.top = `${Math.random() * 100}%`;
                 const pickedColor = starColors[Math.floor(Math.random() * starColors.length)];
                 bgStar.style.backgroundColor = pickedColor;
                 bgStar.style.boxShadow = `0 0 3px ${pickedColor}`;
-                
                 bgStar.style.animationDuration = `${Math.random() * 5 + 5}s`;
                 bgStar.style.animationDelay = `${Math.random() * 10}s`;
-                
                 board.appendChild(bgStar);
             }
-            
             const aurora = document.createElement('div');
             aurora.className = 'aurora-layer';
             board.prepend(aurora); 
             requestAnimationFrame(() => aurora.classList.add('aurora-active'));
         }
      
-        // --- [5. 별자리 데이터 로드 및 그리기] ---
         const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
         const logs = snap.docs
             .map(d => d.data())
@@ -7143,10 +7131,8 @@ if (!document.getElementById('starGuideBtn')) {
             const star = document.createElement('div');
             star.className = `absolute ${starSize} rounded-full z-10`;
             star.style.cssText += customStyle || `background-color: ${starColor}; box-shadow: 0 0 6px ${shadowColor}, 0 0 12px ${shadowColor}`;
-            star.style.left = log.coords.x + "%";
-            star.style.top = log.coords.y + "%";
-            star.style.opacity = "0";
-            star.style.transition = "opacity 1s ease";
+            star.style.left = log.coords.x + "%"; star.style.top = log.coords.y + "%";
+            star.style.opacity = "0"; star.style.transition = "opacity 1s ease";
             board.appendChild(star);
 
             let line = null;
@@ -7160,8 +7146,7 @@ if (!document.getElementById('starGuideBtn')) {
                 line.style.height = '0.5px'; line.style.width = dist + "%";
                 line.style.left = x1 + "%"; line.style.top = y1 + "%";
                 line.style.transform = `rotate(${angle}deg)`;
-                line.style.opacity = "0";
-                line.style.transition = "opacity 1s ease";
+                line.style.opacity = "0"; line.style.transition = "opacity 1s ease";
                 board.appendChild(line);
             }
 
@@ -7176,15 +7161,15 @@ if (!document.getElementById('starGuideBtn')) {
     } catch (e) {
         console.error("은하수 로딩 에러:", e);
     }
-}
-    
-// --- [가이드backgroun
-    window.toggleStarGuide = (show) => {
+};
+
+// 3. 가이드 모달 토글 함수 (HTML onclick 연결용 window 등록)
+window.toggleStarGuide = async (show) => {
     const gModal = document.getElementById('starGuideModal');
     if (!gModal) return;
     if (show) {
         renderStarGuideItems();
-        gModal.style.display = 'flex'; // 중앙 정렬 flex 적용
+        gModal.style.display = 'flex';
         setTimeout(() => { gModal.style.opacity = '1'; }, 10);
     } else {
         gModal.style.opacity = '0';
@@ -7192,37 +7177,64 @@ if (!document.getElementById('starGuideBtn')) {
     }
 };
 
+// 4. 로컬 currentData 메모리 기반 수집 함수 (Firestore Read: 0건)
+function getLegendStarHistoryFromLocal() {
+    const legendHistory = { "super": [], "special": [] };
 
-    
+    if (typeof currentData !== 'undefined' && Array.isArray(currentData)) {
+        currentData.forEach(member => {
+            if (member.specialStars && Array.isArray(member.specialStars)) {
+                member.specialStars.forEach(item => {
+                    if (item.starType === "super" || item.starType === "special") {
+                        legendHistory[item.starType].push({
+                            name: member.name || "익명",
+                            quarter: item.quarter || "1Q",
+                            timestamp: item.timestamp || 0
+                        });
+                    }
+                });
+            }
+        });
+    }
+
+    legendHistory["super"].sort((a, b) => b.timestamp - a.timestamp);
+    legendHistory["special"].sort((a, b) => b.timestamp - a.timestamp);
+
+    return legendHistory;
+}
+
+// 5. 별 가이드 랜더링 함수
 function renderStarGuideItems() {
     const grid = document.getElementById('guideGrid');
     if (!grid) return;
 
+    const legendHistory = getLegendStarHistoryFromLocal();
+
     const stars = [
         { 
-            name: "슈퍼별", prob: "3%", desc: "타오르는 태양의 전설", 
+            id: "super", name: "슈퍼별", prob: "3%", desc: "타오르는 태양의 전설", 
             style: "background: radial-gradient(circle, #FF0000 10%, #FFFF00 70%, #fff 100%); box-shadow: 0 0 10px 2px #FF0000, 0 0 18px 5px #FFFF00;", 
             cardBg: "background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(245, 158, 11, 0.08) 100%); border: 1px solid rgba(239, 68, 68, 0.45); box-shadow: inset 0 0 12px rgba(239, 68, 68, 0.15);",
             tagBg: "background: rgba(239, 68, 68, 0.3); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.5);",
             twinkle: true 
         },
         { 
-            name: "스페셜별", prob: "7%", desc: "신비로운 에픽 오로라", 
+            id: "special", name: "스페셜별", prob: "7%", desc: "신비로운 에픽 오로라", 
             style: "background: radial-gradient(circle, #A020F0 10%, #00FF7F 70%, #fff 100%); box-shadow: 0 0 10px 2px #A020F0, 0 0 18px 5px #00FF7F;", 
             cardBg: "background: linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(16, 185, 129, 0.08) 100%); border: 1px solid rgba(168, 85, 247, 0.45); box-shadow: inset 0 0 12px rgba(168, 85, 247, 0.15);",
             tagBg: "background: rgba(168, 85, 247, 0.3); color: #e9d5ff; border: 1px solid rgba(168, 85, 247, 0.5);",
             twinkle: true 
         },
-        { name: "정기 1호", prob: "22.5%", desc: "청명한 시안 블루", style: "background: #00FFFF; box-shadow: 0 0 8px #00FFFF;", twinkle: true },
-        { name: "정기 2호", prob: "22.5%", desc: "정열의 오렌지", style: "background: #D35400; box-shadow: 0 0 8px #D35400;", twinkle: true },
-        { name: "정기 3호", prob: "22.5%", desc: "위엄있는 다크레드", style: "background: #D32F2F; box-shadow: 0 0 8px #D32F2F;", twinkle: true },
-        { name: "정기 4호", prob: "22.5%", desc: "진하고 우아한 퍼플", style: "background: #7C4DFF; box-shadow: 0 0 8px #7C4DFF;", twinkle: true },
-        { name: "산림청100대", prob: "인증", desc: "영광의 샴페인 골드", style: "background: #F7E7CE; box-shadow: 0 0 8px #F7E7CE;", twinkle: false },
-        { name: "일반 산행", prob: "상시", desc: "소중한 일상의 기록", style: "background: #FFFFFF; box-shadow: 0 0 6px #FFFFFF;", twinkle: false }
+        { id: "regular_1", name: "정기 1호", prob: "22.5%", desc: "청명한 시안 블루", style: "background: #00FFFF; box-shadow: 0 0 8px #00FFFF;", twinkle: true },
+        { id: "regular_2", name: "정기 2호", prob: "22.5%", desc: "정열의 오렌지", style: "background: #D35400; box-shadow: 0 0 8px #D35400;", twinkle: true },
+        { id: "regular_3", name: "정기 3호", prob: "22.5%", desc: "위엄있는 다크레드", style: "background: #D32F2F; box-shadow: 0 0 8px #D32F2F;", twinkle: true },
+        { id: "regular_4", name: "정기 4호", prob: "22.5%", desc: "진하고 우아한 퍼플", style: "background: #7C4DFF; box-shadow: 0 0 8px #7C4DFF;", twinkle: true },
+        { id: "top100", name: "산림청100대", prob: "인증", desc: "영광의 샴페인 골드", style: "background: #F7E7CE; box-shadow: 0 0 8px #F7E7CE;", twinkle: false },
+        { id: "normal", name: "일반 산행", prob: "상시", desc: "소중한 일상의 기록", style: "background: #FFFFFF; box-shadow: 0 0 6px #FFFFFF;", twinkle: false }
     ];
 
     const createDivider = (label) => `
-        <div style="grid-column: 1 / -1; margin: 10px 0 4px 0; display: flex; align-items: center; gap: 8px;">
+        <div style="margin: 12px 0 6px 0; display: flex; align-items: center; gap: 8px;">
             <div style="width: 4px; height: 4px; border-radius: 50%; background: #38bdf8; box-shadow: 0 0 6px #38bdf8;"></div>
             <span style="color: #38bdf8; font-size: 8px; font-weight: 900; letter-spacing: 2px; opacity: 0.9; text-transform: uppercase; text-shadow: 0 0 8px rgba(56, 189, 248, 0.6);">${label}</span>
             <div style="flex: 1; height: 1px; background: linear-gradient(90deg, rgba(56, 189, 248, 0.4) 0%, rgba(56, 189, 248, 0) 100%);"></div>
@@ -7230,20 +7242,20 @@ function renderStarGuideItems() {
     `;
 
     const footerStatsHTML = `
-        <div style="grid-column: 1 / -1; margin-top: 8px; padding: 10px 14px; background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 14px; display: flex; justify-content: space-around; align-items: center; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.4), inset 0 0 15px rgba(56, 189, 248, 0.05); backdrop-filter: blur(8px);">
+        <div style="margin-top: 10px; padding: 10px 14px; background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 14px; display: flex; justify-content: space-around; align-items: center; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.4), inset 0 0 15px rgba(56, 189, 248, 0.05); backdrop-filter: blur(8px);">
             <div>
                 <span style="display: block; color: #f43f5e; font-size: 11px; font-weight: 900; text-shadow: 0 0 8px rgba(244, 63, 94, 0.6);">레전드 확률</span>
-                <span style="color: #94a3b8; font-size: 8px; font-weight: 600; letter-spacing: -0.2px;">10%</span>
+                <span style="color: #94a3b8; font-size: 8px; font-weight: 600;">10%</span>
             </div>
             <div style="width: 1px; height: 18px; background: linear-gradient(180deg, transparent, rgba(255,255,255,0.2), transparent);"></div>
             <div>
                 <span style="display: block; color: #38bdf8; font-size: 11px; font-weight: 900; text-shadow: 0 0 8px rgba(56, 189, 248, 0.6);">정기 획득률</span>
-                <span style="color: #94a3b8; font-size: 8px; font-weight: 600; letter-spacing: -0.2px;">90%</span>
+                <span style="color: #94a3b8; font-size: 8px; font-weight: 600;">90%</span>
             </div>
             <div style="width: 1px; height: 18px; background: linear-gradient(180deg, transparent, rgba(255,255,255,0.2), transparent);"></div>
             <div>
                 <span style="display: block; color: #fbbf24; font-size: 11px; font-weight: 900; text-shadow: 0 0 8px rgba(251, 191, 36, 0.6);">100대 명산</span>
-                <span style="color: #94a3b8; font-size: 8px; font-weight: 600; letter-spacing: -0.2px;">인증 전용</span>
+                <span style="color: #94a3b8; font-size: 8px; font-weight: 600;">인증 전용</span>
             </div>
         </div>
     `;
@@ -7252,19 +7264,44 @@ function renderStarGuideItems() {
         const bgStyle = s.cardBg || "background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.02);";
         const tagStyle = s.tagBg || "background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3);";
 
-        const cardHTML = `
-        <div class="star-info-card" style="${bgStyle} border-radius: 14px; padding: 10px 10px; display: flex; align-items: center; gap: 10px; min-height: 54px; box-sizing: border-box; backdrop-filter: blur(6px); transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); cursor: default;" onmouseover="this.style.transform='translateY(-3px)'; this.style.borderColor='rgba(56, 189, 248, 0.6)'; this.style.boxShadow='0 8px 20px rgba(0,0,0,0.5), 0 0 12px rgba(56, 189, 248, 0.25)';" onmouseout="this.style.transform='translateY(0)'; this.style.borderColor=''; this.style.boxShadow='';">
-            <!-- 검은 테두리를 없애고 원본 별 아이콘 영역만 투명하게 유지 -->
-            <div style="width: 24px; height: 24px; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
-                <div class="star-preview ${s.twinkle ? 'animate-twinkle' : ''}" style="width: 12px; height: 12px; border-radius: 50%; ${s.style}"></div>
-            </div>
-            <div style="display: flex; flex-direction: column; justify-content: center; min-width: 0;">
-                <div style="display: flex; align-items: center; gap: 5px; margin-bottom: 2px;">
-                    <span style="color: #f8fafc; font-size: 11px; font-weight: 800; letter-spacing: -0.2px; white-space: nowrap;">${s.name}</span>
-                    <span style="${tagStyle} font-size: 7.5px; font-weight: 900; padding: 1px 5px; border-radius: 5px; flex-shrink: 0; letter-spacing: -0.2px;">${s.prob}</span>
+        let legendHoldersSection = "";
+        if (s.id === "super" || s.id === "special") {
+            const holders = legendHistory[s.id] || [];
+            let holdersHTML = "";
+
+            if (holders.length > 0) {
+                holdersHTML = holders.map(h => `
+                    <span style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: #f8fafc; font-size: 8.5px; font-weight: 700; padding: 2px 7px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+                        <span style="color: #38bdf8; font-weight: 900; font-size: 8px;">${h.quarter}</span> ${h.name}
+                    </span>
+                `).join('');
+            } else {
+                holdersHTML = `<span style="color: #64748b; font-size: 8px; font-style: italic;">아직 획득자 없음</span>`;
+            }
+
+            legendHoldersSection = `
+                <div style="display: flex; flex-wrap: wrap; gap: 4px; padding-top: 6px; margin-top: 2px; border-top: 1px solid rgba(255, 255, 255, 0.08); align-items: center;">
+                    <span style="color: #94a3b8; font-size: 8px; font-weight: 700; margin-right: 2px;">획득자:</span>
+                    ${holdersHTML}
                 </div>
-                <span style="color: #94a3b8; font-size: 8.5px; line-height: 1.2; opacity: 0.85; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${s.desc}</span>
+            `;
+        }
+
+        const cardHTML = `
+        <div class="star-info-card" style="${bgStyle} border-radius: 14px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; box-sizing: border-box; backdrop-filter: blur(6px);">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 24px; height: 24px; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
+                    <div class="star-preview ${s.twinkle ? 'animate-twinkle' : ''}" style="width: 12px; height: 12px; border-radius: 50%; ${s.style}"></div>
+                </div>
+                <div style="display: flex; flex-direction: column; justify-content: center; min-width: 0; flex: 1;">
+                    <div style="display: flex; align-items: center; gap: 5px; margin-bottom: 2px;">
+                        <span style="color: #f8fafc; font-size: 11px; font-weight: 800; letter-spacing: -0.2px; white-space: nowrap;">${s.name}</span>
+                        <span style="${tagStyle} font-size: 7.5px; font-weight: 900; padding: 1px 5px; border-radius: 5px; flex-shrink: 0;">${s.prob}</span>
+                    </div>
+                    <span style="color: #94a3b8; font-size: 8.5px; opacity: 0.85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${s.desc}</span>
+                </div>
             </div>
+            ${legendHoldersSection}
         </div>`;
 
         if (index === 0) return createDivider('LEGEND STARS') + cardHTML;
@@ -7277,22 +7314,17 @@ function renderStarGuideItems() {
     grid.innerHTML = cardsHTML + footerStatsHTML;
 }
 
-
-
 function createShootingStar(board, tx, ty) {
     const s = document.createElement('div');
     s.className = 'shooting-star';
-    const startX = tx - 20;
-    const startY = ty - 20;
-    s.style.left = startX + "%";
-    s.style.top = startY + "%";
+    const startX = tx - 20; const startY = ty - 20;
+    s.style.left = startX + "%"; s.style.top = startY + "%";
     s.style.transform = "rotate(45deg)";
     board.appendChild(s);
 
     setTimeout(() => {
         s.style.transition = "all 0.8s cubic-bezier(0.25, 0.1, 0.25, 1)";
-        s.style.left = tx + "%";
-        s.style.top = ty + "%";
+        s.style.left = tx + "%"; s.style.top = ty + "%";
         s.style.opacity = "1";
     }, 50);
 
@@ -7302,9 +7334,9 @@ function createShootingStar(board, tx, ty) {
     }, 850);
 }
 
- 
-  
 
+        
+        
         
             // 필터링 및 페이징 처리를 위해 모달 전용 로그 목록을 임시 저장할 전역 변수 (캐시)
 window.currentScrollLogs = []; 
