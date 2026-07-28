@@ -7207,7 +7207,6 @@ function getLegendStarHistoryFromLocal() {
 
 
          
-// 이전 획득자 전체 보기 팝업
 window.showAllHolders = (starName, holdersJson) => {
     const list = JSON.parse(decodeURIComponent(holdersJson));
     const textList = list.map(h => `• [${h.quarter}] ${h.name}`).join('\n');
@@ -7218,12 +7217,14 @@ async function renderStarGuideItems() {
     const grid = document.getElementById('guideGrid');
     if (!grid) return;
 
+    // 그리드 레이아웃 설정
     grid.style.display = 'grid';
     grid.style.gridTemplateColumns = 'repeat(2, 1fr)';
     grid.style.gap = '8px';
 
     const legendHolders = { super: [], special: [] };
 
+    // Firebase에서 슈퍼별/스페셜별 획득자 데이터 가져오기
     try {
         if (typeof getDocs !== 'undefined' && typeof collection !== 'undefined' && typeof db !== 'undefined') {
             const snapshot = await getDocs(collection(db, "sanwoori"));
@@ -7232,10 +7233,17 @@ async function renderStarGuideItems() {
                 const memberName = data.name || doc.id;
 
                 if (data.hasSuperStar === true) {
-                    legendHolders.super.push({ name: memberName, quarter: data.superStarQuarter || "1Q" });
+                    legendHolders.super.push({
+                        name: memberName,
+                        quarter: data.superStarQuarter || "1Q"
+                    });
                 }
+
                 if (data.hasSpecialStar === true) {
-                    legendHolders.special.push({ name: memberName, quarter: data.specialStarQuarter || "1Q" });
+                    legendHolders.special.push({
+                        name: memberName,
+                        quarter: data.specialStarQuarter || "1Q"
+                    });
                 }
             });
         }
@@ -7243,20 +7251,20 @@ async function renderStarGuideItems() {
         console.error("획득자 불러오기 에러:", err);
     }
 
-    // 원래 있던 별 스타일 & 광원 효과 100% 복원
+    // 🌟 원본 별 색상 및 그라데이션 복원
     const stars = [
         { 
             id: "super", name: "슈퍼별", prob: "3%", desc: "타오르는 태양의 전설", 
             style: "background: radial-gradient(circle, #ffe066 0%, #ff4d4d 50%, #b30000 100%); box-shadow: 0 0 12px #ff4d4d, inset 0 0 4px #ffffff;", 
-            cardBg: "background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(245, 158, 11, 0.08) 100%); border: 1px solid rgba(239, 68, 68, 0.45);", 
-            tagBg: "background: rgba(239, 68, 68, 0.3); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.5);", 
+            cardBg: "background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(245, 158, 11, 0.08) 100%); border: 1px solid rgba(239, 68, 68, 0.45); box-shadow: inset 0 0 12px rgba(239, 68, 68, 0.15);",
+            tagBg: "background: rgba(239, 68, 68, 0.3); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.5);",
             twinkle: true 
         },
         { 
             id: "special", name: "스페셜별", prob: "7%", desc: "신비로운 에픽 오로라", 
             style: "background: radial-gradient(circle, #a7f3d0 0%, #a855f7 60%, #4c1d95 100%); box-shadow: 0 0 12px #a855f7, inset 0 0 4px #ffffff;", 
-            cardBg: "background: linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(16, 185, 129, 0.08) 100%); border: 1px solid rgba(168, 85, 247, 0.45);", 
-            tagBg: "background: rgba(168, 85, 247, 0.3); color: #e9d5ff; border: 1px solid rgba(168, 85, 247, 0.5);", 
+            cardBg: "background: linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(16, 185, 129, 0.08) 100%); border: 1px solid rgba(168, 85, 247, 0.45); box-shadow: inset 0 0 12px rgba(168, 85, 247, 0.15);",
+            tagBg: "background: rgba(168, 85, 247, 0.3); color: #e9d5ff; border: 1px solid rgba(168, 85, 247, 0.5);",
             twinkle: true 
         },
         { id: "regular_1", name: "정기 1호", prob: "22.5%", desc: "청명한 시안 블루", style: "background: radial-gradient(circle, #e0f2fe 0%, #06b6d4 100%); box-shadow: 0 0 10px #06b6d4;", twinkle: true },
@@ -7267,18 +7275,20 @@ async function renderStarGuideItems() {
         { id: "normal", name: "일반 산행", prob: "상시", desc: "소중한 일상의 기록", style: "background: radial-gradient(circle, #ffffff 30%, #cbd5e1 100%); box-shadow: 0 0 10px rgba(255, 255, 255, 0.9);", twinkle: false }
     ];
 
+    // 구분선 생성 함수 (한글 빼고 영문 표기)
     const createDivider = (label) => `
         <div style="grid-column: 1 / -1; margin: 8px 0 2px 0; display: flex; align-items: center; gap: 8px;">
             <div style="width: 4px; height: 4px; border-radius: 50%; background: #38bdf8; box-shadow: 0 0 6px #38bdf8;"></div>
-            <span style="color: #38bdf8; font-size: 8px; font-weight: 900; letter-spacing: 2px; opacity: 0.9; text-transform: uppercase;">${label}</span>
+            <span style="color: #38bdf8; font-size: 8px; font-weight: 900; letter-spacing: 2px; opacity: 0.9; text-transform: uppercase; text-shadow: 0 0 8px rgba(56, 189, 248, 0.6);">${label}</span>
             <div style="flex: 1; height: 1px; background: linear-gradient(90deg, rgba(56, 189, 248, 0.4) 0%, rgba(56, 189, 248, 0) 100%);"></div>
         </div>
     `;
 
     let cardsHTML = stars.map((s, index) => {
-        const bgStyle = s.cardBg || "background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08);";
+        const bgStyle = s.cardBg || "background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.02);";
         const tagStyle = s.tagBg || "background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3);";
 
+        // 슈퍼별/스페셜별 하단 중앙 정렬 획득자 영역
         let legendHoldersSection = "";
         if (s.id === "super" || s.id === "special") {
             const list = legendHolders[s.id] || [];
@@ -7305,6 +7315,7 @@ async function renderStarGuideItems() {
                 holdersHTML = `<span style="color: #64748b; font-size: 8px; font-style: italic;">아직 획득자 없음</span>`;
             }
 
+            // 획득자 라인 중앙 정렬
             legendHoldersSection = `
                 <div style="display: flex; justify-content: center; align-items: center; gap: 4px; padding-top: 5px; margin-top: 4px; border-top: 1px solid rgba(255, 255, 255, 0.08); width: 100%;">
                     <span style="color: #94a3b8; font-size: 8px; font-weight: 700;">획득자:</span>
@@ -7316,11 +7327,11 @@ async function renderStarGuideItems() {
         const cardHTML = `
         <div style="${bgStyle} border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; justify-content: center; box-sizing: border-box; backdrop-filter: blur(6px); min-height: 52px;">
             <div style="display: flex; align-items: center; gap: 10px;">
-                <!-- 별 크기 12px 및 고정 축 유지 -->
-                <div style="width: 20px; min-width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin: 0; padding: 0;">
-                    <div class="${s.twinkle ? 'animate-twinkle' : ''}" style="width: 12px; height: 12px; border-radius: 50%; box-sizing: border-box; ${s.style}"></div>
+                <!-- 별 크기 12px 고정 및 축 정렬 -->
+                <div style="width: 20px !important; height: 20px !important; display: flex !important; justify-content: center !important; align-items: center !important; flex-shrink: 0 !important; margin: 0 !important; padding: 0 !important; background: transparent !important;">
+                    <div class="${s.twinkle ? 'animate-twinkle' : ''}" style="width: 12px !important; height: 12px !important; border-radius: 50% !important; box-sizing: border-box !important; ${s.style}"></div>
                 </div>
-                <!-- 제목 글자 크기 10px -->
+                <!-- 제목 글씨 크기 10px 고정 -->
                 <div style="display: flex; flex-direction: column; justify-content: center; min-width: 0; flex: 1;">
                     <div style="display: flex; align-items: center; gap: 5px; margin-bottom: 2px;">
                         <span style="color: #ffffff; font-size: 10px; font-weight: 800; letter-spacing: -0.3px; white-space: nowrap;">${s.name}</span>
