@@ -7365,14 +7365,14 @@ function getLegendStarHistoryFromLocal() {
     return legendHistory;
 }
 
-// 🌌 스타 갤러리 커스텀 모달 닫기 함수 (window에 등록하여 이벤트 바인딩 오류 방지)
+// 🌌 스타 갤러리 커스텀 모달 닫기 함수
 window.closeSgModal = function(e) {
     const modal = document.getElementById('sgCustomModal');
     if (modal) modal.remove();
 };
 
 // 🌌 스타 갤러리 커스텀 모달 열기 함수
-function showStarGalleryModal(type, titleText, nameList) {
+function showStarGalleryModal(type, titleText, items) {
     const oldModal = document.getElementById('sgCustomModal');
     if (oldModal) oldModal.remove();
 
@@ -7380,12 +7380,14 @@ function showStarGalleryModal(type, titleText, nameList) {
     const icon = isSuper ? "🌟" : "✨";
     const themeClass = isSuper ? "super" : "special";
 
-    // 이름 항목 HTML 태그 생성
-    const listHtml = nameList.map(name => `
-        <div class="sg-owner-item">${name}</div>
+    // 이름 + 획득 연도를 깔끔하게 분리한 카드 목록 생성
+    const listHtml = items.map(item => `
+        <div class="sg-owner-item" style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-weight: 600;">[${item.quarter}] ${item.name}</span>
+            <span style="font-size: 0.8rem; color: rgba(255, 255, 255, 0.5); font-weight: 400;">${item.displayYear}</span>
+        </div>
     `).join('');
 
-    // X 버튼 제거 및 window.closeSgModal 호출 방식 적용
     const modalHtml = `
         <div id="sgCustomModal" class="sg-modal-overlay" onclick="window.closeSgModal(event)">
             <div class="sg-modal-content ${themeClass}" onclick="event.stopPropagation()">
@@ -7410,8 +7412,19 @@ window.showAllHolders = (starName, holdersJson) => {
     // 1. JSON 데이터 파싱
     const list = JSON.parse(decodeURIComponent(holdersJson));
     
-    // 2. 모달에 보여줄 이름 목록 배열로 변환
-    const formattedList = list.map(h => `[${h.quarter}] ${h.name}`);
+    // 2. 연도 데이터 추출 및 포맷팅 (year, date, created_at 등 대응)
+    const formattedItems = list.map(h => {
+        let rawYear = h.year || h.date || h.createdAt || '';
+        // "2026-04-03" 같은 날짜 형태에서 연도 4자리만 추출 (필요시)
+        let displayYear = rawYear.toString().substring(0, 4);
+        if (displayYear) displayYear += '년';
+
+        return {
+            quarter: h.quarter,
+            name: h.name,
+            displayYear: displayYear
+        };
+    });
 
     // 3. 별 이름(starName)에 따라 테마 타입 구분
     const isSuper = starName.includes("슈퍼");
@@ -7419,9 +7432,8 @@ window.showAllHolders = (starName, holdersJson) => {
     const modalTitle = `${starName} 전체 획득자 목록`;
 
     // 4. 커스텀 모달 띄우기
-    showStarGalleryModal(starType, modalTitle, formattedList);
+    showStarGalleryModal(starType, modalTitle, formattedItems);
 };
-
 
 
 // 5. 가이드 항목 랜더링 함수
