@@ -6988,36 +6988,43 @@ window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
 };
     
                 
-     
-    
-    // ======================= [별 가이드 & 은하수 모듈 통합 - 수정 완료] =======================
+  // ======================= [별 가이드 & 은하수 모듈 통합 - 수정 완료] =======================
 
-// 1. 회원 DB 문서(sanwoori/{memberId})에 레전드 별 획득 기록 저장하는 함수
-async function saveSpecialStarToMember(memberId, starType, quarterText) {
+// 1. 회원 DB 문서(sanwoori/{memberId})에 레전드 별 획득 기록 저장하는 함수 (최초 1회만 등록)
+async function saveSpecialStarToMember(memberId, starType, quarterText, memberInfo) {
     if (starType === "super" || starType === "special") {
         try {
+            // 이미 획득 기록(specialStars)이 존재하는지 확인 (중복 등록 및 수정값 덮어쓰기 방지)
+            const currentSpecialStars = memberInfo?.specialStars || [];
+            const isAlreadySaved = currentSpecialStars.some(item => item.starType === starType);
+
+            // 최초 등록이 아닐 경우(이미 저장된 기록이 있으면) 자동 저장 로직 실행 안 함
+            if (isAlreadySaved) return;
+
+            const newRecord = {
+                starType: starType,
+                quarter: quarterText || "1Q",
+                timestamp: Date.now()
+            };
+
             const memberRef = doc(db, "sanwoori", memberId);
             await updateDoc(memberRef, {
-                specialStars: arrayUnion({
-                    starType: starType,
-                    quarter: quarterText || "1Q",
-                    timestamp: Date.now()
-                })
+                specialStars: arrayUnion(newRecord)
             });
             
-            // 로컬 메모리(currentData)에도 즉시 반영하여 UI 갱신 시 Firestore 재조회 방지
+            // 로컬 메모리(currentData & memberInfo)에도 즉시 반영하여 UI 최신화
+            if (!memberInfo.specialStars) memberInfo.specialStars = [];
+            memberInfo.specialStars.push(newRecord);
+
             if (typeof currentData !== 'undefined' && Array.isArray(currentData)) {
                 const target = currentData.find(m => m.id === memberId);
                 if (target) {
                     if (!target.specialStars) target.specialStars = [];
-                    const exists = target.specialStars.some(s => s.starType === starType && s.quarter === quarterText);
-                    if (!exists) {
-                        target.specialStars.push({ starType, quarter: quarterText || "1Q", timestamp: Date.now() });
-                    }
+                    target.specialStars.push(newRecord);
                 }
             }
         } catch (err) {
-            console.error("레전드 별 기록 업데이트 실패:", err);
+            console.error("레전드 별 기록 최초 업데이트 실패:", err);
         }
     }
 }
@@ -7127,10 +7134,10 @@ window.showMilkyWay = async (mId, mName) => {
             if (log.starType) {
                 shouldTwinkle = true;
                 
-                // ⭐ [수정 핵심]: 레전드 별 발견 시 회원 DB 문서에 자동 저장 함수 호출
+                // ⭐ [수정 핵심]: 레전드 별 발견 시 최초 1회만 자동 저장 (이미 존재하면 자동 저장 건너뜀)
                 if (log.starType === "super" || log.starType === "special") {
-                    const quarterText = log.quarter || (log.date ? `${Math.floor(log.date.toDate().getMonth() / 3) + 1}Q` : "1Q");
-                    saveSpecialStarToMember(mId, log.starType, quarterText);
+                    const defaultQuarter = log.quarter || (log.date ? `${Math.floor(log.date.toDate().getMonth() / 3) + 1}Q` : "1Q");
+                    saveSpecialStarToMember(mId, log.starType, defaultQuarter, memberInfo);
                 }
 
                 if (log.starType === "super") {
@@ -7205,7 +7212,6 @@ function getLegendStarHistoryFromLocal() {
 
     if (typeof currentData !== 'undefined' && Array.isArray(currentData)) {
         currentData.forEach(member => {
-            // specialStars 배열 구조 읽기
             if (member.specialStars && Array.isArray(member.specialStars)) {
                 member.specialStars.forEach(item => {
                     if (item.starType === "super" || item.starType === "special") {
@@ -7217,7 +7223,6 @@ function getLegendStarHistoryFromLocal() {
                     }
                 });
             }
-            // 기존 단일 플래그(hasSuperStar/hasSpecialStar) 호환성 보장
             if (member.hasSuperStar && !member.specialStars) {
                 legendHistory.super.push({ name: member.name, quarter: member.superStarQuarter || "1Q", timestamp: 0 });
             }
@@ -7239,7 +7244,7 @@ window.showAllHolders = (starName, holdersJson) => {
     alert(`🌟 ${starName} 전체 획득자 목록\n\n${textList}`);
 };
 
-// 5. 가이드 항목 랜더링 함수 (비용 0원 - 로컬 데이터 우선 적용)
+// 5. 가이드 항목 랜더링 함수
 async function renderStarGuideItems() {
     const grid = document.getElementById('guideGrid');
     if (!grid) return;
@@ -7248,7 +7253,6 @@ async function renderStarGuideItems() {
     grid.style.gridTemplateColumns = 'repeat(2, 1fr)';
     grid.style.gap = '8px';
 
-    // 로컬 메모리(currentData) 기반 수집으로 Firestore 비용 0원 유지
     const legendHolders = getLegendStarHistoryFromLocal();
 
     const stars = [
@@ -7375,6 +7379,11 @@ function createShootingStar(board, tx, ty) {
         setTimeout(() => s.remove(), 500);
     }, 850);
 }
+   
+    
+
+                    
+    
 
         
             // 필터링 및 페이징 처리를 위해 모달 전용 로그 목록을 임시 저장할 전역 변수 (캐시)
