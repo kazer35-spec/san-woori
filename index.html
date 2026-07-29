@@ -5818,13 +5818,13 @@ window.addMultiActivity = async () => {
                 
                 updateData.bonusDays = 0;
                 
-                // ─── 🎯 [수정] 업 수치(realUpAmount)에 따른 분기 점수 계산 ───
-const groupSize = selectedMemberIds.size;
-const baseQCount = groupSize >= 3 ? 3 : groupSize; 
-const multiplier = realUpAmount > 0 ? realUpAmount : 1; // 업 수치 곱 적용 (1업=x1, 2업=x2, 3업=x3)
-const qCountIncrement = baseQCount * multiplier; 
+                // ─── 🎯 업 수치(realUpAmount)에 따른 분기 점수 계산 ───
+                const groupSize = selectedMemberIds.size;
+                const baseQCount = groupSize >= 3 ? 3 : groupSize; 
+                const multiplier = realUpAmount > 0 ? realUpAmount : 1; 
+                const qCountIncrement = baseQCount * multiplier; 
 
-updateData.qCount = _increment(qCountIncrement); 
+                updateData.qCount = _increment(qCountIncrement); 
 
                 if (isMultiHike) {
                     let pointToAdd = (isQuarterOnlyOne || isRegular) ? 100 : (100 * (realUpAmount || 1));
@@ -5850,7 +5850,7 @@ updateData.qCount = _increment(qCountIncrement);
                 }
             }
 
-            // ⚡ [벙주 체크박스 기능 추가] 만약 해당 회원이 우측 체크박스(벙주)에 체크되어 있다면 데이터 분기 누적
+            // ⚡ 벙주 체크박스 분기 누적
             if (window.selectedHostIds && window.selectedHostIds.includes(id)) {
                 updateData[`quarterlyStats.${qKey}.hosted`] = _increment(1);
             }
@@ -5894,15 +5894,39 @@ updateData.qCount = _increment(qCountIncrement);
         
         alert((isRealHike && !isExtraHike) ? "순수산행 기록 완료! ✅" : (isExtraHike ? "번외산행 기록 완료! 🌲" : "일반 활동(러닝/트레킹/산책) 기록 완료! 🏃"));
         
-        selectedMemberIds.clear();
+        // ─── 🧹 [수정 핵심] 저장 후 입력 수치 및 폼 요소 전체 초기화 ───
         
-        // ⚡ [벙주 체크박스 기능 추가] 완료 후 전역 배열 및 UI 체크박스 전부 초기화
+        // 1. 선택된 회원 및 벙주 목록 초기화
+        selectedMemberIds.clear();
         window.selectedHostIds = [];
         document.querySelectorAll('.host-checkbox').forEach(cb => cb.checked = false);
+        document.querySelectorAll('.member-checkbox, .member-card-select').forEach(cb => cb.checked = false); // UI 체크박스 해제
 
+        // 2. 텍스트/숫자 입력 폼 초기화
+        const resetInputIds = ['mountainName', 'mountainHeight', 'pRock', 'pForest', 'pValley'];
+        resetInputIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+
+        // 3. 지역 선택 셀렉트 박스 초기화
+        const regionSelect = document.getElementById('adminManualRegionSelect');
+        if (regionSelect) regionSelect.selectedIndex = 0;
+
+        // 4. 활동 특성 체크박스 초기화
+        const checkIds = ['isTop100Check', 'isBACCheck', 'isRegularCheck', 'isRunningCheck', 'isTrackingCheck', 'isWalkingCheck', 'isOnlyLog', 'isQuarterCheck'];
+        checkIds.forEach(id => {
+            const cb = document.getElementById(id);
+            if (cb) cb.checked = false;
+        });
+
+        // 5. 레벨업 선택 라디오 버튼 초기화
+        document.querySelectorAll('input[name="upAmount"]').forEach(radio => radio.checked = false);
+
+        // 6. 좌표 및 날짜 초기화
         tempCoord = null; 
         const kstDate = new Date(new Date().getTime() + (9 * 60 * 60 * 1000));
-        if (typeof dateInput !== 'undefined' && dateInput) {
+        if (dateInput) {
             dateInput.value = kstDate.toISOString().split('T')[0];
         }
         
@@ -5912,6 +5936,9 @@ updateData.qCount = _increment(qCountIncrement);
         alert("저장 실패: " + error.message);
     }
 };
+
+                
+        
                         
    // 📌 [신규 회원 등록 함수] - 수정본
 window.addMember = async () => {
