@@ -8056,8 +8056,7 @@ window.loadScrollLogsPage = (isFirstPage = false) => {
         const startIndex = isFirstPage ? 0 : targetSize - MORE_PAGE_SIZE;
         const finalItems = filtered.slice(startIndex, targetSize);
          
-                 
-                                         const htmlContent = finalItems.map(log => {
+               const htmlContent = finalItems.map(log => {
             let dateStr = "----.--.--";
             let dayName = "";
             if (log.date) {
@@ -8071,7 +8070,7 @@ window.loadScrollLogsPage = (isFirstPage = false) => {
             const isKmActivity = log.isRunning || log.isTracking || log.isWalking;
             const isPureRegularHike = log.isRegular && !isKmActivity; // 순수 정기산행 조건
 
-            // 🎯 도트 색상 단일화 (순수 정기산행만 무지개, 나머지는 운동 독자 단색)
+            // 🎯 도트 색상
             let dotStyle = "";
             const colors = { hike: "#2ecc71", extraHike: "#5CE1D6", walk: "#FFCC80", trek: "#E0B0FF", run: "#FFD1DC" };
             
@@ -8090,10 +8089,10 @@ window.loadScrollLogsPage = (isFirstPage = false) => {
             const heightVal = log.height || 0;
             const unit = (isKmActivity && !log.isExtraHike && heightVal < 50) ? 'km' : 'm';
             
-            const displayMountain = log.mountain || (log.isExtraHike ? "개인 산행" : "활동 기록");
+            const rawMountain = log.mountain || (log.isExtraHike ? "개인 산행" : "활동 기록");
             const bacTag = log.isBAC ? '<span class="bac-badge-mini">BAC</span>' : '';
             
-            // 🎯 정기산행일 때는 맨 뒤 체크(✔) 제거
+            // 🎯 정기산행 시 맨 뒤 v체크(✔) 제거, Top100 별(★)은 원래 황금색 유지
             let starTag = '';
             if (log.isTop100) {
                 starTag = '<span style="color: #f59e0b; font-size: 12px; margin-left: 2px;">★</span>';
@@ -8121,19 +8120,33 @@ window.loadScrollLogsPage = (isFirstPage = false) => {
                 ? `<span class="schedule-tag-badge" style="margin-left: auto; background: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${badgeBorder}; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; line-height: 1; flex-shrink: 0;">일정</span>` 
                 : '';
 
-            // 🌈 1. 움직이는 무지개 글씨 스타일 (CSS 애니메이션 포함)
+            // 🍀🌸🍁❄️ 지정해주신 4가지 계절 이모지 분리 로직
+            let seasonEmoji = '';
+            let textBody = rawMountain;
+
+            if (isPureRegularHike) {
+                // 맨 앞 계절 이모지 검사
+                const match = rawMountain.match(/^(🍀|🌸|🍁|❄️)/u);
+                if (match) {
+                    seasonEmoji = match[1]; // 추출한 계절 이모지
+                    textBody = rawMountain.slice(seasonEmoji.length).trim(); // 이모지 제외한 글씨
+                }
+            }
+
+            // 🌈 움직이는 무지개 글씨 스타일 (텍스트 전용)
             const rainbowTextStyle = isPureRegularHike 
                 ? 'background: linear-gradient(90deg, #ff007f, #8a2be2, #0055ff, #00d2ff, #ff007f); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800; animation: rainbowMove 3s linear infinite;' 
                 : '';
 
-            // 🍀 2. 클로버 마크는 무지개 스타일과 분리 (원래 색상 보존)
-            const cloverMark = isPureRegularHike 
-                ? '<span style="font-size: 12px; margin-right: 2px;">🍀</span>' 
-                : '';
-
-            const regularStar = isPureRegularHike 
+            // ✨ 정기산행 맨 뒤 반짝이 별 (그라데이션 스타일 밖으로 분리)
+            const regularSparkle = isPureRegularHike 
                 ? '<span style="font-size: 11px; margin-left: 3px;">✨</span>' 
                 : '';
+
+            // HTML 완성
+            const mountainHtml = isPureRegularHike
+                ? `${seasonEmoji ? `<span style="font-size: 12px; margin-right: 3px;">${seasonEmoji}</span>` : ''}<span style="${rainbowTextStyle}">${textBody} (${heightVal}${unit})</span>${regularSparkle}`
+                : `<span class="${blueClass}">${rawMountain} (${heightVal}${unit})</span>`;
 
             return `
                 <div class="scroll-timeline-item">
@@ -8142,9 +8155,7 @@ window.loadScrollLogsPage = (isFirstPage = false) => {
                         <div style="display: flex; align-items: center; gap: 4px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;">
                             <span class="scroll-item-dot" style="${dotStyle}"></span>
                             ${bacTag}
-                            ${cloverMark}
-                            <span class="scroll-item-name ${blueClass}" style="${rainbowTextStyle}">정기산행 ${displayMountain} (${heightVal}${unit})</span>
-                            ${regularStar}
+                            <span class="scroll-item-name" style="display: inline-flex; align-items: center;">${mountainHtml}</span>
                             ${starTag}
                         </div>
                         ${scheduleBadge}
@@ -8152,6 +8163,8 @@ window.loadScrollLogsPage = (isFirstPage = false) => {
                 </div>
             `;
         }).join('');
+          
+                                         
 
 
 
