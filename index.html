@@ -7894,6 +7894,7 @@ window.showFadingScroll = async function(mId, dday, level = 0, passedRegDate = n
         });
 
         // 🔥 [수정] 순수산행(일반산행) + 정기산행 = 일정산행 횟수로 집계
+                // 🔥 [수정] 순수산행(일반산행) + 정기산행 = 일정산행 횟수로 집계
         const counts = window.currentScrollLogs.reduce((acc, log) => {
             const isKmActivity = log.isRunning || log.isTracking || log.isWalking;
             const isPureHike = !isKmActivity && !log.isExtraHike;
@@ -8043,18 +8044,21 @@ window.loadScrollLogsPage = (isFirstPage = false) => {
     const targetSize = window.scrollPagination.currentPageSize;
 
     try {
-        let filtered = [];
+                let filtered = [];
         if (currentCategory === 'all') {
             filtered = window.currentScrollLogs;
         } else if (currentCategory === 'hiking') {
-            filtered = window.currentScrollLogs.filter(log => 
-                log.isSchedule || log.isRegular || ((!log.isRunning && !log.isTracking && !log.isWalking) && !log.isExtraHike)
-            );
+            filtered = window.currentScrollLogs.filter(log => {
+                const isKmActivity = log.isRunning || log.isTracking || log.isWalking;
+                // 일정 체크되어있거나, KmActivity/번외산행이 아닌 순수 산행들
+                return log.isSchedule || (!isKmActivity && !log.isExtraHike);
+            });
         } else if (currentCategory === 'running') {
             filtered = window.currentScrollLogs.filter(log => 
                 log.isExtraHike || log.isRunning || log.isTracking || log.isWalking
             );
         }
+
 
         if (filtered.length === 0) {
             listBox.innerHTML = `<p style="text-align:center; padding:40px 0; font-size:11px; color:#a0aec0;">기록이 없습니다.</p>`;
