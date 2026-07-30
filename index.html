@@ -7193,20 +7193,31 @@ window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
         }
 
         rawLogs.forEach(data => {
-            if (data.isRegular && data.date) {
-                const hikeDate = data.date.toDate ? data.date.toDate() : new Date(data.date);
-                const monthIdx = getFullMonths(jDate, hikeDate);
-                if (monthIdx >= 0 && monthIdx < diffMonths) {
-                    if (!regularHikesByMonth[monthIdx]) regularHikesByMonth[monthIdx] = [];
-                    let starType = data.starType;
-                    if (!starType || !starType.startsWith('regular')) {
-                        const randIdx = Math.floor(Math.random() * regularStarColors.length);
-                        starType = `regular_${randIdx + 1}`;
-                    }
-                    regularHikesByMonth[monthIdx].push(starType);
-                }
+        // 🎯 [A방안 코드] 기존 DB 수정 없이 순수 정기산행 조건만 정밀 검사
+rawLogs.forEach(data => {
+    // 러닝, 트래킹, 산책, 개인산행 조건 체크
+    const isKmActivity = data.isRunning || data.isTracking || data.isWalking;
+    const isPureRegularHike = data.isRegular && !isKmActivity && !data.isExtraHike;
+
+    // 순수 정기산행인 경우에만 나이테 위성 별 생성
+    if (isPureRegularHike && data.date && !processedLogIds.has(data.id)) {
+        processedLogIds.add(data.id);
+
+        const hikeDate = data.date.toDate ? data.date.toDate() : new Date(data.date);
+        const monthIdx = getFullMonths(jDate, hikeDate);
+        
+        if (monthIdx >= 0 && monthIdx < diffMonths) {
+            if (!regularHikesByMonth[monthIdx]) regularHikesByMonth[monthIdx] = [];
+            let starType = data.starType;
+            if (!starType || !starType.startsWith('regular')) {
+                const randIdx = Math.floor(Math.random() * regularStarColors.length);
+                starType = `regular_${randIdx + 1}`;
             }
-        });
+            regularHikesByMonth[monthIdx].push(starType);
+        }
+    }
+});
+
     } catch (e) { console.error("나이테 로그 로드 에러:", e); }
 
     // [5] SVG 및 중앙 코어 생성
@@ -7809,7 +7820,7 @@ function createShootingStar(board, tx, ty) {
 
         
             // 필터링 및 페이징 처리를 위해 모달 전용 로그 목록을 임시 저장할 전역 변수 (캐시)
-window.currentScrollLogs = []; 
+Window.currentScrollLogs = []; 
 
 window.scrollPagination = {
     currentCategory: 'all',
@@ -7885,12 +7896,12 @@ window.showFadingScroll = async function(mId, dday, level = 0, passedRegDate = n
             };
         });
 
-        // [C] 📊 정확한 운동 카운팅 계산 (정기산행/일정산행은 오직 순수산행 기준)
+        // 🎯 [수정] counts 계산 시 isRegular 대신 isRegularSatellite 적용
         const counts = window.currentScrollLogs.reduce((acc, log) => {
             const isKm = log.isRunning || log.isTracking || log.isWalking;
             const isPureHike = !isKm && !log.isExtraHike;
 
-            if (log.isRegular && isPureHike) {
+            if (log.isRegularSatellite && isPureHike) {
                 acc.regular++; // 무지개 (순수 정기산행)
                 acc.schedule++; // 순수 일정산행 카운트에도 정기산행 포함
             } else if (isPureHike) {
@@ -7898,11 +7909,11 @@ window.showFadingScroll = async function(mId, dday, level = 0, passedRegDate = n
             } else if (log.isExtraHike) {
                 acc.extra++; // 개인산행
             } else if (log.isRunning) {
-                acc.running++; // 런닝 (정기 체크 여부와 상관없이 런닝으로 카운트)
+                acc.running++; // 런닝
             } else if (log.isTracking) {
-                acc.trekking++; // 트래킹 (정기 체크 여부와 상관없이 트래킹으로 카운트)
+                acc.trekking++; // 트래킹
             } else if (log.isWalking) {
-                acc.walking++; // 산책 (정기 체크 여부와 상관없이 산책으로 카운트)
+                acc.walking++; // 산책
             }
             return acc;
         }, { regular: 0, schedule: 0, extra: 0, trekking: 0, running: 0, walking: 0 });
@@ -8039,7 +8050,6 @@ window.loadScrollLogsPage = (isFirstPage = false) => {
         if (currentCategory === 'all') {
             filtered = window.currentScrollLogs;
         } else if (currentCategory === 'hiking') {
-            // 정기 체크(isRegular)가 지정된 러닝/트레킹/산책 및 순수 일정/정기 산행 노출
             filtered = window.currentScrollLogs.filter(log => 
                 log.isRegular || ((!log.isRunning && !log.isTracking && !log.isWalking) && !log.isExtraHike)
             );
@@ -8058,7 +8068,7 @@ window.loadScrollLogsPage = (isFirstPage = false) => {
         const startIndex = isFirstPage ? 0 : targetSize - MORE_PAGE_SIZE;
         const finalItems = filtered.slice(startIndex, targetSize);
          
-                       const htmlContent = finalItems.map(log => {
+        const htmlContent = finalItems.map(log => {
             let dateStr = "----.--.--";
             let dayName = "";
             if (log.date) {
@@ -8070,7 +8080,8 @@ window.loadScrollLogsPage = (isFirstPage = false) => {
             }
 
             const isKmActivity = log.isRunning || log.isTracking || log.isWalking;
-            const isPureRegularHike = log.isRegular && !isKmActivity; // 순수 정기산행 조건
+            // 🎯 [수정] 순수 정기산행 조건을 isRegularSatellite로 변경
+            const isPureRegularHike = log.isRegularSatellite && !isKmActivity; 
 
             // 🎯 도트 색상
             let dotStyle = "";
@@ -8094,7 +8105,6 @@ window.loadScrollLogsPage = (isFirstPage = false) => {
             const rawMountain = log.mountain || (log.isExtraHike ? "개인 산행" : "활동 기록");
             const bacTag = log.isBAC ? '<span class="bac-badge-mini">BAC</span>' : '';
             
-            // 🎯 정기산행 시 맨 뒤 v체크(✔) 제거, Top100 별(★)은 원래 황금색 유지
             let starTag = '';
             if (log.isTop100) {
                 starTag = '<span style="color: #f59e0b; font-size: 12px; margin-left: 2px;">★</span>';
@@ -8104,7 +8114,6 @@ window.loadScrollLogsPage = (isFirstPage = false) => {
                 
             const blueClass = (log.isTop100 && !isPureRegularHike) ? "top100-blue" : "";
 
-            // 정기 체크(isRegular)된 러닝/트레킹/산책 기록용 태그
             const isRegularGroupExercise = log.isRegular && isKmActivity;
             let badgeBg = '#ecfdf5', badgeColor = '#10b981', badgeBorder = '#a7f3d0';
             
@@ -8122,7 +8131,6 @@ window.loadScrollLogsPage = (isFirstPage = false) => {
                 ? `<span class="schedule-tag-badge" style="margin-left: auto; background: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${badgeBorder}; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; line-height: 1; flex-shrink: 0;">일정</span>` 
                 : '';
 
-            // 🍀🌸🍁❄️ 계절 이모지 분리 로직
             let seasonEmoji = '';
             let textBody = rawMountain;
 
@@ -8134,22 +8142,18 @@ window.loadScrollLogsPage = (isFirstPage = false) => {
                 }
             }
 
-            // 🌈 움직이는 무지개 글씨 스타일
             const rainbowTextStyle = isPureRegularHike 
                 ? 'background: linear-gradient(90deg, #ff007f, #8a2be2, #0055ff, #00d2ff, #ff007f); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800; animation: rainbowMove 3s linear infinite;' 
                 : '';
 
-            // ✨ 무지개 글씨 바로 뒤 반짝이 별 (그라데이션 색상 제외)
             const regularSparkle = isPureRegularHike 
                 ? '<span style="font-size: 11px; margin-left: 3px;">✨</span>' 
                 : '';
 
-            // 🎨 [신규] 정기산행 우측 전용 그라데이션 뱃지
             const regularBadge = isPureRegularHike
                 ? `<span style="margin-left: auto; background: linear-gradient(135deg, rgba(255, 105, 180, 0.15), rgba(160, 32, 240, 0.15)); color: #7e22ce; border: 1px solid rgba(160, 32, 240, 0.35); font-size: 9.5px; font-weight: 800; padding: 2px 7px; border-radius: 20px; display: inline-flex; align-items: center; line-height: 1; flex-shrink: 0;">정기산행</span>`
                 : '';
 
-            // HTML 구성
             const mountainHtml = isPureRegularHike
                 ? `${seasonEmoji ? `<span style="font-size: 12px; margin-right: 3px;">${seasonEmoji}</span>` : ''}<span style="${rainbowTextStyle}">${textBody} (${heightVal}${unit})</span>${regularSparkle}`
                 : `<span class="${blueClass}">${rawMountain} (${heightVal}${unit})</span>`;
@@ -8170,9 +8174,6 @@ window.loadScrollLogsPage = (isFirstPage = false) => {
                 </div>
             `;
         }).join('');
-
-
-
 
         if (isFirstPage) {
             listBox.innerHTML = htmlContent;
@@ -8198,10 +8199,6 @@ window.loadScrollLogsPage = (isFirstPage = false) => {
     }
 };
 
-                 
-    
-
-            
 
                              </script>
 
