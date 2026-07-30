@@ -6048,63 +6048,93 @@ window.updateMemberName = async function updateMemberName() {
     if (!newName) return alert("새로운 이름을 입력해주세요.");
     if (oldId === newName) return alert("기존 이름과 동일합니다.");
 
-    if (!confirm(`회원 이름을 [${oldId}] ➡️ [${newName}](으)로 변경하시겠습니까?\n모든 기록과 우정 데이터가 새 이름으로 이동합니다.`)) return;
+    if (!confirm(`회원 이름을 [${oldId}] ➡️ [${newName}](으)로 변경하시겠습니까?\n모든 기록과 하위 데이터가 완벽히 이전됩니다.`)) return;
 
     try {
-        console.log(`🚀 [${oldId}] ➡️ [${newName}] 데이터 이전 시작...`);
+        console.log(`🚀 [${oldId}] ➡️ [${newName}] 배치 이관 시작...`);
 
-        // 1. db 객체 확인 (전역 db 또는 window.db)
         const firestoreDb = (typeof db !== 'undefined') ? db : window.db;
-        if (!firestoreDb) return alert("파이어베이스 DB가 연결되지 않았습니다.");
+        if (!firestoreDb) return alert("파이어베이스 DB 연결 실패");
 
-        // 2. 기존 회원 문서 읽기
+        // 1. 기존 메인 문서 데이터 가져오기
         const oldMemberRef = doc(firestoreDb, "sanwoori", oldId);
         const oldMemberSnap = await getDoc(oldMemberRef);
 
-        if (!oldMemberSnap.exists()) return alert("선택한 회원 정보를 찾을 수 없습니다.");
+        if (!oldMemberSnap.exists()) return alert("선택한 회원 문서를 찾을 수 없습니다.");
 
         const memberData = oldMemberSnap.data();
-        memberData.name = newName; 
+        memberData.name = newName; // 내부 필드명 변경
 
-        // 3. 새 이름으로 문서 복사 생성
+        // 2. 새 문서 생성
         const newMemberRef = doc(firestoreDb, "sanwoori", newName);
         await setDoc(newMemberRef, memberData);
 
-        // 4. 하위 logs 컬렉션 전체 복사 & 이전
+        // 3. 하위 logs 컬렉션 전체 가져오기
         const oldLogsSnap = await getDocs(collection(firestoreDb, `sanwoori/${oldId}/logs`));
+
+        // Batch(일괄 처리) 단위로 나누어 안전하게 복사 및 기존 log 삭제
+        let batch = writeBatch(firestoreDb);
+        let operationCount = 0;
+
         for (const logDoc of oldLogsSnap.docs) {
             const logData = logDoc.data();
-            logData.author = newName; 
+            logData.author = newName; // 작성자 필드 수정
 
-            await setDoc(doc(firestoreDb, `sanwoori/${newName}/logs`, logDoc.id), logData);
-            await deleteDoc(doc(firestoreDb, `sanwoori/${oldId}/logs`, logDoc.id));
+            const newLogRef = doc(firestoreDb, `sanwoori/${newName}/logs`, logDoc.id);
+            const oldLogRef = doc(firestoreDb, `sanwoori/${oldId}/logs`, logDoc.id);
+
+            batch.set(newLogRef, logData);
+            batch.delete(oldLogRef);
+            operationCount += 2;
+
+            // Firestore Batch 한계값(500개) 도달 시 실행 후 새로 생성
+            if (operationCount >= 400) {
+                await batch.commit();
+                batch = writeBatch(firestoreDb);
+                operationCount = 0;
+            }
         }
 
-        // 5. bondingForest (우정의 숲) 내 members 배열 데이터 변경
+        // 남은 Batch 커밋
+        if (operationCount > 0) {
+            await batch.commit();
+        }
+
+        // 4. bondingForest (우정의 숲) 내 members 배열 업데이트
         const bondingSnap = await getDocs(collection(firestoreDb, "bondingForest"));
+        let bondingBatch = writeBatch(firestoreDb);
+        let bCount = 0;
+
         for (const bDoc of bondingSnap.docs) {
             const bData = bDoc.data();
             if (bData.members && Array.isArray(bData.members) && bData.members.includes(oldId)) {
                 const updatedMembers = bData.members.map(m => m === oldId ? newName : m);
-                await updateDoc(doc(firestoreDb, "bondingForest", bDoc.id), { members: updatedMembers });
+                bondingBatch.update(doc(firestoreDb, "bondingForest", bDoc.id), { members: updatedMembers });
+                bCount++;
+
+                if (bCount >= 400) {
+                    await bondingBatch.commit();
+                    bondingBatch = writeBatch(firestoreDb);
+                    bCount = 0;
+                }
             }
         }
+        if (bCount > 0) await bondingBatch.commit();
 
-        // 6. 기존 메인 회원 문서 삭제
+        // 5. 이전 완료 후 기존 메인 '김산' 문서 완전히 삭제
         await deleteDoc(oldMemberRef);
 
-        alert(`🎉 [${oldId}] 님의 이름이 [${newName}](으)로 변경되었습니다!`);
+        alert(`🎉 [${oldId}] ➡️ [${newName}] 모든 기록 및 문서 이전 완료!`);
 
-        // 입력창 및 선택창 초기화
         inputEl.value = "";
         selectEl.value = "";
 
         if (typeof startRealtimeSync === 'function') startRealtimeSync();
-        else location.reload(); // 동기화 함수가 없으면 강력 페이지 새로고침
+        else location.reload();
 
     } catch (error) {
         console.error("이름 변경 오류 상세:", error);
-        alert("이름 변경 실패 에러 내용:\n" + error.message);
+        alert("이름 변경 실패: " + error.message);
     }
 };
 
