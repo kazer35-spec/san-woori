@@ -5733,8 +5733,7 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 // 2. 기록 저장 핵심 로직    
-
-                            window.addMultiActivity = async () => {
+window.addMultiActivity = async () => {
     const dateInput = document.getElementById('activityDate');
     if (!dateInput) return alert("날짜 입력창을 찾을 수 없습니다.");
     
@@ -5809,6 +5808,7 @@ window.addEventListener('DOMContentLoaded', () => {
             else await setDoc(mRef, mountainData);
         }
 
+        // 🎯 [선택된 회원별 반복 업데이트 시작]
         for (const id of selectedMemberIds) {
             const member = currentData.find(m => m.id === id);
             if (!member) continue;
@@ -5845,7 +5845,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 
                 updateData.bonusDays = 0;
                 
-                // ─── 🎯 업 수치(realUpAmount)에 따른 분기 점수 계산 ───
                 const groupSize = selectedMemberIds.size;
                 const baseQCount = groupSize >= 3 ? 3 : groupSize; 
                 const multiplier = realUpAmount > 0 ? realUpAmount : 1; 
@@ -5886,56 +5885,53 @@ window.addEventListener('DOMContentLoaded', () => {
                 await updateDoc(doc(db, "sanwoori", id), updateData);
             }
             
-            // ─── [수정] 세부 로그 적재 로직 ───
-const finalLogLoopCount = (isRegular || isSpecial || isQuarterOnlyOne) ? 1 : realUpAmount;
+            // ─── 🎯 [핵심 수정] 한글 Document ID 생성 및 세부 로그 적재 ───
+            const finalLogLoopCount = (isRegular || isSpecial || isQuarterOnlyOne) ? 1 : realUpAmount;
 
-// 1. 산 이름 및 기본 Doc ID 결정 (공백 제거)
-const rawMountainName = document.getElementById('mountainName')?.value.trim();
-const baseDocId = rawMountainName || (isWalking ? "동네 산책" : (isExtraHike ? "번외 산행" : (isRunning ? "러닝 활동" : "트레킹 활동")));
+            // 1. 산 이름 및 기본 Doc ID 결정
+            const rawMountainName = document.getElementById('mountainName')?.value.trim();
+            const baseDocId = rawMountainName || (isWalking ? "동네 산책" : (isExtraHike ? "번외 산행" : (isRunning ? "러닝 활동" : "트레킹 활동")));
 
-// 2. 해당 회원의 기존 log 문서 목록을 불러와서 중복 체크
-const existingLogsRef = collection(db, `sanwoori/${id}/logs`);
-const existingSnap = await getDocs(existingLogsRef);
+            // 2. 해당 회원의 기존 log 문서 목록을 불러와 중복 체크
+            const existingLogsRef = collection(db, `sanwoori/${id}/logs`);
+            const existingSnap = await getDocs(existingLogsRef);
 
-// 기존 문서 ID 목록을 집합(Set)으로 저장
-const existingDocIds = new Set();
-existingSnap.forEach(d => existingDocIds.add(d.id));
+            const existingDocIds = new Set();
+            existingSnap.forEach(d => existingDocIds.add(d.id));
 
-for (let i = 0; i < finalLogLoopCount; i++) {
-    let starType = null;
-    if (isRegular) {
-        const rand = Math.random() * 100;
-        if (rand <= 3) starType = "super";
-        else if (rand <= 10) starType = "special";
-        else starType = "regular_" + (Math.floor(Math.random() * 4) + 1);
-    }
+            for (let i = 0; i < finalLogLoopCount; i++) {
+                let starType = null;
+                if (isRegular) {
+                    const rand = Math.random() * 100;
+                    if (rand <= 3) starType = "super";
+                    else if (rand <= 10) starType = "special";
+                    else starType = "regular_" + (Math.floor(Math.random() * 4) + 1);
+                }
 
-    const logPayload = {
-        date: ts, 
-        mountain: baseDocId, 
-        height, coords: safeCoords,
-        isTop100, isBAC, isRegular, isRunning, isTracking, isWalking, isExtraHike, isOnlyLog, region,
-        starType, author: member.name,
-        isSpecial: isSpecial,
-        pRock, pForest, pValley
-    };
+                const logPayload = {
+                    date: ts, 
+                    mountain: baseDocId, 
+                    height, coords: safeCoords,
+                    isTop100, isBAC, isRegular, isRunning, isTracking, isWalking, isExtraHike, isOnlyLog, region,
+                    starType, author: member.name,
+                    isSpecial: isSpecial,
+                    pRock, pForest, pValley
+                };
 
-    // 3. 고유한 한글 Document ID 생성 ('북한산', '북한산_1', '북한산_2'...)
-    let customLogDocId = baseDocId;
-    let seq = 1;
-    while (existingDocIds.has(customLogDocId)) {
-        customLogDocId = `${baseDocId}_${seq}`;
-        seq++;
-    }
-    
-    // 사용된 ID는 목록에 추가하여 반복문 내 중복 방지
-    existingDocIds.add(customLogDocId);
+                // 3. 고유한 한글 Document ID 생성 ('북한산', '북한산_1', '북한산_2'...)
+                let customLogDocId = baseDocId;
+                let seq = 1;
+                while (existingDocIds.has(customLogDocId)) {
+                    customLogDocId = `${baseDocId}_${seq}`;
+                    seq++;
+                }
+                
+                existingDocIds.add(customLogDocId);
 
-    // 4. 지정한 한글 문서 ID로 Firestore에 저장
-    await setDoc(doc(db, `sanwoori/${id}/logs`, customLogDocId), logPayload);
-}
-
-
+                // 4. 지정한 한글 문서 ID로 Firestore에 저장
+                await setDoc(doc(db, `sanwoori/${id}/logs`, customLogDocId), logPayload);
+            }
+        } // 👈 ⚠️ 회원 loop(for...of) 닫는 괄호 정상 위치!
 
         if (isRealHike && isMultiHike && selectedNames.length >= 2) {
             await addDoc(collection(db, "bondingForest"), {
@@ -5982,6 +5978,9 @@ for (let i = 0; i < finalLogLoopCount; i++) {
         alert("저장 실패: " + error.message);
     }
 };
+
+                            
+        
                         
    // 📌 [신규 회원 등록 함수] - 수정본
 window.addMember = async () => {
