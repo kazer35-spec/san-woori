@@ -8050,7 +8050,7 @@ window.loadScrollLogsPage = (isFirstPage = false) => {
         const startIndex = isFirstPage ? 0 : targetSize - MORE_PAGE_SIZE;
         const finalItems = filtered.slice(startIndex, targetSize);
          
-        const htmlContent = finalItems.map(log => {
+                 const htmlContent = finalItems.map(log => {
             let dateStr = "----.--.--";
             let dayName = "";
             if (log.date) {
@@ -8062,14 +8062,15 @@ window.loadScrollLogsPage = (isFirstPage = false) => {
             }
 
             const isKmActivity = log.isRunning || log.isTracking || log.isWalking;
+            const isPureRegularHike = log.isRegular && !isKmActivity; // 순수 정기산행 조건
 
-            // 🎯 도트 색상 단일화 (순수 정기산행만 무지개, 나머지는 운동 독자 단색)
+            // 🎯 도트 스타일 설정
             let dotStyle = "";
             const colors = { hike: "#2ecc71", extraHike: "#5CE1D6", walk: "#FFCC80", trek: "#E0B0FF", run: "#FFD1DC" };
             
-            if (log.isRegular && !isKmActivity) {
-                // 오직 순수 정기산행일 때만 무지개 도트
-                dotStyle = "background: linear-gradient(135deg, #FF69B4, #ADFF2F, #A020F0);";
+            if (isPureRegularHike) {
+                // 순수 정기산행: 무지개 도트 + 은은한 후광(Glow)
+                dotStyle = "background: linear-gradient(135deg, #FF69B4, #ADFF2F, #A020F0); box-shadow: 0 0 5px rgba(255, 105, 180, 0.4);";
             } else {
                 let baseColor = colors.hike;
                 if (log.isExtraHike) baseColor = colors.extraHike;
@@ -8092,16 +8093,16 @@ window.loadScrollLogsPage = (isFirstPage = false) => {
                 
             const blueClass = log.isTop100 ? "top100-blue" : "";
 
-                        // 정기 체크(isRegular)된 러닝/트레킹/산책 기록일 경우 우측 [일정] 태그로 구분 및 색상 세분화
+            // 정기 체크(isRegular)된 러닝/트레킹/산책 기록용 태그
             const isRegularGroupExercise = log.isRegular && isKmActivity;
             let badgeBg = '#ecfdf5', badgeColor = '#10b981', badgeBorder = '#a7f3d0';
             
             if (log.isRunning) {
-                badgeBg = '#fdf2f8'; badgeColor = '#db2777'; badgeBorder = '#fbcfe8'; // 런닝: 분홍색
+                badgeBg = '#fdf2f8'; badgeColor = '#db2777'; badgeBorder = '#fbcfe8';
             } else if (log.isTracking) {
-                badgeBg = '#f5f3ff'; badgeColor = '#7c3aed'; badgeBorder = '#ddd6fe'; // 트래킹: 보라색
+                badgeBg = '#f5f3ff'; badgeColor = '#7c3aed'; badgeBorder = '#ddd6fe';
             } else if (log.isWalking) {
-                badgeBg = '#fff7ed'; badgeColor = '#c2410c'; badgeBorder = '#ffedd5'; // 산책: 주황색
+                badgeBg = '#fff7ed'; badgeColor = '#c2410c'; badgeBorder = '#ffedd5';
             }
 
             const showScheduleBadge = (currentCategory === 'running' || currentCategory === 'all' || currentCategory === 'hiking') && isRegularGroupExercise;
@@ -8110,21 +8111,37 @@ window.loadScrollLogsPage = (isFirstPage = false) => {
                 ? `<span class="schedule-tag-badge" style="margin-left: auto; background: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${badgeBorder}; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; line-height: 1; flex-shrink: 0;">일정</span>` 
                 : '';
 
+            // 👑 순수 정기산행 전용 우측 특별 뱃지 (무지개 텍스트 & 그라데이션)
+            const regularHikeBadge = isPureRegularHike 
+                ? `<span class="regular-special-badge" style="margin-left: auto; background: linear-gradient(135deg, rgba(255,105,180,0.12), rgba(160,32,240,0.12)); color: #7e22ce; border: 1px solid rgba(160,32,240,0.3); font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 12px; display: inline-flex; align-items: center; gap: 2px; line-height: 1; flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+                    <i style="font-style: normal; font-size: 9px;">✨</i> 정기산행
+                   </span>`
+                : '';
+
+            // 🎨 카드가 정기산행일 경우 특별 카드 스타일 적용 (은은한 보라/분홍 그라데이션 테두리 및 배경)
+            const itemContainerStyle = isPureRegularHike 
+                ? `background: linear-gradient(135deg, #ffffff 0%, #fdf4ff 100%); border: 1px solid #f0abfc; box-shadow: 0 2px 8px rgba(192, 38, 211, 0.08);` 
+                : `background: #ffffff; border: 1px solid #edf2f7;`;
+
             return `
-                <div class="scroll-timeline-item">
-                    <div class="scroll-item-date">${dateStr} (${dayName})</div>
+                <div class="scroll-timeline-item" style="${itemContainerStyle} border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; transition: all 0.2s ease;">
+                    <div class="scroll-item-date" style="font-size: 11px; color: ${isPureRegularHike ? '#86198f' : '#64748b'}; font-weight: ${isPureRegularHike ? '700' : '500'}; margin-bottom: 4px;">
+                        ${dateStr} (${dayName})
+                    </div>
                     <div class="scroll-item-body" style="display: flex; align-items: center; justify-content: space-between;">
-                        <div style="display: flex; align-items: center; gap: 4px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;">
+                        <div style="display: flex; align-items: center; gap: 5px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;">
                             <span class="scroll-item-dot" style="${dotStyle}"></span>
                             ${bacTag}
-                            <span class="scroll-item-name ${blueClass}">${displayMountain} (${heightVal}${unit})</span>
+                            <span class="scroll-item-name ${blueClass}" style="${isPureRegularHike ? 'font-weight: 700; color: #0f172a;' : ''}">${displayMountain} (${heightVal}${unit})</span>
                             ${starTag}
                         </div>
+                        ${regularHikeBadge}
                         ${scheduleBadge}
                     </div>
                 </div>
             `;
         }).join('');
+
 
         if (isFirstPage) {
             listBox.innerHTML = htmlContent;
