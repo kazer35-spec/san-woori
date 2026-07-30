@@ -6127,7 +6127,8 @@ window.updateMemberName = async () => {
  
 
  // 📌 [통합] 회원 로그 목록 조회 및 수정 (레이아웃 한 줄 밀착 정렬 + 산 이름 변경 포함)
-window.loadMemberLogs = async () => {
+
+                window.loadMemberLogs = async () => {
     const id = document.getElementById('memberSelectEdit')?.value;
     const area = document.getElementById('logListArea'); 
     if (!area) return;
@@ -6153,29 +6154,34 @@ window.loadMemberLogs = async () => {
             }).replace(/"/g, '&quot;');
 
             area.innerHTML += `
-            <div class="log-item-box p-2 border rounded-xl mb-2 bg-white text-xs shadow-sm" onclick="selectLogToMap('${logJson}')">
-                <!-- 📌 1라인: [날짜/산이름(자동줄임)] + [높이입력(너비고정) / 높이수정 / 좌표수정] -->
-                <div class="flex items-center justify-between gap-1 mb-1.5 w-full">
-                    <div class="flex items-center gap-1 min-w-0 flex-1">
-                        <span class="text-slate-400 text-[10px] font-bold shrink-0">${dateStr}</span>
-                        <span class="font-bold text-indigo-600 text-xs truncate">
-                            ${logData.isBAC ? '<span class="text-red-500 font-extrabold mr-0.5 shrink-0">BAC</span>' : ''}${currentMtName}
+            <div class="p-2 border rounded-xl mb-2 bg-white text-xs shadow-sm" onclick="selectLogToMap('${logJson}')">
+                
+                <!-- 📌 1라인: [날짜 + 산이름] | [높이입력 + 높이수정 + 좌표수정] -->
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px; margin-bottom: 6px; width: 100%;">
+                    <!-- 왼쪽: 날짜 + 산이름 -->
+                    <div style="display: flex; align-items: center; gap: 4px; min-width: 0; flex: 1; overflow: hidden;">
+                        <span style="color: #94a3b8; font-size: 10px; font-weight: bold; flex-shrink: 0;">${dateStr}</span>
+                        <span style="color: #4f46e5; font-size: 12px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            ${logData.isBAC ? '<span style="color: #ef4444; font-weight: 800; margin-right: 2px;">BAC</span>' : ''}${currentMtName}
                         </span>
                     </div>
-                    <div class="flex items-center gap-1 shrink-0" onclick="event.stopPropagation()">
-                        <input type="number" id="h-${ld.id}" value="${logData.height || 0}" class="w-12 h-6 text-center border rounded text-[11px] outline-none shrink-0" placeholder="m">
-                        <button onclick="updateLogHeight('${id}', '${ld.id}')" class="bg-slate-200 text-slate-700 px-1.5 py-1 rounded text-[10px] font-medium whitespace-nowrap shrink-0 active:bg-slate-300">높이수정</button>
-                        <button onclick="updateLogCoord('${id}', '${ld.id}')" class="bg-emerald-500 text-white px-1.5 py-1 rounded text-[10px] font-medium whitespace-nowrap shrink-0 active:bg-emerald-600">좌표수정</button>
+
+                    <!-- 오른쪽: 높이입력창(너비 50px 고정) + 버튼 2개 -->
+                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;" onclick="event.stopPropagation()">
+                        <input type="number" id="h-${ld.id}" value="${logData.height || 0}" style="width: 48px; height: 26px; text-align: center; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 11px; outline: none; flex-shrink: 0;" placeholder="m">
+                        <button onclick="updateLogHeight('${id}', '${ld.id}')" style="background-color: #e2e8f0; color: #334155; padding: 0 6px; height: 26px; border-radius: 4px; font-size: 10px; font-weight: 500; white-space: nowrap; border: none; flex-shrink: 0;">높이수정</button>
+                        <button onclick="updateLogCoord('${id}', '${ld.id}')" style="background-color: #10b981; color: white; padding: 0 6px; height: 26px; border-radius: 4px; font-size: 10px; font-weight: 500; white-space: nowrap; border: none; flex-shrink: 0;">좌표수정</button>
                     </div>
                 </div>
 
-                <!-- 📌 2라인: [레벨-1 삭제] + [기록만 삭제] + [산이름 입력] + [산변경] -->
-                <div class="flex items-center gap-1 w-full" onclick="event.stopPropagation()">
-                    <button onclick="deleteLog('${id}', '${ld.id}', true)" class="bg-rose-500 text-white px-1.5 py-1 rounded text-[10px] font-bold whitespace-nowrap shrink-0 active:bg-rose-600">레벨-1 삭제</button>
-                    <button onclick="deleteLog('${id}', '${ld.id}', false)" class="bg-slate-400 text-white px-1.5 py-1 rounded text-[10px] font-bold whitespace-nowrap shrink-0 active:bg-slate-500">기록만 삭제</button>
-                    <input type="text" id="mt-${ld.id}" value="${currentMtName}" placeholder="산 이름" class="flex-1 min-w-0 h-6 border rounded px-1.5 text-[11px] outline-none">
-                    <button onclick="updateLogMountain('${id}', '${ld.id}')" class="bg-amber-500 text-white px-1.5 py-1 rounded text-[10px] font-bold whitespace-nowrap shrink-0 active:bg-amber-600">산변경</button>
+                <!-- 📌 2라인: [레벨-1삭제] [기록만삭제] | [산이름입력 + 산변경] -->
+                <div style="display: flex; align-items: center; gap: 4px; width: 100%;" onclick="event.stopPropagation()">
+                    <button onclick="deleteLog('${id}', '${ld.id}', true)" style="background-color: #f43f5e; color: white; padding: 0 6px; height: 26px; border-radius: 4px; font-size: 10px; font-weight: bold; white-space: nowrap; border: none; flex-shrink: 0;">레벨-1 삭제</button>
+                    <button onclick="deleteLog('${id}', '${ld.id}', false)" style="background-color: #94a3b8; color: white; padding: 0 6px; height: 26px; border-radius: 4px; font-size: 10px; font-weight: bold; white-space: nowrap; border: none; flex-shrink: 0;">기록만 삭제</button>
+                    <input type="text" id="mt-${ld.id}" value="${currentMtName}" placeholder="산 이름" style="flex: 1; min-width: 0; height: 26px; border: 1px solid #cbd5e1; border-radius: 4px; padding: 0 6px; font-size: 11px; outline: none;">
+                    <button onclick="updateLogMountain('${id}', '${ld.id}')" style="background-color: #f59e0b; color: white; padding: 0 6px; height: 26px; border-radius: 4px; font-size: 10px; font-weight: bold; white-space: nowrap; border: none; flex-shrink: 0;">산변경</button>
                 </div>
+
             </div>`;
         });
     } catch (e) {
