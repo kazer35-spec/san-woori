@@ -2984,6 +2984,8 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 </p>
 </div>
 </div>
+    
+
 
 <div id="levelModal" class="modal-overlay" onclick="toggleModal(false)">
 <div class="modal-content" onclick="event.stopPropagation()">
@@ -5905,7 +5907,29 @@ window.addEventListener('DOMContentLoaded', () => {
                     pRock, pForest, pValley
                 };
 
-                await saveHikeLog(id, logPayload);
+                
+// ─── 변경 후 ───
+// 산 이름 결정
+const baseDocId = mName || (isWalking ? "동네 산책" : (isExtraHike ? "번외 산행" : (isRunning ? "러닝 활동" : "트레킹 활동")));
+
+// 해당 회원/산이름으로 이미 존재하는 문서 개수 확인하여 접미사(_1, _2 등) 붙이기
+const existingLogsRef = collection(db, `sanwoori/${id}/logs`);
+const existingSnap = await getDocs(existingLogsRef);
+
+// 현재 문서 ID 중 baseDocId로 시작하는 문서 개수 카운트
+let matchCount = 0;
+existingSnap.forEach(d => {
+    if (d.id === baseDocId || d.id.startsWith(`${baseDocId}_`)) {
+        matchCount++;
+    }
+});
+
+// 문서 ID 생성 (첫 번째면 '북한산', 두 번째 이상이면 '북한산_1', '북한산_2'...)
+const customLogDocId = matchCount === 0 ? baseDocId : `${baseDocId}_${matchCount}`;
+
+// 지정한 문서 ID로 저장
+await setDoc(doc(db, `sanwoori/${id}/logs`, customLogDocId), logPayload);
+
             }
         } 
 
