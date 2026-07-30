@@ -2899,6 +2899,37 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 <input type="date" id="activityDate" class="input-gap">
 <button onclick="addMultiActivity()" class="btn-submit bg-blue-500 mt-0">기록 저장하기</button>
 </div>
+<div class="card" style="background-color: #fffdf0; border-color: #fef3c7; margin-bottom: 15px;">
+  <div class="card-title text-yellow-700 font-bold">✏️ 기록 수정 및 레벨 관리</div>
+
+  <!-- 🎯 모바일에서 원터치로 실행 가능한 일괄 변경 버튼 추가 -->
+  <div class="mb-3">
+    <button onclick="window.migrateExistingLogsToKoreanId()" class="w-full bg-amber-600 text-white py-2 rounded-xl text-xs font-bold shadow-sm active:bg-amber-700">
+      🔄 기존 난수 ID -> 한글 산 이름 ID 일괄 변경
+    </button>
+  </div>
+
+  <select id="memberSelectEdit" onchange="loadMemberLogs()" class="input-gap">
+    <option value="">대상 회원 선택</option>
+  </select>
+
+  <div class="flex gap-2 mb-3">
+    <input type="text" id="editMemberNameInput" placeholder="변경할 이름 입력" class="h-10 text-sm flex-1 border rounded-xl px-3 outline-none">
+    <button onclick="updateMemberName()" class="bg-indigo-500 text-white px-3 rounded-xl text-xs font-bold whitespace-nowrap">이름 수정</button>
+  </div>
+
+  <div class="flex gap-2 mb-3">
+    <input type="number" id="manualLevelInput" placeholder="레벨(Lv) 입력" class="h-10 text-sm flex-1 border rounded-xl px-3 outline-none">
+    <button onclick="window.updateManualLevel()" class="bg-indigo-500 text-white px-3 rounded-xl text-xs font-bold whitespace-nowrap">레벨 적용</button>
+  </div>
+
+  <div class="flex gap-2 mb-3">
+    <input type="number" id="manualQCountInput" placeholder="분기 횟수 입력" class="h-10 text-sm flex-1 border rounded-xl px-3 outline-none">
+    <button onclick="window.updateManualQCount()" class="bg-indigo-500 text-white px-3 rounded-xl text-xs font-bold whitespace-nowrap">횟수 적용</button>
+  </div>
+
+  <div id="logListArea" class="log-grid"></div>
+</div>
 
 <div class="card" style="background-color: #fffdf0; border-color: #fef3c7; margin-bottom: 15px;">
 <div class="card-title text-yellow-700 font-bold">✏️ 기록 수정 및 레벨 관리</div>
@@ -5733,23 +5764,21 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 // 2. 기록 저장 핵심 로직    
+// 📌 1. 앞으로 기록을 추가할 때 한글 ID로 저장하도록 수정된 addMultiActivity 내부 로직
 window.addMultiActivity = async () => {
     const dateInput = document.getElementById('activityDate');
     if (!dateInput) return alert("날짜 입력창을 찾을 수 없습니다.");
     
     const dateVal = dateInput.value;
-    
-    // 파이어베이스 내장 객체 안전장치 보강
     const _Timestamp = (typeof Timestamp !== 'undefined') ? Timestamp : { fromDate: (d) => d };
     
-    // 🎯 increment 오작동 방지를 위한 확실한 안전 매핑
     let _increment;
     if (typeof increment !== 'undefined') {
         _increment = increment;
     } else if (typeof window.increment !== 'undefined') {
         _increment = window.increment;
     } else {
-        _increment = (val) => val; // 폴백 방어
+        _increment = (val) => val;
     }
 
     const activityDateObj = new Date(dateVal + "T00:00:00");
@@ -5808,7 +5837,6 @@ window.addMultiActivity = async () => {
             else await setDoc(mRef, mountainData);
         }
 
-        // 🎯 [선택된 회원별 반복 업데이트 시작]
         for (const id of selectedMemberIds) {
             const member = currentData.find(m => m.id === id);
             if (!member) continue;
@@ -5831,7 +5859,6 @@ window.addMultiActivity = async () => {
             if (realUpAmount > 0) checkLevelUpgrade(member.name, oldLevel, newLevel);
             selectedNames.push(member.name);
 
-            // ─── 🅰️ 오직 '정식 순수산행'일 때만 count 상승 ───
             if (isRealHike && !isExtraHike) {
                 updateData.count = _increment(1); 
                 updateData.lastDate = ts; 
@@ -5859,7 +5886,6 @@ window.addMultiActivity = async () => {
                     updateData[`fp_bins.${qKey}`] = _increment(pointToAdd);
                 }
 
-            // ─── 🅱️ 번외산행 / 러닝 / 트레킹 / 산책 묶음일 때 (Count 고정) ───
             } else {
                 updateData[`quarterlyStats.${qKey}.total`] = _increment(1);
                 updateData[`quarterlyStats.${qKey}.hike`] = _increment(0); 
@@ -5876,7 +5902,6 @@ window.addMultiActivity = async () => {
                 }
             }
 
-            // ⚡ 벙주 체크박스 분기 누적
             if (window.selectedHostIds && window.selectedHostIds.includes(id)) {
                 updateData[`quarterlyStats.${qKey}.hosted`] = _increment(1);
             }
@@ -5885,21 +5910,21 @@ window.addMultiActivity = async () => {
                 await updateDoc(doc(db, "sanwoori", id), updateData);
             }
             
-            // ─── 🎯 [핵심 수정] 한글 Document ID 생성 및 세부 로그 적재 ───
-            const finalLogLoopCount = (isRegular || isSpecial || isQuarterOnlyOne) ? 1 : realUpAmount;
-
-            // 1. 산 이름 및 기본 Doc ID 결정
-            const rawMountainName = document.getElementById('mountainName')?.value.trim();
-            const baseDocId = rawMountainName || (isWalking ? "동네 산책" : (isExtraHike ? "번외 산행" : (isRunning ? "러닝 활동" : "트레킹 활동")));
-
-            // 2. 해당 회원의 기존 log 문서 목록을 불러와 중복 체크
+            // 🎯 [수정 핵심] 저장할 한글 baseDocId 추출 및 중복 넘버링 처리
+            const baseDocId = mName || (isWalking ? "동네 산책" : (isExtraHike ? "번외 산행" : (isRunning ? "러닝 활동" : "트레킹 활동")));
             const existingLogsRef = collection(db, `sanwoori/${id}/logs`);
             const existingSnap = await getDocs(existingLogsRef);
 
-            const existingDocIds = new Set();
-            existingSnap.forEach(d => existingDocIds.add(d.id));
+            let matchCount = 0;
+            existingSnap.forEach(d => {
+                if (d.id === baseDocId || d.id.startsWith(`${baseDocId}_`)) {
+                    matchCount++;
+                }
+            });
 
-            for (let i = 0; i < finalLogLoopCount; i++) {
+            const finalLogLoopCount = (isRegular || isSpecial || isQuarterOnlyOne) ? 1 : realUpAmount;
+            
+            for(let i = 0; i < finalLogLoopCount; i++) {
                 let starType = null;
                 if (isRegular) {
                     const rand = Math.random() * 100;
@@ -5910,7 +5935,7 @@ window.addMultiActivity = async () => {
 
                 const logPayload = {
                     date: ts, 
-                    mountain: baseDocId, 
+                    mountain: mName || (isWalking ? "동네 산책" : (isExtraHike ? "번외 산행" : (isRunning ? "러닝 활동" : "트레킹 활동"))), 
                     height, coords: safeCoords,
                     isTop100, isBAC, isRegular, isRunning, isTracking, isWalking, isExtraHike, isOnlyLog, region,
                     starType, author: member.name,
@@ -5918,20 +5943,11 @@ window.addMultiActivity = async () => {
                     pRock, pForest, pValley
                 };
 
-                // 3. 고유한 한글 Document ID 생성 ('북한산', '북한산_1', '북한산_2'...)
-                let customLogDocId = baseDocId;
-                let seq = 1;
-                while (existingDocIds.has(customLogDocId)) {
-                    customLogDocId = `${baseDocId}_${seq}`;
-                    seq++;
-                }
-                
-                existingDocIds.add(customLogDocId);
-
-                // 4. 지정한 한글 문서 ID로 Firestore에 저장
-                await setDoc(doc(db, `sanwoori/${id}/logs`, customLogDocId), logPayload);
+                // ID 중복시 '북한산', '북한산_1', '북한산_2' 형태로 생성
+                const currentDocId = (matchCount + i === 0) ? baseDocId : `${baseDocId}_${matchCount + i}`;
+                await setDoc(doc(db, `sanwoori/${id}/logs`, currentDocId), logPayload);
             }
-        } // 👈 ⚠️ 회원 loop(for...of) 닫는 괄호 정상 위치!
+        } 
 
         if (isRealHike && isMultiHike && selectedNames.length >= 2) {
             await addDoc(collection(db, "bondingForest"), {
@@ -5979,6 +5995,56 @@ window.addMultiActivity = async () => {
     }
 };
 
+// 📌 2. 기존 난수 ID 로그들을 한글 ID 형태로 변환해주는 일괄 변경 함수
+window.migrateExistingLogsToKoreanId = async () => {
+    if (!confirm("모든 회원의 기존 무작위 ID 로그를 한글 산 이름 ID로 변환하시겠습니까?\n(작업 완료까지 잠시 기다려주세요)")) return;
+
+    try {
+        const membersSnap = await getDocs(collection(db, "sanwoori"));
+        let totalCount = 0;
+
+        for (const memberDoc of membersSnap.docs) {
+            const memberId = memberDoc.id;
+            const logsRef = collection(db, `sanwoori/${memberId}/logs`);
+            const logsSnap = await getDocs(logsRef);
+
+            const nameTracker = {};
+
+            for (const logDoc of logsSnap.docs) {
+                const data = logDoc.data();
+                const oldDocId = logDoc.id;
+
+                const baseName = data.mountain || 
+                    (data.isWalking ? "동네 산책" : 
+                    (data.isExtraHike ? "번외 산행" : 
+                    (data.isRunning ? "러닝 활동" : 
+                    (data.isTracking ? "트레킹 활동" : "기록"))));
+
+                if (nameTracker[baseName] === undefined) {
+                    nameTracker[baseName] = 0;
+                }
+
+                const count = nameTracker[baseName];
+                const newDocId = (count === 0) ? baseName : `${baseName}_${count}`;
+                nameTracker[baseName]++;
+
+                if (oldDocId !== newDocId) {
+                    await setDoc(doc(db, `sanwoori/${memberId}/logs`, newDocId), data);
+                    await deleteDoc(doc(db, `sanwoori/${memberId}/logs`, oldDocId));
+                    totalCount++;
+                }
+            }
+        }
+
+        alert(`🎉 총 ${totalCount}개의 로그 ID가 한글명으로 성공적으로 변경되었습니다!`);
+        if (typeof loadMemberLogs === 'function') loadMemberLogs();
+    } catch (error) {
+        console.error("일괄 변경 오류:", error);
+        alert("일괄 변경 중 오류가 발생했습니다: " + error.message);
+    }
+};
+
+        
                             
         
                         
