@@ -2929,6 +2929,7 @@ Our journey begins at San: Woori.<br>Opened on Nov 24, 2025
 </div>
 
 
+
 <div class="card" style="background-color: #fff5f5; border: 1px solid #ffe3e3;">
     <div class="card-title text-red-600 font-bold mb-3">🗑️ 회원 상태 및 보너스 관리</div>
     
@@ -6032,6 +6033,79 @@ window.addMember = async () => {
     } catch (error) {
         console.error("회원 등록 실패 원인:", error);
         alert("회원 등록 중 오류가 발생했습니다: " + error.message);
+    }
+};
+
+    window.updateMemberName = async () => {
+    const oldId = document.getElementById('memberSelectEdit')?.value;
+    const newName = document.getElementById('editMemberNameInput')?.value.trim();
+
+    if (!oldId) return alert("대상 회원을 먼저 선택해주세요.");
+    if (!newName) return alert("새로운 이름을 입력해주세요.");
+    if (oldId === newName) return alert("기존 이름과 동일합니다.");
+
+    if (!confirm(`회원 이름을 [${oldId}] ➡️ [${newName}](으)로 변경하시겠습니까?\n연관된 모든 산행 기록 및 우정 데이터의 이름도 함께 이전됩니다.`)) return;
+
+    try {
+        console.log(`🚀 [${oldId}] ➡️ [${newName}] 데이터 이전 시작...`);
+
+        // 1. 기존 회원 메인 문서 읽기
+        const oldMemberRef = doc(db, "sanwoori", oldId);
+        const oldMemberSnap = await getDoc(oldMemberRef);
+
+        if (!oldMemberSnap.exists()) return alert("선택한 회원 정보를 찾을 수 없습니다.");
+
+        const memberData = oldMemberSnap.data();
+        memberData.name = newName; // 메인 데이터 내 이름 업데이트
+
+        // 2. 새 이름으로 메인 회원 문서 생성
+        const newMemberRef = doc(db, "sanwoori", newName);
+        await setDoc(newMemberRef, memberData);
+
+        // 3. 하위 logs 컬렉션 전체 복사 (author 이름 변경 포함) 및 이전
+        const oldLogsRef = collection(db, `sanwoori/${oldId}/logs`);
+        const oldLogsSnap = await getDocs(oldLogsRef);
+
+        for (const logDoc of oldLogsSnap.docs) {
+            const logData = logDoc.data();
+            logData.author = newName; // 작성자 이름 새 이름으로 변경
+
+            // 새 위치에 log 문서 생성 및 기존 log 삭제
+            await setDoc(doc(db, `sanwoori/${newName}/logs`, logDoc.id), logData);
+            await deleteDoc(doc(db, `sanwoori/${oldId}/logs`, logDoc.id));
+        }
+
+        // 4. bondingForest (우정의 숲) 내 members 배열 데이터 일괄 변경
+        const bondingSnap = await getDocs(collection(db, "bondingForest"));
+        for (const bDoc of bondingSnap.docs) {
+            const bData = bDoc.data();
+            if (bData.members && Array.isArray(bData.members) && bData.members.includes(oldId)) {
+                const updatedMembers = bData.members.map(m => m === oldId ? newName : m);
+                await updateDoc(doc(db, "bondingForest", bDoc.id), { members: updatedMembers });
+            }
+        }
+
+        // 5. 로컬 스토리지(캐시) 이관
+        const oldStorageKey = `forest_v5_final_${oldId}`;
+        const newStorageKey = `forest_v5_final_${newName}`;
+        const cachedData = localStorage.getItem(oldStorageKey);
+        if (cachedData) {
+            localStorage.setItem(newStorageKey, cachedData);
+            localStorage.removeItem(oldStorageKey);
+        }
+
+        // 6. 기존 메인 회원 문서 삭제
+        await deleteDoc(oldMemberRef);
+
+        alert(`🎉 [${oldId}] 님의 이름이 [${newName}](으)로 완벽히 변경 및 이전되었습니다!`);
+
+        // UI 폼 및 선택창 초기화 후 실시간 동기화 재실행
+        document.getElementById('editMemberNameInput').value = "";
+        if (typeof startRealtimeSync === 'function') startRealtimeSync();
+
+    } catch (error) {
+        console.error("이름 변경 중 오류 발생:", error);
+        alert("이름 변경 실패: " + error.message);
     }
 };
 
