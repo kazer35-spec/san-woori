@@ -5745,7 +5745,7 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 // 2. 기록 저장 핵심 로직    
-window.addMultiActivity = async () => {
+Window.addMultiActivity = async () => {
     const dateInput = document.getElementById('activityDate');
     if (!dateInput) return alert("날짜 입력창을 찾을 수 없습니다.");
     
@@ -5774,7 +5774,9 @@ window.addMultiActivity = async () => {
     const height = parseInt(document.getElementById('mountainHeight')?.value) || 0;
     const isTop100 = document.getElementById('isTop100Check')?.checked || false;
     const isBAC = document.getElementById('isBACCheck')?.checked || false;
-    const isRegular = document.getElementById('isRegularCheck')?.checked || false;
+    
+    // 🎯 1. 체크박스 원본 값 가져오기
+    const isRegularChecked = document.getElementById('isRegularCheck')?.checked || false;
     const isRunning = document.getElementById('isRunningCheck')?.checked || false;
     const isTracking = document.getElementById('isTrackingCheck')?.checked || false;
     const isWalking = document.getElementById('isWalkingCheck')?.checked || false; 
@@ -5789,6 +5791,11 @@ window.addMultiActivity = async () => {
     const isExtraHike = isRunning && isTracking; 
     const isSpecial = isRunning || isTracking || isWalking || isOnlyLog || isExtraHike;
     const isRealHike = !isSpecial; 
+
+    // 🎯 2. [핵심] 정기산행 체크 + (러닝/트레킹/산책)일 경우 isRegular는 false 처리, isSchedule을 true로 설정!
+    const isPureRegularHike = isRegularChecked && isRealHike; // 순수 산행일 때만 순수 정기산행 인정
+    const isSchedule = isRegularChecked; // 정기 체크박스가 켜져 있다면 일정(Schedule) 상태로 저장
+
     const isMultiHike = typeof selectedMemberIds !== 'undefined' && selectedMemberIds.size >= 2;
     const isDdayTargetActivity = (isRunning || isTracking || isWalking) && !isExtraHike;
 
@@ -5848,7 +5855,7 @@ window.addMultiActivity = async () => {
                 updateData.count = _increment(1); 
                 updateData.lastDate = ts; 
 
-                const logLoopCount = (isRegular || isQuarterOnlyOne || isOnlyLog) ? 1 : realUpAmount;
+                const logLoopCount = (isPureRegularHike || isQuarterOnlyOne || isOnlyLog) ? 1 : realUpAmount;
                 const finalHeightIncrement = height * logLoopCount; 
                 updateData.totalHeight = _increment(finalHeightIncrement); 
 
@@ -5865,7 +5872,7 @@ window.addMultiActivity = async () => {
                 updateData.qCount = _increment(qCountIncrement); 
 
                 if (isMultiHike) {
-                    let pointToAdd = (isQuarterOnlyOne || isRegular) ? 100 : (100 * (realUpAmount || 1));
+                    let pointToAdd = (isQuarterOnlyOne || isPureRegularHike) ? 100 : (100 * (realUpAmount || 1));
                     updateData.buddyCount = _increment(1);
                     updateData.friendshipPoint = _increment(pointToAdd);
                     updateData[`fp_bins.${qKey}`] = _increment(pointToAdd);
@@ -5897,14 +5904,12 @@ window.addMultiActivity = async () => {
                 await updateDoc(doc(db, "sanwoori", id), updateData);
             }
             
-            // ─── 🎯 [핵심 수정] 한글 Document ID 생성 및 세부 로그 적재 ───
-            const finalLogLoopCount = (isRegular || isSpecial || isQuarterOnlyOne) ? 1 : realUpAmount;
+            // ─── 🎯 세부 로그 적재 ───
+            const finalLogLoopCount = (isPureRegularHike || isSpecial || isQuarterOnlyOne) ? 1 : realUpAmount;
 
-            // 1. 산 이름 및 기본 Doc ID 결정
             const rawMountainName = document.getElementById('mountainName')?.value.trim();
             const baseDocId = rawMountainName || (isWalking ? "동네 산책" : (isExtraHike ? "번외 산행" : (isRunning ? "러닝 활동" : "트레킹 활동")));
 
-            // 2. 해당 회원의 기존 log 문서 목록을 불러와 중복 체크
             const existingLogsRef = collection(db, `sanwoori/${id}/logs`);
             const existingSnap = await getDocs(existingLogsRef);
 
@@ -5913,24 +5918,30 @@ window.addMultiActivity = async () => {
 
             for (let i = 0; i < finalLogLoopCount; i++) {
                 let starType = null;
-                if (isRegular) {
+                if (isPureRegularHike) {
                     const rand = Math.random() * 100;
                     if (rand <= 3) starType = "super";
                     else if (rand <= 10) starType = "special";
                     else starType = "regular_" + (Math.floor(Math.random() * 4) + 1);
                 }
 
+                // 🎯 [핵심 저장 페이로드]
                 const logPayload = {
                     date: ts, 
                     mountain: baseDocId, 
                     height, coords: safeCoords,
-                    isTop100, isBAC, isRegular, isRunning, isTracking, isWalking, isExtraHike, isOnlyLog, region,
+                    isTop100, isBAC, 
+                    
+                    // 🔥 핵심: 순수산행 정기일 때만 isRegular: true, 러닝/트레킹/산책에 정기체크했으면 isSchedule: true
+                    isRegular: isPureRegularHike, 
+                    isSchedule: isSchedule,
+                    
+                    isRunning, isTracking, isWalking, isExtraHike, isOnlyLog, region,
                     starType, author: member.name,
                     isSpecial: isSpecial,
                     pRock, pForest, pValley
                 };
 
-                // 3. 고유한 한글 Document ID 생성 ('북한산', '북한산_1', '북한산_2'...)
                 let customLogDocId = baseDocId;
                 let seq = 1;
                 while (existingDocIds.has(customLogDocId)) {
@@ -5940,10 +5951,9 @@ window.addMultiActivity = async () => {
                 
                 existingDocIds.add(customLogDocId);
 
-                // 4. 지정한 한글 문서 ID로 Firestore에 저장
                 await setDoc(doc(db, `sanwoori/${id}/logs`, customLogDocId), logPayload);
             }
-        } // 👈 ⚠️ 회원 loop(for...of) 닫는 괄호 정상 위치!
+        }
 
         if (isRealHike && isMultiHike && selectedNames.length >= 2) {
             await addDoc(collection(db, "bondingForest"), {
@@ -5990,6 +6000,9 @@ window.addMultiActivity = async () => {
         alert("저장 실패: " + error.message);
     }
 };
+
+        
+        
 
                             
         
@@ -7801,15 +7814,48 @@ function createShootingStar(board, tx, ty) {
 }
 
              
+    // ==========================================
+// 📌 1. 일정 저장 함수 (DB 저장 시 분기)
+// ==========================================
+window.saveScheduleLog = async (mId, logPayload) => {
+    try {
+        if (!mId) return alert("회원 정보가 없습니다.");
+
+        // 🎯 정기 체크 여부 및 운동 종류에 따른 DB 저장 구조
+        const dataToSave = {
+            mountain: logPayload.mountain || '일정 기록',
+            date: logPayload.date || Timestamp.now(),
+            height: Number(logPayload.height) || 0,
             
-                
+            // 🔥 나이테 위성용 isRegular는 false 고정, 대신 일정 플래그 사용!
+            isSchedule: true,
+            isRegular: false, 
 
-                    
-    
+            // 선택된 운동 종류에 맞게 저장
+            isRunning: !!logPayload.isRunning,
+            isTracking: !!logPayload.isTracking,
+            isWalking: !!logPayload.isWalking,
+            isExtraHike: !!logPayload.isExtraHike,
 
+            createdAt: Timestamp.now()
+        };
+
+        await addDoc(collection(db, `sanwoori/${mId}/logs`), dataToSave);
+        alert("일정이 정상적으로 저장되었습니다.");
         
-            // 필터링 및 페이징 처리를 위해 모달 전용 로그 목록을 임시 저장할 전역 변수 (캐시)
-  window.currentScrollLogs = []; 
+        if (typeof startRealtimeSync === 'function') startRealtimeSync();
+
+    } catch (error) {
+        console.error("일정 저장 실패:", error);
+        alert("저장 실패: " + error.message);
+    }
+};
+
+
+// ==========================================
+// 📌 2. 일지 모달 & 페이징 렌더링 스크립트
+// ==========================================
+Window.currentScrollLogs = []; 
 
 window.scrollPagination = {
     currentCategory: 'all',
@@ -7885,24 +7931,23 @@ window.showFadingScroll = async function(mId, dday, level = 0, passedRegDate = n
             };
         });
 
-        // [C] 📊 카운팅 계산 (각 운동 구분에 맞춘 카운트)
         const counts = window.currentScrollLogs.reduce((acc, log) => {
             const isKm = log.isRunning || log.isTracking || log.isWalking;
             const isPureHike = !isKm && !log.isExtraHike;
 
             if (log.isRegular && isPureHike) {
-                acc.regular++; // 순수 정기산행
+                acc.regular++; 
                 acc.schedule++; 
             } else if (isPureHike) {
-                acc.schedule++; // 순수 일정산행
+                acc.schedule++; 
             } else if (log.isExtraHike) {
-                acc.extra++; // 개인산행
+                acc.extra++; 
             } else if (log.isRunning) {
-                acc.running++; // 런닝 (일정/개인 구분 없이 합산)
+                acc.running++; 
             } else if (log.isTracking) {
-                acc.trekking++; // 트래킹
+                acc.trekking++; 
             } else if (log.isWalking) {
-                acc.walking++; // 산책
+                acc.walking++; 
             }
             return acc;
         }, { regular: 0, schedule: 0, extra: 0, trekking: 0, running: 0, walking: 0 });
@@ -8039,9 +8084,8 @@ window.loadScrollLogsPage = (isFirstPage = false) => {
         if (currentCategory === 'all') {
             filtered = window.currentScrollLogs;
         } else if (currentCategory === 'hiking') {
-            // 🎯 일정 기록(isSchedule, isScheduleRun, isScheduleTrek, isScheduleWalk) 또는 순수정기산행
             filtered = window.currentScrollLogs.filter(log => 
-                log.isSchedule || log.isScheduleRun || log.isScheduleTrek || log.isScheduleWalk || log.isRegular || ((!log.isRunning && !log.isTracking && !log.isWalking) && !log.isExtraHike)
+                log.isSchedule || log.isRegular || ((!log.isRunning && !log.isTracking && !log.isWalking) && !log.isExtraHike)
             );
         } else if (currentCategory === 'running') {
             filtered = window.currentScrollLogs.filter(log => 
@@ -8070,7 +8114,7 @@ window.loadScrollLogsPage = (isFirstPage = false) => {
             }
 
             const isKmActivity = log.isRunning || log.isTracking || log.isWalking;
-            const isPureRegularHike = log.isRegular && !isKmActivity; // 순수 정기산행 조건
+            const isPureRegularHike = log.isRegular && !isKmActivity; 
 
             // 🎯 도트 색상 지정
             let dotStyle = "";
@@ -8103,42 +8147,38 @@ window.loadScrollLogsPage = (isFirstPage = false) => {
                 
             const blueClass = (log.isTop100 && !isPureRegularHike) ? "top100-blue" : "";
 
-            // 🎯🎯🎯 [개선 및 완벽 적용] 저장된 운동 종류별로 도트 색상과 맞춰 배지 생성!
-            // isSchedule 이거나 각각의 isScheduleRun / isScheduleTrek / isScheduleWalk / isSchedule+운동타입 체크
-            const isScheduleGroupExercise = log.isSchedule || log.isScheduleRun || log.isScheduleTrek || log.isScheduleWalk || (log.isSchedule && isKmActivity);
-
+            // 🎨 [핵심] 정기산행 체크 여부와 상관없이 log.isSchedule 상태 및 운동 스타일에 따라 도트 색과 동일한 [일정] 배지 출력
             let scheduleBadge = '';
 
-            if (isScheduleGroupExercise) {
+            // 기존 DB에 이미 들어있는 log.isRegular + isKmActivity 도 이전 데이터 호환을 위해 호환 조건 포함
+            const isScheduleItem = log.isSchedule || (log.isRegular && isKmActivity);
+
+            if (isScheduleItem) {
                 let badgeBg = '#ecfdf5', badgeColor = '#10b981', badgeBorder = '#a7f3d0';
 
-                // 1) 런닝 일정 (분홍 도트 #FFD1DC 색상 계열)
-                if (log.isRunning || log.isScheduleRun) {
+                // 1) 런닝 (#FFD1DC -> 핑크 계열 배지)
+                if (log.isRunning) {
                     badgeBg = '#fff1f2'; 
                     badgeColor = '#e11d48'; 
                     badgeBorder = '#fecdd3';
                 } 
-                // 2) 트레킹 일정 (보라 도트 #E0B0FF 색상 계열)
-                else if (log.isTracking || log.isScheduleTrek) {
+                // 2) 트레킹 (#E0B0FF -> 보라 계열 배지)
+                else if (log.isTracking) {
                     badgeBg = '#f5f3ff'; 
                     badgeColor = '#7c3aed'; 
                     badgeBorder = '#ddd6fe';
                 } 
-                // 3) 산책 일정 (주황/연주황 도트 #FFCC80 색상 계열)
-                else if (log.isWalking || log.isScheduleWalk) {
+                // 3) 산책 (#FFCC80 -> 주황 계열 배지)
+                else if (log.isWalking) {
                     badgeBg = '#fff7ed'; 
                     badgeColor = '#c2410c'; 
                     badgeBorder = '#ffedd5';
                 }
 
-                const showScheduleBadge = (currentCategory === 'running' || currentCategory === 'all' || currentCategory === 'hiking');
-                
-                if (showScheduleBadge) {
-                    scheduleBadge = `<span class="schedule-tag-badge" style="margin-left: auto; background: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${badgeBorder}; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; line-height: 1; flex-shrink: 0;">일정</span>`;
-                }
+                scheduleBadge = `<span class="schedule-tag-badge" style="margin-left: auto; background: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${badgeBorder}; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; line-height: 1; flex-shrink: 0;">일정</span>`;
             }
 
-            // 계절 이모지 분리 로직
+            // 계절 이모지 분리
             let seasonEmoji = '';
             let textBody = rawMountain;
 
@@ -8150,7 +8190,6 @@ window.loadScrollLogsPage = (isFirstPage = false) => {
                 }
             }
 
-            // 무지개 글씨 스타일 (순수 정기산행)
             const rainbowTextStyle = isPureRegularHike 
                 ? 'background: linear-gradient(90deg, #ff007f, #8a2be2, #0055ff, #00d2ff, #ff007f); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800; animation: rainbowMove 3s linear infinite;' 
                 : '';
@@ -8163,7 +8202,6 @@ window.loadScrollLogsPage = (isFirstPage = false) => {
                 ? `<span style="margin-left: auto; background: linear-gradient(135deg, rgba(255, 105, 180, 0.15), rgba(160, 32, 240, 0.15)); color: #7e22ce; border: 1px solid rgba(160, 32, 240, 0.35); font-size: 9.5px; font-weight: 800; padding: 2px 7px; border-radius: 20px; display: inline-flex; align-items: center; line-height: 1; flex-shrink: 0;">정기산행</span>`
                 : '';
 
-            // HTML 구성
             const mountainHtml = isPureRegularHike
                 ? `${seasonEmoji ? `<span style="font-size: 12px; margin-right: 3px;">${seasonEmoji}</span>` : ''}<span style="${rainbowTextStyle}">${textBody} (${heightVal}${unit})</span>${regularSparkle}`
                 : `<span class="${blueClass}">${rawMountain} (${heightVal}${unit})</span>`;
@@ -8208,7 +8246,10 @@ window.loadScrollLogsPage = (isFirstPage = false) => {
         moreBtnArea.innerHTML = `<span style="font-size:11px; color:#e53e3e;">데이터 로드 오류: ${e.message}</span>`;
     }
 };
+        
 
+
+    
             
          
                        
