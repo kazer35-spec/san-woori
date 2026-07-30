@@ -7193,14 +7193,19 @@ window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
         }
 
         
-        // 🎯 [A방안 코드] 기존 DB 수정 없이 순수 정기산행 조건만 정밀 검사
+        // 🎯 [수정 완료] 데이터 타입/undefined 예외를 완전 방어하는 조건문
 rawLogs.forEach(data => {
-    // 러닝, 트래킹, 산책, 개인산행 조건 체크
-    const isKmActivity = data.isRunning || data.isTracking || data.isWalking;
-    const isPureRegularHike = data.isRegular && !isKmActivity && !data.isExtraHike;
+    // 1. isRegular가 true(Boolean)이거나 문자열 "true"인지 확인
+    const isReg = data.isRegular === true || data.isRegular === 'true';
 
-    // 순수 정기산행인 경우에만 나이테 위성 별 생성
-    if (isPureRegularHike && data.date && !processedLogIds.has(data.id)) {
+    // 2. 운동/개인산행 값이 명확히 true로 켜진 경우만 제외
+    const isKm = (data.isRunning === true || data.isTracking === true || data.isWalking === true);
+    const isExtra = (data.isExtraHike === true);
+
+    // 3. 위성 대상 최종 판정
+    const isSatelliteTarget = isReg && !isKm && !isExtra;
+
+    if (isSatelliteTarget && data.date && !processedLogIds.has(data.id)) {
         processedLogIds.add(data.id);
 
         const hikeDate = data.date.toDate ? data.date.toDate() : new Date(data.date);
@@ -7217,6 +7222,7 @@ rawLogs.forEach(data => {
         }
     }
 });
+
 
     } catch (e) { console.error("나이테 로그 로드 에러:", e); }
 
