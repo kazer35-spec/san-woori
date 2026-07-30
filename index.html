@@ -13,6 +13,12 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+
+    @keyframes rainbowMove {
+    0% { background-position: 0% center; }
+    100% { background-position: 200% center; }
+}
+
     /* 💡 기록보기 강조용 반짝임(글로우 & 펄스) 애니메이션 */
 @keyframes recordBtnShine {
     0%, 100% {
@@ -8051,7 +8057,7 @@ window.loadScrollLogsPage = (isFirstPage = false) => {
         const finalItems = filtered.slice(startIndex, targetSize);
          
                  
-                     const htmlContent = finalItems.map(log => {
+                                         const htmlContent = finalItems.map(log => {
             let dateStr = "----.--.--";
             let dayName = "";
             if (log.date) {
@@ -8087,11 +8093,15 @@ window.loadScrollLogsPage = (isFirstPage = false) => {
             const displayMountain = log.mountain || (log.isExtraHike ? "개인 산행" : "활동 기록");
             const bacTag = log.isBAC ? '<span class="bac-badge-mini">BAC</span>' : '';
             
-            const starTag = log.isTop100 
-                ? '<span style="color: #f59e0b; font-size: 12px; margin-left: 2px;">★</span>' 
-                : '<span style="color: #94a3b8; font-size: 11px; margin-left: 2px;">✔</span>';
+            // 🎯 정기산행일 때는 맨 뒤 체크(✔) 제거
+            let starTag = '';
+            if (log.isTop100) {
+                starTag = '<span style="color: #f59e0b; font-size: 12px; margin-left: 2px;">★</span>';
+            } else if (!isPureRegularHike) {
+                starTag = '<span style="color: #94a3b8; font-size: 11px; margin-left: 2px;">✔</span>';
+            }
                 
-            const blueClass = log.isTop100 ? "top100-blue" : "";
+            const blueClass = (log.isTop100 && !isPureRegularHike) ? "top100-blue" : "";
 
             // 정기 체크(isRegular)된 러닝/트레킹/산책 기록용 태그
             const isRegularGroupExercise = log.isRegular && isKmActivity;
@@ -8111,9 +8121,14 @@ window.loadScrollLogsPage = (isFirstPage = false) => {
                 ? `<span class="schedule-tag-badge" style="margin-left: auto; background: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${badgeBorder}; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; line-height: 1; flex-shrink: 0;">일정</span>` 
                 : '';
 
-            // 🌈 순수 정기산행일 때 적용할 무지개 글씨 스타일 및 뒤쪽 별(✨) 태그
+            // 🌈 1. 움직이는 무지개 글씨 스타일 (CSS 애니메이션 포함)
             const rainbowTextStyle = isPureRegularHike 
-                ? 'background: linear-gradient(135deg, #ff007f, #8a2be2, #0055ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800;' 
+                ? 'background: linear-gradient(90deg, #ff007f, #8a2be2, #0055ff, #00d2ff, #ff007f); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800; animation: rainbowMove 3s linear infinite;' 
+                : '';
+
+            // 🍀 2. 클로버 마크는 무지개 스타일과 분리 (원래 색상 보존)
+            const cloverMark = isPureRegularHike 
+                ? '<span style="font-size: 12px; margin-right: 2px;">🍀</span>' 
                 : '';
 
             const regularStar = isPureRegularHike 
@@ -8127,7 +8142,8 @@ window.loadScrollLogsPage = (isFirstPage = false) => {
                         <div style="display: flex; align-items: center; gap: 4px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;">
                             <span class="scroll-item-dot" style="${dotStyle}"></span>
                             ${bacTag}
-                            <span class="scroll-item-name ${blueClass}" style="${rainbowTextStyle}">${displayMountain} (${heightVal}${unit})</span>
+                            ${cloverMark}
+                            <span class="scroll-item-name ${blueClass}" style="${rainbowTextStyle}">정기산행 ${displayMountain} (${heightVal}${unit})</span>
                             ${regularStar}
                             ${starTag}
                         </div>
@@ -8136,6 +8152,7 @@ window.loadScrollLogsPage = (isFirstPage = false) => {
                 </div>
             `;
         }).join('');
+
 
 
 
