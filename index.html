@@ -4802,7 +4802,8 @@ function setupTimelineTabs() {
 // 🌟 [추가 함수 2] 탭 클릭 시 클라이언트 사이드 즉시 필터링
 
 
-  window.filterMemberLogs = (category) => {
+
+        window.filterMemberLogs = (category) => {
     const tabs = {
         all: document.getElementById('mTab-all'),
         hiking: document.getElementById('mTab-hiking'),
@@ -4821,29 +4822,28 @@ function setupTimelineTabs() {
         }
     });
 
-        // 2. 카테고리 필터 기준 정의 (이 부분만 교체하세요)
+    // 2. 카테고리 필터 기준 정의
     let filtered = [];
     if (category === 'all') {
         filtered = currentMemberLogs;
     } else if (category === 'hiking') {
-        // 순수산행 (런닝, 트레킹, 산책, 번외산행 모두 제외)
         filtered = currentMemberLogs.filter(log => 
-            (!log.isRunning && !log.isTracking && !log.isWalking) && !log.isExtraHike
+            log.isSchedule || log.isRegular || ((!log.isRunning && !log.isTracking && !log.isWalking) && !log.isExtraHike)
         );
     } else if (category === 'running') {
-        // 번외산행 및 런닝/트레킹/산책 포함
         filtered = currentMemberLogs.filter(log => 
             log.isExtraHike || log.isRunning || log.isTracking || log.isWalking
         );
     }
 
-
-            // 🎨 [수정] 범례 가이드 영역 조율 (도트 크기 8px, 텍스트 10px로 축소)
+    // 🎨 범례 가이드 영역 조율 (legends.regular 추가로 undefined 에러 방지)
     const legendArea = document.getElementById('timelineLegend');
     if (legendArea) {
-        // 범례 조각 정의 (w-2 h-2로 도트 크기 축소, text-[10px]로 폰트 축소, 간격 정밀 조정)
         const legends = {
-
+            regular: `<div class="flex items-center gap-1 text-[10px] font-semibold text-slate-500">
+                <span class="inline-block w-2 h-2 rounded-full border border-black/5" style="background: linear-gradient(135deg, #FF69B4, #ADFF2F, #A020F0);"></span>
+                <span>정기산행</span>
+            </div>`,
             hike: `<div class="flex items-center gap-1 text-[10px] font-semibold text-slate-500">
                 <span class="inline-block w-2 h-2 rounded-full border border-black/5 bg-[#2ecc71]"></span>
                 <span>일정산행</span>
@@ -4866,7 +4866,6 @@ function setupTimelineTabs() {
             </div>`
         };
 
-        // 탭 종류에 따라 알맞은 범례 아이템 배치
         if (category === 'hiking') {
             legendArea.innerHTML = [legends.regular, legends.hike, legends.extraHike].join('');
             legendArea.style.display = 'flex';
@@ -4879,8 +4878,7 @@ function setupTimelineTabs() {
         }
     }
 
-
-    // 3. 필터링된 영역만 리렌더링
+    // 3. 필터링된 영역 리렌더링
     const listArea = document.getElementById('filteredTimelineList');
     if (!listArea) return;
 
@@ -4890,64 +4888,89 @@ function setupTimelineTabs() {
     }
 
     listArea.innerHTML = filtered.map(log => {
-        const dayName = ['일','월','화','수','목','금','토'][log.date.getDay()];
-        const top100Class = log.isTop100 ? 'text-blue-600 font-black' : '';
-        const bacTag = log.isBAC ? '<span class="bac-txt">BAC</span>' : '';
+        const jsDate = log.date ? (typeof log.date.toDate === 'function' ? log.date.toDate() : new Date(log.date)) : new Date();
+        const dayName = ['일','월','화','수','목','금','토'][jsDate.getDay()];
         
         const heightVal = log.height || 0;
         const isKmActivity = (log.isRunning || log.isTracking || log.isWalking) && !log.isExtraHike;
+        const isPureRegularHike = log.isRegular && !isKmActivity; 
         const unit = (isKmActivity && heightVal < 50) ? 'km' : 'm';
-        const displayMountain = log.mountain || (log.isExtraHike ? "번외 산행" : "기록");
+        const rawMountain = log.mountain || (log.isExtraHike ? "번외 산행" : "기록");
 
-        // 🎨 운동 종류별 잔디 색상 도트 생성 로직
+        // 🎨 도트 스타일
         let dotStyle = "";
-        
-        if (log.isRegular) {
-            // 정기산행: 프리미엄 그라데이션
+        if (isPureRegularHike) {
             dotStyle = "background: linear-gradient(135deg, #FF69B4, #ADFF2F, #A020F0);";
         } else {
-            // 일반 활동별 정의된 잔디 색상
-            const colors = {
-                hike: "#2ecc71",      // 등산 기본 (초록)
-                extraHike: "#5CE1D6", // 번외산행 (민트)
-                walk: "#FFCC80",      // 산책 (주황)
-                trek: "#E0B0FF",      // 트레킹 (보라)
-                run: "#FFD1DC"        // 런닝 (분홍)
-            };
+            const colors = { hike: "#2ecc71", extraHike: "#5CE1D6", walk: "#FFCC80", trek: "#E0B0FF", run: "#FFD1DC" };
+            let baseColor = colors.hike;
+            if (log.isExtraHike) baseColor = colors.extraHike;
+            else if (log.isRunning) baseColor = colors.run;
+            else if (log.isTracking) baseColor = colors.trek;
+            else if (log.isWalking) baseColor = colors.walk;
 
-            let activeColors = [];
-            if (log.isExtraHike) activeColors.push(colors.extraHike);
-            else if (log.isRunning) activeColors.push(colors.run);
-            else if (log.isTracking) activeColors.push(colors.trek);
-            else if (log.isWalking) activeColors.push(colors.walk);
-            else activeColors.push(colors.hike);
+            dotStyle = `background: ${baseColor};`;
+        }
 
-            if (activeColors.length >= 2) {
-                if (activeColors.length === 2) {
-                    dotStyle = `background: linear-gradient(135deg, ${activeColors[0]} 50%, ${activeColors[1]} 50%);`;
-                } else {
-                    dotStyle = `background: linear-gradient(135deg, ${activeColors[0]} 33.3%, ${activeColors[1]} 33.3%, ${activeColors[1]} 66.6%, ${activeColors[2]} 66.6%);`;
-                }
-            } else {
-                dotStyle = `background: ${activeColors[0]};`;
+        const colorDotTag = `<span class="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle shadow-sm border border-black/5" style="${dotStyle}"></span>`;
+        const bacTag = log.isBAC ? '<span class="bac-txt">BAC</span>' : '';
+        
+        // 🎯 [핵심 수정 1] 100대 명산 전용 파란색 클래스를 텍스트 요소에 직접 지정
+        const top100Blue = (log.isTop100 && !isPureRegularHike) ? 'top100-blue' : '';
+        
+        // 🎯 [핵심 수정 2] 별표/체크 아이콘 디자인 통합
+        let starTag = '';
+        if (log.isTop100) {
+            starTag = '<span style="color: #f59e0b; font-size: 12px; margin-left: 2px;">★</span>';
+        } else if (!isPureRegularHike) {
+            starTag = '<span style="color: #94a3b8; font-size: 11px; margin-left: 2px;">✔</span>';
+        }
+
+        // 🍀 계절 이모지 분리
+        let seasonEmoji = '';
+        let textBody = rawMountain;
+        if (isPureRegularHike) {
+            const match = rawMountain.match(/^(🍀|🌸|🍁|❄️)/u);
+            if (match) {
+                seasonEmoji = match[1];
+                textBody = rawMountain.slice(seasonEmoji.length).trim();
             }
         }
 
-        // 🎯 텍스트(산 이름) 바로 앞에 오도록 여백 수정 (mr-1.5)
-        const colorDotTag = `<span class="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle shadow-sm border border-black/5" style="${dotStyle}"></span>`;
+        const regularSparkle = isPureRegularHike ? '<span style="font-size: 11px; margin-left: 3px;">✨</span>' : '';
+        
+        // 뱃지
+        const regularBadge = isPureRegularHike
+            ? `<span class="ml-auto text-[9.5px] font-extrabold px-2 py-0.5 rounded-full" style="background: linear-gradient(135deg, rgba(255, 105, 180, 0.15), rgba(160, 32, 240, 0.15)); color: #7e22ce; border: 1px solid rgba(160, 32, 240, 0.35);">정기산행</span>`
+            : '';
+
+        const showScheduleBadge = (category === 'running' || category === 'all' || category === 'hiking') && ((log.isSchedule || log.isRegular) && isKmActivity);
+        const scheduleBadge = showScheduleBadge 
+            ? `<span class="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-600 border border-emerald-200">일정</span>` 
+            : '';
+
+        // 🎯 [핵심 수정 3] 100대 명산 텍스트 렌더링
+        const mountainHtml = isPureRegularHike
+            ? `${seasonEmoji ? `<span style="font-size: 12px; margin-right: 3px;">${seasonEmoji}</span>` : ''}<span class="rainbow-text">${textBody} (${heightVal}${unit})</span>${regularSparkle}`
+            : `<span class="${top100Blue}">${rawMountain} (${heightVal}${unit})</span>`;
 
         return `
             <div class="timeline-item">
                 <div class="timeline-dot"></div>
                 <div class="timeline-date">
-                    ${log.date.getFullYear()}.${log.date.getMonth()+1}.${log.date.getDate()} (${dayName})
+                    ${jsDate.getFullYear()}.${jsDate.getMonth()+1}.${jsDate.getDate()} (${dayName})
                 </div>
-                <div class="timeline-desc ${top100Class}">
-                    ${colorDotTag}${bacTag}${displayMountain} (${heightVal}${unit}) ${log.isTop100 ? '⭐' : '✔️'}
+                <div class="timeline-desc flex items-center justify-between">
+                    <div class="flex items-center overflow-hidden whitespace-nowrap text-ellipsis">
+                        ${colorDotTag}${bacTag}${mountainHtml}${starTag}
+                    </div>
+                    ${regularBadge}
+                    ${scheduleBadge}
                 </div>
             </div>`;
     }).join('');
 };
+
       
     
 
