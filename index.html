@@ -7815,9 +7815,7 @@ function createShootingStar(board, tx, ty) {
 }
 
              
-
-   
-window.currentScrollLogs = []; 
+Window.currentScrollLogs = []; 
 
 window.scrollPagination = {
     currentCategory: 'all',
@@ -7893,7 +7891,7 @@ window.showFadingScroll = async function(mId, dday, level = 0, passedRegDate = n
             };
         });
 
-        // 🔥 [수정] 순수산행(일반산행) + 정기산행 = 일정산행 횟수로 집계
+        // 🔥 순수산행(일반산행) + 정기산행 = 일정산행 횟수로 집계
         const counts = window.currentScrollLogs.reduce((acc, log) => {
             const isKmActivity = log.isRunning || log.isTracking || log.isWalking;
             const isPureHike = !isKmActivity && !log.isExtraHike;
@@ -8097,18 +8095,19 @@ window.loadScrollLogsPage = (isFirstPage = false) => {
 
             const heightVal = log.height || 0;
             const unit = (isKmActivity && !log.isExtraHike && heightVal < 50) ? 'km' : 'm';
-            
             const rawMountain = log.mountain || (log.isExtraHike ? "개인 산행" : "활동 기록");
             const bacTag = log.isBAC ? '<span class="bac-badge-mini">BAC</span>' : '';
             
+            // 🎯 100대 명산 타입 안전 검사 (Boolean/String/Number 대응)
+            const isTop100Log = log.isTop100 === true || log.isTop100 === 'true' || log.isTop100 == 1;
+
+            // 🎯 아이콘 태그 (★ / ✔)
             let starTag = '';
-            if (log.isTop100) {
+            if (isTop100Log) {
                 starTag = '<span style="color: #f59e0b; font-size: 12px; margin-left: 2px;">★</span>';
             } else if (!isPureRegularHike) {
                 starTag = '<span style="color: #94a3b8; font-size: 11px; margin-left: 2px;">✔</span>';
             }
-                
-            const blueClass = (log.isTop100 && !isPureRegularHike) ? "top100-blue" : "";
 
             const isScheduleGroupExercise = log.isSchedule && isKmActivity;
             let badgeBg = '#ecfdf5', badgeColor = '#10b981', badgeBorder = '#a7f3d0';
@@ -8150,9 +8149,16 @@ window.loadScrollLogsPage = (isFirstPage = false) => {
                 ? `<span style="margin-left: auto; background: linear-gradient(135deg, rgba(255, 105, 180, 0.15), rgba(160, 32, 240, 0.15)); color: #7e22ce; border: 1px solid rgba(160, 32, 240, 0.35); font-size: 9.5px; font-weight: 800; padding: 2px 7px; border-radius: 20px; display: inline-flex; align-items: center; line-height: 1; flex-shrink: 0;">정기산행</span>`
                 : '';
 
-            const mountainHtml = isPureRegularHike
-                ? `${seasonEmoji ? `<span style="font-size: 12px; margin-right: 3px;">${seasonEmoji}</span>` : ''}<span style="${rainbowTextStyle}">${textBody} (${heightVal}${unit})</span>${regularSparkle}`
-                : `<span class="${blueClass}">${rawMountain} (${heightVal}${unit})</span>`;
+            // 🎯 [핵심] 100대 명산 블루글씨 및 정기산행 무지개 글씨 렌더링 분기
+            let mountainHtml = '';
+            if (isPureRegularHike) {
+                mountainHtml = `${seasonEmoji ? `<span style="font-size: 12px; margin-right: 3px;">${seasonEmoji}</span>` : ''}<span style="${rainbowTextStyle}">${textBody} (${heightVal}${unit})</span>${regularSparkle}`;
+            } else if (isTop100Log) {
+                // top100-blue 클래스 부여 + 인라인 스타일로 파란색(#2563eb) 확실하게 고정
+                mountainHtml = `<span class="top100-blue" style="color: #2563eb !important; font-weight: 700;">${rawMountain} (${heightVal}${unit})</span>`;
+            } else {
+                mountainHtml = `<span>${rawMountain} (${heightVal}${unit})</span>`;
+            }
 
             return `
                 <div class="scroll-timeline-item">
@@ -8161,7 +8167,9 @@ window.loadScrollLogsPage = (isFirstPage = false) => {
                         <div style="display: flex; align-items: center; gap: 4px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;">
                             <span class="scroll-item-dot" style="${dotStyle}"></span>
                             ${bacTag}
-                            <span class="scroll-item-name" style="display: inline-flex; align-items: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${mountainHtml}</span>
+                            <span class="scroll-item-name" style="display: inline-flex; align-items: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                ${mountainHtml}
+                            </span>
                             ${starTag}
                         </div>
                         ${regularBadge}
@@ -8194,7 +8202,13 @@ window.loadScrollLogsPage = (isFirstPage = false) => {
         moreBtnArea.innerHTML = `<span style="font-size:11px; color:#e53e3e;">데이터 로드 오류: ${e.message}</span>`;
     }
 };
-                         
+
+   
+
+    
+            
+
+                                      
                  
     
 
