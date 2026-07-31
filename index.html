@@ -5782,8 +5782,8 @@ window.addMultiActivity = async () => {
     const isTop100 = document.getElementById('isTop100Check')?.checked || false;
     const isBAC = document.getElementById('isBACCheck')?.checked || false;
     
-    // 🎯 정기산행 체크박스를 '일정 체크박스'로 적용
-    const isRegularRaw = document.getElementById('isRegularCheck')?.checked || false;
+    // 🎯 정기 체크 -> 일정 체크박스로 변경
+    const isRegular = document.getElementById('isRegularCheck')?.checked || false;
     const isSchedule = document.getElementById('isScheduleCheck')?.checked || false; 
 
     const isRunning = document.getElementById('isRunningCheck')?.checked || false;
@@ -5800,10 +5800,6 @@ window.addMultiActivity = async () => {
     const isExtraHike = isRunning && isTracking; 
     const isSpecial = isRunning || isTracking || isWalking || isOnlyLog || isExtraHike;
     const isRealHike = !isSpecial; 
-
-    // 🔥 정기산행 방어 logic
-    const isRegular = isRegularRaw && isRealHike; 
-
     const isMultiHike = typeof selectedMemberIds !== 'undefined' && selectedMemberIds.size >= 2;
     const isDdayTargetActivity = (isRunning || isTracking || isWalking) && !isExtraHike;
 
@@ -5863,7 +5859,7 @@ window.addMultiActivity = async () => {
                 updateData.count = _increment(1); 
                 updateData.lastDate = ts; 
 
-                const logLoopCount = (isRegular || isQuarterOnlyOne || isOnlyLog) ? 1 : realUpAmount;
+                const logLoopCount = (isRegular || isSchedule || isQuarterOnlyOne || isOnlyLog) ? 1 : realUpAmount;
                 const finalHeightIncrement = height * logLoopCount; 
                 updateData.totalHeight = _increment(finalHeightIncrement); 
 
@@ -5880,7 +5876,7 @@ window.addMultiActivity = async () => {
                 updateData.qCount = _increment(qCountIncrement); 
 
                 if (isMultiHike) {
-                    let pointToAdd = (isQuarterOnlyOne || isRegular) ? 100 : (100 * (realUpAmount || 1));
+                    let pointToAdd = (isQuarterOnlyOne || isRegular || isSchedule) ? 100 : (100 * (realUpAmount || 1));
                     updateData.buddyCount = _increment(1);
                     updateData.friendshipPoint = _increment(pointToAdd);
                     updateData[`fp_bins.${qKey}`] = _increment(pointToAdd);
@@ -5912,8 +5908,8 @@ window.addMultiActivity = async () => {
                 await updateDoc(doc(db, "sanwoori", id), updateData);
             }
             
-            // ─── 🎯 세부 로그 적재 ───
-            const finalLogLoopCount = (isRegular || isSpecial || isQuarterOnlyOne) ? 1 : realUpAmount;
+            // ─── 🎯 Document ID 생성 및 세부 로그 적재 ───
+            const finalLogLoopCount = (isRegular || isSchedule || isSpecial || isQuarterOnlyOne) ? 1 : realUpAmount;
 
             const rawMountainName = document.getElementById('mountainName')?.value.trim();
             const baseDocId = rawMountainName || (isWalking ? "동네 산책" : (isExtraHike ? "번외 산행" : (isRunning ? "러닝 활동" : "트레킹 활동")));
@@ -5938,8 +5934,7 @@ window.addMultiActivity = async () => {
                     mountain: baseDocId, 
                     height, coords: safeCoords,
                     isTop100, isBAC, 
-                    isRegular,   
-                    isSchedule,  
+                    isRegular, isSchedule, 
                     isRunning, isTracking, isWalking, isExtraHike, isOnlyLog, region,
                     starType, author: member.name,
                     isSpecial: isSpecial,
@@ -6004,6 +5999,7 @@ window.addMultiActivity = async () => {
         alert("저장 실패: " + error.message);
     }
 };
+
 
      
         
@@ -7816,7 +7812,6 @@ function createShootingStar(board, tx, ty) {
 
              
 
-   
 window.currentScrollLogs = []; 
 
 window.scrollPagination = {
@@ -7893,16 +7888,17 @@ window.showFadingScroll = async function(mId, dday, level = 0, passedRegDate = n
             };
         });
 
-        // 🔥 [수정] 순수산행(일반산행) + 정기산행 = 일정산행 횟수로 집계
-                // 🔥 [수정] 순수산행(일반산행) + 정기산행 = 일정산행 횟수로 집계
+        // 📊 정확한 운동 카운팅 계산 (isSchedule / isRegular 방어 로직 완비)
         const counts = window.currentScrollLogs.reduce((acc, log) => {
-            const isKmActivity = log.isRunning || log.isTracking || log.isWalking;
-            const isPureHike = !isKmActivity && !log.isExtraHike;
+            const isKm = log.isRunning || log.isTracking || log.isWalking;
+            const isPureHike = !isKm && !log.isExtraHike;
 
             if (isPureHike) {
-                acc.schedule++; // 순수산행(일반산행)이면 일정산행 +1
                 if (log.isRegular) {
-                    acc.regular++; // 그중 정기산행이면 정기산행 +1
+                    acc.regular++; // 정기산행 카운트
+                }
+                if (log.isSchedule || log.isRegular) {
+                    acc.schedule++; // 일정산행 (정기산행 포함)
                 }
             } else if (log.isExtraHike) {
                 acc.extra++;
@@ -8044,21 +8040,19 @@ window.loadScrollLogsPage = (isFirstPage = false) => {
     const targetSize = window.scrollPagination.currentPageSize;
 
     try {
-                let filtered = [];
+        let filtered = [];
         if (currentCategory === 'all') {
             filtered = window.currentScrollLogs;
         } else if (currentCategory === 'hiking') {
-            filtered = window.currentScrollLogs.filter(log => {
-                const isKmActivity = log.isRunning || log.isTracking || log.isWalking;
-                // 일정 체크되어있거나, KmActivity/번외산행이 아닌 순수 산행들
-                return log.isSchedule || (!isKmActivity && !log.isExtraHike);
-            });
+            // 🎯 일정/정기 체크가 된 운동 및 순수 일정/정기 산행 노출
+            filtered = window.currentScrollLogs.filter(log => 
+                log.isSchedule || log.isRegular || ((!log.isRunning && !log.isTracking && !log.isWalking) && !log.isExtraHike)
+            );
         } else if (currentCategory === 'running') {
             filtered = window.currentScrollLogs.filter(log => 
                 log.isExtraHike || log.isRunning || log.isTracking || log.isWalking
             );
         }
-
 
         if (filtered.length === 0) {
             listBox.innerHTML = `<p style="text-align:center; padding:40px 0; font-size:11px; color:#a0aec0;">기록이 없습니다.</p>`;
@@ -8081,7 +8075,7 @@ window.loadScrollLogsPage = (isFirstPage = false) => {
             }
 
             const isKmActivity = log.isRunning || log.isTracking || log.isWalking;
-            const isPureRegularHike = log.isRegular && !isKmActivity; 
+            const isPureRegularHike = log.isRegular && !isKmActivity; // 순수 정기산행 조건
 
             // 🎯 도트 색상
             let dotStyle = "";
@@ -8105,6 +8099,7 @@ window.loadScrollLogsPage = (isFirstPage = false) => {
             const rawMountain = log.mountain || (log.isExtraHike ? "개인 산행" : "활동 기록");
             const bacTag = log.isBAC ? '<span class="bac-badge-mini">BAC</span>' : '';
             
+            // 🎯 정기산행 시 맨 뒤 v체크(✔) 제거, Top100 별(★)은 원래 황금색 유지
             let starTag = '';
             if (log.isTop100) {
                 starTag = '<span style="color: #f59e0b; font-size: 12px; margin-left: 2px;">★</span>';
@@ -8112,10 +8107,10 @@ window.loadScrollLogsPage = (isFirstPage = false) => {
                 starTag = '<span style="color: #94a3b8; font-size: 11px; margin-left: 2px;">✔</span>';
             }
                 
-            // 🎯 100대 명산이면 top100-blue 클래스 부여 (정기산행이 아닐 때)
-const blueClass = (log.isTop100 && !isPureRegularHike) ? "top100-blue" : "";
+            const blueClass = (log.isTop100 && !isPureRegularHike) ? "top100-blue" : "";
 
-            const isScheduleGroupExercise = log.isSchedule && isKmActivity;
+            // 🎯 일정 체크(isSchedule) 또는 정기 체크(isRegular)가 된 러닝/트레킹/산책 기록용 태그
+            const isScheduleGroupExercise = (log.isSchedule || log.isRegular) && isKmActivity;
             let badgeBg = '#ecfdf5', badgeColor = '#10b981', badgeBorder = '#a7f3d0';
             
             if (log.isRunning) {
@@ -8132,6 +8127,7 @@ const blueClass = (log.isTop100 && !isPureRegularHike) ? "top100-blue" : "";
                 ? `<span class="schedule-tag-badge" style="margin-left: auto; background: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${badgeBorder}; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; line-height: 1; flex-shrink: 0;">일정</span>` 
                 : '';
 
+            // 🍀🌸🍁❄️ 계절 이모지 분리 로직
             let seasonEmoji = '';
             let textBody = rawMountain;
 
@@ -8143,22 +8139,25 @@ const blueClass = (log.isTop100 && !isPureRegularHike) ? "top100-blue" : "";
                 }
             }
 
+            // 🌈 움직이는 무지개 글씨 스타일
             const rainbowTextStyle = isPureRegularHike 
                 ? 'background: linear-gradient(90deg, #ff007f, #8a2be2, #0055ff, #00d2ff, #ff007f); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800; animation: rainbowMove 3s linear infinite;' 
                 : '';
 
+            // ✨ 무지개 글씨 바로 뒤 반짝이 별
             const regularSparkle = isPureRegularHike 
                 ? '<span style="font-size: 11px; margin-left: 3px;">✨</span>' 
                 : '';
 
+            // 🎨 정기산행 우측 전용 그라데이션 뱃지
             const regularBadge = isPureRegularHike
                 ? `<span style="margin-left: auto; background: linear-gradient(135deg, rgba(255, 105, 180, 0.15), rgba(160, 32, 240, 0.15)); color: #7e22ce; border: 1px solid rgba(160, 32, 240, 0.35); font-size: 9.5px; font-weight: 800; padding: 2px 7px; border-radius: 20px; display: inline-flex; align-items: center; line-height: 1; flex-shrink: 0;">정기산행</span>`
                 : '';
 
-            // 🎯 산 이름 HTML 생성 부분
-const mountainHtml = isPureRegularHike
-    ? `${seasonEmoji ? `<span style="font-size: 12px; margin-right: 3px;">${seasonEmoji}</span>` : ''}<span style="${rainbowTextStyle}">${textBody} (${heightVal}${unit})</span>${regularSparkle}`
-    : `<span class="${blueClass}">${rawMountain} (${heightVal}${unit})</span>`;
+            // HTML 구성
+            const mountainHtml = isPureRegularHike
+                ? `${seasonEmoji ? `<span style="font-size: 12px; margin-right: 3px;">${seasonEmoji}</span>` : ''}<span style="${rainbowTextStyle}">${textBody} (${heightVal}${unit})</span>${regularSparkle}`
+                : `<span class="${blueClass}">${rawMountain} (${heightVal}${unit})</span>`;
 
             return `
                 <div class="scroll-timeline-item">
@@ -8200,12 +8199,8 @@ const mountainHtml = isPureRegularHike
         moreBtnArea.innerHTML = `<span style="font-size:11px; color:#e53e3e;">데이터 로드 오류: ${e.message}</span>`;
     }
 };
-                         
-                 
-    
 
-            
-
+   
                              </script>
 
 <div id="mountainViewModal" class="mountain-modal" onclick="this.style.display='none'">
