@@ -7096,8 +7096,7 @@ window.showMemberMountain = async (mId, mName) => {
     }
 };
 
-
-window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
+Window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
     const container = document.getElementById('treeRingContainer');
     const monthLabel = document.getElementById('activityMonths');
     const mainTitle = document.querySelector('.ring-main-title');
@@ -7109,6 +7108,7 @@ window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
     if (mainTitle) mainTitle.classList.add('cosmic-neon-text');
     if (mountainName) mountainName.classList.add('cosmic-neon-text');
 
+    // [1] 배경 별 생성
     const bgStarColors = ["#ffffff", "#facc15", "#3b82f6", "#ef4444"];
     for (let i = 0; i < 100; i++) {
         const star = document.createElement('div');
@@ -7135,23 +7135,20 @@ window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
     const now = new Date();
     let jDate;
 
-    // A. 가입일 설정 로직
+    // [2] 가입일 설정 로직
     if (fixedList.includes(memberName)) {
         jDate = new Date('2025-11-24T00:00:00');
     } else if (regDate?.toDate) {
         jDate = regDate.toDate();
     } else {
-        // B. regDate가 없을 경우: DB 조회 전 캐시 데이터를 우선 탐색
         const cachedLogs = window.mountainDataCache[mId] || [];
         if (cachedLogs.length > 0) {
-            // 캐시 로그 중 가장 오래된 날짜 추출
             const sortedDates = cachedLogs
                 .filter(l => l.date)
                 .map(l => l.date.toDate ? l.date.toDate() : new Date(l.date))
                 .sort((a, b) => a - b);
             jDate = sortedDates[0] || new Date();
         } else {
-            // 캐시에도 없을 때만 최소 1회 조회 후 캐싱
             try {
                 const logsSnap = await getDocs(query(collection(db, `sanwoori/${mId}/logs`), orderBy("date", "asc"), limit(1)));
                 if (!logsSnap.empty) {
@@ -7194,12 +7191,11 @@ window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
 
     const regularStarColors = ["#00FFFF", "#FF8C00", "#D32F2F", "#7C4DFF", "#A020F0", "#00FF7F"]; 
 
-    // 🎯 [캐시 로직 적용] 정기산행 수거 시 DB 전체 조회를 하지 않고 메모리의 캐시 데이터를 활용
+    // [3] 캐시 및 정기산행 수거
     let regularHikesByMonth = {};
     try {
         let rawLogs = window.mountainDataCache[mId];
         
-        // 만약 캐시가 없으면 1회 로드하여 저장
         if (!rawLogs) {
             const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
             rawLogs = snap.docs.map(doc => doc.data());
@@ -7223,7 +7219,7 @@ window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
         });
     } catch (e) { console.error("나이테 로그 로드 에러:", e); }
 
-    // [5] SVG 및 중앙 코어 생성
+    // [4] SVG 및 중앙 코어 생성
     const svgNS = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(svgNS, "svg");
     svg.setAttribute("viewBox", "0 0 240 240");
@@ -7259,13 +7255,17 @@ window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
     coreShape.style.filter = `drop-shadow(0 0 15px ${ringColor})`;
     svg.appendChild(coreShape);
 
-    // [6] 나이테 및 위성 별 생성
+    // [5] 나이테 및 위성 별 생성 (개선된 비선형 곡선 적용)
     const rings = [];
     const satellites = [];
     const seed = memberName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
 
     for (let i = 0; i < diffMonths; i++) {
-        const radius = 10 + ((i + 1) * (95 / diffMonths));
+        // 💡 [개선점 1] 비선형(Logarithmic) 간격 공식
+        // 오래된 나이테일수록 안쪽에 촘촘히 뭉치고, 최근 나이테일수록 넓게 벌어집니다.
+        const progress = (i + 1) / diffMonths;
+        const radius = 10 + (Math.pow(progress, 0.65) * 95);
+
         const path = document.createElementNS(svgNS, "path");
         path.setAttribute("class", "tree-ring-path");
 
@@ -7274,9 +7274,9 @@ window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
         for (let a = 0; a <= 360; a += 6) {
             const angle = (a * Math.PI) / 180;
             const wave = Math.sin(angle * (seed % 4 + 3) + (i + 1)) * 2.5;
-            const r = radius + wave;
-            const x = 120 + r * Math.cos(angle);
-            const y = 120 + r * Math.sin(angle);
+            const rWave = radius + wave;
+            const x = 120 + rWave * Math.cos(angle);
+            const y = 120 + rWave * Math.sin(angle);
             d += (a === 0 ? "M" : "L") + `${x},${y} `;
             points.push({x, y});
         }
@@ -7285,7 +7285,7 @@ window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
         path.setAttribute("d", d);
         path.setAttribute("fill", "none");
         path.setAttribute("stroke", ringColor);
-        path.setAttribute("stroke-width", (i + 1) % 12 === 0 ? "1.2" : "0.35"); 
+        path.setAttribute("stroke-width", "0.35"); 
         path.setAttribute("stroke-opacity", "0");
         path.style.transition = "stroke-opacity 0.5s ease-in, stroke-width 0.5s ease";
 
@@ -7320,7 +7320,7 @@ window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
     }
     container.appendChild(svg);
 
-    // [7] 애니메이션 실행
+    // [6] 애니메이션 실행 및 💡 투명도/두께 시각 최적화
     const totalAnimTime = 1200; 
     const delayStep = Math.min(60, totalAnimTime / diffMonths);
 
@@ -7328,14 +7328,27 @@ window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
         setTimeout(() => {
             const isYearRing = (index + 1) % 12 === 0;
             const isLastRing = (index === rings.length - 1);
-            
-            ring.setAttribute("stroke-opacity", isLastRing ? "1" : (isYearRing ? "0.8" : "0.25"));
-            if(isLastRing) {
+            const ringProgress = index / diffMonths; // 0(오래됨) ~ 1(최근)
+
+            // 안쪽(오래된) 나이테일수록 투명도를 낮추어 성운처럼 은은하게 연출
+            let baseOpacity = 0.05 + (ringProgress * 0.35);
+
+            if (isLastRing) {
+                ring.setAttribute("stroke-opacity", "1");
                 ring.setAttribute("stroke-width", "2");
                 ring.style.filter = `drop-shadow(0 0 5px ${ringColor})`;
+            } else if (isYearRing) {
+                ring.setAttribute("stroke-opacity", Math.min(0.8, baseOpacity + 0.4).toFixed(2));
+                ring.setAttribute("stroke-width", "1.2");
+            } else {
+                ring.setAttribute("stroke-opacity", baseOpacity.toFixed(2));
+                // 극초반 30% 영역의 나이테는 선을 더 가늘게 만듦
+                if (ringProgress < 0.3) {
+                    ring.setAttribute("stroke-width", "0.25");
+                }
             }
 
-            if(monthLabel) monthLabel.innerText = index + 1;
+            if (monthLabel) monthLabel.innerText = index + 1;
 
             satellites.forEach(sat => {
                 if (sat.ringIdx === index) {
@@ -7345,7 +7358,7 @@ window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
         }, index * delayStep);
     });
 
-    // [8] 내부 코어 추가 별빛
+    // [7] 내부 코어 추가 별빛
     setTimeout(() => {
         for (let i = 0; i < 20; i++) {
             const starInner = document.createElement('div');
@@ -7361,7 +7374,11 @@ window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
         }
     }, 100);
 };
-    
+
+
+         
+
+            
                 
   // ======================= [별 가이드 & 은하수 모듈 통합 - 연도 자동 저장 & 모달 최신화] =======================
 
