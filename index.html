@@ -5161,36 +5161,56 @@ function renderGrowthChart(data) {
 
       
 
-// 🔒 공통 모달 닫기
+/// 🔒 [통합 닫기] 모든 안내 모달 닫기 공통 함수
 window.closeMountainInfoModal = function(e) {
+    // 1. 이벤트 전파 방지 (상위 이벤트로 튀는 현상 방지)
     if (e) {
         if (typeof e.stopPropagation === 'function') e.stopPropagation();
         if (typeof e.preventDefault === 'function') e.preventDefault();
     }
+
     const modal = document.getElementById('mwInfoHelpModal');
-    if (modal) {
-        modal.classList.remove('active');
-        setTimeout(() => {
-            modal.style.display = 'none';
-        }, 300);
-    }
+    if (!modal) return;
+
+    // 2. active 클래스 제거 (트랜지션이 있는 경우 대응)
+    modal.classList.remove('active');
+
+    // 3. 바로 display: none을 처리하거나 애니메이션 시간을 고려해 안전하게 숨김
+    // css에 transition이 없더라도 즉시 닫히도록 opacity 제어 병행
+    modal.style.opacity = '0';
+    modal.style.pointerEvents = 'none';
+
+    setTimeout(() => {
+        modal.style.display = 'none';
+        modal.style.pointerEvents = 'auto'; // 재open 대비 복구
+    }, 200); // 0.2초 후 완전 숨김
 };
 
+    // 🔒 [통합 닫기] 모든 안내 모달 닫기 공통 함수
+window.closeMountainInfoModal = function(e) {
+    // 1. 이벤트 전파 방지 (상위 이벤트로 튀는 현상 방지)
+    if (e) {
+        if (typeof e.stopPropagation === 'function') e.stopPropagation();
+        if (typeof e.preventDefault === 'function') e.preventDefault();
+    }
 
-// 🔒 [통합 닫기] 모든 안내 모달 닫기 공통 함수
-window.closeMountainInfoModal = function(event) {
-    if (event) {
-        if (typeof event.stopPropagation === 'function') event.stopPropagation();
-        if (typeof event.preventDefault === 'function') event.preventDefault();
-    }
     const modal = document.getElementById('mwInfoHelpModal');
-    if (modal) {
-        modal.classList.remove('active');
-        setTimeout(() => {
-            modal.style.display = 'none';
-        }, 300); // CSS 0.3s transition 완료 후 숨김
-    }
+    if (!modal) return;
+
+    // 2. active 클래스 제거 (트랜지션이 있는 경우 대응)
+    modal.classList.remove('active');
+
+    // 3. 바로 display: none을 처리하거나 애니메이션 시간을 고려해 안전하게 숨김
+    // css에 transition이 없더라도 즉시 닫히도록 opacity 제어 병행
+    modal.style.opacity = '0';
+    modal.style.pointerEvents = 'none';
+
+    setTimeout(() => {
+        modal.style.display = 'none';
+        modal.style.pointerEvents = 'auto'; // 재open 대비 복구
+    }, 200); // 0.2초 후 완전 숨김
 };
+
 
 // 🌌 [통합 열기] 모달 데이터 주입 및 표출 공통 함수
 window.renderAndShowMwModal = function(titleHtml, bodyHtml, event) {
