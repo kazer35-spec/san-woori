@@ -4195,28 +4195,37 @@ window.renderStatusTable = function() {
 };
        
        // -------------------------------------------------------------
-// 신규 데이터 저장 전용 함수 (window 등록 처리)
-// -------------------------------------------------------------
+// 신규 /**
+ * 🌲 산행 기록 등록 시 호출하는 저장 함수
+ * @param {string} mountainName - 산 이름 (예: "관악산")
+ * @param {string} dateStr - 산행 날짜 (예: "2026-08-03")
+ * @param {Array} membersList - 동행자 이름 배열 (예: ["홍길동", "김철수"])
+ */
 window.saveBondingForestData = async (mountainName, dateStr, membersList) => {
     try {
-        if (!mountainName || !dateStr) return console.error("산 이름과 날짜는 필수 입력 항목입니다.");
+        if (!mountainName || !dateStr) {
+            alert("산 이름과 날짜는 필수 정보입니다.");
+            return;
+        }
 
+        // 1. 공백 제거 및 문서 ID 포맷팅 (예: 관악산_2026-08-03)
         const cleanMountain = mountainName.trim().replace(/\s+/g, "");
-        const cleanDate = dateStr.trim(); // YYYY-MM-DD
-        
-        let docId = `${cleanMountain}_${cleanDate}`;
-        let docRef = doc(db, "bondingForest", docId);
-        
-        // 중복 ID 방어 (같은 산, 같은 날짜 2회 이상 산행 시 _2 붙임)
+        const cleanDate = dateStr.trim();
+        let customDocId = `${cleanMountain}_${cleanDate}`;
+
+        // 2. 혹시 같은 날, 같은 산을 2번 이상 저장할 경우를 대비한 중복 방어
+        let docRef = doc(db, "bondingForest", customDocId);
         let checkDoc = await getDoc(docRef);
         let dupIndex = 2;
+
         while (checkDoc.exists()) {
-            docId = `${cleanMountain}_${cleanDate}_${dupIndex}`;
-            docRef = doc(db, "bondingForest", docId);
+            customDocId = `${cleanMountain}_${cleanDate}_${dupIndex}`;
+            docRef = doc(db, "bondingForest", customDocId);
             checkDoc = await getDoc(docRef);
             dupIndex++;
         }
 
+        // 3. addDoc 대신 setDoc을 사용하여 내가 지정한 ID(customDocId)로 저장!
         await setDoc(docRef, {
             mountain: cleanMountain,
             date: cleanDate,
@@ -4225,10 +4234,12 @@ window.saveBondingForestData = async (mountainName, dateStr, membersList) => {
             createdAt: serverTimestamp()
         });
 
-        console.log(`🌲 인연의 숲 저장 완료: ${docId}`);
-        return docId;
+        console.log(`✅ [bondingForest] 지정한 ID로 저장 완료: ${customDocId}`);
+        return customDocId;
+
     } catch (error) {
-        console.error("❌ bondingForest 저장 중 오류 발생:", error);
+        console.error("❌ 저장 실패:", error);
+        alert("산행 기록 저장 중 오류가 발생했습니다.");
     }
 };
 
