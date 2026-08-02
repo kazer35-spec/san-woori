@@ -6129,9 +6129,29 @@ window.addMultiActivity = async () => {
             }
         } 
 
+        // 🎯 [수정된 부분] bondingForest에 addDoc 대신 setDoc을 사용하여 [산이름_날짜] ID로 직접 저장!
         if (isRealHike && isMultiHike && selectedNames.length >= 2) {
-            await addDoc(collection(db, "bondingForest"), {
-                mountain: mName, members: selectedNames, memberCount: selectedNames.length, date: dateVal, createdAt: new Date()
+            const cleanMountain = (mName || "산행").trim().replace(/\s+/g, "");
+            const cleanDate = dateVal.trim();
+            let bondingDocId = `${cleanMountain}_${cleanDate}`;
+
+            // 동일 날짜, 동일 산 중복 저장 시 식별자 부여 (_2, _3...)
+            let bondingRef = doc(db, "bondingForest", bondingDocId);
+            let checkSnap = await getDoc(bondingRef);
+            let dupSeq = 2;
+            while (checkSnap.exists()) {
+                bondingDocId = `${cleanMountain}_${cleanDate}_${dupSeq}`;
+                bondingRef = doc(db, "bondingForest", bondingDocId);
+                checkSnap = await getDoc(bondingRef);
+                dupSeq++;
+            }
+
+            await setDoc(bondingRef, {
+                mountain: cleanMountain, 
+                members: selectedNames, 
+                memberCount: selectedNames.length, 
+                date: cleanDate, 
+                createdAt: new Date()
             });
         }
 
@@ -6175,10 +6195,7 @@ window.addMultiActivity = async () => {
     }
 };
 
-     
-        
-                        
-   // 📌 [신규 회원 등록 함수] - 수정본
+// 📌 [신규 회원 등록 함수]
 window.addMember = async () => {
     const nameInput = document.getElementById('newName');
     const genderInput = document.querySelector('input[name="newGender"]:checked');
@@ -6188,10 +6205,9 @@ window.addMember = async () => {
         return alert("회원 이름을 입력해주세요.");
     }
 
-    const cleanName = nameInput.value.trim(); // 한글 이름 공백 제거
+    const cleanName = nameInput.value.trim();
     const gender = genderInput ? genderInput.value : "여";
     
-    // 날짜 선택이 안 되어있으면 오늘 날짜 적용
     const regDateVal = dateInput && dateInput.value ? new Date(dateInput.value) : new Date();
     const ts = (typeof Timestamp !== 'undefined') ? Timestamp.fromDate(regDateVal) : regDateVal;
 
@@ -6208,17 +6224,15 @@ window.addMember = async () => {
             friendshipPoint: 0,
             qCount: 0,
             isHidden: false,
-            regDate: ts,    // 👈 🎯 핵심! 이 필드가 추가되어야 가입일 조회가 정상 작동합니다.
-            createdAt: ts,  // 기존 createdAt도 유지
+            regDate: ts,
+            createdAt: ts,
             lastDate: ts
         }, { merge: true });
 
         alert(`신규 회원 [${cleanName}] 님이 정상 등록되었습니다! 🎉`);
 
-        // 입력 폼 초기화
         nameInput.value = "";
         
-        // 데이터 실시간 동기화 함수가 있다면 재실행
         if (typeof startRealtimeSync === 'function') {
             startRealtimeSync();
         }
@@ -6228,6 +6242,9 @@ window.addMember = async () => {
     }
 };
 
+            
+
+            
 // 📌 회원 이름 변경 및 데이터 완벽 이전 함수
 window.updateMemberName = async () => {
     const selectEl = document.getElementById('memberSelectEdit');
