@@ -3029,6 +3029,8 @@ overflow: hidden;
       </p>
     </div>
 
+
+
   </div> <!-- viewAdmin 닫힘 -->
 
 </div> <!-- main-container 닫힘 -->
@@ -4183,11 +4185,39 @@ window.renderStatusTable = function() {
     }
 };
        
+       /**
+ * 🌲 신규 bondingForest 기록 저장 함수 예시
+ */
+async function saveBondingForestData(mountainName, dateStr, membersList) {
+    const cleanMountain = mountainName.trim().replace(/\s+/g, "");
+    const cleanDate = dateStr.trim(); // YYYY-MM-DD 형식
+    
+    let docId = `${cleanMountain}_${cleanDate}`;
+    let docRef = doc(db, "bondingForest", docId);
+    
+    // 문서 존재 여부 체크 후 중복 식별자 부여
+    let checkDoc = await getDoc(docRef);
+    let dupIndex = 2;
+    while (checkDoc.exists()) {
+        docId = `${cleanMountain}_${cleanDate}_${dupIndex}`;
+        docRef = doc(db, "bondingForest", docId);
+        checkDoc = await getDoc(docRef);
+        dupIndex++;
+    }
+
+    await setDoc(docRef, {
+        mountain: cleanMountain,
+        date: cleanDate,
+        members: membersList,
+        memberCount: membersList.length,
+        createdAt: serverTimestamp()
+    });
+
+    console.log(`🌲 인연의 숲 저장 완료: ${docId}`);
+}
+
             
-                    
-            
-                 
-        
+                       
 // 타이머 인터벌을 관리할 전역 변수 (중복 실행 방지 및 메모리 누수 차단)
 window.hallTimerInterval = null;
 
