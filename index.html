@@ -4194,36 +4194,43 @@ window.renderStatusTable = function() {
     }
 };
        
-       /**
- * 🌲 신규 bondingForest 기록 저장 함수 예시
- */
-async function saveBondingForestData(mountainName, dateStr, membersList) {
-    const cleanMountain = mountainName.trim().replace(/\s+/g, "");
-    const cleanDate = dateStr.trim(); // YYYY-MM-DD 형식
-    
-    let docId = `${cleanMountain}_${cleanDate}`;
-    let docRef = doc(db, "bondingForest", docId);
-    
-    // 문서 존재 여부 체크 후 중복 식별자 부여
-    let checkDoc = await getDoc(docRef);
-    let dupIndex = 2;
-    while (checkDoc.exists()) {
-        docId = `${cleanMountain}_${cleanDate}_${dupIndex}`;
-        docRef = doc(db, "bondingForest", docId);
-        checkDoc = await getDoc(docRef);
-        dupIndex++;
+       // -------------------------------------------------------------
+// 신규 데이터 저장 전용 함수 (window 등록 처리)
+// -------------------------------------------------------------
+window.saveBondingForestData = async (mountainName, dateStr, membersList) => {
+    try {
+        if (!mountainName || !dateStr) return console.error("산 이름과 날짜는 필수 입력 항목입니다.");
+
+        const cleanMountain = mountainName.trim().replace(/\s+/g, "");
+        const cleanDate = dateStr.trim(); // YYYY-MM-DD
+        
+        let docId = `${cleanMountain}_${cleanDate}`;
+        let docRef = doc(db, "bondingForest", docId);
+        
+        // 중복 ID 방어 (같은 산, 같은 날짜 2회 이상 산행 시 _2 붙임)
+        let checkDoc = await getDoc(docRef);
+        let dupIndex = 2;
+        while (checkDoc.exists()) {
+            docId = `${cleanMountain}_${cleanDate}_${dupIndex}`;
+            docRef = doc(db, "bondingForest", docId);
+            checkDoc = await getDoc(docRef);
+            dupIndex++;
+        }
+
+        await setDoc(docRef, {
+            mountain: cleanMountain,
+            date: cleanDate,
+            members: membersList || [],
+            memberCount: (membersList || []).length,
+            createdAt: serverTimestamp()
+        });
+
+        console.log(`🌲 인연의 숲 저장 완료: ${docId}`);
+        return docId;
+    } catch (error) {
+        console.error("❌ bondingForest 저장 중 오류 발생:", error);
     }
-
-    await setDoc(docRef, {
-        mountain: cleanMountain,
-        date: cleanDate,
-        members: membersList,
-        memberCount: membersList.length,
-        createdAt: serverTimestamp()
-    });
-
-    console.log(`🌲 인연의 숲 저장 완료: ${docId}`);
-}
+};
 
             
                        
