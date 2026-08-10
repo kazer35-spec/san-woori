@@ -4608,7 +4608,7 @@ window.hallDataCache = {
 };
 
 /* ==========================================
-   모달 열기/닫기
+   모달 열기/닫기 (닫을 때 더보기 상태 초기화 추가)
    ========================================== */
 window.toggleHallModal = async (show) => {
     const modal = document.getElementById('hallModal');
@@ -4623,6 +4623,14 @@ window.toggleHallModal = async (show) => {
         renderHallModalStructure();
         renderHallList();
     } else {
+        // 모달을 닫을 때 더보기 펼침 상태 모두 닫힘으로 초기화
+        if (window.expandedLiveSections) {
+            Object.keys(window.expandedLiveSections).forEach(key => {
+                window.expandedLiveSections[key] = false;
+            });
+        }
+
+        // 카운트다운 타이머 정지
         if (window.hallTimerInterval) {
             clearInterval(window.hallTimerInterval);
             window.hallTimerInterval = null;
@@ -4630,15 +4638,28 @@ window.toggleHallModal = async (show) => {
     }
 };
 
+
 /* ==========================================
-   더보기 토글 및 부드러운 자동 스크롤
+/* ==========================================
+   더보기 토글 (아코디언 방식: 하나만 열리도록) 및 자동 스크롤
    ========================================== */
 window.toggleHallMore = (sectionKey) => {
-    window.expandedLiveSections[sectionKey] = !window.expandedLiveSections[sectionKey];
+    // 1. 현재 클릭한 섹션의 다음 열림/닫림 상태 결정
+    const nextState = !window.expandedLiveSections[sectionKey];
+
+    // 2. 모든 섹션 상태를 닫힘(false)으로 초기화 (단일 오픈 아코디언 방식)
+    Object.keys(window.expandedLiveSections).forEach(key => {
+        window.expandedLiveSections[key] = false;
+    });
+
+    // 3. 클릭한 섹션에만 토글된 상태 반영
+    window.expandedLiveSections[sectionKey] = nextState;
+
+    // 4. UI 리렌더링
     renderHallList();
 
-    // 더보기 클릭 시 해당 섹션 하단으로 화면 부드럽게 이동
-    if (window.expandedLiveSections[sectionKey]) {
+    // 5. 열린 상태일 때 해당 섹션 하단으로 부드럽게 스크롤
+    if (nextState) {
         setTimeout(() => {
             const targetEl = document.getElementById(`hallMoreArea_${sectionKey}`);
             if (targetEl) {
@@ -4647,6 +4668,7 @@ window.toggleHallMore = (sectionKey) => {
         }, 50);
     }
 };
+
 
 /* ==========================================
    탭 UI 구조 생성 및 기존 버튼 정리
