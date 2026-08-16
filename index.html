@@ -5985,6 +5985,9 @@ window.openGrassInfoModal = function(event) {
         <div>
 <strong>분기 선택:</strong> 메인화면 1분기 2분기 3분기 4분기 선택시 해당 분기로 이동
   </div>
+  <div>
+         <strong>운동 잔디:</strong> 분기 동안의 나의 산행 및 운동 빈도를 시각화하며, 하루 활동 횟수에 따라 <strong>3단계로 색상</strong>이 변화합니다.
+            </div>
         <div>
     <strong>잔디 생성:</strong> 일정, 정기산행을 제외 한 <strong>모든 개인 운동 및 산행</strong>은 단톡방에 <strong>인증 사진(정상, 기록 등)</strong>만 공유해도 자동 기록·생성됩니다.
 </div>
@@ -5998,9 +6001,7 @@ window.openGrassInfoModal = function(event) {
             <div>
                 <strong>잔디 나비:</strong> 분기 <strong>4주 연속 일정 산행 시</strong> 1~2마리의 나비가 랜덤으로 생성됩니다.
             </div>
-            <div>
-                <strong>운동 잔디:</strong> 분기 동안의 나의 산행 및 운동 빈도를 시각화하며, 하루 활동 횟수에 따라 <strong>3단계로 색상</strong>이 변화합니다.
-            </div>
+        
             <div>
                 <strong>특별한 잔디:</strong> 정기 산행 시 계절 마크가 포함된 <strong>무지개 엠보싱 프리미엄 잔디</strong>가 생성됩니다.
             </div>
@@ -6058,7 +6059,8 @@ window.openMountainInfoModal = function(type, event) {
         title = "🌀 활동 나이테 안내";
         body = `
             <ul>
-                <li><strong>나이테 선(Ring):</strong> 가입월부터 현재까지 <strong>경과한 만 개월 수</strong>마다 동심원이 추가되며 1년마다 하나씩 굵어집니다.</li>
+                <li><strong>나이테:</strong>10가지 알고리즘 패턴 <strong>고유한 형태의 나이테</strong>가 그려집니다.</li>
+                <li><strong>나이테 선(Ring):</strong> 가입월부터 현재까지 <strong>만 개월 수</strong>마다 동심원이 추가되며 1년마다 하나씩 굵어집니다.</li>
                 <li><strong>중심 코어 모양:</strong> 회원 레벨에 따라 다채롭게 변경됩니다.
                     <br>• 1~19 레벨: <strong>○ (원)</strong>
                     <br>• 20~49 레벨: <strong>△ (삼각형)</strong>
@@ -8300,9 +8302,7 @@ window.showMemberMountain = async (mId, mName) => {
 };
 
 
-
-                            
-                window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
+window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
     const container = document.getElementById('treeRingContainer');
     const monthLabel = document.getElementById('activityMonths');
     const mainTitle = document.querySelector('.ring-main-title');
@@ -8455,29 +8455,41 @@ window.showMemberMountain = async (mId, mName) => {
     svg.appendChild(coreShape);
 
     // =========================================================
-    // [6] 나이테 생성 (최대 크기 고정 & 안쪽 ➔ 바깥쪽 균등 분할)
+    // [6] 10가지 알고리즘 패턴 적용 나이테 생성
     // =========================================================
     const rings = [];
     const satellites = [];
     const seed = memberName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
 
-    // 🎲 회원 시드별 고유 파동 패턴 산출
-    const shapeType = seed % 5;
-    const freq1 = (seed % 5) + 3;
-    const freq2 = ((seed >> 2) % 4) + 2;
-    const amp = 1.8 + (seed % 20) / 10;
+    // 🎲 10가지 알고리즘 변수 계산
+    const shapeType = seed % 10;           // 0 ~ 9 (총 10가지 모양)
+    const freq1 = (seed % 6) + 3;         // 3 ~ 8 주름 주기
+    const freq2 = ((seed >> 2) % 5) + 2;  // 2 ~ 6 보조 주기
+    const amp = 1.8 + (seed % 20) / 10;   // 1.8 ~ 3.8 파동 높이
 
     function getWaveOffset(angle, month) {
-        if (shapeType === 0) {
-            return Math.sin(angle * freq1 + month) * amp + Math.cos(angle * freq2) * (amp * 0.5);
-        } else if (shapeType === 1) {
-            return Math.cos(angle * freq1 + month * 0.5) * amp;
-        } else if (shapeType === 2) {
-            return Math.sin(angle * freq1 + month) * amp + Math.sin(angle * 2) * (amp * 0.7);
-        } else if (shapeType === 3) {
-            return (Math.sin(angle * freq1 + month) > 0 ? 1 : -1) * (amp * 0.6) + Math.sin(angle * freq2) * amp;
-        } else {
-            return Math.sin(angle * freq1) * Math.cos(angle * freq2 + month) * (amp * 1.2);
+        switch (shapeType) {
+            case 0: // 복합 정현파 (Sin + Cos 조합)
+                return Math.sin(angle * freq1 + month) * amp + Math.cos(angle * freq2) * (amp * 0.5);
+            case 1: // 단일 여현파
+                return Math.cos(angle * freq1 + month * 0.5) * amp;
+            case 2: // 이중 정현파
+                return Math.sin(angle * freq1 + month) * amp + Math.sin(angle * 2) * (amp * 0.7);
+            case 3: // 스텝형 각진 파동
+                return (Math.sin(angle * freq1 + month) > 0 ? 1 : -1) * (amp * 0.6) + Math.sin(angle * freq2) * amp;
+            case 4: // 교차 정현파 (Sin * Cos)
+                return Math.sin(angle * freq1) * Math.cos(angle * freq2 + month) * (amp * 1.2);
+            case 5: // 3엽 꽃잎형 웨이브
+                return Math.sin(angle * 3) * Math.sin(angle * freq1 + month) * amp + Math.cos(angle * freq2) * (amp * 0.5);
+            case 6: // 4축 유기체 둥근 웨이브
+                return Math.cos(angle * 4 + month) * (amp * 0.9) + Math.sin(angle * freq1) * (amp * 0.5);
+            case 7: // 5각 스타형 오프셋
+                return Math.sin(angle * 5 + month * 0.8) * (amp * 0.7) + Math.cos(angle * freq1) * (amp * 0.6);
+            case 8: // 맥박형 절곡 리플 (절대값 파동)
+                return Math.abs(Math.sin(angle * (freq1 / 2) + month)) * (amp * 1.4) - (amp * 0.7);
+            case 9: // 고차 조화파 (Dual-harmonic)
+            default:
+                return Math.sin(angle * freq1) * Math.sin(angle * freq2 + month * 1.2) * amp + Math.cos(angle * 2) * (amp * 0.8);
         }
     }
 
@@ -8488,7 +8500,6 @@ window.showMemberMountain = async (mId, mName) => {
     for (let i = 0; i < displayRingCount; i++) {
         const actualMonth = startMonthIdx + i + 1;
         
-        // 💡 1개일 땐 R_MAX 고정, 2개 이상일 땐 R_MIN부터 R_MAX까지 균등 간격 배치
         let radius;
         if (displayRingCount === 1) {
             radius = R_MAX;
@@ -8559,24 +8570,21 @@ window.showMemberMountain = async (mId, mName) => {
     rings.forEach((ringItem, index) => {
         setTimeout(() => {
             const { el, actualMonth, ringIndex } = ringItem;
-            const isLastRing = (ringIndex === rings.length - 1); // 항상 R_MAX 위치의 가장 바깥 선
+            const isLastRing = (ringIndex === rings.length - 1);
             const isYearRing = (actualMonth % 12 === 0);
             
             const fadeRatio = (ringIndex + 1) / displayRingCount;
 
             if (isLastRing) {
-                // 고정된 외곽(최신) 나이테 강조
                 el.setAttribute("stroke-opacity", "1");
                 el.setAttribute("stroke-width", "2");
                 el.style.filter = `drop-shadow(0 0 5px ${ringColor})`;
             } else if (isYearRing) {
-                // 만 1년 주기 나이테 (1.4px 두께 및 글로우 유지)
                 const yearOpacity = Math.max(0.7, fadeRatio).toFixed(2);
                 el.setAttribute("stroke-opacity", yearOpacity);
                 el.setAttribute("stroke-width", "1.4");
                 el.style.filter = `drop-shadow(0 0 3px ${ringColor})`;
             } else {
-                // 내부 나이테: 페이드아웃 적용
                 const baseOpacity = Math.max(0.1, fadeRatio * 0.35).toFixed(2);
                 el.setAttribute("stroke-opacity", baseOpacity);
                 el.setAttribute("stroke-width", "0.35");
@@ -8610,8 +8618,9 @@ window.showMemberMountain = async (mId, mName) => {
     }, 100);
 };
 
-
+                            
                 
+                    
                 
   // ======================= [별 가이드 & 은하수 모듈 통합 - 연도 자동 저장 & 모달 최신화] =======================
 
