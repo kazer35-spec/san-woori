@@ -28,6 +28,19 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+        /* 텍스트 그라데이션 스타일 */
+.text-gradient-legend {
+  background: linear-gradient(135deg, #FFD700 0%, #FF8C00 50%, #FF007F 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-gradient-lv100 {
+  background: linear-gradient(135deg, #FFB703 0%, #FB8500 50%, #D4AF37 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
         /* ================= 🏷️ 슈퍼별 / 스페셜 배지 고유 그라데이션 ================= */
 
 /* 🔥 슈퍼별 배지: 로즈 → 주황 → 골드 그라데이션 & 미세 입체 그림자 */
@@ -3499,6 +3512,31 @@ overflow: hidden;
   </div>
 </div>
 
+        <!-- 📜 History 상세보기 팝업 모달 (z-[9999]로 메인 모달 최상단에 배치) -->
+<div id="historyDetailModal" class="modal-overlay hidden fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-[9999] flex items-center justify-center p-4" onclick="closeHistoryDetailModal()">
+  <div class="bg-white w-full max-w-sm rounded-3xl p-5 shadow-2xl border border-slate-100 relative" onclick="event.stopPropagation()">
+    
+    <!-- 모달 헤더 -->
+    <div class="flex justify-between items-center mb-3 pb-2.5 border-b border-slate-100">
+      <h3 id="historyDetailTitle" class="text-xs font-black text-slate-800 tracking-tight flex items-center gap-1">
+        <!-- JS로 타이틀 주입 -->
+      </h3>
+      <button onclick="closeHistoryDetailModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold p-1 leading-none">&times;</button>
+    </div>
+
+    <!-- 모달 본문 -->
+    <div id="historyDetailBody" class="py-1">
+      <!-- JS로 상세 목록 주입 -->
+    </div>
+
+    <!-- 하단 닫기 버튼 -->
+    <button onclick="closeHistoryDetailModal()" class="w-full mt-3.5 py-2.5 bg-slate-800 text-white rounded-xl font-black text-xs active:scale-98 transition-all">
+      닫기
+    </button>
+  </div>
+</div>
+
+
 <div id="hallModal" class="modal-overlay" onclick="toggleHallModal(false)">
 <div class="modal-content !p-5 !max-w-[440px]" onclick="event.stopPropagation()">
 <div class="text-center mb-2">
@@ -6942,8 +6980,6 @@ window.toggleDisableCoord = () => {
 };
 
 
-
-
 window.addMultiActivity = async () => {
     const dateInput = document.getElementById('activityDate');
     if (!dateInput) return alert("날짜 입력창을 찾을 수 없습니다.");
@@ -7078,37 +7114,53 @@ window.addMultiActivity = async () => {
                 updateData["quarterlyStats.2026_q2"] = { hike: pastCount, total: pastCount };
             }
 
-            const realUpAmount = (isRealHike && !isExtraHike) ? up : 0;
+             // 1) 레벨업 & 실시간 획득 업수 계산
+            const hikeUpAmount = up;
+            const activityUpAmount = up;
+            const realUpAmount = (isRealHike ? hikeUpAmount : activityUpAmount);
             const oldLevel = member.level || 0;
-            const newLevel = oldLevel + realUpAmount; 
-            
+            const newLevel = oldLevel + realUpAmount;
+
             updateData.level = newLevel;
 
-            if (realUpAmount > 0) checkLevelUpgrade(member.name, oldLevel, newLevel);
+            // 🎯 100레벨 최초 달성 시 DB에 날짜/산행지/분기 저장
+            if (oldLevel < 100 && newLevel >= 100) {
+                await checkAndSaveLv100ToMember(
+                    id, 
+                    newLevel, 
+                    mName || "관악산", 
+                    activityDateObj, 
+                    `${currentQuarter}분기`, 
+                    member
+                );
+            }
+
+            if (realUpAmount > 0 && typeof checkLevelUpEffect === 'function') {
+                checkLevelUpEffect(member, oldLevel, newLevel);
+            }
             selectedNames.push(member.name);
 
-            if (isRealHike && !isExtraHike) {
-    // 🎯 0업일 때는 등산 횟수 미증가, 1업 이상(1, 2, 3업)일 때는 무조건 +1회만 증가
-    if (realUpAmount > 0) {
-        updateData.count = _increment(1); 
-    }
-    
-    updateData.lastDate = ts; 
+            // 2) 로그 루프 카운트 선언 및 고도 계산
+            const finalLogLoopCount = (isRegular || isSpecial || isQuarterOnlyOne || realUpAmount === 0) ? 1 : realUpAmount;
+            const finalHeightIncrement = height * finalLogLoopCount;
 
-    const logLoopCount = (isRegular || isQuarterOnlyOne || isOnlyLog || realUpAmount === 0) ? 1 : realUpAmount;
-    const finalHeightIncrement = height * logLoopCount; 
-    updateData.totalHeight = _increment(finalHeightIncrement); 
+            if (isRealHike) {
+                if (!isExtraHike) {
+                    if (realUpAmount > 0) {
+                        updateData.count = _increment(1);
+                    }
+                }
 
-    updateData[`quarterlyStats.${qKey}.hike`] = _increment(1);
-    updateData[`quarterlyStats.${qKey}.total`] = _increment(1);
-    
-    updateData.bonusDays = 0;
-    
-    const groupSize = selectedMemberIds.size;
-    const baseQCount = groupSize >= 3 ? 3 : groupSize; 
+                updateData.lastDate = ts;
+                updateData.totalHeight = _increment(finalHeightIncrement);
 
-            
-                // 🎯 0업이어도 기본 분기 점수는 1배수로 획득
+                updateData[`quarterlyStats.${qKey}.hike`] = _increment(1);
+                updateData[`quarterlyStats.${qKey}.totalHeight`] = _increment(finalHeightIncrement);
+
+                updateData.bonusDays = 0;
+                
+                const groupSize = selectedMemberIds.size;
+                const baseQCount = groupSize >= 3 ? 3 : groupSize; 
                 const multiplier = realUpAmount > 0 ? realUpAmount : 1; 
                 const qCountIncrement = baseQCount * multiplier; 
 
@@ -7144,8 +7196,7 @@ window.addMultiActivity = async () => {
                 await updateDoc(doc(db, "sanwoori", id), updateData);
             }
             
-            // 🎯 up이 0이어도 개인 로그는 최소 1개 생성 처리
-            const finalLogLoopCount = (isRegular || isSpecial || isQuarterOnlyOne || realUpAmount === 0) ? 1 : realUpAmount;
+            // 3) 개인 로그 생성 및 별 획득 처리
             const rawMountainName = document.getElementById('mountainName')?.value.trim();
             const baseDocId = rawMountainName || (isSpecialTracking ? "인정 트레킹" : (isWalking ? "동네 산책" : (isExtraHike ? "번외 산행" : (isRunning ? "러닝 활동" : "트레킹 활동"))));
 
@@ -7163,6 +7214,19 @@ window.addMultiActivity = async () => {
                     else if (rand <= 10) starType = "special";
                     else starType = "regular_" + (Math.floor(Math.random() * 4) + 1);
                 }
+
+                 // 🎯 별(슈퍼/스페셜) 획득 시 DB 저장
+            if (starType === "super" || starType === "special") {
+                const defaultQuarter = `${currentQuarter}분기`;
+                await saveSpecialStarToMember(
+                    id, 
+                    starType, 
+                    defaultQuarter, 
+                    member, 
+                    baseDocId, 
+                    activityDateObj
+                );
+        }
 
                 const logPayload = {
                     date: ts,
@@ -7202,7 +7266,7 @@ window.addMultiActivity = async () => {
             let dupSeq = 2;
             while (checkSnap.exists()) {
                 bondingDocId = `${cleanMountain}_${cleanDate}_${dupSeq}`;
-                bondingRef = doc(doc(db, "bondingForest", bondingDocId));
+                bondingRef = doc(db, "bondingForest", bondingDocId);
                 checkSnap = await getDoc(bondingRef);
                 dupSeq++;
             }
@@ -7217,7 +7281,9 @@ window.addMultiActivity = async () => {
             });
         }
 
-        if (pendingLevelUpCards.length > 0) showCombinedLevelUpAlert();
+        if (typeof pendingLevelUpCards !== 'undefined' && pendingLevelUpCards.length > 0 && typeof showCombinedLevelUpAlert === 'function') {
+            showCombinedLevelUpAlert();
+        }
         
         alert((isRealHike && !isExtraHike) ? (isSpecialTracking ? "인정 트레킹 기록 완료! 🥾 (순수산행 동일 적용)" : "순수산행 기록 완료! ✅") : (isExtraHike ? "번외산행 기록 완료! 🌲" : "일반 활동(러닝/트레킹/산책) 기록 완료! 🏃"));
         
@@ -7248,10 +7314,9 @@ window.addMultiActivity = async () => {
             if (cb) cb.checked = false;
         });
 
-
-// 🎯 1번 라디오 버튼 기본 재선택
-const defaultRadio = document.querySelector('input[name="upAmount"][value="1"]');
-if (defaultRadio) defaultRadio.checked = true;
+        // 🎯 1번 라디오 버튼 기본 재선택
+        const defaultRadio = document.querySelector('input[name="upAmount"][value="1"]');
+        if (defaultRadio) defaultRadio.checked = true;
 
         tempCoord = null; 
         const marker = document.getElementById('adminMapMarker');
@@ -7265,7 +7330,7 @@ if (defaultRadio) defaultRadio.checked = true;
             dateInput.value = kstDate.toISOString().split('T')[0];
         }
         
-        startRealtimeSync(); 
+        if (typeof startRealtimeSync === 'function') startRealtimeSync(); 
     } catch (error) {
         console.error("Error 상세:", error);
         alert("저장 실패: " + error.message);
@@ -7273,8 +7338,9 @@ if (defaultRadio) defaultRadio.checked = true;
 };
 
 
-                     
-
+ 
+            
+            
                     
 
 // 📌 [신규 회원 등록 함수]
@@ -7991,6 +8057,92 @@ window.filterAdminMemberList = () => {
   });
 };
 
+// -------------------------------------------------------------
+// 0. 캐시 객체 및 데이터 세팅 (Firestore 호출 최소화)
+// -------------------------------------------------------------
+window.historyCache = {
+  superStars: null,    // [{ id, name, starType, mountain, date, quarter, createdAt }]
+  specialStars: null,  // [{ id, name, starType, mountain, date, quarter, createdAt }]
+  lv100List: null,     // [{ id, name, mountain, date, quarter, createdAt }]
+  lastUpdated: null
+};
+
+/**
+ * 💾 1. 별(슈퍼/스페셜) 획득 시 DB 저장 함수
+ */
+window.saveSpecialStarToMember = async function(memberId, starType, quarterStr, memberObj, mountainName, activityDate) {
+  try {
+    const formattedDate = activityDate ? 
+      `${activityDate.getFullYear()}.${String(activityDate.getMonth() + 1).padStart(2, '0')}.${String(activityDate.getDate()).padStart(2, '0')}` : 
+      new Date().toISOString().split('T')[0].replace(/-/g, '.');
+
+    const starData = {
+      starType: starType,                         // 'super' 또는 'special'
+      mountain: mountainName || "관악산",          // 산행지
+      date: formattedDate,                        // 날짜 (YYYY.MM.DD)
+      quarter: quarterStr || `${Math.ceil((new Date().getMonth() + 1) / 3)}분기`, // 분기
+      createdAt: new Date()
+    };
+
+    // Firebase arrayUnion 사용 (단일 필드 업데이트로 과금 최소화)
+    const mRef = doc(db, "sanwoori", memberId);
+    await updateDoc(mRef, {
+      specialStars: arrayUnion(starData)
+    });
+
+    // 로컬 메모리 상태 즉시 업데이트 & 캐시 초기화
+    if (memberObj) {
+      if (!memberObj.specialStars) memberObj.specialStars = [];
+      memberObj.specialStars.push(starData);
+    }
+    window.invalidateHistoryCache();
+  } catch (err) {
+    console.error("Special Star DB Save Error:", err);
+  }
+};
+
+/**
+ * 👑 2. Lv.100 최초 달성 시 DB 저장 함수
+ */
+window.checkAndSaveLv100ToMember = async function(memberId, newLevel, mountainName, activityDate, quarterStr, memberObj) {
+  try {
+    // 이미 달성 기록이 있는 경우 중복 저장 방지
+    if (memberObj && memberObj.lv100Achieved) return;
+
+    const formattedDate = activityDate ? 
+      `${activityDate.getFullYear()}.${String(activityDate.getMonth() + 1).padStart(2, '0')}.${String(activityDate.getDate()).padStart(2, '0')}` : 
+      new Date().toISOString().split('T')[0].replace(/-/g, '.');
+
+    const lv100Data = {
+      lv100Achieved: true,
+      lv100Mountain: mountainName || "관악산",
+      lv100Date: formattedDate,
+      lv100Quarter: quarterStr || `${Math.ceil((new Date().getMonth() + 1) / 3)}분기`,
+      lv100CreatedAt: new Date()
+    };
+
+    const mRef = doc(db, "sanwoori", memberId);
+    await updateDoc(mRef, lv100Data);
+
+    // 로컬 메모리 동기화 & 캐시 무효화
+    if (memberObj) {
+      Object.assign(memberObj, lv100Data);
+    }
+    window.invalidateHistoryCache();
+  } catch (err) {
+    console.error("Lv100 DB Save Error:", err);
+  }
+};
+
+/**
+ * ⚡ 캐시 무효화 함수 (새로운 기록 추가 시 호출)
+ */
+window.invalidateHistoryCache = function() {
+  window.historyCache.superStars = null;
+  window.historyCache.specialStars = null;
+  window.historyCache.lv100List = null;
+  window.historyCache.lastUpdated = null;
+};
 
 
 // 💡 지수 산정 방식 팝업 토글 함수
@@ -8008,7 +8160,7 @@ window.toggleVibeCalcInfoModal = function(show) {
 
 
 /**
- * 🏆 SanWoori History 렌더링 함수
+ * 🏆 SanWoori History 메인 영역 렌더링
  */
 function renderVibeHallOfFame() {
   const container = document.getElementById('vibeHallOfFame');
@@ -8036,53 +8188,8 @@ function renderVibeHallOfFame() {
   const specialHolders = specialNames.map((name, idx) => `No.${idx + 1} ${name}`);
 
   const level100Holders = activeMembers
-    .filter(m => (m.level || 0) >= 100)
+    .filter(m => (m.level || 0) >= 100 || m.lv100Achieved)
     .map((m, idx) => `No.${idx + 1} ${m.name}`);
-
-  const formatBadgeListWithMore = (list, isGold = false, categoryId = '', limit = 3) => {
-    if (!list || list.length === 0) {
-      const emptyTextStyle = isGold ? "text-amber-600/80 font-bold" : "text-slate-400";
-      return `<span class="${emptyTextStyle} text-[10px] pl-1">아직 달성자가 없습니다</span>`;
-    }
-
-    const visibleList = list.slice(0, limit);
-    const hiddenList = list.slice(limit);
-
-    const bgStyle = isGold 
-      ? "bg-white/90 text-amber-950 border border-amber-300/80 shadow-2xs font-extrabold" 
-      : "bg-white text-slate-700 border border-slate-200/80 shadow-2xs font-bold";
-
-    let html = visibleList.map(item => `
-      <span class="inline-flex items-center ${bgStyle} px-2.5 py-0.5 rounded-lg text-[10px] mr-1 mb-1 transition-all">
-        ${item}
-      </span>
-    `).join('');
-
-    if (hiddenList.length > 0) {
-      const hiddenHtml = hiddenList.map(item => `
-        <span class="inline-flex items-center ${bgStyle} px-2.5 py-0.5 rounded-lg text-[10px] mr-1 mb-1 transition-all">
-          ${item}
-        </span>
-      `).join('');
-
-      const btnStyle = isGold 
-        ? "bg-amber-100/60 text-amber-800 border-amber-300/50 hover:bg-amber-200/50" 
-        : "bg-slate-100 hover:bg-slate-200 text-slate-500 border-slate-200";
-
-      html += `
-        <button type="button" id="more-btn-${categoryId}" 
-          onclick="document.getElementById('more-list-${categoryId}').classList.remove('hidden'); document.getElementById('more-list-${categoryId}').classList.add('inline-flex'); this.classList.add('hidden');" 
-          class="inline-flex items-center ${btnStyle} px-2 py-0.5 rounded-lg border font-black text-[10px] mr-1 mb-1 cursor-pointer transition-all active:scale-95">
-          +${hiddenList.length} more
-        </button>
-        <span id="more-list-${categoryId}" class="hidden flex-wrap items-center">
-          ${hiddenHtml}
-        </span>
-      `;
-    }
-
-    return html;
-  };
 
   container.innerHTML = `
     <div>
@@ -8096,17 +8203,21 @@ function renderVibeHallOfFame() {
       <div class="space-y-2.5">
         <!-- 🌟 Legend Star 카드 -->
         <div class="p-3 bg-gradient-to-br from-purple-50/40 via-indigo-50/20 to-slate-50/40 rounded-2xl border border-indigo-100/80 shadow-2xs">
-          <div class="text-[11px] font-black text-indigo-950 mb-2 flex items-center justify-between">
+          <div class="text-[11px] font-black mb-2 flex items-center justify-between">
             <span class="flex items-center gap-1">
-              <span class="text-amber-400">🌟</span> 전설의 별 (Legend Star)
+              <span class="text-amber-400">🌟</span> 
+              <!-- 그라데이션 적용 -->
+              <span class="bg-gradient-to-r from-amber-500 via-rose-500 to-purple-600 bg-clip-text text-transparent font-black">
+                전설의 별 (Legend Star)
+              </span>
             </span>
-            <span class="text-[8px] font-black tracking-widest text-indigo-700 bg-indigo-100/80 border border-indigo-200 px-2 py-0.3 rounded-full uppercase shrink-0">
-              LEGEND
-            </span>
+            <button onclick="openLegendDetailModal()" class="text-[9px] font-black tracking-tight text-indigo-600 bg-indigo-100/80 hover:bg-indigo-200/80 border border-indigo-200 px-2 py-0.5 rounded-full shrink-0 transition-all active:scale-95 flex items-center gap-0.5">
+              🔍 상세보기
+            </button>
           </div>
           
           <div class="space-y-1.5">
-            <!-- 🔥 슈퍼별 영역 (3명 표시 후 +more) -->
+            <!-- 🔥 슈퍼별 영역 -->
             <div class="flex items-center gap-2 bg-white/90 p-1.5 rounded-xl border shadow-2xs is-super-subtle-glow">
               <span class="badge-super-gradient text-[9.5px] font-black px-2.5 py-0.8 rounded-md shrink-0">
                 🔥 슈퍼별
@@ -8116,7 +8227,7 @@ function renderVibeHallOfFame() {
               </div>
             </div>
 
-            <!-- ✨ 스페셜 영역 (3명 표시 후 +more) -->
+            <!-- ✨ 스페셜 영역 -->
             <div class="flex items-center gap-2 bg-white/90 p-1.5 rounded-xl border shadow-2xs is-special-subtle-glow">
               <span class="badge-special-gradient text-[9.5px] font-black px-2.5 py-0.8 rounded-md shrink-0">
                 ✨ 스페셜
@@ -8130,15 +8241,18 @@ function renderVibeHallOfFame() {
 
         <!-- 👑 Lv.100 Club 카드 -->
         <div class="p-3 bg-gradient-to-br from-amber-50/60 via-orange-50/20 to-amber-100/10 rounded-2xl border border-amber-200/60 shadow-2xs">
-          <div class="text-[11px] font-black text-amber-950 mb-1.5 flex items-center justify-between">
+          <div class="text-[11px] font-black mb-1.5 flex items-center justify-between">
             <span class="flex items-center gap-1">
-              <span>👑</span> 천상계 (Lv.100 Club)
+              <span>👑</span> 
+              <!-- 그라데이션 적용 -->
+              <span class="bg-gradient-to-r from-amber-600 via-orange-500 to-amber-500 bg-clip-text text-transparent font-black">
+                천상계 (Lv.100 Club)
+              </span>
             </span>
-            <span class="text-[8px] font-black tracking-widest text-amber-700 bg-amber-100/80 border border-amber-200 px-2 py-0.3 rounded-full uppercase shrink-0">
-              EMPEROR
-            </span>
+            <button onclick="openLv100DetailModal()" class="text-[9px] font-black tracking-tight text-amber-800 bg-amber-100 hover:bg-amber-200 border border-amber-300/80 px-2 py-0.5 rounded-full shrink-0 transition-all active:scale-95 flex items-center gap-0.5">
+              🔍 상세보기
+            </button>
           </div>
-          <!-- 100레벨 영역 (4명 표시 후 +more) -->
           <div class="flex flex-wrap items-center p-2.5 bg-amber-50/40 rounded-xl border shadow-2xs gold-inner-glow">
             ${formatBadgeListWithMore(level100Holders, true, 'lv100', 4)}
           </div>
@@ -8148,12 +8262,189 @@ function renderVibeHallOfFame() {
   `;
 }
 
-        
-            
 
 
+
+// 캐시 빌드 함수
+function getOrBuildHistoryCache() {
+  if (window.historyCache.superStars && window.historyCache.specialStars && window.historyCache.lv100List) {
+    return window.historyCache; // 캐시 반환 (데이터 절약)
+  }
+
+  const superItems = [];
+  const specialItems = [];
+  const lv100Items = [];
+
+  if (typeof currentData !== 'undefined' && Array.isArray(currentData)) {
+    const activeMembers = currentData.filter(m => !m.isHidden && !m.hidden);
+
+    activeMembers.forEach(m => {
+      // 🌟 전설의 별 추출 (DB 데이터 직접 참조)
+      if (m.specialStars && Array.isArray(m.specialStars)) {
+        m.specialStars.forEach(s => {
+          const item = {
+            name: m.name,
+            mountain: s.mountain || '관악산',
+            date: s.date || '2026.08.18',
+            quarter: s.quarter || '3분기',
+            createdAt: s.createdAt ? (s.createdAt.toDate ? s.createdAt.toDate().getTime() : new Date(s.createdAt).getTime()) : 0
+          };
+          if (s.starType === 'super') superItems.push(item);
+          if (s.starType === 'special') specialItems.push(item);
+        });
+      }
+
+      // 👑 Lv.100 Club 추출 (DB 데이터 직접 참조)
+      if ((m.level || 0) >= 100 || m.lv100Achieved) {
+        lv100Items.push({
+          name: m.name,
+          mountain: m.lv100Mountain || '관악산',
+          date: m.lv100Date || '2026.08.18',
+          quarter: m.lv100Quarter || '3분기',
+          createdAt: m.lv100CreatedAt ? (m.lv100CreatedAt.toDate ? m.lv100CreatedAt.toDate().getTime() : new Date(m.lv100CreatedAt).getTime()) : 0
+        });
+      }
+    });
+  }
+
+  // -------------------------------------------------------------
+// 🌟 1. 전설의 별 상세보기 모달
+// -------------------------------------------------------------
+window.openLegendDetailModal = function() {
+  const modal = document.getElementById('historyDetailModal');
+  const title = document.getElementById('historyDetailTitle');
+  const body = document.getElementById('historyDetailBody');
+  if (!modal || !body) return;
+
+  title.innerHTML = `🌟 <span class="bg-gradient-to-r from-amber-500 via-rose-500 to-purple-600 bg-clip-text text-transparent font-black">전설의 별 (Legend Star)</span> 획득 기록`;
+
+  const cache = getOrBuildHistoryCache();
+
+  const renderList = (items, type) => {
+    if (items.length === 0) return `<div class="text-center py-3 text-xs text-slate-400 font-medium">획득 기록이 없습니다.</div>`;
+    
+    return items.map((item, idx) => {
+      const isFirst = idx === 0;
+      const isSuper = type === 'super';
+      const shortDate = formatShortDate(item.date);
       
-  
+      return `
+        <div class="p-2.5 rounded-xl border ${isFirst ? (isSuper ? 'bg-rose-50/90 border-rose-200' : 'bg-purple-50/90 border-purple-200') : 'bg-white border-slate-100'} shadow-2xs flex items-center justify-between gap-2">
+          
+          <!-- 좌측: [최초 획득/순번] [이름] (분기) 📍 [산행지] -->
+          <div class="flex items-center gap-1.5 min-w-0">
+            ${isFirst ? 
+              `<span class="text-[10px] px-1.5 py-0.5 rounded-md ${isSuper ? 'bg-rose-500' : 'bg-purple-600'} text-white font-black shrink-0">👑 최초 획득</span>` : 
+              `<span class="text-[10px] font-bold text-slate-400 w-4 shrink-0">#${idx+1}</span>`
+            }
+            <span class="text-xs font-black text-slate-800 shrink-0">${item.name}</span>
+            <span class="text-[10px] font-bold text-slate-400 shrink-0">(${item.quarter})</span>
+            <span class="text-[10.5px] font-bold text-slate-600 truncate">📍 ${item.mountain}</span>
+          </div>
+
+          <!-- 우측: 날짜 박스 고정 -->
+          <div class="text-[10px] font-bold text-slate-500 shrink-0 bg-white/80 px-2 py-0.5 rounded-lg border border-slate-200/80 flex items-center gap-1 shadow-2xs">
+            📅 ${shortDate}
+          </div>
+
+        </div>
+      `;
+    }).join('');
+  };
+
+  body.innerHTML = `
+    <!-- 🔥 상단: 슈퍼별 -->
+    <div class="space-y-1.5">
+      <div class="text-xs font-black text-rose-600 flex items-center gap-1 border-b border-rose-100 pb-1">
+        🔥 슈퍼별 획득 명단
+      </div>
+      <div class="space-y-1.5 max-h-[170px] overflow-y-auto pr-1">
+        ${renderList(cache.superStars, 'super')}
+      </div>
+    </div>
+
+    <!-- 구분선 -->
+    <div class="my-2.5 border-t border-dashed border-slate-200"></div>
+
+    <!-- ✨ 하단: 스페셜별 -->
+    <div class="space-y-1.5">
+      <div class="text-xs font-black text-purple-600 flex items-center gap-1 border-b border-purple-100 pb-1">
+        ✨ 스페셜별 획득 명단
+      </div>
+      <div class="space-y-1.5 max-h-[170px] overflow-y-auto pr-1">
+        ${renderList(cache.specialStars, 'special')}
+      </div>
+    </div>
+  `;
+
+  modal.classList.remove('hidden');
+  modal.style.display = 'flex';
+};
+
+// -------------------------------------------------------------
+// 👑 2. Lv.100 Club 상세보기 모달
+// -------------------------------------------------------------
+window.openLv100DetailModal = function() {
+  const modal = document.getElementById('historyDetailModal');
+  const title = document.getElementById('historyDetailTitle');
+  const body = document.getElementById('historyDetailBody');
+  if (!modal || !body) return;
+
+  title.innerHTML = `👑 <span class="bg-gradient-to-r from-amber-600 via-orange-500 to-amber-500 bg-clip-text text-transparent font-black">천상계 (Lv.100 Club)</span> 달성 기록`;
+
+  const cache = getOrBuildHistoryCache();
+  const lv100Items = cache.lv100List;
+
+  if (lv100Items.length === 0) {
+    body.innerHTML = `<div class="text-center py-8 text-xs text-amber-700/70 font-bold">아직 Lv.100 달성자가 없습니다.</div>`;
+  } else {
+    body.innerHTML = `
+      <div class="space-y-2 max-h-[340px] overflow-y-auto pr-1">
+        ${lv100Items.map((item, idx) => {
+          const isFirst = idx === 0;
+          const shortDate = formatShortDate(item.date);
+
+          return `
+            <div class="p-2.5 rounded-xl border ${isFirst ? 'bg-amber-50/90 border-amber-300' : 'bg-white border-amber-100'} shadow-2xs flex items-center justify-between gap-2">
+              
+              <!-- 좌측: [최초 획득/순번] [이름] (분기) 📍 [산행지] -->
+              <div class="flex items-center gap-1.5 min-w-0">
+                ${isFirst ? 
+                  `<span class="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500 text-white font-black shrink-0">👑 최초 획득</span>` : 
+                  `<span class="text-[10px] font-bold text-amber-700/60 w-4 shrink-0">#${idx+1}</span>`
+                }
+                <span class="text-xs font-black text-slate-800 shrink-0">${item.name}</span>
+                <span class="text-[10px] font-bold text-amber-800/60 shrink-0">(${item.quarter})</span>
+                <span class="text-[10.5px] font-bold text-slate-600 truncate">📍 ${item.mountain}</span>
+              </div>
+
+              <!-- 우측: 날짜 박스 고정 -->
+              <div class="text-[10px] font-bold text-amber-900/80 shrink-0 bg-amber-100/60 px-2 py-0.5 rounded-lg border border-amber-200/80 flex items-center gap-1 shadow-2xs">
+                📅 ${shortDate}
+              </div>
+
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+  }
+
+  modal.classList.remove('hidden');
+  modal.style.display = 'flex';
+};
+
+    
+
+  // 모달 닫기
+window.closeHistoryDetailModal = function() {
+  const modal = document.getElementById('historyDetailModal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+  }
+};
+          
     
 
 
