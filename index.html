@@ -8156,17 +8156,58 @@ window.toggleModal = (show) => {
   }
 };
 
-// ==========================================================================
-// 🔍 [수정] 회원 이름 검색 필터 함수 (그리드 레이아웃 유지를 위해 block 대신 flex로 원복)
-// ==========================================================================
-if (typeof status !== 'undefined' && status) status.innerText = "EXPLOSIVE PASSION";
+let searchTimer = null; // 1초 대기를 위한 타이머 변수
 
 window.filterAdminMemberList = () => {
-  const q = document.getElementById('adminSearchInput').value.toLowerCase();
-  document.querySelectorAll('.admin-member-row').forEach(c => { 
-    c.style.setProperty('display', c.innerText.toLowerCase().includes(q) ? 'flex' : 'none', 'important'); 
-  });
+  // 사용자가 타이핑하는 동안 기존 타이머 취소 (1초 타이머 리셋)
+  if (searchTimer) clearTimeout(searchTimer);
+
+  const inputVal = document.getElementById('adminSearchInput').value.trim().toLowerCase();
+  
+  // 검색창이 비어있으면 동작 안 함
+  if (!inputVal) return;
+
+  // 1초(1000ms) 동안 추가 입력이 없을 때 실행
+  searchTimer = setTimeout(() => {
+    // 공백, 쉼표, 슬래시 등으로 검색 이름 분리 ("그니 길치" -> ["그니", "길치"])
+    const searchNames = inputVal.split(/[\s,/]+/).filter(name => name.length >= 2); // 🎯 2글자 이상만 추출
+    if (searchNames.length === 0) return;
+
+    // 현재 렌더링된 전체 회원 행(row) 순회
+    document.querySelectorAll('.admin-member-row').forEach(row => {
+      // 닉네임이 들어있는 왼쪽 영역 요소 찾기
+      const nameEl = row.querySelector('[onclick*="toggleSelectMember"]');
+      if (!nameEl) return;
+
+      const rowText = row.innerText.trim().toLowerCase();
+      const isMatched = searchNames.some(name => rowText.includes(name));
+
+      if (isMatched) {
+        // 🎯 현재 선택되어 있는지 확인 (selectedMemberIds Set 활용)
+        // onclick 속성 안에서 m.id 값을 추출하거나 row 내부 구조 분석
+        const onclickAttr = nameEl.getAttribute('onclick') || '';
+        const matchId = onclickAttr.match(/toggleSelectMember\(['"]([^'"]+)['"]/);
+        
+        if (matchId && matchId[1]) {
+          const memberId = matchId[1];
+          const isAlreadySelected = typeof selectedMemberIds !== 'undefined' && selectedMemberIds.has(memberId);
+
+          // 아직 선택되지 않은 상태라면 공식 선택 함수를 강제로 실행하여 녹색 테두리 및 데이터 동기화
+          if (!isAlreadySelected) {
+            window.toggleSelectMember(memberId, nameEl);
+          }
+        }
+      }
+    });
+
+    // 상단 인원수 & 벙주 경고 UI 실시간 갱신
+    if (typeof updateAdminSelectedMemberUI === 'function') {
+      updateAdminSelectedMemberUI();
+    }
+  }, 1000); // 🎯 1초 대기 후 자동 선택
 };
+
+
 
 // -------------------------------------------------------------
 // 0. 캐시 객체 및 데이터 세팅 (Firestore 호출 최소화)
