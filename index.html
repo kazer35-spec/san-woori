@@ -28,6 +28,31 @@ body { font-family: 'Pretendard', sans-serif; background-color: #f4f7f9; color: 
 .main-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
 .brand-logo { height: 1.6rem; width: auto; margin-right: 6px; object-fit: contain; }
 
+        /* 체크된 회원 카드 초록색 강조 (시인성 극대화) */
+#multiMemberList label:has(input[type="checkbox"]:checked) {
+  background-color: #10b981 !important;
+  color: #ffffff !important;
+  border-color: #059669 !important;
+  font-weight: 800 !important;
+}
+#multiMemberList label:has(input[type="checkbox"]:checked) span {
+  color: #ffffff !important;
+}
+
+/* 벙주(정기🚩) 미체크 시 테두리 red 깜빡임 */
+@keyframes blinkLeaderBorder {
+  0%, 100% { border-color: #ef4444; background-color: #fef2f2; box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+  50% { border-color: #dc2626; background-color: #fee2e2; box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.3); }
+}
+
+.blink-leader-alert {
+  animation: blinkLeaderBorder 0.8s infinite ease-in-out;
+  border: 1.5px solid #ef4444 !important;
+  border-radius: 8px;
+  padding: 2px 4px;
+}
+
+
         /* 텍스트 그라데이션 스타일 */
 .text-gradient-legend {
   background: linear-gradient(135deg, #FFD700 0%, #FF8C00 50%, #FF007F 100%);
@@ -3231,157 +3256,178 @@ margin: 0 2px !important;
       <div id="adminSubRoomList" class="admin-subroom-grid"></div>
     </div>
 
-    <!-- 신규 회원 등록 -->
-    <div class="card">
-      <div class="card-title text-green-600 font-bold">🆕 신규 회원 등록</div>
-      <input type="text" id="newName" placeholder="회원 이름" class="input-gap">
-      <div class="gender-select-group">
-        <label><input type="radio" name="newGender" value="남" checked> 남성</label>
-        <label><input type="radio" name="newGender" value="여"> 여성</label>
-      </div>
-      <input type="date" id="regDate" class="input-gap">
-      <button onclick="addMember()" class="btn-submit bg-green-500">등록 완료</button>
-    </div>
-
-    <!-- 등산 기록 및 좌표 정복 관리 -->
-    <div class="card">
-      <div class="card-title text-blue-600 font-bold flex justify-between">
-        <span>📅 등산 기록 및 좌표 정복 관리</span>
-        <button onclick="globalSyncMountainInfo()" class="text-[9px] bg-red-50 text-red-500 border border-red-200 px-2 rounded-lg font-black">⛰️ 산 정보 일괄수정</button>
-      </div>
-      <input type="text" id="adminSearchInput" onkeyup="filterAdminMemberList()" placeholder="🔍 회원 검색..." class="h-9 px-4 rounded-xl w-full mb-2 text-xs bg-blue-50 border-blue-100 outline-none border">
-      <div id="multiMemberList" class="member-grid max-h-48 overflow-y-auto mb-3 p-1"></div>
-
-      <div class="bg-indigo-50 p-3 rounded-xl border border-indigo-100 mb-2">
-  <div class="flex items-center justify-between mb-2">
-    <p class="text-[10px] font-black text-indigo-400">⛰️ 산 정보 및 좌표 설정</p>
-    <div class="flex gap-2">
-      <!-- 1. 국립 체크박스 -->
-      <label class="flex items-center gap-1 cursor-pointer whitespace-nowrap">
-        <input type="checkbox" id="isNationalParkCheck" class="w-3.5 h-3.5">
-        <span class="text-[10px] font-black text-emerald-600">국립</span>
-      </label>
-      <!-- 2. 산림청(기존 100대명산) 체크박스 -->
-      <label class="flex items-center gap-1 cursor-pointer whitespace-nowrap">
-        <input type="checkbox" id="isTop100Check" onchange="toggleMarkerStyle()" class="w-3.5 h-3.5">
-        <span class="text-[10px] font-black text-blue-600">산림청</span>
-      </label>
-      <!-- 3. BAC 체크박스 -->
-      <label class="flex items-center gap-1 cursor-pointer whitespace-nowrap">
-        <input type="checkbox" id="isBACCheck" class="w-3.5 h-3.5">
-        <span class="text-[10px] font-black text-red-500">BAC</span>
-      </label>
-    </div>
+          <!-- 신규 회원 등록 -->
+<div class="card">
+  <div class="card-title text-green-600 font-bold">🆕 신규 회원 등록</div>
+  <input type="text" id="newName" placeholder="회원 이름" class="input-gap">
+  <div class="gender-select-group">
+    <label><input type="radio" name="newGender" value="남" checked> 남성</label>
+    <label><input type="radio" name="newGender" value="여"> 여성</label>
   </div>
+  <input type="date" id="regDate" class="input-gap">
+  <button onclick="addMember()" class="btn-submit bg-green-500">등록 완료</button>
+</div>
+          
+<!-- 등산 기록 및 좌표 정복 관리 카드의 시작 -->
+<div class="card">
+  <div class="card-title text-blue-600 font-bold flex justify-between items-center">
+    <span>📅 등산 기록 및 좌표 정복 관리</span>
+  </div>
+
+<!-- 회원 검색 입력창 및 우측 인원수/경고 표시 영역 -->
+<div class="relative w-full mb-2">
+  <input type="text" id="adminSearchInput" onkeyup="filterAdminMemberList()" placeholder="🔍 회원 검색..." class="h-9 pl-4 pr-36 rounded-xl w-full text-xs bg-blue-50 border-blue-100 outline-none border">
   
-
-        <div class="flex items-center justify-between mt-2 py-1.5 border-t border-gray-100 overflow-x-auto">
-          <label class="text-[10px] flex items-center gap-1 shrink-0 cursor-pointer whitespace-nowrap">
-            <input type="checkbox" id="isRegularCheck" class="w-3.5 h-3.5"> 정기🚩
-          </label>
-          <label class="text-[10px] flex items-center gap-1 shrink-0 cursor-pointer whitespace-nowrap">
-            <input type="checkbox" id="isScheduleCheck" class="w-3.5 h-3.5"> <span class="text-emerald-600 font-bold">일정🗓️</span>
-          </label>
-          <label class="text-[10px] flex items-center gap-1 shrink-0 cursor-pointer whitespace-nowrap">
-            <input type="checkbox" id="isRunningCheck" class="w-3.5 h-3.5"> 런닝🏃
-          </label>
-          <label class="text-[10px] flex items-center gap-1 shrink-0 cursor-pointer whitespace-nowrap">
-            <input type="checkbox" id="isTrackingCheck" class="w-3.5 h-3.5"> 트래킹👟
-          </label>
-          <label class="text-[10px] flex items-center gap-1 shrink-0 cursor-pointer whitespace-nowrap">
-            <input type="checkbox" id="isWalkingCheck" class="w-3.5 h-3.5"> 산책🚶‍♂️
-          </label>
-        </div>
-
-
-        <div class="flex gap-1.5 mb-2 py-1.5 border-t border-b border-gray-50 bg-gray-50/30">
-          <div class="flex-1 flex items-center gap-1">
-            <span class="text-[9px] text-gray-400 shrink-0">🪨바위</span>
-            <input type="number" id="pRock" placeholder="0" class="w-full h-7 text-[10px] border rounded px-1 text-center">
-          </div>
-          <div class="flex-1 flex items-center gap-1">
-            <span class="text-[9px] text-gray-400 shrink-0">🌿숲</span>
-            <input type="number" id="pForest" placeholder="0" class="w-full h-7 text-[10px] border rounded px-1 text-center">
-          </div>
-          <div class="flex-1 flex items-center gap-1">
-            <span class="text-[9px] text-gray-400 shrink-0">🌊계곡</span>
-            <input type="number" id="pValley" placeholder="0" class="w-full h-7 text-[10px] border rounded px-1 text-center">
-          </div>
-        </div>
-
-              
-              <!-- 등산한 산 이름 및 개별 단축 체크박스 영역 -->
-<div class="flex gap-2 mb-2 items-center">
-  <input type="text" id="mountainName" onblur="autoFindCoords(); autoFindMountainStats();" placeholder="등산한 산 이름" class="h-9 text-xs flex-1 border rounded px-2 outline-none">
-  
-  <!-- 단축 체크박스 그룹 -->
-  <div class="flex gap-2 shrink-0 bg-white px-2 h-9 items-center border rounded-lg">
-    <!-- 1. 번외산행 (런닝 + 트레킹 동시 적용) -->
-    <label class="flex items-center gap-1 cursor-pointer whitespace-nowrap text-[10px] font-bold text-amber-600">
-      <input type="checkbox" id="isExtraHikeCheck" onchange="syncActivityCheckboxes('extra')" class="w-3.5 h-3.5 accent-amber-500"> 🌲번외
-    </label>
-    
-    <!-- 2. 인정 트레킹 (트레킹 + 산책 동시 적용 -> 순수산행 적용) -->
-    <label class="flex items-center gap-1 cursor-pointer whitespace-nowrap text-[10px] font-bold text-teal-600">
-      <input type="checkbox" id="isSpecialTrackingCheck" onchange="syncActivityCheckboxes('special')" class="w-3.5 h-3.5 accent-teal-500"> 🥾인트레킹
-    </label>
+  <!-- 🎯 검색창 우측 안쪽: 인원수 뱃지 + 벙주 경고 뱃지 -->
+  <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+    <!-- 벙주 미선택 경고 -->
+    <span id="leaderWarningBadge" class="text-[10px] bg-red-500 text-white px-1.5 py-0.5 rounded-md font-bold hidden">
+      ⚠️ 벙주 미선택
+    </span>
+    <!-- 선택 인원수 카운트 -->
+    <span id="selectedMemberBadge" class="text-[10px] bg-emerald-500 text-white px-2 py-0.5 rounded-md font-black shadow-sm hidden">
+      선택 <span id="memberCountNum">0</span>명
+    </span>
   </div>
 </div>
-              
-        <div class="flex gap-2 mb-2">
-          <select id="adminManualRegionSelect" class="region-select-mini flex-1 rounded-lg border">
-            <option value="기타">📍 수동 지역 선택 (선택 안함)</option>
-            <option value="서울특별시">서울특별시</option>
-            <option value="인천광역시">인천광역시</option>
-            <option value="경기도">경기도</option>
-            <option value="강원도">강원도</option>
-            <option value="충청북도">충청북도</option>
-            <option value="충청남도">충청남도</option>
-            <option value="대전/세종">대전/세종</option>
-            <option value="전라북도">전라북도</option>
-            <option value="전라남도">전라남도</option>
-            <option value="광주광역시">광주광역시</option>
-            <option value="경상북도">경상북도</option>
-            <option value="경상남도">경상남도</option>
-            <option value="대구광역시">대구광역시</option>
-            <option value="울산광역시">울산광역시</option>
-            <option value="부산광역시">부산광역시</option>
-            <option value="제주도">제주도</option>
-          </select>
-                  <!-- 🎯 toggleDisableCoord() 함수 연결 -->
-      <label class="flex items-center gap-1 cursor-pointer whitespace-nowrap text-[10px] font-bold text-red-500 bg-white px-2 h-9 border rounded-lg shrink-0">
-        <input type="checkbox" id="disableCoordCheck" onchange="toggleDisableCoord()" class="w-3.5 h-3.5 accent-red-500"> 좌표 OFF
+
+  <!-- 회원 목록 그리드 -->
+  <div id="multiMemberList" class="member-grid max-h-48 overflow-y-auto mb-3 p-1"></div>
+
+  <!-- 산 정보 및 좌표 설정 영역 -->
+  <div class="bg-indigo-50 p-3 rounded-xl border border-indigo-100 mb-2">
+    <div class="flex items-center justify-between mb-2">
+      <p class="text-[10px] font-black text-indigo-400">⛰️ 산 정보 및 좌표 설정</p>
+      <div class="flex gap-2">
+        <label class="flex items-center gap-1 cursor-pointer whitespace-nowrap">
+          <input type="checkbox" id="isNationalParkCheck" class="w-3.5 h-3.5">
+          <span class="text-[10px] font-black text-emerald-600">국립</span>
+        </label>
+        <label class="flex items-center gap-1 cursor-pointer whitespace-nowrap">
+          <input type="checkbox" id="isTop100Check" onchange="toggleMarkerStyle()" class="w-3.5 h-3.5">
+          <span class="text-[10px] font-black text-blue-600">산림청</span>
+        </label>
+        <label class="flex items-center gap-1 cursor-pointer whitespace-nowrap">
+          <input type="checkbox" id="isBACCheck" class="w-3.5 h-3.5">
+          <span class="text-[10px] font-black text-red-500">BAC</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- 활동 유형 선택 -->
+    <div class="flex items-center justify-between mt-2 py-1.5 border-t border-gray-100 overflow-x-auto">
+      <label class="text-[10px] flex items-center gap-1 shrink-0 cursor-pointer whitespace-nowrap">
+        <input type="checkbox" id="isRegularCheck" class="w-3.5 h-3.5"> 정기🚩
       </label>
-        </div>
-        
+      <label class="text-[10px] flex items-center gap-1 shrink-0 cursor-pointer whitespace-nowrap">
+        <input type="checkbox" id="isScheduleCheck" class="w-3.5 h-3.5"> <span class="text-emerald-600 font-bold">일정🗓️</span>
+      </label>
+      <label class="text-[10px] flex items-center gap-1 shrink-0 cursor-pointer whitespace-nowrap">
+        <input type="checkbox" id="isRunningCheck" class="w-3.5 h-3.5"> 런닝🏃
+      </label>
+      <label class="text-[10px] flex items-center gap-1 shrink-0 cursor-pointer whitespace-nowrap">
+        <input type="checkbox" id="isTrackingCheck" class="w-3.5 h-3.5"> 트래킹👟
+      </label>
+      <label class="text-[10px] flex items-center gap-1 shrink-0 cursor-pointer whitespace-nowrap">
+        <input type="checkbox" id="isWalkingCheck" class="w-3.5 h-3.5"> 산책🚶‍♂️
+      </label>
+    </div>
 
+    <!-- 속성 포인트 입력 -->
+    <div class="flex gap-1.5 mb-2 py-1.5 border-t border-b border-gray-50 bg-gray-50/30">
+      <div class="flex-1 flex items-center gap-1">
+        <span class="text-[9px] text-gray-400 shrink-0">🪨바위</span>
+        <input type="number" id="pRock" placeholder="0" class="w-full h-7 text-[10px] border rounded px-1 text-center">
+      </div>
+      <div class="flex-1 flex items-center gap-1">
+        <span class="text-[9px] text-gray-400 shrink-0">🌿숲</span>
+        <input type="number" id="pForest" placeholder="0" class="w-full h-7 text-[10px] border rounded px-1 text-center">
+      </div>
+      <div class="flex-1 flex items-center gap-1">
+        <span class="text-[9px] text-gray-400 shrink-0">🌊계곡</span>
+        <input type="number" id="pValley" placeholder="0" class="w-full h-7 text-[10px] border rounded px-1 text-center">
+      </div>
+    </div>
 
-        <div class="flex gap-2 mb-2">
-          <input type="number" id="mountainHeight" placeholder="높이(m) 예: 629" class="h-9 text-xs flex-1 border rounded-lg px-2 outline-none">
-          <div class="flex-1 flex gap-1 items-center bg-white px-2 rounded-lg border">
-            <span class="text-[9px] font-bold text-gray-400">UP:</span>
-            <!-- 변경 후 -->
-<div class="up-amount-group !mb-0 !h-[30px] !p-0.5 border-none">
-  <label class="!text-[9px]"><input type="radio" name="upAmount" value="0">0</label>
-  <label class="!text-[9px]"><input type="radio" name="upAmount" value="1" checked>1</label>
-  <label class="!text-[9px]"><input type="radio" name="upAmount" value="2">2</label>
-  <label class="!text-[9px]"><input type="radio" name="upAmount" value="3">3</label>
-  <label style="margin-left: 9px; font-size: 13px; color: #ff4d4d; cursor: pointer; vertical-align: middle;">
-    <input type="checkbox" id="isQuarterCheck">
+    <!-- 산 이름 및 단축 체크박스 영역 -->
+    <div class="flex gap-2 mb-2 items-center">
+      <input type="text" id="mountainName" onblur="autoFindCoords(); autoFindMountainStats();" placeholder="등산한 산 이름" class="h-9 text-xs flex-1 border rounded px-2 outline-none">
+      <div class="flex gap-2 shrink-0 bg-white px-2 h-9 items-center border rounded-lg">
+        <label class="flex items-center gap-1 cursor-pointer whitespace-nowrap text-[10px] font-bold text-amber-600">
+          <input type="checkbox" id="isExtraHikeCheck" onchange="syncActivityCheckboxes('extra')" class="w-3.5 h-3.5 accent-amber-500"> 🌲번외
+        </label>
+        <label class="flex items-center gap-1 cursor-pointer whitespace-nowrap text-[10px] font-bold text-teal-600">
+          <input type="checkbox" id="isSpecialTrackingCheck" onchange="syncActivityCheckboxes('special')" class="w-3.5 h-3.5 accent-teal-500"> 🥾인트레킹
+        </label>
+      </div>
+    </div>
+          
+    <!-- 지역 선택, 일괄수정, 좌표 OFF 버튼 영역 (모바일 1줄 맞춤) -->
+<div class="flex gap-1 mb-2 items-center w-full">
+  <!-- 1. 수동 지역 선택 (글자 크기 축소 및 너비 최적화) -->
+  <select id="adminManualRegionSelect" class="region-select-mini flex-1 h-9 text-[10px] font-bold rounded-lg border border-gray-200 px-1 outline-none bg-white min-w-0">
+    <option value="기타">📍 지역 선택 (선택 안함)</option>
+    <option value="서울특별시">서울특별시</option>
+    <option value="인천광역시">인천광역시</option>
+    <option value="경기도">경기도</option>
+    <option value="강원도">강원도</option>
+    <option value="충청북도">충청북도</option>
+    <option value="충청남도">충청남도</option>
+    <option value="대전/세종">대전/세종</option>
+    <option value="전라북도">전라북도</option>
+    <option value="전라남도">전라남도</option>
+    <option value="광주광역시">광주광역시</option>
+    <option value="경상북도">경상북도</option>
+    <option value="경상남도">경상남도</option>
+    <option value="대구광역시">대구광역시</option>
+    <option value="울산광역시">울산광역시</option>
+    <option value="부산광역시">부산광역시</option>
+    <option value="제주도">제주도</option>
+  </select>
+  
+  <!-- 2. 일괄수정 버튼 -->
+  <button onclick="globalSyncMountainInfo()" class="h-9 px-2 text-[10px] bg-red-50 text-red-600 border border-red-200 rounded-lg font-black shrink-0 hover:bg-red-100 transition-colors flex items-center justify-center gap-0.5 whitespace-nowrap">
+    ⛰️ 일괄수정
+  </button>
+
+  <!-- 3. 좌표 OFF 체크박스 -->
+  <label class="h-9 px-2 flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap text-[10px] font-bold text-red-500 bg-white border border-red-200 rounded-lg shrink-0">
+    <input type="checkbox" id="disableCoordCheck" onchange="toggleDisableCoord()" class="w-3.5 h-3.5 accent-red-500"> 좌표 OFF
   </label>
 </div>
-        </div>
-        </div>
-        <div class="map-container" onclick="setAdminCoordinate(event)">
-          <img src="https://i.ibb.co/bMLmRYRJ/2-1.jpg" class="map-image" alt="정복지도">
-          <div id="adminMapMarker" class="map-point hidden"></div>
-        </div>
-        <div id="coordDisplay" class="coordinate-display">좌표: 없음 (지도 클릭)</div>
-      </div>
 
-      <input type="date" id="activityDate" class="input-gap">
-      <button onclick="addMultiActivity()" class="btn-submit bg-blue-500 mt-0">기록 저장하기</button>
+
+
+    <!-- 높이 및 UP 수량 설정 -->
+    <div class="flex gap-2 mb-2">
+      <input type="number" id="mountainHeight" placeholder="높이(m) 예: 629" class="h-9 text-xs flex-1 border rounded-lg px-2 outline-none">
+      <div class="flex-1 flex gap-1 items-center bg-white px-2 rounded-lg border">
+        <span class="text-[9px] font-bold text-gray-400">UP:</span>
+        <div class="up-amount-group !mb-0 !h-[30px] !p-0.5 border-none">
+          <label class="!text-[9px]"><input type="radio" name="upAmount" value="0">0</label>
+          <label class="!text-[9px]"><input type="radio" name="upAmount" value="1" checked>1</label>
+          <label class="!text-[9px]"><input type="radio" name="upAmount" value="2">2</label>
+          <label class="!text-[9px]"><input type="radio" name="upAmount" value="3">3</label>
+          <label style="margin-left: 9px; font-size: 13px; color: #ff4d4d; cursor: pointer; vertical-align: middle;">
+            <input type="checkbox" id="isQuarterCheck">
+          </label>
+        </div>
+      </div>
     </div>
+
+    <!-- 지도 영역 -->
+    <div class="map-container" onclick="setAdminCoordinate(event)">
+      <img src="https://i.ibb.co/bMLmRYRJ/2-1.jpg" class="map-image" alt="정복지도">
+      <div id="adminMapMarker" class="map-point hidden"></div>
+    </div>
+    <div id="coordDisplay" class="coordinate-display">좌표: 없음 (지도 클릭)</div>
+  </div>
+
+  <input type="date" id="activityDate" class="input-gap">
+  <button onclick="addMultiActivity()" class="btn-submit bg-blue-500 mt-0">기록 저장하기</button>
+</div>
+
+
 
     <!-- 기록 수정 및 레벨 관리 -->
     <div class="card" style="background-color: #fffdf0; border-color: #fef3c7; margin-bottom: 15px;">
@@ -3916,7 +3962,6 @@ async function saveHikeLog(mId, newLogData) {
 }
 
         
-        
     const regionBoundaries = [
 { name: "서울특별시", x: [25, 35], y: [18, 25] },
 { name: "경기도", x: [20, 40], y: [12, 32] },
@@ -4074,9 +4119,54 @@ await setDoc(doc(db, "sub_rooms", roomId), { isActive: nextActive, statusMsg: ms
 
 window.copySubRoomUrl = (url, name) => { navigator.clipboard.writeText(url); alert(`[${name}] 링크 복사 완료`); };
 
- 
-     
-           
+// ==========================================
+// 📌 멤버 선택 수 & 멤버 체크박스(벙주) 체크 감지
+// ==========================================
+function updateAdminSelectedMemberUI() {
+  const badge = document.getElementById('selectedMemberBadge');
+  const countNum = document.getElementById('memberCountNum');
+  const leaderWarning = document.getElementById('leaderWarningBadge');
+
+  if (!badge || !countNum) return;
+
+  // 1. 전체 선택된 회원 카드/인원수 카운트
+  const checkedBoxes = document.querySelectorAll('#multiMemberList input[type="checkbox"]:checked, .admin-member-row input[type="checkbox"]:checked');
+  const activeCards = document.querySelectorAll('#multiMemberList .selected, #multiMemberList .active, .admin-member-row.selected, .admin-member-row.active');
+  
+  let globalSetCount = 0;
+  if (typeof selectedMemberIds !== 'undefined' && selectedMemberIds instanceof Set) {
+    globalSetCount = selectedMemberIds.size;
+  } else if (typeof selectedMembers !== 'undefined' && Array.isArray(selectedMembers)) {
+    globalSetCount = selectedMembers.length;
+  }
+
+  const count = Math.max(checkedBoxes.length, activeCards.length, globalSetCount);
+
+  // 2. 🎯 멤버 옆 체크박스(hosted)가 하나라도 체크되어 있는지 직접 확인
+  const isHostedChecked = checkedBoxes.length > 0;
+
+  // 3. UI 갱신
+  if (count > 0) {
+    // 선택 인원수 뱃지 표시
+    countNum.innerText = count;
+    badge.classList.remove('hidden');
+
+    // 멤버 체크박스가 하나라도 체크되어 있으면 경고 숨김, 안 되어 있으면 경고 표시
+    if (isHostedChecked) {
+      if (leaderWarning) leaderWarning.classList.add('hidden');
+    } else {
+      if (leaderWarning) leaderWarning.classList.remove('hidden');
+    }
+  } else {
+    // 선택된 인원이 없으면 둘 다 숨김
+    badge.classList.add('hidden');
+    if (leaderWarning) leaderWarning.classList.add('hidden');
+  }
+}
+
+// 0.15초마다 실시간 감지
+setInterval(updateAdminSelectedMemberUI, 150);
+
 
 // ─── 1. 한글 초성 유틸리티 ───
 const CHOSUNG_LIST = ['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
