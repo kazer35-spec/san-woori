@@ -6643,31 +6643,39 @@ window.showMemberMap = async (mId, mName) => {
     const top100Map = {};
     const normalMap = {};
 
-    logsData.forEach(log => {
-        totalH += (log.height || 0);
 
-        if (log.coords) {
-            validLogsCount++;
-            mapHtml += `<div class="map-point ${log.isTop100 ? 'top-100' : ''}" style="left:${log.coords.x}%; top:${log.coords.y}%;"></div>`;
+        logsData.forEach(log => {
+    totalH += (log.height || 0);
+
+    if (log.coords) {
+        validLogsCount++;
+        mapHtml += `<div class="map-point ${log.isTop100 ? 'top-100' : ''}" style="left:${log.coords.x}%; top:${log.coords.y}%;"></div>`;
+        
+        const rName = log.region || getRegionFromCoord(log.coords);
+        regionCounts[rName] = (regionCounts[rName] || 0) + 1;
+
+        if (log.mountain) {
+            const rawName = log.mountain.trim();
+            // 관악산인 경우에만 괄호 내용 제거, 그 외는 원본 이름 유지
+            const cleanMountainName = rawName.startsWith('관악산')
+                ? rawName.replace(/관악산\s*\(.*?\)/g, '관악산').trim()
+                : rawName;
+
+            const targetMap = log.isTop100 ? top100Map : normalMap;
+
+            if (!targetMap[cleanMountainName]) {
+                targetMap[cleanMountainName] = { count: 0, height: log.height || 0 };
+            }
             
-            const rName = log.region || getRegionFromCoord(log.coords);
-            regionCounts[rName] = (regionCounts[rName] || 0) + 1;
-
-            if (log.mountain) {
-                if (log.isTop100) {
-                    if (!top100Map[log.mountain]) {
-                        top100Map[log.mountain] = { count: 0, height: log.height || 0 };
-                    }
-                    top100Map[log.mountain].count += 1;
-                } else {
-                    if (!normalMap[log.mountain]) {
-                        normalMap[log.mountain] = { count: 0, height: log.height || 0 };
-                    }
-                    normalMap[log.mountain].count += 1;
-                }
+            targetMap[cleanMountainName].count += 1;
+            
+            if (!targetMap[cleanMountainName].height && log.height) {
+                targetMap[cleanMountainName].height = log.height;
             }
         }
-    });
+    }
+});
+
 
     // 💡 지역 점유율 전체 렌더링
     const sortedRegions = Object.entries(regionCounts).sort((a,b) => b[1] - a[1]);
