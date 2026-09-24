@@ -9291,11 +9291,6 @@ window.closeHistoryDetailModal = function() {
   }
 };
 
-
-
-
-
-
 // 🎯 [전역 캐시 객체 선언] 최초 1회만 Firestore에서 가져오고 이후 재활용합니다.
 window.mountainDataCache = window.mountainDataCache || {};
 window.treeRingCache = window.treeRingCache || {};
@@ -9435,28 +9430,54 @@ window.showMemberMountain = async (mId, mName) => {
             totalCountEl.innerHTML = `🏔️TOTAL: ${pureHikeCount}회`;
         }
 
-        // 🎯 [캐시 로직 적용] 캐시에 저장된 로그가 있으면 사용, 없으면 Firestore 1회 조회
+        // 🎯 [데이터/비용 절약형] 최고봉 보존 + 최신순 99개 (최대 101회 읽기로 고정)
         let allLogs;
         if (window.mountainDataCache[mId]) {
             allLogs = window.mountainDataCache[mId];
         } else {
-            const q = query(
-                collection(db, `sanwoori/${mId}/logs`),
-                limit(100)
-            );
-            const snap = await getDocs(q);
-            allLogs = snap.docs.map(d => d.data());
-            window.mountainDataCache[mId] = allLogs; // 캐시에 보관
+            const logsRef = collection(db, `sanwoori/${mId}/logs`);
+
+            const maxPeakQ = query(logsRef, orderBy('height', 'desc'), limit(1));
+            const latestQ = query(logsRef, orderBy('date', 'desc'), limit(100));
+
+            const [maxSnap, latestSnap] = await Promise.all([
+                getDocs(maxPeakQ),
+                getDocs(latestQ)
+            ]);
+
+            const maxLog = maxSnap.docs[0]?.data();
+            const latestLogs = latestSnap.docs.map(d => d.data());
+
+            const logMap = new Map();
+            
+            if (maxLog) {
+                const maxKey = `${maxLog.mountain}_${maxLog.height}`;
+                logMap.set(maxKey, maxLog);
+            }
+
+            for (const log of latestLogs) {
+                if (logMap.size >= 100) break;
+                const key = `${log.mountain}_${log.height}`;
+                if (!logMap.has(key)) {
+                    logMap.set(key, log);
+                }
+            }
+
+            allLogs = Array.from(logMap.values());
+            window.mountainDataCache[mId] = allLogs;
         }
-        
-        let logs = allLogs.filter(l => (l.height || 0) > 0 && (!l.isSpecial || l.isExtraHike));
+
+        // 🎯 [핵심 수정] 높이가 0보다 크면서 '특별/번외산행'이 전혀 아닌 "순수 일정산행"만 산맥으로 필터링
+        let logs = allLogs.filter(l => (l.height || 0) > 0 && !l.isSpecial && !l.isExtraHike);
 
         // [Case A] 산맥 데이터가 하나라도 잡히는 일반 유저군
         if (logs.length > 0) {
             const heights = logs.map(l => l.height);
             const maxHeight = Math.max(...heights);
             const maxLog = logs.find(l => l.height === maxHeight);
-            const myTotalH = heights.reduce((a, b) => a + b, 0);
+
+            // 🏔️ 회원의 실제 전체 누적 고도
+            const myTotalH = memberInfo ? (memberInfo.totalHeight || 0) : heights.reduce((a, b) => a + b, 0);
             const globalH = currentData.reduce((acc, m) => acc + (m.totalHeight || 0), 0);
 
             if(document.getElementById('myTotalH')) {
@@ -9581,7 +9602,8 @@ window.showMemberMountain = async (mId, mName) => {
     }
 };
 
- 
+
+
 window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
     const container = document.getElementById('treeRingContainer');
     const monthLabel = document.getElementById('activityMonths');
