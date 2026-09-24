@@ -7838,29 +7838,33 @@ window.addMultiActivity = async () => {
         } 
 
         if (isRealHike && isMultiHike && selectedNames.length >= 2) {
-            const cleanMountain = (mName || "트레킹산행").trim().replace(/\s+/g, "");
-            const cleanDate = dateVal.trim();
-            let bondingDocId = `${cleanMountain}_${cleanDate}`;
+    const cleanMountain = (mName || "트레킹산행").trim().replace(/\s+/g, "");
+    const cleanDate = dateVal.trim();
+    let bondingDocId = `${cleanMountain}_${cleanDate}`;
 
-            let bondingRef = doc(db, "bondingForest", bondingDocId);
-            let checkSnap = await getDoc(bondingRef);
-            let dupSeq = 2;
-            while (checkSnap.exists()) {
-                bondingDocId = `${cleanMountain}_${cleanDate}_${dupSeq}`;
-                bondingRef = doc(doc, "bondingForest", bondingDocId);
-                checkSnap = await getDoc(bondingRef);
-                dupSeq++;
-            }
+    let bondingRef = doc(db, "bondingForest", bondingDocId);
+    let checkSnap = await getDoc(bondingRef);
+    let dupSeq = 2;
+    while (checkSnap.exists()) {
+        bondingDocId = `${cleanMountain}_${cleanDate}_${dupSeq}`;
+        
+        // 🎯 doc(doc, ...) -> doc(db, ...) 로 수정!
+        bondingRef = doc(db, "bondingForest", bondingDocId); 
+        
+        checkSnap = await getDoc(bondingRef);
+        dupSeq++;
+    }
 
-            await setDoc(bondingRef, {
-                mountain: cleanMountain, 
-                members: selectedNames, 
-                memberCount: selectedNames.length, 
-                date: cleanDate, 
-                type: "정식", 
-                createdAt: new Date()
-            });
-        }
+    await setDoc(bondingRef, {
+        mountain: cleanMountain, 
+        members: selectedNames, 
+        memberCount: selectedNames.length, 
+        date: cleanDate, 
+        type: "정식", 
+        createdAt: new Date()
+    });
+}
+
 
         if (typeof pendingLevelUpCards !== 'undefined' && pendingLevelUpCards.length > 0 && typeof showCombinedLevelUpAlert === 'function') {
             showCombinedLevelUpAlert();
