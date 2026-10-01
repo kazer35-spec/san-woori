@@ -4575,8 +4575,23 @@ window.closeGyeonggiTrailModal = function() {
 
         
 
+// 📌 [신규 회원 저장 함수 - 전역 바인딩 및 예외 처리 강화]
 window.saveMemberByName = async function(memberData) {
-  const { name, gender, level } = memberData;
+  // memberData가 인자로 안 들어오고 HTML input에서 직접 읽어야 하는 경우를 위한 방어 코드
+  let name = memberData?.name;
+  let gender = memberData?.gender;
+  let level = memberData?.level;
+
+  // 만약 인자가 없다면 HTML 입력 필드에서 직접 값을 읽어옵니다 (필요시 ID 수정)
+  if (!name) {
+    const nameInput = document.getElementById('newMemberNameInput'); // 실제 HTML input ID에 맞게 수정
+    const genderSelect = document.getElementById('newMemberGenderSelect'); // 성별 선택 요소 ID
+    const levelInput = document.getElementById('newMemberLevelInput'); // 레벨 입력 요소 ID
+
+    name = nameInput ? nameInput.value : "";
+    gender = genderSelect ? genderSelect.value : "여";
+    level = levelInput ? parseInt(levelInput.value, 10) : 0;
+  }
 
   if (!name || !name.trim()) {
     alert("회원 이름을 입력해주세요.");
@@ -4586,11 +4601,13 @@ window.saveMemberByName = async function(memberData) {
   const cleanName = name.trim();
 
   try {
-    const userRef = doc(db, "sanwoori", cleanName);
+    const firestoreDb = window.db || db; // db 참조 안정성 확보
+    const userRef = doc(firestoreDb, "sanwoori", cleanName);
+
     await setDoc(userRef, {
       name: cleanName,
       gender: gender || "여",
-      level: level ?? 0,
+      level: isNaN(level) ? 0 : level,
       count: 0,
       bonusDays: 0,
       buddyCount: 0,
@@ -4599,12 +4616,18 @@ window.saveMemberByName = async function(memberData) {
       createdAt: Timestamp.now()
     }, { merge: true });
 
+    console.log(`회원 [${cleanName}] 저장 완료!`);
     alert(`회원 [${cleanName}] 님이 성공적으로 등록되었습니다.`);
+    
+    // 등록 성공 후 입력창 초기화 및 목록 갱신 함수 호출 (존재하는 경우)
+    if (typeof renderStatusTable === 'function') renderStatusTable();
+
   } catch (error) {
     console.error("회원 저장 중 오류 발생:", error);
     alert("회원 저장 실패: " + error.message);
   }
 };
+
 
 window.saveMemberWithPrefix = async function(userNumber, memberData) {
   const cleanName = memberData.name.trim();
