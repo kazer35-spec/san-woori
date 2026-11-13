@@ -7306,14 +7306,12 @@ window.showMemberMap = async (mId, mName) => {
                 // 1. 이모지 및 특수 기호 제거 (예: 🌸, ⛰️ 등)
                 rawName = rawName.replace(/[\u{1F300}-\u{1F5FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '');
 
-                // 2. "연계" 등의 수식어구 제거
+                // 2. "연계" 등의 수식어구 제거 (예: "연계 불수사도" -> "불수사도")
                 rawName = rawName.replace(/^연계\s*/g, '');
 
-                // 3. '봉담알프스 지내산'처럼 앞에 붙은 수식어/지명 접두사 제거 (뒤에 오는 '지내산'을 핵심 산 이름으로 채택)
-                // 예: "봉담알프스 지내산" -> "지내산"
+                // 3. '봉담알프스 지내산'처럼 앞에 붙은 수식어 제거
                 if (rawName.includes(' ') && !rawName.includes('(')) {
                     const spaceParts = rawName.trim().split(/\s+/);
-                    // 마지막 단어가 산/봉으로 끝나고 앞 단어가 '알프스', '둘레길' 등이면 뒤의 단어만 채택
                     if (spaceParts.length >= 2 && (spaceParts[spaceParts.length - 1].endsWith('산') || spaceParts[spaceParts.length - 1].endsWith('봉'))) {
                         const prefix = spaceParts[0];
                         if (prefix.includes('알프스') || prefix.includes('둘레길') || prefix.includes('트레일')) {
@@ -7325,9 +7323,9 @@ window.showMemberMap = async (mId, mName) => {
                 let cleanMountainName = "";
 
                 // 4. 괄호 처리 로직:
-                // - 괄호 안에 '도봉산'처럼 산 이름이 들어가 있는 경우(연계 불수사도 (도봉산)): 괄호 안의 내용을 대표 산 이름으로 채택!
-                // - 괄호 안에 '서산'처럼 지역명이 들어가 있는 경우(가야산 (서산)): 산 이름 + 괄호(지역) 유지!
-                // - 괄호 안에 '용마 케이블카능선'처럼 코스/봉우리가 들어가 있는 경우(관악산 (용마 케이블카능선)): 괄호 제거!
+                // - 괄호 안에 '도봉산'처럼 다른 산 이름이 들어가 있는 경우(연계 불수사도 (도봉산)): 괄호 안의 내용을 대표 산 이름으로 채택!
+                // - 괄호 안에 '괴산', '서산'처럼 지역명이 들어가 있는 경우(칠보산 (괴산), 가야산 (서산)): 괄호(지역명)는 제거하고 산 이름만 남김!
+                // - 괄호 안에 '용마 케이블카능선'처럼 코스가 들어가 있는 경우: 괄호 제거!
                 const bracketMatch = rawName.match(/\((.*?)\)/);
                 if (bracketMatch) {
                     const bracketContent = bracketMatch[1].trim();
@@ -7340,26 +7338,25 @@ window.showMemberMap = async (mId, mName) => {
                     const isRegion = VALID_REGIONS.some(reg => bracketContent === reg || bracketContent.startsWith(reg)) ||
                                      /[시군구읍면동]$/.test(bracketContent);
 
-                    if (!isCourseOrFeature && (bracketContent.endsWith('산') || bracketContent.endsWith('봉') || isRegion)) {
-                        if (bracketContent.endsWith('산') || bracketContent.endsWith('봉')) {
-                            cleanMountainName = bracketContent;
-                        } else if (isRegion) {
-                            const basePart = rawName.replace(/\s*\(.*?\)/g, '').trim().split(/\s+/)[0];
-                            cleanMountainName = `${basePart} (${bracketContent})`;
-                        }
+                    if (!isCourseOrFeature && (bracketContent.endsWith('산') || bracketContent.endsWith('봉'))) {
+                        // 괄호 안이 산/봉인 경우(예: 도봉산) 괄호 안의 이름 사용
+                        cleanMountainName = bracketContent;
+                    } else if (isRegion) {
+                        // 괄호 안이 지역명인 경우(예: 괴산, 서산) 괄호를 통째로 버리고 앞의 산 이름만 사용
+                        rawName = rawName.replace(/\s*\(.*?\)/g, '');
                     }
                 }
 
-                // 5. 괄호에서 산 이름이나 지역을 특정하지 못한 경우
+                // 5. 괄호에서 산 이름이 특정되지 않은 일반적인 경우
                 if (!cleanMountainName) {
                     const sanitizedRaw = rawName.replace(/\s*\(.*?\)/g, '').trim();
                     const tokens = sanitizedRaw.split(/\s+/);
 
-                    // 💡 '청리움 보리산', '월악산 제비봉', '월악산 악어봉'처럼 
-                    // [대분류/지역/시설명 + 실제산이름/봉우리이름] 형태인 경우 두 단어를 모두 유지하여 전체 다 보여줌
+                    // '청리움 보리산', '월악산 제비봉', '월악산 악어봉' 등 전체를 보여주어야 하는 경우
                     if (tokens.length >= 2 && (tokens[1].endsWith('산') || tokens[1].endsWith('봉'))) {
                         cleanMountainName = sanitizedRaw;
                     } else {
+                        // '관악산 11국기봉' -> 첫 단어인 '관악산'만 추출해서 통합
                         cleanMountainName = tokens[0] || "";
                         if (!cleanMountainName || cleanMountainName.length < 2) {
                             cleanMountainName = sanitizedRaw;
@@ -7462,10 +7459,8 @@ window.showMemberMap = async (mId, mName) => {
     document.getElementById('everestCount').innerText = conquestCount;
     document.getElementById('everestProgressBar').style.width = `${(conquestCount % 1) * 100}%`;
 };
-
-
-
-     
+            
+            
     
 
 window.toggleTimelineModal = (show) => {
