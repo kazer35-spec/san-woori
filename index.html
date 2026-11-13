@@ -7269,7 +7269,7 @@ window.showMemberMap = async (mId, mName) => {
     const top100Map = {};
     const normalMap = {};
 
-    // 💡 대한민국 주요 시/군/구 지역명 목록 (괄호 안이 지역인지 판단용)
+    // 💡 대한민국 주요 시/군/구 지역명 목록 (지명 판별용)
     const VALID_REGIONS = [
         "서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종",
         "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주",
@@ -7302,81 +7302,75 @@ window.showMemberMap = async (mId, mName) => {
             if (log.mountain) {
                 let rawName = log.mountain.trim();
 
-                // 💡 [산 이름 정제 및 고도화 로직]
-                // 1. 이모지 및 특수 기호 제거 (예: 🌸, ⛰️ 등)
+                // 1. 공통: 이모지 및 특수 기호 제거
                 rawName = rawName.replace(/[\u{1F300}-\u{1F5FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '');
-
-                // 2. "연계" 등의 수식어구 제거 (예: "연계 불수사도" -> "불수사도")
                 rawName = rawName.replace(/^연계\s*/g, '');
 
-                // 3. '봉담알프스 지내산'처럼 앞에 붙은 수식어 제거
-                if (rawName.includes(' ') && !rawName.includes('(')) {
-                    const spaceParts = rawName.trim().split(/\s+/);
-                    if (spaceParts.length >= 2 && (spaceParts[spaceParts.length - 1].endsWith('산') || spaceParts[spaceParts.length - 1].endsWith('봉'))) {
-                        const prefix = spaceParts[0];
-                        if (prefix.includes('알프스') || prefix.includes('둘레길') || prefix.includes('트레일')) {
-                            rawName = spaceParts.slice(1).join(' ');
-                        }
-                    }
-                }
+                let cleanTop100Name = "";
+                let cleanNormalName = "";
 
-                let cleanMountainName = "";
-
-                // 4. 괄호 처리 로직:
-                // - 괄호 안에 '도봉산'처럼 다른 산 이름이 들어가 있는 경우(연계 불수사도 (도봉산)): 괄호 안의 내용을 대표 산 이름으로 채택!
-                // - 괄호 안에 '괴산', '서산'처럼 지역명이 들어가 있는 경우(칠보산 (괴산), 가야산 (서산)): 괄호(지역명)는 제거하고 산 이름만 남김!
-                // - 괄호 안에 '용마 케이블카능선'처럼 코스가 들어가 있는 경우: 괄호 제거!
-                const bracketMatch = rawName.match(/\((.*?)\)/);
-                if (bracketMatch) {
-                    const bracketContent = bracketMatch[1].trim();
-                    
-                    const isCourseOrFeature = bracketContent.includes('능선') || bracketContent.includes('코스') || 
-                                              bracketContent.includes('종주') || bracketContent.includes('계곡') || 
-                                              bracketContent.includes('국기봉') || bracketContent.includes('챌린지') || 
-                                              bracketContent.includes('트레일') || bracketContent.includes('러닝');
-
+                // ─────────────────────────────────────────
+                // [A] 100대 명산 탭 전용 정제 로직
+                // ─────────────────────────────────────────
+                let top100Raw = rawName;
+                const top100BracketMatch = top100Raw.match(/\((.*?)\)/);
+                if (top100BracketMatch) {
+                    const bracketContent = top100BracketMatch[1].trim();
                     const isRegion = VALID_REGIONS.some(reg => bracketContent === reg || bracketContent.startsWith(reg)) ||
                                      /[시군구읍면동]$/.test(bracketContent);
 
-                    if (!isCourseOrFeature && (bracketContent.endsWith('산') || bracketContent.endsWith('봉'))) {
-                        // 괄호 안이 산/봉인 경우(예: 도봉산) 괄호 안의 이름 사용
-                        cleanMountainName = bracketContent;
+                    if (bracketContent.endsWith('산') || bracketContent.endsWith('봉')) {
+                        cleanTop100Name = bracketContent; // 예: 연계 불수사도 (도봉산) -> 도봉산
                     } else if (isRegion) {
-                        // 괄호 안이 지역명인 경우(예: 괴산, 서산) 괄호를 통째로 버리고 앞의 산 이름만 사용
-                        rawName = rawName.replace(/\s*\(.*?\)/g, '');
+                        const basePart = top100Raw.replace(/\s*\(.*?\)/g, '').trim().split(/\s+/)[0];
+                        cleanTop100Name = `${basePart} (${bracketContent})`; // 예: 가야산 (서산) -> 가야산 (서산) 유지
                     }
                 }
 
-                // 5. 괄호에서 산 이름이 특정되지 않은 일반적인 경우
-                if (!cleanMountainName) {
-                    const sanitizedRaw = rawName.replace(/\s*\(.*?\)/g, '').trim();
-                    const tokens = sanitizedRaw.split(/\s+/);
+                if (!cleanTop100Name) {
+                    const sanitizedTop100 = top100Raw.replace(/\s*\(.*?\)/g, '').trim();
+                    const tokens = sanitizedTop100.split(/\s+/);
+                    // 관악산 11국기봉 -> 관악산처럼 세부 코스만 잘라냄
+                    cleanTop100Name = tokens[0] || sanitizedTop100;
+                }
+                cleanTop100Name = cleanTop100Name.trim();
 
-                    // '청리움 보리산', '월악산 제비봉', '월악산 악어봉' 등 전체를 보여주어야 하는 경우
-                    if (tokens.length >= 2 && (tokens[1].endsWith('산') || tokens[1].endsWith('봉'))) {
-                        cleanMountainName = sanitizedRaw;
-                    } else {
-                        // '관악산 11국기봉' -> 첫 단어인 '관악산'만 추출해서 통합
-                        cleanMountainName = tokens[0] || "";
-                        if (!cleanMountainName || cleanMountainName.length < 2) {
-                            cleanMountainName = sanitizedRaw;
+
+                // ─────────────────────────────────────────
+                // [B] 기타 명산(정복한 산) 탭 전용 정제 로직
+                // ─────────────────────────────────────────
+                let normalRaw = rawName;
+                if (normalRaw.includes(' ') && !normalRaw.includes('(')) {
+                    const spaceParts = normalRaw.trim().split(/\s+/);
+                    if (spaceParts.length >= 2 && (spaceParts[spaceParts.length - 1].endsWith('산') || spaceParts[spaceParts.length - 1].endsWith('봉'))) {
+                        const prefix = spaceParts[0];
+                        if (prefix.includes('알프스') || prefix.includes('둘레길') || prefix.includes('트레일')) {
+                            normalRaw = spaceParts.slice(1).join(' ');
                         }
                     }
                 }
+                cleanNormalName = normalRaw.trim();
 
-                cleanMountainName = cleanMountainName.trim();
-                // 💡 [정제 로직 끝]
 
-                const targetMap = log.isTop100 ? top100Map : normalMap;
-
-                if (!targetMap[cleanMountainName]) {
-                    targetMap[cleanMountainName] = { count: 0, height: log.height || 0 };
-                }
-                
-                targetMap[cleanMountainName].count += 1;
-                
-                if (!targetMap[cleanMountainName].height && log.height) {
-                    targetMap[cleanMountainName].height = log.height;
+                // ─────────────────────────────────────────
+                // 3. 각각의 맵에 데이터 적재
+                // ─────────────────────────────────────────
+                if (log.isTop100) {
+                    if (!top100Map[cleanTop100Name]) {
+                        top100Map[cleanTop100Name] = { count: 0, height: log.height || 0 };
+                    }
+                    top100Map[cleanTop100Name].count += 1;
+                    if (!top100Map[cleanTop100Name].height && log.height) {
+                        top100Map[cleanTop100Name].height = log.height;
+                    }
+                } else {
+                    if (!normalMap[cleanNormalName]) {
+                        normalMap[cleanNormalName] = { count: 0, height: log.height || 0 };
+                    }
+                    normalMap[cleanNormalName].count += 1;
+                    if (!normalMap[cleanNormalName].height && log.height) {
+                        normalMap[cleanNormalName].height = log.height;
+                    }
                 }
             }
         }
@@ -7422,7 +7416,7 @@ window.showMemberMap = async (mId, mName) => {
             height: top100Map[mName].height
         }));
 
-    // ㄱㄴㄷ 순 정렬 (특수문자는 맨 뒤로) - 정복한 산 (기타명산 포함)
+    // ㄱㄴㄷ 순 정렬 (특수문자는 맨 뒤로) - 정복한 산 (기타명산)
     normalFullList = Object.keys(normalMap)
         .sort((a, b) => {
             const aIsNormal = isNormalChar(a);
@@ -7459,7 +7453,8 @@ window.showMemberMap = async (mId, mName) => {
     document.getElementById('everestCount').innerText = conquestCount;
     document.getElementById('everestProgressBar').style.width = `${(conquestCount % 1) * 100}%`;
 };
-            
+
+ 
             
     
 
