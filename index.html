@@ -7100,7 +7100,8 @@ window.toggleMapView = (viewType) => {
 };
 
 
-   window.switchStatsTab = (tabName) => {
+   
+window.switchStatsTab = (tabName) => {
     const regionBox = document.getElementById('regionStatsBox');
     const top100Box = document.getElementById('top100ListBox');
     const normalBox = document.getElementById('normalListBox');
@@ -7270,7 +7271,7 @@ window.showMemberMap = async (mId, mName) => {
     const top100Map = {};
     const normalMap = {};
 
-    // 💡 대한민국 주요 시/군/구 및 지역명 목록 (괄호 안이 지역인지 판단용)
+    // 💡 대한민국 주요 시/군/구 지역명 목록 (괄호 안이 지역인지 판단용)
     const VALID_REGIONS = [
         "서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종",
         "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주",
@@ -7307,32 +7308,48 @@ window.showMemberMap = async (mId, mName) => {
                 // 1. 이모지 및 특수 기호 제거 (예: 🌸, ⛰️ 등)
                 rawName = rawName.replace(/[\u{1F300}-\u{1F5FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '');
 
-                // 2. "연계" 등의 수식어구 제거 (예: "연계 불수사도" -> "불수사도")
+                // 2. "연계" 등의 수식어구 제거 (예: "연계 불수사도" -> "불수사도" 등)
                 rawName = rawName.replace(/^연계\s*/g, '');
 
-                // 3. 괄호 처리 로직: 괄호 안의 내용이 지역명인 경우 유지하고, 코스/봉우리인 경우 제거
-                rawName = rawName.replace(/\s*\((.*?)\)/g, (match, content) => {
-                    const trimmedContent = content.trim();
-                    // 지역명 목록에 포함되거나 '시', '군', '구', '읍', '면' 등으로 끝나는 지역 성격의 내용이면 괄호 유지
-                    const isRegion = VALID_REGIONS.some(reg => trimmedContent === reg || trimmedContent.startsWith(reg)) ||
-                                     /[시군구읍면동]$/.test(trimmedContent);
-                    return isRegion ? match : '';
-                });
+                let cleanMountainName = "";
 
-                // 4. 뒤에 붙는 불필요한 세부 코스/봉우리(예: " 11국기봉", " 칠선계곡") 제거
-                // 산 이름에 해당하는 첫 번째 단어(예: "관악산", "지리산", "감악산")만 추출
-                const tokens = rawName.trim().split(/\s+/);
-                let cleanMountainName = tokens[0] || "";
+                // 3. 괄호 처리 로직:
+                // - 괄호 안에 '도봉산'처럼 산 이름이 들어가 있는 경우(연계 불수사도 (도봉산)): 괄호 안의 내용을 대표 산 이름으로 채택!
+                // - 괄호 안에 '포천'처럼 지역명이 들어가 있는 경우(감악산 (포천)): 산 이름 + 괄호(지역) 유지!
+                // - 괄호 안에 '용마 케이블카능선'처럼 코스/봉우리가 들어가 있는 경우(관악산 (용마 케이블카능선)): 괄호 제거!
+                const bracketMatch = rawName.match(/\((.*?)\)/);
+                if (bracketMatch) {
+                    const bracketContent = bracketMatch[1].trim();
+                    
+                    const isCourseOrFeature = bracketContent.includes('능선') || bracketContent.includes('코스') || 
+                                              bracketContent.includes('종주') || bracketContent.includes('계곡') || 
+                                              bracketContent.includes('국기봉') || bracketContent.includes('챌린지') || 
+                                              bracketContent.includes('트레일') || bracketContent.includes('러닝');
 
-                if (!cleanMountainName || cleanMountainName.length < 2) {
-                    cleanMountainName = rawName.trim();
+                    const isRegion = VALID_REGIONS.some(reg => bracketContent === reg || bracketContent.startsWith(reg)) ||
+                                     /[시군구읍면동]$/.test(bracketContent);
+
+                    if (!isCourseOrFeature && (bracketContent.endsWith('산') || bracketContent.endsWith('봉') || isRegion)) {
+                        if (bracketContent.endsWith('산') || bracketContent.endsWith('봉')) {
+                            // 예: "연계 불수사도 (도봉산)" -> 괄호 안의 "도봉산"을 대표 이름으로 지정
+                            cleanMountainName = bracketContent;
+                        } else if (isRegion) {
+                            // 예: "감악산 (포천)" -> 앞의 산 이름과 괄호 지역명 모두 유지
+                            const basePart = rawName.replace(/\s*\(.*?\)/g, '').trim().split(/\s+/)[0];
+                            cleanMountainName = `${basePart} (${bracketContent})`;
+                        }
+                    }
                 }
-                
-                // 만약 괄호(지역명)가 뒤에 붙어있었다면(예: "감악산 (포천)") 괄호 내용까지 합쳐서 최종 산 이름으로 완성
-                // 정규식을 이용해 첫 단어와 뒤의 괄호(` (포천)`)를 다시 결합해 줍니다.
-                const regionSuffixMatch = rawName.match(/\s*\(.*?\)$/);
-                if (regionSuffixMatch && !cleanMountainName.includes('(')) {
-                    cleanMountainName += regionSuffixMatch[0];
+
+                // 4. 괄호에서 산 이름이나 지역을 특정하지 못한 경우(일반적인 경우)
+                if (!cleanMountainName) {
+                    const sanitizedRaw = rawName.replace(/\s*\(.*?\)/g, '');
+                    const tokens = sanitizedRaw.trim().split(/\s+/);
+                    cleanMountainName = tokens[0] || "";
+
+                    if (!cleanMountainName || cleanMountainName.length < 2) {
+                        cleanMountainName = sanitizedRaw.trim();
+                    }
                 }
 
                 cleanMountainName = cleanMountainName.trim();
@@ -7430,7 +7447,7 @@ window.showMemberMap = async (mId, mName) => {
     document.getElementById('everestCount').innerText = conquestCount;
     document.getElementById('everestProgressBar').style.width = `${(conquestCount % 1) * 100}%`;
 };
- 
+
     
      
     
