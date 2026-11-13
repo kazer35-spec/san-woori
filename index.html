@@ -7300,24 +7300,34 @@ window.showMemberMap = async (mId, mName) => {
             regionCounts[rName] = (regionCounts[rName] || 0) + 1;
 
             if (log.mountain) {
-                const rawName = log.mountain.trim();
+                let rawName = log.mountain.trim();
 
-                // 💡 괄호 정제 로직
-                // 괄호 안에 '챌린지', '트레일' 등 비지역성 단어가 섞여 있으면 무조건 제거하고,
-                // 순수 지역명(예: 남양주, 경주 등)만 들어있는 경우에만 괄호를 남깁니다.
-                const cleanMountainName = rawName.replace(/\s*\((.*?)\)/g, (match, content) => {
-                    const trimmedContent = content.trim();
+                // 💡 [대표 산 이름 정제 로직 시작]
+                // 1. 이모지 및 특수 기호 제거 (예: 🌸, ⛰️ 등)
+                rawName = rawName.replace(/[\u{1F300}-\u{1F5FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '');
 
-                    // '챌린지', '트레일' 등의 단어가 괄호 안에 포함되어 있다면 필터링 (제거)
-                    if (trimmedContent.includes('챌린지') || trimmedContent.includes('트레일') || trimmedContent.includes('러닝')) {
-                        return '';
+                // 2. "연계" 등의 수식어구 제거 (예: "연계 불수사도" -> "불수사도")
+                rawName = rawName.replace(/^연계\s*/g, '');
+
+                // 3. 괄호 처리 로직:
+                // - 괄호 안에 특정 산 이름(예: (도봉산))이 포함된 경우 -> 괄호 안의 내용을 대표 산 이름으로 우선 채택
+                const bracketMatch = rawName.match(/\((.*?)\)/);
+                if (bracketMatch) {
+                    const bracketContent = bracketMatch[1].trim();
+                    if (!bracketContent.includes('챌린지') && !bracketContent.includes('트레일') && !bracketContent.includes('러닝') && !bracketContent.includes('국기봉')) {
+                        rawName = bracketContent;
+                    } else {
+                        rawName = rawName.replace(/\s*\(.*?\)/g, '');
                     }
+                }
 
-                    // 순수 지역명 목록에 들어있는 이름인지 검사
-                    const isPureRegion = VALID_REGIONS.some(region => trimmedContent === region || trimmedContent.startsWith(region));
+                // 4. "관악산 11국기봉", "불암산 종주" 등 세부 코스/봉우리 명칭 분리 (띄어쓰기 기준 첫 단어 추출)
+                let cleanMountainName = rawName.trim().split(/\s+/)[0];
 
-                    return isPureRegion ? match : '';
-                }).trim();
+                if (!cleanMountainName || cleanMountainName.length < 2) {
+                    cleanMountainName = rawName.trim();
+                }
+                // 💡 [대표 산 이름 정제 로직 끝]
 
                 const targetMap = log.isTop100 ? top100Map : normalMap;
 
@@ -7333,9 +7343,6 @@ window.showMemberMap = async (mId, mName) => {
             }
         }
     });
-
-    
-
 
     // 💡 지역 점유율 전체 렌더링
     const sortedRegions = Object.entries(regionCounts).sort((a,b) => b[1] - a[1]);
@@ -7358,43 +7365,41 @@ window.showMemberMap = async (mId, mName) => {
     }
 
     // 🟢 한글/영문/숫자로 시작하는지 확인하는 함수 (특수문자 구분용)
-const isNormalChar = (str) => /^[가-힣a-zA-Z0-9]/.test(str);
+    const isNormalChar = (str) => /^[가-힣a-zA-Z0-9]/.test(str);
 
-// ㄱㄴㄷ 순 정렬 (특수문자는 맨 뒤로) - 100대 명산
-top100FullList = Object.keys(top100Map)
-    .sort((a, b) => {
-        const aIsNormal = isNormalChar(a);
-        const bIsNormal = isNormalChar(b);
+    // ㄱㄴㄷ 순 정렬 (특수문자는 맨 뒤로) - 100대 명산
+    top100FullList = Object.keys(top100Map)
+        .sort((a, b) => {
+            const aIsNormal = isNormalChar(a);
+            const bIsNormal = isNormalChar(b);
 
-        // 둘 중 하나만 특수문자로 시작할 경우, 일반 문자를 앞으로 배치
-        if (aIsNormal && !bIsNormal) return -1;
-        if (!aIsNormal && bIsNormal) return 1;
+            if (aIsNormal && !bIsNormal) return -1;
+            if (!aIsNormal && bIsNormal) return 1;
 
-        // 둘 다 일반 문적이거나 둘 다 특수문자인 경우 ㄱㄴㄷ 순 정렬
-        return a.localeCompare(b, 'ko');
-    })
-    .map(mName => ({
-        name: mName,
-        count: top100Map[mName].count,
-        height: top100Map[mName].height
-    }));
+            return a.localeCompare(b, 'ko');
+        })
+        .map(mName => ({
+            name: mName,
+            count: top100Map[mName].count,
+            height: top100Map[mName].height
+        }));
 
-// ㄱㄴㄷ 순 정렬 (특수문자는 맨 뒤로) - 정복한 산
-normalFullList = Object.keys(normalMap)
-    .sort((a, b) => {
-        const aIsNormal = isNormalChar(a);
-        const bIsNormal = isNormalChar(b);
+    // ㄱㄴㄷ 순 정렬 (특수문자는 맨 뒤로) - 정복한 산
+    normalFullList = Object.keys(normalMap)
+        .sort((a, b) => {
+            const aIsNormal = isNormalChar(a);
+            const bIsNormal = isNormalChar(b);
 
-        if (aIsNormal && !bIsNormal) return -1;
-        if (!aIsNormal && bIsNormal) return 1;
+            if (aIsNormal && !bIsNormal) return -1;
+            if (!aIsNormal && bIsNormal) return 1;
 
-        return a.localeCompare(b, 'ko');
-    })
-    .map(mName => ({
-        name: mName,
-        count: normalMap[mName].count,
-        height: normalMap[mName].height
-    }));
+            return a.localeCompare(b, 'ko');
+        })
+        .map(mName => ({
+            name: mName,
+            count: normalMap[mName].count,
+            height: normalMap[mName].height
+        }));
 
     renderMoreTop100();
     renderMoreNormal();
@@ -7416,6 +7421,8 @@ normalFullList = Object.keys(normalMap)
     document.getElementById('everestCount').innerText = conquestCount;
     document.getElementById('everestProgressBar').style.width = `${(conquestCount % 1) * 100}%`;
 };
+
+    
 
 window.toggleTimelineModal = (show) => {
     const modal = document.getElementById('timelineModal');
