@@ -7099,7 +7099,7 @@ window.toggleMapView = (viewType) => {
 };
 
    
-window.switchStatsTab = (tabName) => {
+   window.switchStatsTab = (tabName) => {
     const regionBox = document.getElementById('regionStatsBox');
     const top100Box = document.getElementById('top100ListBox');
     const normalBox = document.getElementById('normalListBox');
@@ -7289,6 +7289,26 @@ window.showMemberMap = async (mId, mName) => {
         "함양", "거창", "합천"
     ];
 
+    // 💡 [사전 작업] 단일 산행 기록에서 각 산의 고유 높이를 미리 수집 (연계 산행 높이 매칭용)
+    const knownHeights = {};
+    logsData.forEach(log => {
+        if (log.mountain && log.height) {
+            let cleanPre = log.mountain.trim()
+                .replace(/[\u{1F300}-\u{1F5FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '')
+                .trim();
+            // '연계'가 아닌 단일 산행 기록에서 높이 확보
+            if (!cleanPre.startsWith('연계')) {
+                const basePre = cleanPre.replace(/\s*\(.*?\)/g, '').trim().split(/\s+/)[0];
+                if (basePre && !knownHeights[basePre]) {
+                    knownHeights[basePre] = log.height;
+                }
+                if (cleanPre && !knownHeights[cleanPre]) {
+                    knownHeights[cleanPre] = log.height;
+                }
+            }
+        }
+    });
+
     logsData.forEach(log => {
         totalH += (log.height || 0);
 
@@ -7303,8 +7323,33 @@ window.showMemberMap = async (mId, mName) => {
                 let rawName = log.mountain.trim();
 
                 // 1. 공통: 이모지 및 특수 기호 제거
-                rawName = rawName.replace(/[\u{1F300}-\u{1F5FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '');
-                rawName = rawName.replace(/^연계\s*/g, '');
+                rawName = rawName.replace(/[\u{1F300}-\u{1F5FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim();
+
+                // 💡 [연계 다중 산행 분리 체크]
+                // 예: "연계 주작산 덕룡산", "연계 서리산 축령산" (괄호 없이 산 이름이 2개 이상 나열된 경우)
+                const isMultiYeongye = rawName.startsWith('연계') && !rawName.includes('(');
+                const withoutYeongye = rawName.replace(/^연계\s*/g, '').trim();
+                const multiTokens = withoutYeongye.split(/\s+/).filter(t => t.endsWith('산') || t.endsWith('봉'));
+
+                if (isMultiYeongye && multiTokens.length >= 2) {
+                    // 각 산을 개별 항목으로 분리해서 등록 (기존 기록의 높이 매칭)
+                    multiTokens.forEach(mToken => {
+                        const matchedHeight = knownHeights[mToken] || log.height || 0;
+                        const targetMap = log.isTop100 ? top100Map : normalMap;
+
+                        if (!targetMap[mToken]) {
+                            targetMap[mToken] = { count: 0, height: matchedHeight };
+                        }
+                        targetMap[mToken].count += 1;
+                        if (!targetMap[mToken].height && matchedHeight) {
+                            targetMap[mToken].height = matchedHeight;
+                        }
+                    });
+                    return; // 다중 산행 처리 완료 후 다음 로그로 이동
+                }
+
+                // 일반 단일/괄호 산행 처리 ("연계 불수사도 (도봉산)" 등 포함)
+                rawName = withoutYeongye;
 
                 let cleanTop100Name = "";
                 let cleanNormalName = "";
@@ -7330,7 +7375,6 @@ window.showMemberMap = async (mId, mName) => {
                 if (!cleanTop100Name) {
                     const sanitizedTop100 = top100Raw.replace(/\s*\(.*?\)/g, '').trim();
                     const tokens = sanitizedTop100.split(/\s+/);
-                    // 관악산 11국기봉 -> 관악산처럼 세부 코스만 잘라냄
                     cleanTop100Name = tokens[0] || sanitizedTop100;
                 }
                 cleanTop100Name = cleanTop100Name.trim();
@@ -7357,19 +7401,19 @@ window.showMemberMap = async (mId, mName) => {
                 // ─────────────────────────────────────────
                 if (log.isTop100) {
                     if (!top100Map[cleanTop100Name]) {
-                        top100Map[cleanTop100Name] = { count: 0, height: log.height || 0 };
+                        top100Map[cleanTop100Name] = { count: 0, height: log.height || knownHeights[cleanTop100Name] || 0 };
                     }
                     top100Map[cleanTop100Name].count += 1;
-                    if (!top100Map[cleanTop100Name].height && log.height) {
-                        top100Map[cleanTop100Name].height = log.height;
+                    if (!top100Map[cleanTop100Name].height && (log.height || knownHeights[cleanTop100Name])) {
+                        top100Map[cleanTop100Name].height = log.height || knownHeights[cleanTop100Name];
                     }
                 } else {
                     if (!normalMap[cleanNormalName]) {
-                        normalMap[cleanNormalName] = { count: 0, height: log.height || 0 };
+                        normalMap[cleanNormalName] = { count: 0, height: log.height || knownHeights[cleanNormalName] || 0 };
                     }
                     normalMap[cleanNormalName].count += 1;
-                    if (!normalMap[cleanNormalName].height && log.height) {
-                        normalMap[cleanNormalName].height = log.height;
+                    if (!normalMap[cleanNormalName].height && (log.height || knownHeights[cleanNormalName])) {
+                        normalMap[cleanNormalName].height = log.height || knownHeights[cleanNormalName];
                     }
                 }
             }
@@ -7453,7 +7497,8 @@ window.showMemberMap = async (mId, mName) => {
     document.getElementById('everestCount').innerText = conquestCount;
     document.getElementById('everestProgressBar').style.width = `${(conquestCount % 1) * 100}%`;
 };
-
+                     
+            
  
             
     
