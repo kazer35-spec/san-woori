@@ -7930,6 +7930,7 @@ window.toggleDisableCoord = () => {
 };
 
 
+  
 window.addMultiActivity = async () => {
     const dateInput = document.getElementById('activityDate');
     if (!dateInput) return alert("날짜 입력창을 찾을 수 없습니다.");
@@ -8056,38 +8057,6 @@ window.addMultiActivity = async () => {
 
     try {
         pendingLevelUpCards = []; 
-
-        // 🎯 [정기산행 별 일괄 추첨] 20명 기준 슈퍼별 3% · 스페셜별 7% (회차당 스페셜별 최대 1명 제한)
-        const regularStarMap = new Map();
-        if (isRegular) {
-            const participantList = Array.from(selectedMemberIds)
-                .map(id => currentData.find(m => m.id === id))
-                .filter(Boolean);
-
-            if (typeof drawRegularHikeStars === 'function') {
-                const drawnList = drawRegularHikeStars(participantList);
-                drawnList.forEach(({ participant, starType }) => {
-                    regularStarMap.set(participant.id, starType);
-                });
-            } else {
-                // fallback: 일괄 추첨 함수가 없을 경우에도 스페셜별/슈퍼별 회차당 최대 1명 엄격 제한
-                let specialUsed = false;
-                let superUsed = false;
-                const shuffled = [...participantList].sort(() => Math.random() - 0.5);
-                shuffled.forEach(m => {
-                    const rand = Math.random() * 100;
-                    if (rand < 3 && !superUsed) {
-                        regularStarMap.set(m.id, "super");
-                        superUsed = true;
-                    } else if (rand < 10 && !specialUsed) {
-                        regularStarMap.set(m.id, "special");
-                        specialUsed = true;
-                    } else {
-                        regularStarMap.set(m.id, "regular_" + (Math.floor(Math.random() * 4) + 1));
-                    }
-                });
-            }
-        }
 
         if (isRealHike && mName) {
             const mRef = doc(db, "mountains", mName);
@@ -8244,19 +8213,28 @@ window.addMultiActivity = async () => {
             for (let i = 0; i < finalLogLoopCount; i++) {
                 let starType = null;
                 
-                // 🎯 정기산행일 경우 사전 일괄 추첨된 결과 배정 (20명 풀 3%/7%, 스페셜별 최대 1명)
+                // 🎯 정기산행일 경우 전분기 점수 반영 추첨 실행
                 if (isRegular) {
-                    starType = regularStarMap.get(id) || ("regular_" + (Math.floor(Math.random() * 4) + 1));
+                    if (typeof window.drawRegularHikeStar === 'function') {
+                        starType = window.drawRegularHikeStar(member, currentYear, currentQuarter);
+                    } else {
+                        const rand = Math.random() * 100;
+                        if (rand <= 3) starType = "super";
+                        else if (rand <= 10) starType = "special";
+                        else starType = "regular_" + (Math.floor(Math.random() * 4) + 1);
+                    }
                 }
 
-                // 🎯 별(슈퍼/스페셜) 획득 시 DB 저장 (은하수 모듈 saveSpecialStarToMember 시그니처와 일치)
+                // 🎯 별(슈퍼/스페셜) 획득 시 DB 저장
                 if (starType === "super" || starType === "special") {
-                    const defaultQuarter = `${currentQuarter}Q`;
+                    const defaultQuarter = `${currentQuarter}분기`;
                     await saveSpecialStarToMember(
                         id, 
                         starType, 
                         defaultQuarter, 
-                        member
+                        member, 
+                        baseDocId, 
+                        activityDateObj
                     );
                 }
 
@@ -8299,7 +8277,7 @@ window.addMultiActivity = async () => {
             let dupSeq = 2;
             while (checkSnap.exists()) {
                 bondingDocId = `${cleanMountain}_${cleanDate}_${dupSeq}`;
-                bondingRef = doc(db, "bondingForest", bondingDocId); 
+                bondingRef = doc(doc(db, "bondingForest", bondingDocId)); 
                 checkSnap = await getDoc(bondingRef);
                 dupSeq++;
             }
@@ -8380,9 +8358,6 @@ window.addMultiActivity = async () => {
         alert("저장 실패: " + error.message);
     }
 };
-
-
-
 
           
   // 📌 [신규 회원 등록 함수] - 수정본
@@ -10423,16 +10398,16 @@ window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
 };
              
                 
- 
+                    
+                
+  // ======================= [별 가이드 & 은하수 모듈 통합 - 연도 자동 저장 & 모달 최신화] =======================
 
-// ======================= [별 가이드 & 은하수 모듈 통합 - 연도 자동 저장 & 모달 최신화] =======================
+// 0. 최신 획득자(최신 왕좌) 판별 보조 함수
+function getLatestLegendHolderId(starType) {
+    if (typeof currentData === 'undefined' || !Array.isArray(currentData)) return null;
 
-// 0-1. 최신 획득자(최신 왕좌 - 동점/동일 회차 복수 전원 포함) 판별 보조 함수
-function getLatestLegendHolders(starType) {
-    if (typeof currentData === 'undefined' || !Array.isArray(currentData)) return [];
-
+    let latestHolderId = null;
     let maxTimestamp = -1;
-    const records = [];
 
     currentData.forEach(member => {
         if (member.specialStars && Array.isArray(member.specialStars)) {
@@ -10441,93 +10416,14 @@ function getLatestLegendHolders(starType) {
                     const ts = item.timestamp || 0;
                     if (ts > maxTimestamp) {
                         maxTimestamp = ts;
+                        latestHolderId = member.id;
                     }
-                    records.push({
-                        id: member.id,
-                        name: member.name,
-                        quarter: item.quarter || "",
-                        year: item.year || (ts ? new Date(ts).getFullYear() : ""),
-                        timestamp: ts
-                    });
                 }
             });
         }
     });
 
-    if (maxTimestamp <= 0 && records.length === 0) return [];
-
-    const latestRec = records.reduce((prev, curr) => (curr.timestamp >= prev.timestamp ? curr : prev), records[0]);
-    const targetYear = latestRec.year;
-    const targetQuarter = latestRec.quarter;
-
-    const matched = new Set();
-    records.forEach(r => {
-        const sameBatch = (targetYear && targetQuarter)
-            ? (r.year === targetYear && r.quarter === targetQuarter)
-            : (r.timestamp === maxTimestamp);
-
-        if (sameBatch) {
-            if (r.id) matched.add(r.id);
-            if (r.name) matched.add(r.name);
-        }
-    });
-
-    return Array.from(matched);
-}
-
-// 0-2. 단일 최신 획득자 ID 보조 함수 (기존 호환용)
-function getLatestLegendHolderId(starType) {
-    const holders = getLatestLegendHolders(starType);
-    return holders.length > 0 ? holders[0] : null;
-}
-
-// 0-3. 20명 기준 회차별 레전드 별 당첨 제어 & 일괄 추첨 함수
-// - 20명 풀 기준: 슈퍼별 3% (회차당 최대 1명), 스페셜별 7% (회차당 최대 1명 제한)
-// - 나머지 인원은 정기 1~4호(각 22.5% 비율) 균등 배정
-function drawRegularHikeStars(participants) {
-    const count = Array.isArray(participants) ? participants.length : 0;
-    if (count === 0) return [];
-
-    const POOL_SIZE = 20;
-    const pool = [];
-
-    // 20명 풀 기준 슈퍼별 3% (기대값 0.6명 -> 60% 확률로 풀 내 1슬롯 포함, 최대 1명)
-    if (Math.random() < (POOL_SIZE * 0.03)) {
-        pool.push("super");
-    }
-
-    // 20명 풀 기준 스페셜별 7% (기대값 1.4명이지만 요청하신 대로 최대 1명으로 엄격 제한)
-    // 20명 기준 7% 비율을 반영하되 한 회차 최대 1명까지만 풀에 삽입
-    const specialSlotChance = Math.min(1, (count / POOL_SIZE) * 0.07 * POOL_SIZE); // 인원 비례 7% (8명일 때 약 56%로 1명, 0명일 수 있음)
-    if (Math.random() < specialSlotChance) {
-        pool.push("special");
-    }
-
-    // 나머지 슬롯은 정기 1~4호로 채움 (20명 풀 채우기)
-    const regularTypes = ["regular_1", "regular_2", "regular_3", "regular_4"];
-    while (pool.length < Math.max(POOL_SIZE, count)) {
-        const randReg = regularTypes[Math.floor(Math.random() * regularTypes.length)];
-        pool.push(randReg);
-    }
-
-    // 피셔-예이츠 셔플로 공정하게 섞기
-    for (let i = pool.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [pool[i], pool[j]] = [pool[j], pool[i]];
-    }
-
-    // 참가자 수만큼 앞에서부터 비복원 배정 (스페셜별 최대 1명, 슈퍼별 최대 1명 보장)
-    return participants.map((participant, idx) => ({
-        participant,
-        starType: pool[idx]
-    }));
-}
-
-// 개별 체크용 보조 함수 (기존 루프에서 호출할 때 사용)
-function canWinLegendStar(starType, batchWonCount = 0) {
-    // 스페셜별·슈퍼별 모두 1회 산행당 최대 1명으로 제한
-    if (batchWonCount >= 1) return false;
-    return true;
+    return latestHolderId;
 }
 
 // 1. 회원 DB 문서(sanwoori/{memberId})에 레전드 별 획득 기록 저장 함수
@@ -10552,11 +10448,9 @@ async function saveSpecialStarToMember(memberId, starType, quarterText, memberIn
             await updateDoc(memberRef, {
                 specialStars: arrayUnion(newRecord)
             });
-
-            if (memberInfo) {
-                if (!memberInfo.specialStars) memberInfo.specialStars = [];
-                memberInfo.specialStars.push(newRecord);
-            }
+            
+            if (!memberInfo.specialStars) memberInfo.specialStars = [];
+            memberInfo.specialStars.push(newRecord);
 
             if (typeof currentData !== 'undefined' && Array.isArray(currentData)) {
                 const target = currentData.find(m => m.id === memberId);
@@ -10585,9 +10479,9 @@ window.showMilkyWay = async (mId, mName) => {
     const latestSuperHolderIds = getLatestLegendHolders('super');
     const latestSpecialHolderIds = getLatestLegendHolders('special');
 
-    // 해당 회차/시점 슈퍼·스페셜 보유자 전체 검증 (2명이든 3명이든 모두 변환)
-    const isCurrentSuperKing = latestSuperHolderIds.includes(mId) || latestSuperHolderIds.includes(mName);
-    const isCurrentSpecialKing = latestSpecialHolderIds.includes(mId) || latestSpecialHolderIds.includes(mName);
+    // 같은 날 획득한 모든 슈퍼/스페셜 보유자 검증
+    let isCurrentSuperKing = latestSuperHolderIds.includes(mId) || latestSuperHolderIds.includes(mName);
+    let isCurrentSpecialKing = latestSpecialHolderIds.includes(mId) || latestSpecialHolderIds.includes(mName);
 
     if (isCurrentSuperKing) {
         modal.classList.add('is-super');
@@ -10676,7 +10570,7 @@ window.showMilkyWay = async (mId, mName) => {
             board.prepend(aurora); 
             requestAnimationFrame(() => aurora.classList.add('aurora-active'));
         }
-
+     
         const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
         const logs = snap.docs
             .map(d => d.data())
@@ -10693,7 +10587,7 @@ window.showMilkyWay = async (mId, mName) => {
 
             if (log.starType) {
                 shouldTwinkle = true;
-
+                
                 if (log.starType === "super" || log.starType === "special") {
                     const defaultQuarter = log.quarter || (log.date ? `${Math.floor(log.date.toDate().getMonth() / 3) + 1}Q` : "1Q");
                     saveSpecialStarToMember(mId, log.starType, defaultQuarter, memberInfo);
@@ -10750,6 +10644,7 @@ window.showMilkyWay = async (mId, mName) => {
         console.error("은하수 로딩 에러:", e);
     }
 };
+
 
 // 3. 가이드 모달 토글 함수
 window.toggleStarGuide = async (show) => {
@@ -10842,7 +10737,7 @@ function showStarGalleryModal(type, titleText, items) {
 // 7. 전체 획득자 더보기 연동
 window.showAllHolders = (starName, holdersJson) => {
     const list = JSON.parse(decodeURIComponent(holdersJson));
-
+    
     const formattedItems = list.map(h => ({
         quarter: h.quarter || '1Q',
         name: h.name || '무명',
@@ -10856,7 +10751,8 @@ window.showAllHolders = (starName, holdersJson) => {
     showStarGalleryModal(starType, modalTitle, formattedItems);
 };
 
-// 8. 가이드 항목 랜더링 함수
+// 8. 가이드 항목 랜더링 함수 (1번 최신 획득자 태그 강화 반영)
+// 가이드 항목 랜더링 함수 (문구 및 배지 아이콘 변경 반영)
 async function renderStarGuideItems() {
     const grid = document.getElementById('guideGrid');
     if (!grid) return;
@@ -10871,7 +10767,7 @@ async function renderStarGuideItems() {
         { 
             id: "super", 
             name: "슈퍼별", 
-            badge: "",
+            badge: "", // 배지 변경
             prob: "3%", 
             desc: "타오르는 태양의 전설", 
             style: "background: radial-gradient(circle, #FF0000 10%, #FFFF00 70%, #fff 100%); box-shadow: 0 0 12px 3px #FF0000, 0 0 20px 6px rgba(255, 255, 0, 0.6);", 
@@ -10883,8 +10779,8 @@ async function renderStarGuideItems() {
         { 
             id: "special", 
             name: "스페셜별", 
-            badge: "",
-            prob: "7% (최대1명)", 
+            badge: "", // 배지 변경
+            prob: "7%", 
             desc: "신비로운 에픽 오로라", 
             style: "background: radial-gradient(circle, #A020F0 10%, #00FF7F 70%, #fff 100%); box-shadow: 0 0 12px 3px #A020F0, 0 0 20px 6px rgba(0, 255, 127, 0.6);", 
             cardBg: "background: linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(16, 185, 129, 0.08) 100%); border: 1px solid rgba(168, 85, 247, 0.45);", 
@@ -10920,6 +10816,7 @@ async function renderStarGuideItems() {
 
             if (list.length > 0) {
                 const latest = list[0]; 
+                // 획득자 태그 내 배지 아이콘 적용 (s.badge)
                 holdersHTML = `
                     <span class="latest-holder-tag" style="font-size: 8px; font-weight: 800; padding: 2px 7px; border-radius: 6px; display: inline-flex; align-items: center; gap: 3px; white-space: nowrap;">
                         <span style="color: #38bdf8; font-weight: 900; font-size: 7.5px;">[${latest.quarter}]</span> ${latest.name} ${s.badge}
@@ -10927,17 +10824,19 @@ async function renderStarGuideItems() {
                 `;
 
                 if (list.length > 1) {
+                    const extraCount = list.length - 1;
                     const encodedList = encodeURIComponent(JSON.stringify(list));
                     holdersHTML += `
-                        <button onclick="showAllHolders('${s.name}', '${encodedList}')" style="background: rgba(56, 189, 248, 0.2); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; font-size: 7.5px; font-weight: 800; padding: 2px 6px; border-radius: 6px; cursor: pointer;">
-                            보기
-                        </button>
-                    `;
+    <button onclick="showAllHolders('${s.name}', '${encodedList}')" style="background: rgba(56, 189, 248, 0.2); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; font-size: 7.5px; font-weight: 800; padding: 2px 6px; border-radius: 6px; cursor: pointer;">
+        보기
+    </button>
+`;
                 }
             } else {
                 holdersHTML = `<span style="color: #64748b; font-size: 8px; font-style: italic;">아직 획득자 없음</span>`;
             }
 
+            // '최근 획득' ➔ '획득자'로 변경
             legendHoldersSection = `
                 <div style="display: flex; justify-content: center; align-items: center; gap: 5px; padding-top: 5px; margin-top: 4px; border-top: 1px solid rgba(255, 255, 255, 0.08); width: 100%;">
                     <span style="color: #94a3b8; font-size: 8px; font-weight: 700;">획득자:</span>
@@ -10973,6 +10872,8 @@ async function renderStarGuideItems() {
     grid.innerHTML = cardsHTML;
 }
 
+
+
 // 9. 슈팅스타(유성) 애니메이션 생성 함수
 function createShootingStar(board, tx, ty) {
     const s = document.createElement('div');
@@ -10994,8 +10895,6 @@ function createShootingStar(board, tx, ty) {
     }, 850);
 }
 
-
-    
 
 window.currentScrollLogs = []; 
 
