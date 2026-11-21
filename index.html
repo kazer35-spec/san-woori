@@ -10476,10 +10476,73 @@ window.showMilkyWay = async (mId, mName) => {
 
     modal.classList.remove('is-super', 'is-special');
 
-    const latestSuperHolderIds = getLatestLegendHolders('super');
-    const latestSpecialHolderIds = getLatestLegendHolders('special');
+    // 가장 최근 분기(연도+분기) 기준으로 해당 별을 획득한 '모든' 인원(2명, 3명 등)의 id/name 수집
+    const getLatestQuarterHolders = (starType) => {
+        if (typeof currentData === 'undefined' || !Array.isArray(currentData)) return [];
 
-    // 같은 날 획득한 모든 슈퍼/스페셜 보유자 검증
+        const qToNum = (q) => {
+            const m = String(q || '').match(/(\d)/);
+            return m ? parseInt(m[1], 10) : 0;
+        };
+        const fallbackYear = new Date().getFullYear();
+        const entries = [];
+
+        currentData.forEach(member => {
+            if (!member) return;
+
+            if (Array.isArray(member.specialStars)) {
+                member.specialStars.forEach(item => {
+                    if (item?.starType === starType) {
+                        const year = item.year || (item.timestamp ? new Date(item.timestamp).getFullYear() : fallbackYear);
+                        const qNum = qToNum(item.quarter);
+                        entries.push({ id: member.id, name: member.name, year, qNum });
+                    }
+                });
+            } else if (starType === 'super' && member.hasSuperStar) {
+                entries.push({
+                    id: member.id,
+                    name: member.name,
+                    year: member.superStarYear || fallbackYear,
+                    qNum: qToNum(member.superStarQuarter || '1Q')
+                });
+            } else if (starType === 'special' && member.hasSpecialStar) {
+                entries.push({
+                    id: member.id,
+                    name: member.name,
+                    year: member.specialStarYear || fallbackYear,
+                    qNum: qToNum(member.specialStarQuarter || '1Q')
+                });
+            }
+        });
+
+        if (entries.length === 0) return [];
+
+        let maxYear = -Infinity;
+        let maxQNum = -Infinity;
+        entries.forEach(e => {
+            if (e.year > maxYear) {
+                maxYear = e.year;
+                maxQNum = e.qNum;
+            } else if (e.year === maxYear && e.qNum > maxQNum) {
+                maxQNum = e.qNum;
+            }
+        });
+
+        const holders = new Set();
+        entries.forEach(e => {
+            if (e.year === maxYear && e.qNum === maxQNum) {
+                if (e.id) holders.add(e.id);
+                if (e.name) holders.add(e.name);
+            }
+        });
+
+        return Array.from(holders);
+    };
+
+    const latestSuperHolderIds = getLatestQuarterHolders('super');
+    const latestSpecialHolderIds = getLatestQuarterHolders('special');
+
+    // 같은 분기에 획득한 모든 슈퍼/스페셜 보유자 검증 (2명·3명 이상 전원 적용)
     let isCurrentSuperKing = latestSuperHolderIds.includes(mId) || latestSuperHolderIds.includes(mName);
     let isCurrentSpecialKing = latestSpecialHolderIds.includes(mId) || latestSpecialHolderIds.includes(mName);
 
@@ -10538,7 +10601,7 @@ window.showMilkyWay = async (mId, mName) => {
 
     try {
         let memberInfo = (typeof currentData !== 'undefined' && Array.isArray(currentData)) 
-            ? currentData.find(m => m.id === mId || m.name === mName) : null;
+            ? currentData.find(m => m && (m.id === mId || m.name === mName)) : null;
 
         if (!memberInfo && mId) {
             const mDoc = await getDoc(doc(db, "sanwoori", mId));
@@ -10575,22 +10638,28 @@ window.showMilkyWay = async (mId, mName) => {
         const logs = snap.docs
             .map(d => d.data())
             .filter(l => l.coords)
-            .sort((a, b) => a.date.toDate() - b.date.toDate());
+            .sort((a, b) => {
+                const ta = a.date?.toDate ? a.date.toDate().getTime() : new Date(a.date || 0).getTime();
+                const tb = b.date?.toDate ? b.date.toDate().getTime() : new Date(b.date || 0).getTime();
+                return ta - tb;
+            });
 
         if (logs.length === 0) {
             board.insertAdjacentHTML('beforeend', "<div class='text-white/20 text-xs h-full flex items-center justify-center'>아직 기록된 별이 없습니다.</div>");
             return;
         }
 
-        logs.forEach((log, index) => {
+        for (let index = 0; index < logs.length; index++) {
+            const log = logs[index];
             let starColor = "white", shadowColor = "#FFFFFF", starSize = "w-1.5 h-1.5", customStyle = "", shouldTwinkle = false;
 
             if (log.starType) {
                 shouldTwinkle = true;
                 
                 if (log.starType === "super" || log.starType === "special") {
-                    const defaultQuarter = log.quarter || (log.date ? `${Math.floor(log.date.toDate().getMonth() / 3) + 1}Q` : "1Q");
-                    saveSpecialStarToMember(mId, log.starType, defaultQuarter, memberInfo);
+                    const logDateObj = log.date?.toDate ? log.date.toDate() : (log.date ? new Date(log.date) : null);
+                    const defaultQuarter = log.quarter || (logDateObj && !Number.isNaN(logDateObj.getTime()) ? `${Math.floor(logDateObj.getMonth() / 3) + 1}Q` : "1Q");
+                    await saveSpecialStarToMember(mId, log.starType, defaultQuarter, memberInfo);
                 }
 
                 if (log.starType === "super") {
@@ -10601,7 +10670,7 @@ window.showMilkyWay = async (mId, mName) => {
                     customStyle = `background: radial-gradient(circle, #A020F0 20%, #00FF7F 100%); box-shadow: 0 0 12px 4px rgba(160, 32, 240, 0.6), 0 0 25px 8px rgba(0, 255, 127, 0.4);`;
                 } else if (log.starType.startsWith("regular")) {
                     const colors = ["#00FFFF", "#D35400", "#D32F2F", "#7C4DFF"];
-                    const colorIdx = parseInt(log.starType.split('_')[1]) - 1;
+                    const colorIdx = parseInt(log.starType.split('_')[1], 10) - 1;
                     starColor = colors[colorIdx] || "white";
                     customStyle = `background-color: ${starColor}; box-shadow: 0 0 4px 1px ${starColor}, 0 0 8px 2px ${starColor}dd, 0 0 10px 3px ${starColor}88; filter: brightness(1.8);`;
                 }
@@ -10638,7 +10707,19 @@ window.showMilkyWay = async (mId, mName) => {
                 if (shouldTwinkle) setTimeout(() => star.classList.add('animate-twinkle'), 1000);
                 if (index === logs.length - 1) setTimeout(() => createShootingStar(board, log.coords.x, log.coords.y), 1000);
             }, index * 150);
-        });
+        }
+
+        // 로그에서 새로 저장된 specialStars까지 반영해 최신 분기 획득자 재검증
+        const refreshedSuperHolders = getLatestQuarterHolders('super');
+        const refreshedSpecialHolders = getLatestQuarterHolders('special');
+        modal.classList.remove('is-super', 'is-special');
+        if (refreshedSuperHolders.includes(mId) || refreshedSuperHolders.includes(mName)) {
+            modal.classList.add('is-super');
+            if (quoteLabel) quoteLabel.innerHTML = "타오르는 태양의 궤적이 밤하늘에서 가장 찬란한 전설이 됩니다.";
+        } else if (refreshedSpecialHolders.includes(mId) || refreshedSpecialHolders.includes(mName)) {
+            modal.classList.add('is-special');
+            if (quoteLabel) quoteLabel.innerHTML = "신비로운 오로라의 빛이 은하수 깊은 곳을 에픽하게 수놓습니다.";
+        }
 
     } catch (e) {
         console.error("은하수 로딩 에러:", e);
