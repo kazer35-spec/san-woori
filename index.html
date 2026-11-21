@@ -9460,14 +9460,18 @@ function getOrBuildHistoryCache() {
           const monthMatch = formattedDate.split('.')[1];
           const calculatedQuarter = monthMatch ? `${Math.ceil(parseInt(monthMatch, 10) / 3)}Q` : '3Q';
 
-          const item = {
-            name: m.name,
-            mountain: s.mountain || s.mountainName || fallbackMountain,
-            date: formattedDate,
-            quarter: s.quarter || calculatedQuarter,
-            createdAt: s.createdAt ? (s.createdAt.toDate ? s.createdAt.toDate().getTime() : new Date(s.createdAt).getTime()) : (s.timestamp || Date.now()),
-            rawIndex: mIdx * 100 + sIdx
-          };
+          const rawQuarter = s.quarter || calculatedQuarter;
+const normalizedQuarter = String(rawQuarter).replace(/분기$/, 'q').toLowerCase();
+
+const item = {
+  name: m.name,
+  mountain: s.mountain || s.mountainName || fallbackMountain,
+  date: formattedDate,
+  quarter: normalizedQuarter, // "1q", "2q", "3q", "4q"로 통일
+  createdAt: s.createdAt ? (s.createdAt.toDate ? s.createdAt.toDate().getTime() : new Date(s.createdAt).getTime()) : (s.timestamp || Date.now()),
+  rawIndex: mIdx * 100 + sIdx
+};
+
 
           if (s.starType === 'super') superItems.push(item);
           if (s.starType === 'special') specialItems.push(item);
