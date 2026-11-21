@@ -7930,505 +7930,434 @@ window.toggleDisableCoord = () => {
 };
 
 
-  // =========================================================================
-// [통합 모듈] 다중 활동 기록 (addMultiActivity) + 전분기 qCount 비례 별 추첨 + 은하수 모듈
-// =========================================================================
-
-// 전분기 키 계산 헬퍼 (예: 2026년 4분기 -> "2026_q3", 2026년 1분기 -> "2025_q4")
-function getPrevQuarterKey(year, quarter) {
-if (quarter === 1) {
-return `${year - 1}_q4`;
-}
-return `${year}_q${quarter - 1}`;
-}
-
-// 🎯 전분기 qCount 점수 기준 별 추첨 함수 (20명 기준 스케일링 & 스페셜별 1회차 최대 1명 제한)
-window.drawRegularHikeStar = function(member, currentYear, currentQuarter, batchState = null) {
-const prevQKey = getPrevQuarterKey(currentYear, currentQuarter);
-
-// 전분기 qCount 점수 조회 (quarterlyStats 내 전분기 qCount 우선, 없으면 hike 등 보조 확인)
-let prevQScore = 0;
-if (member && member.quarterlyStats && member.quarterlyStats[prevQKey]) {
-const qStat = member.quarterlyStats[prevQKey];
-prevQScore = Number(qStat.qCount ?? qStat.hike ?? 0);
-}
-
-// 1. 사진 기준 전분기 활동 점수별 기본 확률 (100명 기준 %)
-let baseSpecialProb = 3; // 10점 미만 기본 3%
-let baseSuperProb = 0; // 10점 미만 기본 0%
-
-if (prevQScore >= 30) {
-baseSpecialProb = 7;
-baseSuperProb = 3;
-} else if (prevQScore >= 25) {
-baseSpecialProb = 6;
-baseSuperProb = 2;
-} else if (prevQScore >= 20) {
-baseSpecialProb = 5;
-baseSuperProb = 2;
-} else if (prevQScore >= 15) {
-baseSpecialProb = 4;
-baseSuperProb = 1;
-} else if (prevQScore >= 10) {
-baseSpecialProb = 3;
-baseSuperProb = 1;
-} else {
-baseSpecialProb = 3;
-baseSuperProb = 0;
-}
-
-// 2. 100명 기준 -> 20명 기준(1/5 = 0.2배) 확률 보정
-// (30점 이상 기준: 슈퍼별 3% * 0.2 = 0.6%, 스페셜별 7% * 0.2 = 1.4%)
-const SCALE_20 = 0.2;
-const finalSuperProb = baseSuperProb * SCALE_20;
-const finalSpecialProb = baseSpecialProb * SCALE_20;
-
-// 3. 난수 추첨 (0 ~ 100)
-const rand = Math.random() * 100;
-
-if (finalSuperProb > 0 && rand < finalSuperProb) {
-return "super";
-} else if (finalSpecialProb > 0 && rand < (finalSuperProb + finalSpecialProb)) {
-// 🎯 한 번의 정기산행 등록당 스페셜별 최대 1명 제한
-if (batchState && batchState.specialAwardedCount >= 1) {
-return "regular_" + (Math.floor(Math.random() * 4) + 1);
-}
-if (batchState) {
-batchState.specialAwardedCount += 1;
-}
-return "special";
-} else {
-// 미당첨 시 정기 1~4호 별 균등 지급
-return "regular_" + (Math.floor(Math.random() * 4) + 1);
-}
-};
-
+  
 window.addMultiActivity = async () => {
-const dateInput = document.getElementById('activityDate');
-if (!dateInput) return alert("날짜 입력창을 찾을 수 없습니다.");
+    const dateInput = document.getElementById('activityDate');
+    if (!dateInput) return alert("날짜 입력창을 찾을 수 없습니다.");
+    
+    const dateVal = dateInput.value;
+    const _Timestamp = (typeof Timestamp !== 'undefined') ? Timestamp : { fromDate: (d) => d };
+    
+    let _increment;
+    if (typeof increment !== 'undefined') {
+        _increment = increment;
+    } else if (typeof window.increment !== 'undefined') {
+        _increment = window.increment;
+    } else {
+        _increment = (val) => val;
+    }
 
-const dateVal = dateInput.value;
-const _Timestamp = (typeof Timestamp !== 'undefined') ? Timestamp : { fromDate: (d) => d };
+    const now = new Date();
+    const [y, m, d] = dateVal.split('-').map(Number);
+    const activityDateObj = new Date(y, m - 1, d, now.getHours(), now.getMinutes(), now.getSeconds());
+    
+    const ts = _Timestamp.fromDate(activityDateObj); 
+    const currentYear = activityDateObj.getFullYear();
+    const currentQuarter = Math.ceil((activityDateObj.getMonth() + 1) / 3);
+    const qKey = `${currentYear}_q${currentQuarter}`;
 
-let _increment;
-if (typeof increment !== 'undefined') {
-_increment = increment;
-} else if (typeof window.increment !== 'undefined') {
-_increment = window.increment;
-} else {
-_increment = (val) => val;
-}
+    const mName = document.getElementById('mountainName')?.value.trim() || "";
+    const height = parseInt(document.getElementById('mountainHeight')?.value) || 0;
+    
+    const isNationalPark = document.getElementById('isNationalParkCheck')?.checked || false;
+    const isTop100 = document.getElementById('isTop100Check')?.checked || false;
+    const isBAC = document.getElementById('isBACCheck')?.checked || false;
+    
+    const isRegularRaw = document.getElementById('isRegularCheck')?.checked || false;
+    
+    // 기존 활동 체크박스 상태
+    let isSchedule = document.getElementById('isScheduleCheck')?.checked || false;
+    let isRunning = document.getElementById('isRunningCheck')?.checked || false;
+    let isTracking = document.getElementById('isTrackingCheck')?.checked || false;
+    let isWalking = document.getElementById('isWalkingCheck')?.checked || false; 
+    const isOnlyLog = document.getElementById('isOnlyLog')?.checked || false; 
 
-const now = new Date();
-const [y, m, d] = dateVal.split('-').map(Number);
-const activityDateObj = new Date(y, m - 1, d, now.getHours(), now.getMinutes(), now.getSeconds());
+    // 단축 체크박스 확인
+    const isExtraHikeCheck = document.getElementById('isExtraHikeCheck')?.checked || false;
+    const isSpecialTrackingCheck = document.getElementById('isSpecialTrackingCheck')?.checked || false;
 
-const ts = _Timestamp.fromDate(activityDateObj);
-const currentYear = activityDateObj.getFullYear();
-const currentQuarter = Math.ceil((activityDateObj.getMonth() + 1) / 3);
-const qKey = `${currentYear}_q${currentQuarter}`;
+    // 🎯 계절 이모지 수동 선택 값 확인
+    const selectedSeasonMark = 
+        document.getElementById('isSpringMarkCheck')?.checked ? "🌸" :
+        document.getElementById('isSummerMarkCheck')?.checked ? "🍀" :
+        document.getElementById('isFallMarkCheck')?.checked ? "🍁" :
+        document.getElementById('isWinterMarkCheck')?.checked ? "❄️" : null;
 
-const mName = document.getElementById('mountainName')?.value.trim() || "";
-const height = parseInt(document.getElementById('mountainHeight')?.value) || 0;
+    // 단축 체크박스 선택 시 값 강제 적용
+    if (isExtraHikeCheck) {
+        isRunning = true;
+        isTracking = true;
+    } else if (isSpecialTrackingCheck) {
+        isTracking = true;
+        isWalking = true;
+        isSchedule = true;
+    }
 
-const isNationalPark = document.getElementById('isNationalParkCheck')?.checked || false;
-const isTop100 = document.getElementById('isTop100Check')?.checked || false;
-const isBAC = document.getElementById('isBACCheck')?.checked || false;
+    // 🎯 좌표 OFF 체크 여부 확인 (번외산행인 경우 강제 true)
+    let disableCoord = document.getElementById('disableCoordCheck')?.checked || false;
+    if (isExtraHikeCheck) {
+        disableCoord = true;
+    }
 
-const isRegularRaw = document.getElementById('isRegularCheck')?.checked || false;
+    const region = document.getElementById('adminManualRegionSelect')?.value || "";
+    const isQuarterOnlyOne = document.getElementById('isQuarterCheck')?.checked || false;
+    
+    const pRock = parseInt(document.getElementById('pRock')?.value) || 0;
+    const pForest = parseInt(document.getElementById('pForest')?.value) || 0;
+    const pValley = parseInt(document.getElementById('pValley')?.value) || 0;
+    
+    // 산행 조건 판별
+    const isExtraHike = isExtraHikeCheck || (isRunning && isTracking); 
+    const isSpecialTracking = isSpecialTrackingCheck || (isTracking && isWalking);
 
-// 기존 활동 체크박스 상태
-let isSchedule = document.getElementById('isScheduleCheck')?.checked || false;
-let isRunning = document.getElementById('isRunningCheck')?.checked || false;
-let isTracking = document.getElementById('isTrackingCheck')?.checked || false;
-let isWalking = document.getElementById('isWalkingCheck')?.checked || false;
-const isOnlyLog = document.getElementById('isOnlyLog')?.checked || false;
+    const isSpecial = (isRunning || isOnlyLog || isExtraHike || (isTracking && !isSpecialTracking) || (isWalking && !isSpecialTracking));
+    const isRealHike = !isSpecial || isSpecialTracking; 
+    const isRegular = isRegularRaw && isRealHike; 
 
-// 단축 체크박스 확인
-const isExtraHikeCheck = document.getElementById('isExtraHikeCheck')?.checked || false;
-const isSpecialTrackingCheck = document.getElementById('isSpecialTrackingCheck')?.checked || false;
+    const isMultiHike = typeof selectedMemberIds !== 'undefined' && selectedMemberIds.size >= 2;
+    const isDdayTargetActivity = (isRunning || isTracking || isWalking) && !isExtraHike && !isSpecialTracking;
 
-// 🎯 계절 이모지 수동 선택 값 확인
-const selectedSeasonMark =
-document.getElementById('isSpringMarkCheck')?.checked ? "🌸" :
-document.getElementById('isSummerMarkCheck')?.checked ? "🍀" :
-document.getElementById('isFallMarkCheck')?.checked ? "🍁" :
-document.getElementById('isWinterMarkCheck')?.checked ? "❄️" : null;
+    if(!selectedMemberIds || selectedMemberIds.size === 0 || !dateVal) return alert("대상과 날짜를 확인해주세요.");
 
-// 단축 체크박스 선택 시 값 강제 적용
-if (isExtraHikeCheck) {
-isRunning = true;
-isTracking = true;
-} else if (isSpecialTrackingCheck) {
-isTracking = true;
-isWalking = true;
-isSchedule = true;
-}
+    // 🎯 0업 선택 허용 (선택된 게 없으면 기본값 0으로 간주)
+    const upElement = document.querySelector('input[name="upAmount"]:checked');
+    const up = upElement ? parseInt(upElement.value) : 0;
 
-// 🎯 좌표 OFF 체크 여부 확인 (번외산행인 경우 강제 true)
-let disableCoord = document.getElementById('disableCoordCheck')?.checked || false;
-if (isExtraHikeCheck) {
-disableCoord = true;
-}
+    const selectedNames = [];
+    
+    // 좌표 OFF가 켜져있으면 tempCoord 무시하고 unconditional null 처리
+    const safeCoords = (!disableCoord && typeof tempCoord !== 'undefined' && tempCoord && tempCoord.x !== undefined) ? tempCoord : null;
 
-const region = document.getElementById('adminManualRegionSelect')?.value || "";
-const isQuarterOnlyOne = document.getElementById('isQuarterCheck')?.checked || false;
+    // 🎯 경기둘레길 코스 정보 파싱 (예: "경기둘레길 39코스" -> 39)
+    let dulleCourseObj = null;
+    const dulleMatch = mName.match(/경기둘레길\s*(\d+)코스/);
+    if (dulleMatch && dulleMatch[1]) {
+        const courseNum = parseInt(dulleMatch[1], 10);
+        try {
+            const masterSnap = await getDoc(doc(db, "settings", "dulleMaster"));
+            let targetX = 50.0;
+            let targetY = 50.0;
 
-const pRock = parseInt(document.getElementById('pRock')?.value) || 0;
-const pForest = parseInt(document.getElementById('pForest')?.value) || 0;
-const pValley = parseInt(document.getElementById('pValley')?.value) || 0;
+            if (masterSnap.exists() && masterSnap.data()[`course_${courseNum}`]) {
+                const masterData = masterSnap.data()[`course_${courseNum}`];
+                targetX = parseFloat(masterData.x);
+                targetY = parseFloat(masterData.y);
+            }
 
-// 산행 조건 판별
-const isExtraHike = isExtraHikeCheck || (isRunning && isTracking);
-const isSpecialTracking = isSpecialTrackingCheck || (isTracking && isWalking);
+            dulleCourseObj = {
+                course: courseNum,
+                title: `경기둘레길 ${courseNum}코스`,
+                x: targetX,
+                y: targetY
+            };
+        } catch (e) {
+            console.error("❌ 경기둘레길 마스터 좌표 조회 실패:", e);
+        }
+    }
 
-const isSpecial = (isRunning || isOnlyLog || isExtraHike || (isTracking && !isSpecialTracking) || (isWalking && !isSpecialTracking));
-const isRealHike = !isSpecial || isSpecialTracking;
-const isRegular = isRegularRaw && isRealHike;
+    try {
+        pendingLevelUpCards = []; 
 
-const isMultiHike = typeof selectedMemberIds !== 'undefined' && selectedMemberIds.size >= 2;
-const isDdayTargetActivity = (isRunning || isTracking || isWalking) && !isExtraHike && !isSpecialTracking;
+        if (isRealHike && mName) {
+            const mRef = doc(db, "mountains", mName);
+            const mSnap = await getDoc(mRef);
+            
+            const mountainData = {
+                height: height, 
+                isNationalPark: isNationalPark,
+                isTop100: isTop100, 
+                isBAC: isBAC, 
+                region: region, 
+                updatedAt: new Date(),
+                pRock: pRock, 
+                pForest: pForest, 
+                pValley: pValley
+            };
 
-if(!selectedMemberIds || selectedMemberIds.size === 0 || !dateVal) return alert("대상과 날짜를 확인해주세요.");
+            if (disableCoord) {
+                mountainData.x = null;
+                mountainData.y = null;
+            } else if (safeCoords) {
+                mountainData.x = safeCoords.x;
+                mountainData.y = safeCoords.y;
+            }
 
-// 🎯 0업 선택 허용 (선택된 게 없으면 기본값 0으로 간주)
-const upElement = document.querySelector('input[name="upAmount"]:checked');
-const up = upElement ? parseInt(upElement.value) : 0;
+            if (mSnap.exists()) await updateDoc(mRef, mountainData);
+            else await setDoc(mRef, mountainData);
+        }
 
-const selectedNames = [];
+        for (const id of selectedMemberIds) {
+            const member = currentData.find(m => m.id === id);
+            if (!member) continue;
 
-// 좌표 OFF가 켜져있으면 tempCoord 무시하고 unconditional null 처리
-const safeCoords = (!disableCoord && typeof tempCoord !== 'undefined' && tempCoord && tempCoord.x !== undefined) ? tempCoord : null;
+            let updateData = {}; 
 
-// 🎯 경기둘레길 코스 정보 파싱 (예: "경기둘레길 39코스" -> 39)
-let dulleCourseObj = null;
-const dulleMatch = mName.match(/경기둘레길s*(d+)코스/);
-if (dulleMatch && dulleMatch[1]) {
-const courseNum = parseInt(dulleMatch[1], 10);
-try {
-const masterSnap = await getDoc(doc(db, "settings", "dulleMaster"));
-let targetX = 50.0;
-let targetY = 50.0;
+            // 🎯 [신규 추가] 경기둘레길인 경우 dulleCourses 배열에 정복 코스 추가
+            if (dulleCourseObj) {
+                updateData.dulleCourses = arrayUnion(dulleCourseObj);
+            }
 
-if (masterSnap.exists() && masterSnap.data()[`course_${courseNum}`]) {
-const masterData = masterSnap.data()[`course_${courseNum}`];
-targetX = parseFloat(masterData.x);
-targetY = parseFloat(masterData.y);
-}
+            if (!member.quarterlyStats) {
+                const pastCount = member.qCount || member.count || 0;
+                updateData["quarterlyStats.2025_q4"] = { hike: pastCount, total: pastCount };
+                updateData["quarterlyStats.2026_q1"] = { hike: pastCount, total: pastCount };
+                updateData["quarterlyStats.2026_q2"] = { hike: pastCount, total: pastCount };
+            }
 
-dulleCourseObj = {
-course: courseNum,
-title: `경기둘레길 ${courseNum}코스`,
-x: targetX,
-y: targetY
+            // 1) 레벨업 & 실시간 획득 업수 계산
+            const hikeUpAmount = up;
+            const activityUpAmount = up;
+            const realUpAmount = isRealHike ? up : 0;
+            const oldLevel = member.level || 0;
+            const newLevel = oldLevel + realUpAmount;
+
+            updateData.level = newLevel;
+
+            // 🎯 100레벨 최초 달성 시 DB에 날짜/산행지/분기 저장
+            if (oldLevel < 100 && newLevel >= 100) {
+                await checkAndSaveLv100ToMember(
+                    id, 
+                    newLevel, 
+                    mName || "관악산", 
+                    activityDateObj, 
+                    `${currentQuarter}분기`, 
+                    member
+                );
+            }
+
+            if (realUpAmount > 0 && typeof checkLevelUpgrade === 'function') {
+                checkLevelUpgrade(member.name, oldLevel, newLevel);
+            }
+            selectedNames.push(member.name);
+
+            // 2) 로그 루프 카운트 선언 및 고도 계산
+            const finalLogLoopCount = (isRegular || isSpecial || isQuarterOnlyOne || realUpAmount === 0) ? 1 : realUpAmount;
+            const finalHeightIncrement = height * finalLogLoopCount;
+
+            if (isRealHike) {
+                if (!isExtraHike) {
+                    if (realUpAmount > 0) {
+                        updateData.count = _increment(1);
+                    }
+                }
+
+                updateData.lastDate = ts;
+                updateData.totalHeight = _increment(finalHeightIncrement);
+
+                updateData[`quarterlyStats.${qKey}.hike`] = _increment(1);
+                updateData[`quarterlyStats.${qKey}.totalHeight`] = _increment(finalHeightIncrement);
+
+                updateData.bonusDays = 0;
+                
+                const groupSize = selectedMemberIds.size;
+                const baseQCount = groupSize >= 3 ? 3 : groupSize; 
+                const multiplier = realUpAmount > 0 ? realUpAmount : 1; 
+                const qCountIncrement = baseQCount * multiplier; 
+
+                // 기존 전역 qCount 증가
+                updateData.qCount = _increment(qCountIncrement); 
+
+                // 🎯 [신규 반영] 해당 분기(quarterlyStats) 통장에도 qCount 누적 저장
+                updateData[`quarterlyStats.${qKey}.qCount`] = _increment(qCountIncrement);
+
+                if (isMultiHike) {
+                    let pointToAdd = (isQuarterOnlyOne || isRegular) ? 100 : (100 * (realUpAmount || 1));
+                    updateData.buddyCount = _increment(1);
+                    updateData.friendshipPoint = _increment(pointToAdd);
+                    updateData[`fp_bins.${qKey}`] = _increment(pointToAdd);
+                }
+            } else {
+                updateData[`quarterlyStats.${qKey}.total`] = _increment(1);
+                updateData[`quarterlyStats.${qKey}.hike`] = _increment(0); 
+
+                if (isDdayTargetActivity && isMultiHike && oldLevel > 0) {
+                    const todayZero = new Date(activityDateObj.getFullYear(), activityDateObj.getMonth(), activityDateObj.getDate()).getTime();
+                    const last = member.lastDate ? member.lastDate.toDate() : new Date();
+                    const lastZero = new Date(last.getFullYear(), last.getMonth(), last.getDate()).getTime();
+                    const diffDays = Math.floor((todayZero - lastZero) / (1000 * 60 * 60 * 24));
+                    
+                    const currentDdayVal = (122 + Number(member.bonusDays || 0)) - diffDays;
+                    const nextDdayVal = Math.min(122, currentDdayVal + 15);
+                    updateData.bonusDays = nextDdayVal - 122;
+                }
+            }
+
+            if (window.selectedHostIds && window.selectedHostIds.includes(id)) {
+                updateData[`quarterlyStats.${qKey}.hosted`] = _increment(1);
+            }
+
+            if (Object.keys(updateData).length > 0) {
+                await updateDoc(doc(db, "sanwoori", id), updateData);
+            }
+
+            // 🎯 [신규 추가] 트래킹 선택 및 둘레길 코스 지정 시 둘레길 DB 연동
+            if (isTracking && window.selectedDulleData && typeof saveDulleLog === 'function') {
+                await saveDulleLog(
+                    id, 
+                    window.selectedDulleData.course, 
+                    window.selectedDulleData.x, 
+                    window.selectedDulleData.y
+                );
+            }
+            
+            // 3) 개인 로그 생성 및 별/계절마크 획득 처리
+            const rawMountainName = document.getElementById('mountainName')?.value.trim();
+            const baseDocId = rawMountainName || (isSpecialTracking ? "인정 트레킹" : (isWalking ? "동네 산책" : (isExtraHike ? "번외 산행" : (isRunning ? "러닝 활동" : "트레킹 활동"))));
+
+            const existingLogsRef = collection(db, `sanwoori/${id}/logs`);
+            const existingSnap = await getDocs(existingLogsRef);
+
+            const existingDocIds = new Set();
+            existingSnap.forEach(d => existingDocIds.add(d.id));
+
+            for (let i = 0; i < finalLogLoopCount; i++) {
+                let starType = null;
+                
+                // 🎯 정기산행일 경우 전분기 점수 반영 추첨 실행
+                if (isRegular) {
+                    if (typeof window.drawRegularHikeStar === 'function') {
+                        starType = window.drawRegularHikeStar(member, currentYear, currentQuarter);
+                    } else {
+                        const rand = Math.random() * 100;
+                        if (rand <= 3) starType = "super";
+                        else if (rand <= 10) starType = "special";
+                        else starType = "regular_" + (Math.floor(Math.random() * 4) + 1);
+                    }
+                }
+
+                // 🎯 별(슈퍼/스페셜) 획득 시 DB 저장
+                if (starType === "super" || starType === "special") {
+                    const defaultQuarter = `${currentQuarter}분기`;
+                    await saveSpecialStarToMember(
+                        id, 
+                        starType, 
+                        defaultQuarter, 
+                        member, 
+                        baseDocId, 
+                        activityDateObj
+                    );
+                }
+
+                const logPayload = {
+                    date: ts,
+                    createdAt: new Date(), 
+                    mountain: baseDocId, 
+                    height, 
+                    coords: safeCoords,
+                    isNationalPark,
+                    isTop100, isBAC, 
+                    isRegular,   
+                    isSchedule,  
+                    isRunning, isTracking, isWalking, isExtraHike, isOnlyLog, region,
+                    starType, author: member.name,
+                    seasonIcon: selectedSeasonMark,
+                    isSpecial: isSpecialTracking ? false : isSpecial,
+                    pRock, pForest, pValley
+                };
+
+                let customLogDocId = baseDocId;
+                let seq = 1;
+                while (existingDocIds.has(customLogDocId)) {
+                    customLogDocId = `${baseDocId}_${seq}`;
+                    seq++;
+                }
+                
+                existingDocIds.add(customLogDocId);
+                await setDoc(doc(db, `sanwoori/${id}/logs`, customLogDocId), logPayload);
+            }
+        } 
+
+        if (isRealHike && isMultiHike && selectedNames.length >= 2) {
+            const cleanMountain = (mName || "트레킹산행").trim().replace(/\s+/g, "");
+            const cleanDate = dateVal.trim();
+            let bondingDocId = `${cleanMountain}_${cleanDate}`;
+
+            let bondingRef = doc(db, "bondingForest", bondingDocId);
+            let checkSnap = await getDoc(bondingRef);
+            let dupSeq = 2;
+            while (checkSnap.exists()) {
+                bondingDocId = `${cleanMountain}_${cleanDate}_${dupSeq}`;
+                bondingRef = doc(doc(db, "bondingForest", bondingDocId)); 
+                checkSnap = await getDoc(bondingRef);
+                dupSeq++;
+            }
+
+            await setDoc(bondingRef, {
+                mountain: cleanMountain, 
+                members: selectedNames, 
+                memberCount: selectedNames.length, 
+                date: cleanDate, 
+                type: "정식", 
+                createdAt: new Date()
+            });
+        }
+
+        if (typeof pendingLevelUpCards !== 'undefined' && pendingLevelUpCards.length > 0 && typeof showCombinedLevelUpAlert === 'function') {
+            showCombinedLevelUpAlert();
+        }
+        
+        alert((isRealHike && !isExtraHike) ? (isSpecialTracking ? "인정 트레킹 기록 완료! 🥾 (순수산행 동일 적용)" : "순수산행 기록 완료! ✅") : (isExtraHike ? "번외산행 기록 완료! 🌲" : "일반 활동(러닝/트레킹/산책) 기록 완료! 🏃"));
+        
+        // 폼 초기화
+        selectedMemberIds.clear();
+        window.selectedHostIds = [];
+        document.querySelectorAll('.host-checkbox').forEach(cb => cb.checked = false);
+        document.querySelectorAll('.member-checkbox, .member-card-select').forEach(cb => cb.checked = false);
+
+        const resetInputIds = ['mountainName', 'mountainHeight', 'pRock', 'pForest', 'pValley'];
+        resetInputIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+
+        const regionSelect = document.getElementById('adminManualRegionSelect');
+        if (regionSelect) regionSelect.selectedIndex = 0;
+
+        const checkIds = [
+            'isNationalParkCheck', 'isTop100Check', 'isBACCheck', 
+            'isRegularCheck', 'isScheduleCheck', 'isRunningCheck', 
+            'isTrackingCheck', 'isWalkingCheck', 'isOnlyLog', 
+            'isQuarterCheck', 'disableCoordCheck',
+            'isExtraHikeCheck', 'isSpecialTrackingCheck',
+            'isSpringMarkCheck', 'isSummerMarkCheck', 'isFallMarkCheck', 'isWinterMarkCheck'
+        ];
+        checkIds.forEach(id => {
+            const cb = document.getElementById(id);
+            if (cb) cb.checked = false;
+        });
+
+        // 🎯 1번 라디오 버튼 기본 재선택
+        const defaultRadio = document.querySelector('input[name="upAmount"][value="1"]');
+        if (defaultRadio) defaultRadio.checked = true;
+
+        // 일반 산 좌표 초기화
+        tempCoord = null; 
+        const marker = document.getElementById('adminMapMarker');
+        if (marker) marker.classList.add('hidden');
+        
+        const display = document.getElementById('coordDisplay');
+        if (display) display.innerText = '좌표: 없음 (지도 클릭)';
+
+        // 🎯 둘레길 지도 선택 상태 & 마커 초기화
+        window.selectedDulleData = null;
+        const dulleMarker = document.getElementById('dulleMapMarker');
+        if (dulleMarker) dulleMarker.classList.add('hidden');
+        const dulleDisplay = document.getElementById('dulleCoordDisplay');
+        if (dulleDisplay) dulleDisplay.innerHTML = '둘레길 코스 선택: 지도상에서 코스 위치를 클릭하세요.';
+        const dulleContainer = document.getElementById('dulleMapContainer');
+        if (dulleContainer) dulleContainer.classList.add('hidden');
+
+        const kstDate = new Date(new Date().getTime() + (9 * 60 * 60 * 1000));
+        if (dateInput) {
+            dateInput.value = kstDate.toISOString().split('T')[0];
+        }
+        
+        if (typeof startRealtimeSync === 'function') startRealtimeSync(); 
+    } catch (error) {
+        console.error("Error 상세:", error);
+        alert("저장 실패: " + error.message);
+    }
 };
-} catch (e) {
-console.error("❌ 경기둘레길 마스터 좌표 조회 실패:", e);
-}
-}
-
-try {
-pendingLevelUpCards = [];
-
-if (isRealHike && mName) {
-const mRef = doc(db, "mountains", mName);
-const mSnap = await getDoc(mRef);
-
-const mountainData = {
-height: height,
-isNationalPark: isNationalPark,
-isTop100: isTop100,
-isBAC: isBAC,
-region: region,
-updatedAt: new Date(),
-pRock: pRock,
-pForest: pForest,
-pValley: pValley
-};
-
-if (disableCoord) {
-mountainData.x = null;
-mountainData.y = null;
-} else if (safeCoords) {
-mountainData.x = safeCoords.x;
-mountainData.y = safeCoords.y;
-}
-
-if (mSnap.exists()) await updateDoc(mRef, mountainData);
-else await setDoc(mRef, mountainData);
-}
-
-// 🎯 스페셜별 1회차 최대 1명 제한용 상태 객체 & 추첨 순서 공정성을 위한 멤버 배열 셔플
-const starBatchState = { specialAwardedCount: 0 };
-const shuffledMemberIds = Array.from(selectedMemberIds).sort(() => Math.random() - 0.5);
-
-for (const id of shuffledMemberIds) {
-const member = currentData.find(m => m.id === id);
-if (!member) continue;
-
-let updateData = {};
-
-// 🎯 [신규 추가] 경기둘레길인 경우 dulleCourses 배열에 정복 코스 추가
-if (dulleCourseObj) {
-updateData.dulleCourses = arrayUnion(dulleCourseObj);
-}
-
-if (!member.quarterlyStats) {
-const pastCount = member.qCount || member.count || 0;
-updateData["quarterlyStats.2025_q4"] = { hike: pastCount, total: pastCount };
-updateData["quarterlyStats.2026_q1"] = { hike: pastCount, total: pastCount };
-updateData["quarterlyStats.2026_q2"] = { hike: pastCount, total: pastCount };
-}
-
-// 1) 레벨업 & 실시간 획득 업수 계산
-const realUpAmount = isRealHike ? up : 0;
-const oldLevel = member.level || 0;
-const newLevel = oldLevel + realUpAmount;
-
-updateData.level = newLevel;
-
-// 🎯 100레벨 최초 달성 시 DB에 날짜/산행지/분기 저장
-if (oldLevel < 100 && newLevel >= 100) {
-await checkAndSaveLv100ToMember(
-id,
-newLevel,
-mName || "관악산",
-activityDateObj,
-`${currentQuarter}분기`,
-member
-);
-}
-
-if (realUpAmount > 0 && typeof checkLevelUpgrade === 'function') {
-checkLevelUpgrade(member.name, oldLevel, newLevel);
-}
-selectedNames.push(member.name);
-
-// 2) 로그 루프 카운트 선언 및 고도 계산
-const finalLogLoopCount = (isRegular || isSpecial || isQuarterOnlyOne || realUpAmount === 0) ? 1 : realUpAmount;
-const finalHeightIncrement = height * finalLogLoopCount;
-
-if (isRealHike) {
-if (!isExtraHike) {
-if (realUpAmount > 0) {
-updateData.count = _increment(1);
-}
-}
-
-updateData.lastDate = ts;
-updateData.totalHeight = _increment(finalHeightIncrement);
-
-updateData[`quarterlyStats.${qKey}.hike`] = _increment(1);
-updateData[`quarterlyStats.${qKey}.totalHeight`] = _increment(finalHeightIncrement);
-
-updateData.bonusDays = 0;
-
-const groupSize = selectedMemberIds.size;
-const baseQCount = groupSize >= 3 ? 3 : groupSize;
-const multiplier = realUpAmount > 0 ? realUpAmount : 1;
-const qCountIncrement = baseQCount * multiplier;
-
-// 기존 전역 qCount 증가
-updateData.qCount = _increment(qCountIncrement);
-
-// 🎯 해당 분기(quarterlyStats) 통장에도 qCount 누적 저장
-updateData[`quarterlyStats.${qKey}.qCount`] = _increment(qCountIncrement);
-
-if (isMultiHike) {
-let pointToAdd = (isQuarterOnlyOne || isRegular) ? 100 : (100 * (realUpAmount || 1));
-updateData.buddyCount = _increment(1);
-updateData.friendshipPoint = _increment(pointToAdd);
-updateData[`fp_bins.${qKey}`] = _increment(pointToAdd);
-}
-} else {
-updateData[`quarterlyStats.${qKey}.total`] = _increment(1);
-updateData[`quarterlyStats.${qKey}.hike`] = _increment(0);
-
-if (isDdayTargetActivity && isMultiHike && oldLevel > 0) {
-const todayZero = new Date(activityDateObj.getFullYear(), activityDateObj.getMonth(), activityDateObj.getDate()).getTime();
-const last = member.lastDate ? member.lastDate.toDate() : new Date();
-const lastZero = new Date(last.getFullYear(), last.getMonth(), last.getDate()).getTime();
-const diffDays = Math.floor((todayZero - lastZero) / (1000 * 60 * 60 * 24));
-
-const currentDdayVal = (122 + Number(member.bonusDays || 0)) - diffDays;
-const nextDdayVal = Math.min(122, currentDdayVal + 15);
-updateData.bonusDays = nextDdayVal - 122;
-}
-}
-
-if (window.selectedHostIds && window.selectedHostIds.includes(id)) {
-updateData[`quarterlyStats.${qKey}.hosted`] = _increment(1);
-}
-
-if (Object.keys(updateData).length > 0) {
-await updateDoc(doc(db, "sanwoori", id), updateData);
-}
-
-// 🎯 트래킹 선택 및 둘레길 코스 지정 시 둘레길 DB 연동
-if (isTracking && window.selectedDulleData && typeof saveDulleLog === 'function') {
-await saveDulleLog(
-id,
-window.selectedDulleData.course,
-window.selectedDulleData.x,
-window.selectedDulleData.y
-);
-}
-
-// 3) 개인 로그 생성 및 별/계절마크 획득 처리
-const rawMountainName = document.getElementById('mountainName')?.value.trim();
-const baseDocId = rawMountainName || (isSpecialTracking ? "인정 트레킹" : (isWalking ? "동네 산책" : (isExtraHike ? "번외 산행" : (isRunning ? "러닝 활동" : "트레킹 활동"))));
-
-const existingLogsRef = collection(db, `sanwoori/${id}/logs`);
-const existingSnap = await getDocs(existingLogsRef);
-
-const existingDocIds = new Set();
-existingSnap.forEach(d => existingDocIds.add(d.id));
-
-for (let i = 0; i < finalLogLoopCount; i++) {
-let starType = null;
-
-// 🎯 정기산행일 경우 전분기 qCount 점수 반영 + 20명 기준 확률 + 스페셜 최대 1명 추첨 실행
-if (isRegular) {
-starType = window.drawRegularHikeStar(member, currentYear, currentQuarter, starBatchState);
-}
-
-// 🎯 별(슈퍼/스페셜) 획득 시 DB 저장 (연도/분기 정확히 전달)
-if (starType === "super" || starType === "special") {
-const defaultQuarter = `${currentQuarter}Q`;
-await saveSpecialStarToMember(
-id,
-starType,
-defaultQuarter,
-member,
-baseDocId,
-activityDateObj
-);
-}
-
-const logPayload = {
-date: ts,
-createdAt: new Date(),
-mountain: baseDocId,
-height,
-coords: safeCoords,
-isNationalPark,
-isTop100, isBAC,
-isRegular,
-isSchedule,
-isRunning, isTracking, isWalking, isExtraHike, isOnlyLog, region,
-starType, author: member.name,
-seasonIcon: selectedSeasonMark,
-isSpecial: isSpecialTracking ? false : isSpecial,
-pRock, pForest, pValley
-};
-
-let customLogDocId = baseDocId;
-let seq = 1;
-while (existingDocIds.has(customLogDocId)) {
-customLogDocId = `${baseDocId}_${seq}`;
-seq++;
-}
-
-existingDocIds.add(customLogDocId);
-await setDoc(doc(db, `sanwoori/${id}/logs`, customLogDocId), logPayload);
-}
-}
-
-if (isRealHike && isMultiHike && selectedNames.length >= 2) {
-const cleanMountain = (mName || "트레킹산행").trim().replace(/s+/g, "");
-const cleanDate = dateVal.trim();
-let bondingDocId = `${cleanMountain}_${cleanDate}`;
-
-let bondingRef = doc(db, "bondingForest", bondingDocId);
-let checkSnap = await getDoc(bondingRef);
-let dupSeq = 2;
-while (checkSnap.exists()) {
-bondingDocId = `${cleanMountain}_${cleanDate}_${dupSeq}`;
-bondingRef = doc(db, "bondingForest", bondingDocId);
-checkSnap = await getDoc(bondingRef);
-dupSeq++;
-}
-
-await setDoc(bondingRef, {
-mountain: cleanMountain,
-members: selectedNames,
-memberCount: selectedNames.length,
-date: cleanDate,
-type: "정식",
-createdAt: new Date()
-});
-}
-
-if (typeof pendingLevelUpCards !== 'undefined' && pendingLevelUpCards.length > 0 && typeof showCombinedLevelUpAlert === 'function') {
-showCombinedLevelUpAlert();
-}
-
-alert((isRealHike && !isExtraHike) ? (isSpecialTracking ? "인정 트레킹 기록 완료! 🥾 (순수산행 동일 적용)" : "순수산행 기록 완료! ✅") : (isExtraHike ? "번외산행 기록 완료! 🌲" : "일반 활동(러닝/트레킹/산책) 기록 완료! 🏃"));
-
-// 폼 초기화
-selectedMemberIds.clear();
-window.selectedHostIds = [];
-document.querySelectorAll('.host-checkbox').forEach(cb => cb.checked = false);
-document.querySelectorAll('.member-checkbox, .member-card-select').forEach(cb => cb.checked = false);
-
-const resetInputIds = ['mountainName', 'mountainHeight', 'pRock', 'pForest', 'pValley'];
-resetInputIds.forEach(id => {
-const el = document.getElementById(id);
-if (el) el.value = '';
-});
-
-const regionSelect = document.getElementById('adminManualRegionSelect');
-if (regionSelect) regionSelect.selectedIndex = 0;
-
-const checkIds = [
-'isNationalParkCheck', 'isTop100Check', 'isBACCheck',
-'isRegularCheck', 'isScheduleCheck', 'isRunningCheck',
-'isTrackingCheck', 'isWalkingCheck', 'isOnlyLog',
-'isQuarterCheck', 'disableCoordCheck',
-'isExtraHikeCheck', 'isSpecialTrackingCheck',
-'isSpringMarkCheck', 'isSummerMarkCheck', 'isFallMarkCheck', 'isWinterMarkCheck'
-];
-checkIds.forEach(id => {
-const cb = document.getElementById(id);
-if (cb) cb.checked = false;
-});
-
-// 🎯 1번 라디오 버튼 기본 재선택
-const defaultRadio = document.querySelector('input[name="upAmount"][value="1"]');
-if (defaultRadio) defaultRadio.checked = true;
-
-// 일반 산 좌표 초기화
-tempCoord = null;
-const marker = document.getElementById('adminMapMarker');
-if (marker) marker.classList.add('hidden');
-
-const display = document.getElementById('coordDisplay');
-if (display) display.innerText = '좌표: 없음 (지도 클릭)';
-
-// 🎯 둘레길 지도 선택 상태 & 마커 초기화
-window.selectedDulleData = null;
-const dulleMarker = document.getElementById('dulleMapMarker');
-if (dulleMarker) dulleMarker.classList.add('hidden');
-const dulleDisplay = document.getElementById('dulleCoordDisplay');
-if (dulleDisplay) dulleDisplay.innerHTML = '둘레길 코스 선택: 지도상에서 코스 위치를 클릭하세요.';
-const dulleContainer = document.getElementById('dulleMapContainer');
-if (dulleContainer) dulleContainer.classList.add('hidden');
-
-const kstDate = new Date(new Date().getTime() + (9 * 60 * 60 * 1000));
-if (dateInput) {
-dateInput.value = kstDate.toISOString().split('T')[0];
-}
-
-if (typeof startRealtimeSync === 'function') startRealtimeSync();
-} catch (error) {
-console.error("Error 상세:", error);
-alert("저장 실패: " + error.message);
-}
-};
-
-
-
-
 
           
   // 📌 [신규 회원 등록 함수] - 수정본
@@ -10469,552 +10398,503 @@ window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
 };
              
                 
-  
+                    
+                
+  // ======================= [별 가이드 & 은하수 모듈 통합 - 연도 자동 저장 & 모달 최신화] =======================
 
-// ======================= [별 가이드 & 은하수 모듈 통합 - 다중 당첨자 전원 변환 & 최신화] =======================
+// 0. 최신 획득자(최신 왕좌) 판별 보조 함수
+function getLatestLegendHolderId(starType) {
+    if (typeof currentData === 'undefined' || !Array.isArray(currentData)) return null;
 
-// 분기 문자열("4Q", "4분기" 등)에서 숫자(1~4) 추출 헬퍼
-function parseQuarterNum(qStr) {
-if (!qStr) return 1;
-const match = String(qStr).match(/([1-4])/);
-return match ? parseInt(match[1], 10) : 1;
-}
+    let latestHolderId = null;
+    let maxTimestamp = -1;
 
-// 0. 최신 분기 획득자(최신 왕좌) 전원 판별 함수 (2명이든 3명이든 최신 분기 당첨자 모두 포함)
-function getLatestLegendHolders(starType) {
-if (typeof currentData === 'undefined' || !Array.isArray(currentData)) return [];
+    currentData.forEach(member => {
+        if (member.specialStars && Array.isArray(member.specialStars)) {
+            member.specialStars.forEach(item => {
+                if (item.starType === starType) {
+                    const ts = item.timestamp || 0;
+                    if (ts > maxTimestamp) {
+                        maxTimestamp = ts;
+                        latestHolderId = member.id;
+                    }
+                }
+            });
+        }
+    });
 
-const records = [];
-
-currentData.forEach(member => {
-if (member.specialStars && Array.isArray(member.specialStars)) {
-member.specialStars.forEach(item => {
-if (item.starType === starType) {
-const yr = Number(item.year) || (item.timestamp ? new Date(item.timestamp).getFullYear() : new Date().getFullYear());
-const qNum = parseQuarterNum(item.quarter);
-const sortScore = yr * 10 + qNum; // 예: 2026년 4분기 -> 20264
-records.push({
-id: member.id,
-name: member.name,
-sortScore: sortScore
-});
-}
-});
-}
-});
-
-if (records.length === 0) return [];
-
-// 가장 최신 분기 점수(maxSortScore) 찾기
-const maxSortScore = Math.max(...records.map(r => r.sortScore));
-
-// 최신 분기에 해당하는 모든 당첨자의 id와 name을 수집
-const holderSet = new Set();
-records.forEach(r => {
-if (r.sortScore === maxSortScore) {
-if (r.id) holderSet.add(r.id);
-if (r.name) holderSet.add(r.name);
-}
-});
-
-return Array.from(holderSet);
+    return latestHolderId;
 }
 
 // 1. 회원 DB 문서(sanwoori/{memberId})에 레전드 별 획득 기록 저장 함수
-async function saveSpecialStarToMember(memberId, starType, quarterText, memberInfo, mountainName = "", activityDateObj = null) {
-if (starType === "super" || starType === "special") {
-try {
-const targetDate = activityDateObj instanceof Date ? activityDateObj : new Date();
-const recordYear = targetDate.getFullYear();
-const calcQuarter = `${Math.ceil((targetDate.getMonth() + 1) / 3)}Q`;
-const finalQuarter = quarterText ? quarterText.replace('분기', 'Q') : calcQuarter;
+async function saveSpecialStarToMember(memberId, starType, quarterText, memberInfo) {
+    if (starType === "super" || starType === "special") {
+        try {
+            const currentSpecialStars = memberInfo?.specialStars || [];
+            const isAlreadySaved = currentSpecialStars.some(item => item.starType === starType);
 
-const currentSpecialStars = memberInfo?.specialStars || [];
-// 동일 연도·동일 분기에 이미 같은 별이 저장되어 있는지 확인 (다른 분기 재당첨은 허용)
-const isAlreadySaved = currentSpecialStars.some(
-item => item.starType === starType &&
-Number(item.year || recordYear) === recordYear &&
-parseQuarterNum(item.quarter) === parseQuarterNum(finalQuarter)
-);
+            if (isAlreadySaved) return;
 
-if (isAlreadySaved) return;
+            const currentYear = new Date().getFullYear();
 
-const newRecord = {
-starType: starType,
-quarter: finalQuarter,
-year: recordYear,
-mountain: mountainName || "",
-timestamp: targetDate.getTime()
-};
+            const newRecord = {
+                starType: starType,
+                quarter: quarterText || "1Q",
+                year: currentYear,
+                timestamp: Date.now()
+            };
 
-const memberRef = doc(db, "sanwoori", memberId);
-await updateDoc(memberRef, {
-specialStars: arrayUnion(newRecord)
-});
+            const memberRef = doc(db, "sanwoori", memberId);
+            await updateDoc(memberRef, {
+                specialStars: arrayUnion(newRecord)
+            });
+            
+            if (!memberInfo.specialStars) memberInfo.specialStars = [];
+            memberInfo.specialStars.push(newRecord);
 
-if (memberInfo) {
-if (!memberInfo.specialStars) memberInfo.specialStars = [];
-memberInfo.specialStars.push(newRecord);
-}
-
-if (typeof currentData !== 'undefined' && Array.isArray(currentData)) {
-const target = currentData.find(m => m.id === memberId);
-if (target) {
-if (!target.specialStars) target.specialStars = [];
-const existsInTarget = target.specialStars.some(
-item => item.starType === starType &&
-Number(item.year || recordYear) === recordYear &&
-parseQuarterNum(item.quarter) === parseQuarterNum(finalQuarter)
-);
-if (!existsInTarget) {
-target.specialStars.push(newRecord);
-}
-}
-}
-} catch (err) {
-console.error("레전드 별 기록 업데이트 실패:", err);
-}
-}
+            if (typeof currentData !== 'undefined' && Array.isArray(currentData)) {
+                const target = currentData.find(m => m.id === memberId);
+                if (target) {
+                    if (!target.specialStars) target.specialStars = [];
+                    target.specialStars.push(newRecord);
+                }
+            }
+        } catch (err) {
+            console.error("레전드 별 기록 최초 업데이트 실패:", err);
+        }
+    }
 }
 
 // 2. 은하수 메인 실행 함수
 window.showMilkyWay = async (mId, mName) => {
-const modal = document.getElementById('milkyWayModal');
-const board = document.getElementById('constellationBoard');
-const nameLabel = document.getElementById('mwMemberName');
-const quoteLabel = modal ? modal.querySelector('p.mt-6') : null;
+    const modal = document.getElementById('milkyWayModal');
+    const board = document.getElementById('constellationBoard');
+    const nameLabel = document.getElementById('mwMemberName');
+    const quoteLabel = modal ? modal.querySelector('p.mt-6') : null;
 
-if (!modal || !board) return;
+    if (!modal || !board) return;
 
-modal.classList.remove('is-super', 'is-special');
+    modal.classList.remove('is-super', 'is-special');
 
-const latestSuperHolderIds = getLatestLegendHolders('super');
-const latestSpecialHolderIds = getLatestLegendHolders('special');
+    const latestSuperHolderIds = getLatestLegendHolders('super');
+    const latestSpecialHolderIds = getLatestLegendHolders('special');
 
-// 최신 분기 슈퍼/스페셜 보유자 전원 검증
-let isCurrentSuperKing = latestSuperHolderIds.includes(mId) || latestSuperHolderIds.includes(mName);
-let isCurrentSpecialKing = latestSpecialHolderIds.includes(mId) || latestSpecialHolderIds.includes(mName);
+    // 같은 날 획득한 모든 슈퍼/스페셜 보유자 검증
+    let isCurrentSuperKing = latestSuperHolderIds.includes(mId) || latestSuperHolderIds.includes(mName);
+    let isCurrentSpecialKing = latestSpecialHolderIds.includes(mId) || latestSpecialHolderIds.includes(mName);
 
-if (isCurrentSuperKing) {
-modal.classList.add('is-super');
-if (quoteLabel) quoteLabel.innerHTML = "타오르는 태양의 궤적이 밤하늘에서 가장 찬란한 전설이 됩니다.";
-} else if (isCurrentSpecialKing) {
-modal.classList.add('is-special');
-if (quoteLabel) quoteLabel.innerHTML = "신비로운 오로라의 빛이 은하수 깊은 곳을 에픽하게 수놓습니다.";
-} else {
-if (quoteLabel) quoteLabel.innerHTML = "걸어온 궤적은 선이 되고, 마침내 밤하늘의 길이 됩니다.";
-}
+    if (isCurrentSuperKing) {
+        modal.classList.add('is-super');
+        if (quoteLabel) quoteLabel.innerHTML = "타오르는 태양의 궤적이 밤하늘에서 가장 찬란한 전설이 됩니다.";
+    } else if (isCurrentSpecialKing) {
+        modal.classList.add('is-special');
+        if (quoteLabel) quoteLabel.innerHTML = "신비로운 오로라의 빛이 은하수 깊은 곳을 에픽하게 수놓습니다.";
+    } else {
+        if (quoteLabel) quoteLabel.innerHTML = "걸어온 궤적은 선이 되고, 마침내 밤하늘의 길이 됩니다.";
+    }
 
-if (!document.getElementById('starGuideBtn')) {
-const guideHTML = `
-<div class="mw-header-controls" style="position: absolute; top: 60px; right: 20px; z-index: 10010;">
-<button id="starGuideBtn" onclick="toggleStarGuide(true)" class="star-guide-btn" style="border-color: rgba(255,255,255,0.3); background: rgba(0,0,0,0.4);">
-<span class="sparkle-icon">✨</span> 별 가이드
-</button>
-</div>
-<div id="starGuideModal" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10020; border-radius: inherit; background: rgba(3, 7, 18, 0.85); backdrop-filter: blur(14px); justify-content: center; align-items: center; opacity: 0; transition: opacity 0.25s ease;" onclick="toggleStarGuide(false)">
-<div style="width: 90%; max-width: 360px; max-height: 85vh; background: linear-gradient(160deg, #0f172a 0%, #080d1a 100%); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 24px; padding: 22px 18px 18px 18px; position: relative; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9), 0 0 25px rgba(99, 102, 241, 0.15); box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden;" onclick="event.stopPropagation()">
+    if (!document.getElementById('starGuideBtn')) {
+        const guideHTML = `
+            <div class="mw-header-controls" style="position: absolute; top: 60px; right: 20px; z-index: 10010;">
+                <button id="starGuideBtn" onclick="toggleStarGuide(true)" class="star-guide-btn" style="border-color: rgba(255,255,255,0.3); background: rgba(0,0,0,0.4);">
+                    <span class="sparkle-icon">✨</span> 별 가이드
+                </button>
+            </div>
+            <div id="starGuideModal" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10020; border-radius: inherit; background: rgba(3, 7, 18, 0.85); backdrop-filter: blur(14px); justify-content: center; align-items: center; opacity: 0; transition: opacity 0.25s ease;" onclick="toggleStarGuide(false)">
+                <div style="width: 90%; max-width: 360px; max-height: 85vh; background: linear-gradient(160deg, #0f172a 0%, #080d1a 100%); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 24px; padding: 22px 18px 18px 18px; position: relative; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9), 0 0 25px rgba(99, 102, 241, 0.15); box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden;" onclick="event.stopPropagation()">
+                    
+                    <div style="text-align: center; margin-bottom: 16px; flex-shrink: 0; position: relative;">
+                        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 140px; height: 35px; background: rgba(99, 102, 241, 0.2); filter: blur(20px); border-radius: 50%; pointer-events: none;"></div>
+                        <h3 style="color: #fff; font-size: 1.1rem; font-weight: 900; letter-spacing: 3px; margin: 0; text-shadow: 0 0 12px rgba(165, 180, 252, 0.6); position: relative;">STAR GALLERY</h3>
+                        <p style="color: #94a3b8; font-size: 0.68rem; margin: 4px 0 0 0; opacity: 0.85; font-weight: 500; position: relative;">산우리의 밤하늘을 수놓는 특별한 별빛들</p>
+                    </div>
 
-<div style="text-align: center; margin-bottom: 16px; flex-shrink: 0; position: relative;">
-<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 140px; height: 35px; background: rgba(99, 102, 241, 0.2); filter: blur(20px); border-radius: 50%; pointer-events: none;"></div>
-<h3 style="color: #fff; font-size: 1.1rem; font-weight: 900; letter-spacing: 3px; margin: 0; text-shadow: 0 0 12px rgba(165, 180, 252, 0.6); position: relative;">STAR GALLERY</h3>
-<p style="color: #94a3b8; font-size: 0.68rem; margin: 4px 0 0 0; opacity: 0.85; font-weight: 500; position: relative;">산우리의 밤하늘을 수놓는 특별한 별빛들</p>
-</div>
+                    <div id="guideGrid" style="display: grid; grid-template-columns: repeat(1, 1fr); row-gap: 10px; overflow-y: auto; padding-right: 4px; max-height: 60vh;">
+                    </div>
 
-<div id="guideGrid" style="display: grid; grid-template-columns: repeat(1, 1fr); row-gap: 10px; overflow-y: auto; padding-right: 4px; max-height: 60vh;">
-</div>
+                    <div style="margin-top: 14px; flex-shrink: 0;">
+                        <button onclick="toggleStarGuide(false)" style="width: 100%; background: linear-gradient(135deg, #090d16 0%, #0f1c3f 50%, #1e293b 100%); border: 1px solid rgba(56, 189, 248, 0.4); color: #e0f2fe; font-size: 0.88rem; font-weight: 800; letter-spacing: 2px; padding: 12px 0; border-radius: 14px; cursor: pointer; box-shadow: 0 0 15px rgba(56, 189, 248, 0.25), inset 0 0 10px rgba(56, 189, 248, 0.15); text-shadow: 0 0 8px rgba(56, 189, 248, 0.6); transition: all 0.3s ease; box-sizing: border-box;">
+                            확인
+                        </button>
+                    </div>
+                </div>
+            </div>`;
+        modal.insertAdjacentHTML('afterbegin', guideHTML);
+    }
 
-<div style="margin-top: 14px; flex-shrink: 0;">
-<button onclick="toggleStarGuide(false)" style="width: 100%; background: linear-gradient(135deg, #090d16 0%, #0f1c3f 50%, #1e293b 100%); border: 1px solid rgba(56, 189, 248, 0.4); color: #e0f2fe; font-size: 0.88rem; font-weight: 800; letter-spacing: 2px; padding: 12px 0; border-radius: 14px; cursor: pointer; box-shadow: 0 0 15px rgba(56, 189, 248, 0.25), inset 0 0 10px rgba(56, 189, 248, 0.15); text-shadow: 0 0 8px rgba(56, 189, 248, 0.6); transition: all 0.3s ease; box-sizing: border-box;">
-확인
-</button>
-</div>
-</div>
-</div>`;
-modal.insertAdjacentHTML('afterbegin', guideHTML);
-}
+    modal.style.display = 'flex';
+    if (nameLabel) {
+        nameLabel.style.textAlign = 'center';
+        nameLabel.style.width = '100%';
+        nameLabel.style.position = 'relative';
+        nameLabel.innerHTML = `
+            <span style="position: relative; display: inline-block;">
+                ${mName}님의 은하수
+                <button class="info-help-btn" onclick="event.stopPropagation(); openMilkyWayInfoModal(event);" title="은하수 안내" style="position: absolute; left: 100%; top: 50%; transform: translateY(-50%); margin-left: 6px; z-index: 10015; pointer-events: auto; cursor: pointer;">ⓘ</button>
+            </span>
+        `;
+    }
+    board.innerHTML = '<div class="nebula-cloud"></div>';
 
-modal.style.display = 'flex';
-if (nameLabel) {
-nameLabel.style.textAlign = 'center';
-nameLabel.style.width = '100%';
-nameLabel.style.position = 'relative';
-nameLabel.innerHTML = `
-<span style="position: relative; display: inline-block;">
-${mName}님의 은하수
-<button class="info-help-btn" onclick="event.stopPropagation(); openMilkyWayInfoModal(event);" title="은하수 안내" style="position: absolute; left: 100%; top: 50%; transform: translateY(-50%); margin-left: 6px; z-index: 10015; pointer-events: auto; cursor: pointer;">ⓘ</button>
-</span>
-`;
-}
-board.innerHTML = '<div class="nebula-cloud"></div>';
+    try {
+        let memberInfo = (typeof currentData !== 'undefined' && Array.isArray(currentData)) 
+            ? currentData.find(m => m.id === mId || m.name === mName) : null;
 
-try {
-let memberInfo = (typeof currentData !== 'undefined' && Array.isArray(currentData))
-? currentData.find(m => m.id === mId || m.name === mName) : null;
+        if (!memberInfo && mId) {
+            const mDoc = await getDoc(doc(db, "sanwoori", mId));
+            if (mDoc.exists()) memberInfo = { id: mDoc.id, ...mDoc.data() };
+        }
 
-if (!memberInfo && mId) {
-const mDoc = await getDoc(doc(db, "sanwoori", mId));
-if (mDoc.exists()) memberInfo = { id: mDoc.id, ...mDoc.data() };
-}
+        const finalTotalHikes = memberInfo ? (memberInfo.count || 0) : 0; 
+        const myMultiHikes = memberInfo ? (memberInfo.buddyCount || 0) : 0;
+        const adjustedTotalHikes = Math.max(finalTotalHikes, myMultiHikes);
+        const finalSynergy = adjustedTotalHikes > 0 ? Math.min(100, Math.round((myMultiHikes / adjustedTotalHikes) * 100)) : 0;
 
-const finalTotalHikes = memberInfo ? (memberInfo.count || 0) : 0;
-const myMultiHikes = memberInfo ? (memberInfo.buddyCount || 0) : 0;
-const adjustedTotalHikes = Math.max(finalTotalHikes, myMultiHikes);
-const finalSynergy = adjustedTotalHikes > 0 ? Math.min(100, Math.round((myMultiHikes / adjustedTotalHikes) * 100)) : 0;
+        if (finalSynergy >= 60) {
+            const starColors = ["#E0F7FA", "#FFF0F5", "#FFECB3", "#F3E5F5", "#FFFFFF", "#80CBC4", "#FFAB91"];
+            for (let i = 0; i < 70; i++) {
+                const bgStar = document.createElement('div');
+                bgStar.className = 'bg-star';
+                const size = Math.random() * 1.5 + 0.5;
+                bgStar.style.width = `${size}px`; bgStar.style.height = `${size}px`;
+                bgStar.style.left = `${Math.random() * 100}%`; bgStar.style.top = `${Math.random() * 100}%`;
+                const pickedColor = starColors[Math.floor(Math.random() * starColors.length)];
+                bgStar.style.backgroundColor = pickedColor;
+                bgStar.style.boxShadow = `0 0 3px ${pickedColor}`;
+                bgStar.style.animationDuration = `${Math.random() * 5 + 5}s`;
+                bgStar.style.animationDelay = `${Math.random() * 10}s`;
+                board.appendChild(bgStar);
+            }
+            const aurora = document.createElement('div');
+            aurora.className = 'aurora-layer';
+            board.prepend(aurora); 
+            requestAnimationFrame(() => aurora.classList.add('aurora-active'));
+        }
+     
+        const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
+        const logs = snap.docs
+            .map(d => d.data())
+            .filter(l => l.coords)
+            .sort((a, b) => a.date.toDate() - b.date.toDate());
 
-if (finalSynergy >= 60) {
-const starColors = ["#E0F7FA", "#FFF0F5", "#FFECB3", "#F3E5F5", "#FFFFFF", "#80CBC4", "#FFAB91"];
-for (let i = 0; i < 70; i++) {
-const bgStar = document.createElement('div');
-bgStar.className = 'bg-star';
-const size = Math.random() * 1.5 + 0.5;
-bgStar.style.width = `${size}px`; bgStar.style.height = `${size}px`;
-bgStar.style.left = `${Math.random() * 100}%`; bgStar.style.top = `${Math.random() * 100}%`;
-const pickedColor = starColors[Math.floor(Math.random() * starColors.length)];
-bgStar.style.backgroundColor = pickedColor;
-bgStar.style.boxShadow = `0 0 3px ${pickedColor}`;
-bgStar.style.animationDuration = `${Math.random() * 5 + 5}s`;
-bgStar.style.animationDelay = `${Math.random() * 10}s`;
-board.appendChild(bgStar);
-}
-const aurora = document.createElement('div');
-aurora.className = 'aurora-layer';
-board.prepend(aurora);
-requestAnimationFrame(() => aurora.classList.add('aurora-active'));
-}
+        if (logs.length === 0) {
+            board.insertAdjacentHTML('beforeend', "<div class='text-white/20 text-xs h-full flex items-center justify-center'>아직 기록된 별이 없습니다.</div>");
+            return;
+        }
 
-const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
-const logs = snap.docs
-.map(d => d.data())
-.filter(l => l.coords)
-.sort((a, b) => a.date.toDate() - b.date.toDate());
+        logs.forEach((log, index) => {
+            let starColor = "white", shadowColor = "#FFFFFF", starSize = "w-1.5 h-1.5", customStyle = "", shouldTwinkle = false;
 
-if (logs.length === 0) {
-board.insertAdjacentHTML('beforeend', "<div class='text-white/20 text-xs h-full flex items-center justify-center'>아직 기록된 별이 없습니다.</div>");
-return;
-}
+            if (log.starType) {
+                shouldTwinkle = true;
+                
+                if (log.starType === "super" || log.starType === "special") {
+                    const defaultQuarter = log.quarter || (log.date ? `${Math.floor(log.date.toDate().getMonth() / 3) + 1}Q` : "1Q");
+                    saveSpecialStarToMember(mId, log.starType, defaultQuarter, memberInfo);
+                }
 
-logs.forEach((log, index) => {
-let starColor = "white", shadowColor = "#FFFFFF", starSize = "w-1.5 h-1.5", customStyle = "", shouldTwinkle = false;
+                if (log.starType === "super") {
+                    starSize = "w-2 h-2";
+                    customStyle = `background: radial-gradient(circle, #FF0000 20%, #FFFF00 100%); box-shadow: 0 0 15px 5px rgba(255, 0, 0, 0.7), 0 0 35px 12px rgba(255, 255, 0, 0.5);`;
+                } else if (log.starType === "special") {
+                    starSize = "w-2 h-2";
+                    customStyle = `background: radial-gradient(circle, #A020F0 20%, #00FF7F 100%); box-shadow: 0 0 12px 4px rgba(160, 32, 240, 0.6), 0 0 25px 8px rgba(0, 255, 127, 0.4);`;
+                } else if (log.starType.startsWith("regular")) {
+                    const colors = ["#00FFFF", "#D35400", "#D32F2F", "#7C4DFF"];
+                    const colorIdx = parseInt(log.starType.split('_')[1]) - 1;
+                    starColor = colors[colorIdx] || "white";
+                    customStyle = `background-color: ${starColor}; box-shadow: 0 0 4px 1px ${starColor}, 0 0 8px 2px ${starColor}dd, 0 0 10px 3px ${starColor}88; filter: brightness(1.8);`;
+                }
+            } else if (log.isTop100) {
+                starColor = "#F7E7CE"; shadowColor = "#F7E7CE";
+                customStyle = `background-color: ${starColor}; box-shadow: 0 0 6px ${shadowColor};`;
+            }
 
-if (log.starType) {
-shouldTwinkle = true;
+            const star = document.createElement('div');
+            star.className = `absolute ${starSize} rounded-full z-10`;
+            star.style.cssText += customStyle || `background-color: ${starColor}; box-shadow: 0 0 6px ${shadowColor}, 0 0 12px ${shadowColor}`;
+            star.style.left = log.coords.x + "%"; star.style.top = log.coords.y + "%";
+            star.style.opacity = "0"; star.style.transition = "opacity 1s ease";
+            board.appendChild(star);
 
-if (log.starType === "super" || log.starType === "special") {
-const logDateObj = log.date ? log.date.toDate() : new Date();
-const defaultQuarter = log.quarter || `${Math.floor(logDateObj.getMonth() / 3) + 1}Q`;
-saveSpecialStarToMember(mId, log.starType, defaultQuarter, memberInfo, log.mountain || "", logDateObj);
-}
+            let line = null;
+            if (index > 0) {
+                const prev = logs[index - 1];
+                const x1 = prev.coords.x, y1 = prev.coords.y, x2 = log.coords.x, y2 = log.coords.y;
+                const dist = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+                const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+                line = document.createElement('div');
+                line.className = 'absolute bg-blue-400/20 origin-left z-0';
+                line.style.height = '0.5px'; line.style.width = dist + "%";
+                line.style.left = x1 + "%"; line.style.top = y1 + "%";
+                line.style.transform = `rotate(${angle}deg)`;
+                line.style.opacity = "0"; line.style.transition = "opacity 1s ease";
+                board.appendChild(line);
+            }
 
-if (log.starType === "super") {
-starSize = "w-2 h-2";
-customStyle = `background: radial-gradient(circle, #FF0000 20%, #FFFF00 100%); box-shadow: 0 0 15px 5px rgba(255, 0, 0, 0.7), 0 0 35px 12px rgba(255, 255, 0, 0.5);`;
-} else if (log.starType === "special") {
-starSize = "w-2 h-2";
-customStyle = `background: radial-gradient(circle, #A020F0 20%, #00FF7F 100%); box-shadow: 0 0 12px 4px rgba(160, 32, 240, 0.6), 0 0 25px 8px rgba(0, 255, 127, 0.4);`;
-} else if (log.starType.startsWith("regular")) {
-const colors = ["#00FFFF", "#D35400", "#D32F2F", "#7C4DFF"];
-const colorIdx = parseInt(log.starType.split('_')[1]) - 1;
-starColor = colors[colorIdx] || "white";
-customStyle = `background-color: ${starColor}; box-shadow: 0 0 4px 1px ${starColor}, 0 0 8px 2px ${starColor}dd, 0 0 10px 3px ${starColor}88; filter: brightness(1.8);`;
-}
-} else if (log.isTop100) {
-starColor = "#F7E7CE"; shadowColor = "#F7E7CE";
-customStyle = `background-color: ${starColor}; box-shadow: 0 0 6px ${shadowColor};`;
-}
+            setTimeout(() => {
+                star.style.opacity = "1";
+                if (line) line.style.opacity = "1";
+                if (shouldTwinkle) setTimeout(() => star.classList.add('animate-twinkle'), 1000);
+                if (index === logs.length - 1) setTimeout(() => createShootingStar(board, log.coords.x, log.coords.y), 1000);
+            }, index * 150);
+        });
 
-const star = document.createElement('div');
-star.className = `absolute ${starSize} rounded-full z-10`;
-star.style.cssText += customStyle || `background-color: ${starColor}; box-shadow: 0 0 6px ${shadowColor}, 0 0 12px ${shadowColor}`;
-star.style.left = log.coords.x + "%"; star.style.top = log.coords.y + "%";
-star.style.opacity = "0"; star.style.transition = "opacity 1s ease";
-board.appendChild(star);
-
-let line = null;
-if (index > 0) {
-const prev = logs[index - 1];
-const x1 = prev.coords.x, y1 = prev.coords.y, x2 = log.coords.x, y2 = log.coords.y;
-const dist = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
-const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
-line = document.createElement('div');
-line.className = 'absolute bg-blue-400/20 origin-left z-0';
-line.style.height = '0.5px'; line.style.width = dist + "%";
-line.style.left = x1 + "%"; line.style.top = y1 + "%";
-line.style.transform = `rotate(${angle}deg)`;
-line.style.opacity = "0"; line.style.transition = "opacity 1s ease";
-board.appendChild(line);
-}
-
-setTimeout(() => {
-star.style.opacity = "1";
-if (line) line.style.opacity = "1";
-if (shouldTwinkle) setTimeout(() => star.classList.add('animate-twinkle'), 1000);
-if (index === logs.length - 1) setTimeout(() => createShootingStar(board, log.coords.x, log.coords.y), 1000);
-}, index * 150);
-});
-
-} catch (e) {
-console.error("은하수 로딩 에러:", e);
-}
+    } catch (e) {
+        console.error("은하수 로딩 에러:", e);
+    }
 };
 
 
 // 3. 가이드 모달 토글 함수
 window.toggleStarGuide = async (show) => {
-const gModal = document.getElementById('starGuideModal');
-if (!gModal) return;
-if (show) {
-await renderStarGuideItems();
-gModal.style.display = 'flex';
-setTimeout(() => { gModal.style.opacity = '1'; }, 10);
-} else {
-gModal.style.opacity = '0';
-setTimeout(() => { gModal.style.display = 'none'; }, 250);
-}
+    const gModal = document.getElementById('starGuideModal');
+    if (!gModal) return;
+    if (show) {
+        await renderStarGuideItems();
+        gModal.style.display = 'flex';
+        setTimeout(() => { gModal.style.opacity = '1'; }, 10);
+    } else {
+        gModal.style.opacity = '0';
+        setTimeout(() => { gModal.style.display = 'none'; }, 250);
+    }
 };
 
 // 4. 로컬 currentData 메모리 기반 수집 함수
 function getLegendStarHistoryFromLocal() {
-const legendHistory = { "super": [], "special": [] };
+    const legendHistory = { "super": [], "special": [] };
 
-if (typeof currentData !== 'undefined' && Array.isArray(currentData)) {
-currentData.forEach(member => {
-if (member.specialStars && Array.isArray(member.specialStars)) {
-member.specialStars.forEach(item => {
-if (item.starType === "super" || item.starType === "special") {
-const yr = Number(item.year) || (item.timestamp ? new Date(item.timestamp).getFullYear() : member.specialStarYear) || new Date().getFullYear();
-const qNum = parseQuarterNum(item.quarter);
-legendHistory[item.starType].push({
-name: member.name || "익명",
-quarter: `${qNum}Q`,
-year: yr,
-sortScore: yr * 10 + qNum,
-timestamp: item.timestamp || 0
-});
-}
-});
-}
-if (member.hasSuperStar && !member.specialStars) {
-const yr = Number(member.superStarYear) || new Date().getFullYear();
-const qNum = parseQuarterNum(member.superStarQuarter);
-legendHistory.super.push({ name: member.name, quarter: `${qNum}Q`, year: yr, sortScore: yr * 10 + qNum, timestamp: 0 });
-}
-if (member.hasSpecialStar && !member.specialStars) {
-const yr = Number(member.specialStarYear) || new Date().getFullYear();
-const qNum = parseQuarterNum(member.specialStarQuarter);
-legendHistory.special.push({ name: member.name, quarter: `${qNum}Q`, year: yr, sortScore: yr * 10 + qNum, timestamp: 0 });
-}
-});
-}
+    if (typeof currentData !== 'undefined' && Array.isArray(currentData)) {
+        currentData.forEach(member => {
+            if (member.specialStars && Array.isArray(member.specialStars)) {
+                member.specialStars.forEach(item => {
+                    if (item.starType === "super" || item.starType === "special") {
+                        legendHistory[item.starType].push({
+                            name: member.name || "익명",
+                            quarter: item.quarter || "1Q",
+                            year: item.year || (item.timestamp ? new Date(item.timestamp).getFullYear() : member.specialStarYear) || new Date().getFullYear(),
+                            timestamp: item.timestamp || 0
+                        });
+                    }
+                });
+            }
+            if (member.hasSuperStar && !member.specialStars) {
+                legendHistory.super.push({ name: member.name, quarter: member.superStarQuarter || "1Q", year: member.superStarYear || new Date().getFullYear(), timestamp: 0 });
+            }
+            if (member.hasSpecialStar && !member.specialStars) {
+                legendHistory.special.push({ name: member.name, quarter: member.specialStarQuarter || "1Q", year: member.specialStarYear || new Date().getFullYear(), timestamp: 0 });
+            }
+        });
+    }
 
-// 최신 연도·분기 우선 정렬 후 동일 분기 내에서는 최신 타임스탬프 순 정렬
-const sortFn = (a, b) => (b.sortScore - a.sortScore) || (b.timestamp - a.timestamp);
-legendHistory["super"].sort(sortFn);
-legendHistory["special"].sort(sortFn);
+    legendHistory["super"].sort((a, b) => b.timestamp - a.timestamp);
+    legendHistory["special"].sort((a, b) => b.timestamp - a.timestamp);
 
-return legendHistory;
+    return legendHistory;
 }
 
 // 5. 스타 갤러리 커스텀 모달 닫기
 window.closeSgModal = function(e) {
-const modal = document.getElementById('sgCustomModal');
-if (modal) modal.remove();
+    const modal = document.getElementById('sgCustomModal');
+    if (modal) modal.remove();
 };
 
 // 6. 스타 갤러리 커스텀 모달 열기
 function showStarGalleryModal(type, titleText, items) {
-const oldModal = document.getElementById('sgCustomModal');
-if (oldModal) oldModal.remove();
+    const oldModal = document.getElementById('sgCustomModal');
+    if (oldModal) oldModal.remove();
 
-const isSuper = type === 'super';
-const icon = isSuper ? "🌟" : "✨";
-const themeClass = isSuper ? "super" : "special";
+    const isSuper = type === 'super';
+    const icon = isSuper ? "🌟" : "✨";
+    const themeClass = isSuper ? "super" : "special";
 
-const listHtml = items.map(item => `
-<div class="sg-owner-item" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 4px; border-bottom: 1px solid rgba(255,255,255,0.05);">
-<span style="font-weight: 600;">[${item.quarter}] ${item.name}</span>
-<span style="font-size: 0.82rem; color: rgba(255, 255, 255, 0.55); font-weight: 500;">${item.displayYear}</span>
-</div>
-`).join('');
+    const listHtml = items.map(item => `
+        <div class="sg-owner-item" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 4px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+            <span style="font-weight: 600;">[${item.quarter}] ${item.name}</span>
+            <span style="font-size: 0.82rem; color: rgba(255, 255, 255, 0.55); font-weight: 500;">${item.displayYear}</span>
+        </div>
+    `).join('');
 
-const modalHtml = `
-<div id="sgCustomModal" class="sg-modal-overlay" onclick="window.closeSgModal(event)" style="position: fixed; top:0; left:0; width:100%; height:100%; z-index: 10050; background: rgba(0,0,0,0.7); display:flex; justify-content:center; align-items:center; backdrop-filter: blur(8px);">
-<div class="sg-modal-content ${themeClass}" onclick="event.stopPropagation()" style="width: 85%; max-width: 320px; background: #0f172a; border: 1px solid rgba(255,255,255,0.15); border-radius: 20px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.8);">
-<div class="sg-modal-header" style="margin-bottom: 14px; text-align: center;">
-<div class="sg-modal-title" style="color:#fff; font-size: 1.05rem; font-weight:800;">
-<span>${icon}</span> ${titleText}
-</div>
-</div>
-<div class="sg-owner-list" style="max-height: 220px; overflow-y: auto; margin-bottom: 16px;">
-${listHtml}
-</div>
-<button class="sg-modal-btn" onclick="window.closeSgModal()" style="width:100%; background: linear-gradient(135deg, #1e293b, #0f172a); border: 1px solid rgba(56,189,248,0.4); color:#38bdf8; font-weight:800; padding:10px 0; border-radius: 12px; cursor:pointer;">확인</button>
-</div>
-</div>
-`;
+    const modalHtml = `
+        <div id="sgCustomModal" class="sg-modal-overlay" onclick="window.closeSgModal(event)" style="position: fixed; top:0; left:0; width:100%; height:100%; z-index: 10050; background: rgba(0,0,0,0.7); display:flex; justify-content:center; align-items:center; backdrop-filter: blur(8px);">
+            <div class="sg-modal-content ${themeClass}" onclick="event.stopPropagation()" style="width: 85%; max-width: 320px; background: #0f172a; border: 1px solid rgba(255,255,255,0.15); border-radius: 20px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.8);">
+                <div class="sg-modal-header" style="margin-bottom: 14px; text-align: center;">
+                    <div class="sg-modal-title" style="color:#fff; font-size: 1.05rem; font-weight:800;">
+                        <span>${icon}</span> ${titleText}
+                    </div>
+                </div>
+                <div class="sg-owner-list" style="max-height: 220px; overflow-y: auto; margin-bottom: 16px;">
+                    ${listHtml}
+                </div>
+                <button class="sg-modal-btn" onclick="window.closeSgModal()" style="width:100%; background: linear-gradient(135deg, #1e293b, #0f172a); border: 1px solid rgba(56,189,248,0.4); color:#38bdf8; font-weight:800; padding:10px 0; border-radius: 12px; cursor:pointer;">확인</button>
+            </div>
+        </div>
+    `;
 
-document.body.insertAdjacentHTML('beforeend', modalHtml);
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
 }
 
 // 7. 전체 획득자 더보기 연동
 window.showAllHolders = (starName, holdersJson) => {
-const list = JSON.parse(decodeURIComponent(holdersJson));
+    const list = JSON.parse(decodeURIComponent(holdersJson));
+    
+    const formattedItems = list.map(h => ({
+        quarter: h.quarter || '1Q',
+        name: h.name || '무명',
+        displayYear: h.year ? `${h.year}년` : (h.timestamp ? `${new Date(h.timestamp).getFullYear()}년` : '')
+    }));
 
-const formattedItems = list.map(h => ({
-quarter: h.quarter || '1Q',
-name: h.name || '무명',
-displayYear: h.year ? `${h.year}년` : (h.timestamp ? `${new Date(h.timestamp).getFullYear()}년` : '')
-}));
+    const isSuper = starName.includes("슈퍼");
+    const starType = isSuper ? "super" : "special";
+    const modalTitle = `${starName} 전체 획득자 목록`;
 
-const isSuper = starName.includes("슈퍼");
-const starType = isSuper ? "super" : "special";
-const modalTitle = `${starName} 전체 획득자 목록`;
-
-showStarGalleryModal(starType, modalTitle, formattedItems);
+    showStarGalleryModal(starType, modalTitle, formattedItems);
 };
 
-// 8. 가이드 항목 랜더링 함수
+// 8. 가이드 항목 랜더링 함수 (1번 최신 획득자 태그 강화 반영)
+// 가이드 항목 랜더링 함수 (문구 및 배지 아이콘 변경 반영)
 async function renderStarGuideItems() {
-const grid = document.getElementById('guideGrid');
-if (!grid) return;
+    const grid = document.getElementById('guideGrid');
+    if (!grid) return;
 
-grid.style.display = 'grid';
-grid.style.gridTemplateColumns = 'repeat(2, 1fr)';
-grid.style.gap = '8px';
+    grid.style.display = 'grid';
+    grid.style.gridTemplateColumns = 'repeat(2, 1fr)';
+    grid.style.gap = '8px';
 
-const legendHolders = getLegendStarHistoryFromLocal();
+    const legendHolders = getLegendStarHistoryFromLocal();
 
-const stars = [
-{
-id: "super",
-name: "슈퍼별",
-badge: "",
-prob: "최대 0.6%",
-desc: "타오르는 태양의 전설",
-style: "background: radial-gradient(circle, #FF0000 10%, #FFFF00 70%, #fff 100%); box-shadow: 0 0 12px 3px #FF0000, 0 0 20px 6px rgba(255, 255, 0, 0.6);",
-cardBg: "background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(245, 158, 11, 0.08) 100%); border: 1px solid rgba(239, 68, 68, 0.45);",
-tagBg: "background: rgba(239, 68, 68, 0.3); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.5);",
-twinkle: true,
-glowAnimation: "animation: superGlow 1.8s infinite alternate ease-in-out;"
-},
-{
-id: "special",
-name: "스페셜별",
-badge: "",
-prob: "최대 1.4%",
-desc: "신비로운 에픽 오로라",
-style: "background: radial-gradient(circle, #A020F0 10%, #00FF7F 70%, #fff 100%); box-shadow: 0 0 12px 3px #A020F0, 0 0 20px 6px rgba(0, 255, 127, 0.6);",
-cardBg: "background: linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(16, 185, 129, 0.08) 100%); border: 1px solid rgba(168, 85, 247, 0.45);",
-tagBg: "background: rgba(168, 85, 247, 0.3); color: #e9d5ff; border: 1px solid rgba(168, 85, 247, 0.5);",
-twinkle: true,
-glowAnimation: "animation: specialGlow 2s infinite alternate ease-in-out;"
-},
-{ id: "regular_1", name: "정기 1호", prob: "균등", desc: "청명한 시안 블루", style: "background: #00FFFF; box-shadow: 0 0 8px #00FFFF;", twinkle: true },
-{ id: "regular_2", name: "정기 2호", prob: "균등", desc: "정열의 오렌지", style: "background: #D35400; box-shadow: 0 0 8px #D35400;", twinkle: true },
-{ id: "regular_3", name: "정기 3호", prob: "균등", desc: "위엄있는 다크레드", style: "background: #D32F2F; box-shadow: 0 0 8px #D32F2F;", twinkle: true },
-{ id: "regular_4", name: "정기 4호", prob: "균등", desc: "진하고 우아한 퍼플", style: "background: #7C4DFF; box-shadow: 0 0 8px #7C4DFF;", twinkle: false },
-{ id: "top100", name: "산림청100대", prob: "인증", desc: "영광의 샴페인 골드", style: "background: #F7E7CE; box-shadow: 0 0 8px #F7E7CE;", twinkle: false },
-{ id: "normal", name: "일반 산행", prob: "상시", desc: "소중한 일상의 기록", style: "background: #FFFFFF; box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);", twinkle: false }
-];
+    const stars = [
+        { 
+            id: "super", 
+            name: "슈퍼별", 
+            badge: "", // 배지 변경
+            prob: "3%", 
+            desc: "타오르는 태양의 전설", 
+            style: "background: radial-gradient(circle, #FF0000 10%, #FFFF00 70%, #fff 100%); box-shadow: 0 0 12px 3px #FF0000, 0 0 20px 6px rgba(255, 255, 0, 0.6);", 
+            cardBg: "background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(245, 158, 11, 0.08) 100%); border: 1px solid rgba(239, 68, 68, 0.45);", 
+            tagBg: "background: rgba(239, 68, 68, 0.3); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.5);", 
+            twinkle: true,
+            glowAnimation: "animation: superGlow 1.8s infinite alternate ease-in-out;" 
+        },
+        { 
+            id: "special", 
+            name: "스페셜별", 
+            badge: "", // 배지 변경
+            prob: "7%", 
+            desc: "신비로운 에픽 오로라", 
+            style: "background: radial-gradient(circle, #A020F0 10%, #00FF7F 70%, #fff 100%); box-shadow: 0 0 12px 3px #A020F0, 0 0 20px 6px rgba(0, 255, 127, 0.6);", 
+            cardBg: "background: linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(16, 185, 129, 0.08) 100%); border: 1px solid rgba(168, 85, 247, 0.45);", 
+            tagBg: "background: rgba(168, 85, 247, 0.3); color: #e9d5ff; border: 1px solid rgba(168, 85, 247, 0.5);", 
+            twinkle: true,
+            glowAnimation: "animation: specialGlow 2s infinite alternate ease-in-out;" 
+        },
+        { id: "regular_1", name: "정기 1호", prob: "22.5%", desc: "청명한 시안 블루", style: "background: #00FFFF; box-shadow: 0 0 8px #00FFFF;", twinkle: true },
+        { id: "regular_2", name: "정기 2호", prob: "22.5%", desc: "정열의 오렌지", style: "background: #D35400; box-shadow: 0 0 8px #D35400;", twinkle: true },
+        { id: "regular_3", name: "정기 3호", prob: "22.5%", desc: "위엄있는 다크레드", style: "background: #D32F2F; box-shadow: 0 0 8px #D32F2F;", twinkle: true },
+        { id: "regular_4", name: "정기 4호", prob: "22.5%", desc: "진하고 우아한 퍼플", style: "background: #7C4DFF; box-shadow: 0 0 8px #7C4DFF;", twinkle: false },
+        { id: "top100", name: "산림청100대", prob: "인증", desc: "영광의 샴페인 골드", style: "background: #F7E7CE; box-shadow: 0 0 8px #F7E7CE;", twinkle: false },
+        { id: "normal", name: "일반 산행", prob: "상시", desc: "소중한 일상의 기록", style: "background: #FFFFFF; box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);", twinkle: false }
+    ];
 
-const createDivider = (label) => `
-<div style="grid-column: 1 / -1; margin: 8px 0 2px 0; display: flex; align-items: center; gap: 8px;">
-<div style="width: 4px; height: 4px; border-radius: 50%; background: #38bdf8; box-shadow: 0 0 6px #38bdf8;"></div>
-<span style="color: #38bdf8; font-size: 8px; font-weight: 900; letter-spacing: 2px; opacity: 0.9; text-transform: uppercase;">${label}</span>
-<div style="flex: 1; height: 1px; background: linear-gradient(90deg, rgba(56, 189, 248, 0.4) 0%, rgba(56, 189, 248, 0) 100%);"></div>
-</div>
+    const createDivider = (label) => `
+        <div style="grid-column: 1 / -1; margin: 8px 0 2px 0; display: flex; align-items: center; gap: 8px;">
+            <div style="width: 4px; height: 4px; border-radius: 50%; background: #38bdf8; box-shadow: 0 0 6px #38bdf8;"></div>
+            <span style="color: #38bdf8; font-size: 8px; font-weight: 900; letter-spacing: 2px; opacity: 0.9; text-transform: uppercase;">${label}</span>
+            <div style="flex: 1; height: 1px; background: linear-gradient(90deg, rgba(56, 189, 248, 0.4) 0%, rgba(56, 189, 248, 0) 100%);"></div>
+        </div>
+    `;
+
+    let cardsHTML = stars.map((s, index) => {
+        const bgStyle = s.cardBg || "background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08);";
+        const tagStyle = s.tagBg || "background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3);";
+        const animStyle = s.glowAnimation || "";
+
+        let legendHoldersSection = "";
+        if (s.id === "super" || s.id === "special") {
+            const list = legendHolders[s.id] || [];
+            let holdersHTML = "";
+
+            if (list.length > 0) {
+                const latest = list[0]; 
+                // 획득자 태그 내 배지 아이콘 적용 (s.badge)
+                holdersHTML = `
+                    <span class="latest-holder-tag" style="font-size: 8px; font-weight: 800; padding: 2px 7px; border-radius: 6px; display: inline-flex; align-items: center; gap: 3px; white-space: nowrap;">
+                        <span style="color: #38bdf8; font-weight: 900; font-size: 7.5px;">[${latest.quarter}]</span> ${latest.name} ${s.badge}
+                    </span>
+                `;
+
+                if (list.length > 1) {
+                    const extraCount = list.length - 1;
+                    const encodedList = encodeURIComponent(JSON.stringify(list));
+                    holdersHTML += `
+    <button onclick="showAllHolders('${s.name}', '${encodedList}')" style="background: rgba(56, 189, 248, 0.2); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; font-size: 7.5px; font-weight: 800; padding: 2px 6px; border-radius: 6px; cursor: pointer;">
+        보기
+    </button>
 `;
+                }
+            } else {
+                holdersHTML = `<span style="color: #64748b; font-size: 8px; font-style: italic;">아직 획득자 없음</span>`;
+            }
 
-let cardsHTML = stars.map((s, index) => {
-const bgStyle = s.cardBg || "background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08);";
-const tagStyle = s.tagBg || "background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3);";
-const animStyle = s.glowAnimation || "";
+            // '최근 획득' ➔ '획득자'로 변경
+            legendHoldersSection = `
+                <div style="display: flex; justify-content: center; align-items: center; gap: 5px; padding-top: 5px; margin-top: 4px; border-top: 1px solid rgba(255, 255, 255, 0.08); width: 100%;">
+                    <span style="color: #94a3b8; font-size: 8px; font-weight: 700;">획득자:</span>
+                    ${holdersHTML}
+                </div>
+            `;
+        }
 
-let legendHoldersSection = "";
-if (s.id === "super" || s.id === "special") {
-const list = legendHolders[s.id] || [];
-let holdersHTML = "";
+        const cardHTML = `
+        <div style="${bgStyle} border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; justify-content: center; box-sizing: border-box; backdrop-filter: blur(6px); min-height: 52px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 20px; min-width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin: 0; padding: 0;">
+                    <div class="${s.twinkle ? 'animate-twinkle' : ''}" style="width: 12px; height: 12px; border-radius: 50%; box-sizing: border-box; ${s.style} ${animStyle}"></div>
+                </div>
+                <div style="display: flex; flex-direction: column; justify-content: center; min-width: 0; flex: 1;">
+                    <div style="display: flex; align-items: center; gap: 5px; margin-bottom: 2px;">
+                        <span style="color: #ffffff; font-size: 13px; font-weight: 800; letter-spacing: -0.3px; white-space: nowrap;">${s.name}</span>
+                        <span style="${tagStyle} font-size: 8px; font-weight: 800; padding: 1px 5px; border-radius: 6px; flex-shrink: 0;">${s.prob}</span>
+                    </div>
+                    <span style="color: #94a3b8; font-size: 9.5px; opacity: 0.9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${s.desc}</span>
+                </div>
+            </div>
+            ${legendHoldersSection}
+        </div>`;
 
-if (list.length > 0) {
-const latest = list[0];
-holdersHTML = `
-<span class="latest-holder-tag" style="font-size: 8px; font-weight: 800; padding: 2px 7px; border-radius: 6px; display: inline-flex; align-items: center; gap: 3px; white-space: nowrap;">
-<span style="color: #38bdf8; font-weight: 900; font-size: 7.5px;">[${latest.quarter}]</span> ${latest.name} ${s.badge}
-</span>
-`;
+        if (index === 0) return createDivider('LEGEND STARS') + cardHTML;
+        if (index === 1) return cardHTML + createDivider('REGULAR STARS');
+        if (index === 5) return cardHTML + createDivider('GENERAL RECORDS');
 
-if (list.length > 1) {
-const encodedList = encodeURIComponent(JSON.stringify(list));
-holdersHTML += `
-<button onclick="showAllHolders('${s.name}', '${encodedList}')" style="background: rgba(56, 189, 248, 0.2); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; font-size: 7.5px; font-weight: 800; padding: 2px 6px; border-radius: 6px; cursor: pointer;">
-보기
-</button>
-`;
+        return cardHTML;
+    }).join('');
+
+    grid.innerHTML = cardsHTML;
 }
-} else {
-holdersHTML = `<span style="color: #64748b; font-size: 8px; font-style: italic;">아직 획득자 없음</span>`;
-}
 
-legendHoldersSection = `
-<div style="display: flex; justify-content: center; align-items: center; gap: 5px; padding-top: 5px; margin-top: 4px; border-top: 1px solid rgba(255, 255, 255, 0.08); width: 100%;">
-<span style="color: #94a3b8; font-size: 8px; font-weight: 700;">획득자:</span>
-${holdersHTML}
-</div>
-`;
-}
 
-const cardHTML = `
-<div style="${bgStyle} border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; justify-content: center; box-sizing: border-box; backdrop-filter: blur(6px); min-height: 52px;">
-<div style="display: flex; align-items: center; gap: 10px;">
-<div style="width: 20px; min-width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin: 0; padding: 0;">
-<div class="${s.twinkle ? 'animate-twinkle' : ''}" style="width: 12px; height: 12px; border-radius: 50%; box-sizing: border-box; ${s.style} ${animStyle}"></div>
-</div>
-<div style="display: flex; flex-direction: column; justify-content: center; min-width: 0; flex: 1;">
-<div style="display: flex; align-items: center; gap: 5px; margin-bottom: 2px;">
-<span style="color: #ffffff; font-size: 13px; font-weight: 800; letter-spacing: -0.3px; white-space: nowrap;">${s.name}</span>
-<span style="${tagStyle} font-size: 8px; font-weight: 800; padding: 1px 5px; border-radius: 6px; flex-shrink: 0;">${s.prob}</span>
-</div>
-<span style="color: #94a3b8; font-size: 9.5px; opacity: 0.9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${s.desc}</span>
-</div>
-</div>
-${legendHoldersSection}
-</div>`;
-
-if (index === 0) return createDivider('LEGEND STARS') + cardHTML;
-if (index === 1) return cardHTML + createDivider('REGULAR STARS');
-if (index === 5) return cardHTML + createDivider('GENERAL RECORDS');
-
-return cardHTML;
-}).join('');
-
-grid.innerHTML = cardsHTML;
-}
 
 // 9. 슈팅스타(유성) 애니메이션 생성 함수
 function createShootingStar(board, tx, ty) {
-const s = document.createElement('div');
-s.className = 'shooting-star';
-const startX = tx - 20; const startY = ty - 20;
-s.style.left = startX + "%"; s.style.top = startY + "%";
-s.style.transform = "rotate(45deg)";
-board.appendChild(s);
+    const s = document.createElement('div');
+    s.className = 'shooting-star';
+    const startX = tx - 20; const startY = ty - 20;
+    s.style.left = startX + "%"; s.style.top = startY + "%";
+    s.style.transform = "rotate(45deg)";
+    board.appendChild(s);
 
-setTimeout(() => {
-s.style.transition = "all 0.8s cubic-bezier(0.25, 0.1, 0.25, 1)";
-s.style.left = tx + "%"; s.style.top = ty + "%";
-s.style.opacity = "1";
-}, 50);
+    setTimeout(() => {
+        s.style.transition = "all 0.8s cubic-bezier(0.25, 0.1, 0.25, 1)";
+        s.style.left = tx + "%"; s.style.top = ty + "%";
+        s.style.opacity = "1";
+    }, 50);
 
-setTimeout(() => {
-s.style.opacity = "0";
-setTimeout(() => s.remove(), 500);
-}, 850);
+    setTimeout(() => {
+        s.style.opacity = "0";
+        setTimeout(() => s.remove(), 500);
+    }, 850);
 }
-                  
-                
-  
-            
-        
+
 
 window.currentScrollLogs = []; 
 
