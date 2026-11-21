@@ -4803,6 +4803,7 @@ function isMatchName(name, searchKeyword) {
 }
 
 // ─── 3. 실시간 현황 
+// ─── 3. 실시간 현황 
 window.renderStatusTable = function() {
     try {
         const list = document.getElementById('statusList');
@@ -4827,8 +4828,71 @@ window.renderStatusTable = function() {
         const today = new Date();
         const todayZero = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
 
-        const latestSuperHolderIds = (typeof getLatestLegendHolders === 'function') ? getLatestLegendHolders('super') : [];
-        const latestSpecialHolderIds = (typeof getLatestLegendHolders === 'function') ? getLatestLegendHolders('special') : [];
+        // 🌟 최신 분기(연도+분기) 기준 슈퍼/스페셜 획득자 전원(2명·3명 이상) 수집
+        const getAllLatestQuarterHolders = (starType) => {
+            const qToNum = (q) => {
+                const match = String(q || '').match(/(\d)/);
+                return match ? parseInt(match[1], 10) : 0;
+            };
+            const fallbackYear = new Date().getFullYear();
+            const entries = [];
+
+            currentData.forEach(member => {
+                if (!member) return;
+                if (Array.isArray(member.specialStars)) {
+                    member.specialStars.forEach(item => {
+                        if (item?.starType === starType) {
+                            entries.push({
+                                id: member.id,
+                                name: member.name,
+                                year: item.year || (item.timestamp ? new Date(item.timestamp).getFullYear() : fallbackYear),
+                                qNum: qToNum(item.quarter)
+                            });
+                        }
+                    });
+                } else if (starType === 'super' && member.hasSuperStar) {
+                    entries.push({
+                        id: member.id,
+                        name: member.name,
+                        year: member.superStarYear || fallbackYear,
+                        qNum: qToNum(member.superStarQuarter || '1Q')
+                    });
+                } else if (starType === 'special' && member.hasSpecialStar) {
+                    entries.push({
+                        id: member.id,
+                        name: member.name,
+                        year: member.specialStarYear || fallbackYear,
+                        qNum: qToNum(member.specialStarQuarter || '1Q')
+                    });
+                }
+            });
+
+            if (entries.length === 0) return [];
+
+            let maxYear = -Infinity;
+            let maxQNum = -Infinity;
+            entries.forEach(e => {
+                if (e.year > maxYear) {
+                    maxYear = e.year;
+                    maxQNum = e.qNum;
+                } else if (e.year === maxYear && e.qNum > maxQNum) {
+                    maxQNum = e.qNum;
+                }
+            });
+
+            const holders = new Set();
+            entries.forEach(e => {
+                if (e.year === maxYear && e.qNum === maxQNum) {
+                    if (e.id) holders.add(e.id);
+                    if (e.name) holders.add(e.name);
+                }
+            });
+
+            return Array.from(holders);
+        };
+
+        const latestSuperHolderIds = getAllLatestQuarterHolders('super');
+        const latestSpecialHolderIds = getAllLatestQuarterHolders('special');
 
         // 🌟 현재 선택된 연도 및 분기 탭 확인
         const targetYear = (typeof selectedYear !== 'undefined') ? selectedYear : ((typeof currentYear !== 'undefined') ? currentYear : 2026);
@@ -5018,16 +5082,7 @@ window.renderStatusTable = function() {
     }
 };
 
-            
-            
-         
-  
-            
-
-            
-        
-
-
+                 
         
 
    // 🎯 계절 영역 토글 펼침/접기
