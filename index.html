@@ -10399,24 +10399,10 @@ window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
              
                 
                     
-// ======================= [별 가이드 & 은하수 모듈 통합 - 연도 자동 저장 & 모달 최신화] =======================
+                
+  // ======================= [별 가이드 & 은하수 모듈 통합 - 연도 자동 저장 & 모달 최신화] =======================
 
-function parseQuarterNum(q) {
-    if (!q) return 0;
-    const match = String(q).match(/(\d)/);
-    return match ? parseInt(match[1], 10) : 0;
-}
-
-function toMillisSafe(dateVal) {
-    if (!dateVal) return 0;
-    if (typeof dateVal.toDate === 'function') return dateVal.toDate().getTime();
-    if (dateVal instanceof Date) return dateVal.getTime();
-    if (typeof dateVal === 'number') return dateVal;
-    const parsed = Date.parse(dateVal);
-    return Number.isNaN(parsed) ? 0 : parsed;
-}
-
-// 0-1. 최신 획득자(최신 왕좌 - 1명) 판별 보조 함수
+// 0. 최신 획득자(최신 왕좌) 판별 보조 함수
 function getLatestLegendHolderId(starType) {
     if (typeof currentData === 'undefined' || !Array.isArray(currentData)) return null;
 
@@ -10424,9 +10410,9 @@ function getLatestLegendHolderId(starType) {
     let maxTimestamp = -1;
 
     currentData.forEach(member => {
-        if (Array.isArray(member?.specialStars)) {
+        if (member.specialStars && Array.isArray(member.specialStars)) {
             member.specialStars.forEach(item => {
-                if (item?.starType === starType) {
+                if (item.starType === starType) {
                     const ts = item.timestamp || 0;
                     if (ts > maxTimestamp) {
                         maxTimestamp = ts;
@@ -10440,92 +10426,20 @@ function getLatestLegendHolderId(starType) {
     return latestHolderId;
 }
 
-// 0-2. 최신 획득 분기(연도+분기) 기준 전체 획득자(ID & 이름) 목록 반환 (2명·3명 이상 전원 포함)
-function getLatestLegendHolders(starType) {
-    const holders = new Set();
-    if (typeof currentData === 'undefined' || !Array.isArray(currentData)) return [];
-
-    const records = [];
-    const fallbackYear = new Date().getFullYear();
-
-    currentData.forEach(member => {
-        if (!member) return;
-
-        if (Array.isArray(member.specialStars)) {
-            member.specialStars.forEach(item => {
-                if (item?.starType === starType) {
-                    const year = item.year || (item.timestamp ? new Date(item.timestamp).getFullYear() : fallbackYear);
-                    const qNum = parseQuarterNum(item.quarter);
-                    records.push({
-                        id: member.id,
-                        name: member.name,
-                        year,
-                        qNum,
-                        timestamp: item.timestamp || 0
-                    });
-                }
-            });
-        } else if (starType === "super" && member.hasSuperStar) {
-            records.push({
-                id: member.id,
-                name: member.name,
-                year: member.superStarYear || fallbackYear,
-                qNum: parseQuarterNum(member.superStarQuarter || "1Q"),
-                timestamp: 0
-            });
-        } else if (starType === "special" && member.hasSpecialStar) {
-            records.push({
-                id: member.id,
-                name: member.name,
-                year: member.specialStarYear || fallbackYear,
-                qNum: parseQuarterNum(member.specialStarQuarter || "1Q"),
-                timestamp: 0
-            });
-        }
-    });
-
-    if (records.length === 0) return [];
-
-    records.sort((a, b) => {
-        if (b.year !== a.year) return b.year - a.year;
-        if (b.qNum !== a.qNum) return b.qNum - a.qNum;
-        return b.timestamp - a.timestamp;
-    });
-
-    const latestYear = records[0].year;
-    const latestQNum = records[0].qNum;
-
-    records.forEach(r => {
-        if (r.year === latestYear && r.qNum === latestQNum) {
-            if (r.id) holders.add(r.id);
-            if (r.name) holders.add(r.name);
-        }
-    });
-
-    return Array.from(holders);
-}
-
 // 1. 회원 DB 문서(sanwoori/{memberId})에 레전드 별 획득 기록 저장 함수
 async function saveSpecialStarToMember(memberId, starType, quarterText, memberInfo) {
-    if (!memberId) return;
     if (starType === "super" || starType === "special") {
         try {
-            const currentYear = new Date().getFullYear();
-            const targetQuarter = quarterText || "1Q";
-            const currentSpecialStars = Array.isArray(memberInfo?.specialStars) ? memberInfo.specialStars : [];
-
-            const isAlreadySaved = currentSpecialStars.some(
-                item =>
-                    item?.starType === starType &&
-                    (item?.year || currentYear) === currentYear &&
-                    (item?.quarter || "1Q") === targetQuarter
-            );
+            const currentSpecialStars = memberInfo?.specialStars || [];
+            const isAlreadySaved = currentSpecialStars.some(item => item.starType === starType);
 
             if (isAlreadySaved) return;
 
+            const currentYear = new Date().getFullYear();
+
             const newRecord = {
                 starType: starType,
-                quarter: targetQuarter,
+                quarter: quarterText || "1Q",
                 year: currentYear,
                 timestamp: Date.now()
             };
@@ -10534,25 +10448,15 @@ async function saveSpecialStarToMember(memberId, starType, quarterText, memberIn
             await updateDoc(memberRef, {
                 specialStars: arrayUnion(newRecord)
             });
-
-            if (memberInfo) {
-                if (!Array.isArray(memberInfo.specialStars)) memberInfo.specialStars = [];
-                memberInfo.specialStars.push(newRecord);
-            }
+            
+            if (!memberInfo.specialStars) memberInfo.specialStars = [];
+            memberInfo.specialStars.push(newRecord);
 
             if (typeof currentData !== 'undefined' && Array.isArray(currentData)) {
-                const target = currentData.find(m => m && m.id === memberId);
+                const target = currentData.find(m => m.id === memberId);
                 if (target) {
-                    if (!Array.isArray(target.specialStars)) target.specialStars = [];
-                    const existsInTarget = target.specialStars.some(
-                        item =>
-                            item?.starType === starType &&
-                            (item?.year || currentYear) === currentYear &&
-                            (item?.quarter || "1Q") === targetQuarter
-                    );
-                    if (!existsInTarget) {
-                        target.specialStars.push(newRecord);
-                    }
+                    if (!target.specialStars) target.specialStars = [];
+                    target.specialStars.push(newRecord);
                 }
             }
         } catch (err) {
@@ -10575,8 +10479,9 @@ window.showMilkyWay = async (mId, mName) => {
     const latestSuperHolderIds = getLatestLegendHolders('super');
     const latestSpecialHolderIds = getLatestLegendHolders('special');
 
-    const isCurrentSuperKing = latestSuperHolderIds.includes(mId) || latestSuperHolderIds.includes(mName);
-    const isCurrentSpecialKing = latestSpecialHolderIds.includes(mId) || latestSpecialHolderIds.includes(mName);
+    // 같은 날 획득한 모든 슈퍼/스페셜 보유자 검증
+    let isCurrentSuperKing = latestSuperHolderIds.includes(mId) || latestSuperHolderIds.includes(mName);
+    let isCurrentSpecialKing = latestSpecialHolderIds.includes(mId) || latestSpecialHolderIds.includes(mName);
 
     if (isCurrentSuperKing) {
         modal.classList.add('is-super');
@@ -10632,15 +10537,15 @@ window.showMilkyWay = async (mId, mName) => {
     board.innerHTML = '<div class="nebula-cloud"></div>';
 
     try {
-        let memberInfo = (typeof currentData !== 'undefined' && Array.isArray(currentData))
-            ? currentData.find(m => m && (m.id === mId || m.name === mName)) : null;
+        let memberInfo = (typeof currentData !== 'undefined' && Array.isArray(currentData)) 
+            ? currentData.find(m => m.id === mId || m.name === mName) : null;
 
         if (!memberInfo && mId) {
             const mDoc = await getDoc(doc(db, "sanwoori", mId));
             if (mDoc.exists()) memberInfo = { id: mDoc.id, ...mDoc.data() };
         }
 
-        const finalTotalHikes = memberInfo ? (memberInfo.count || 0) : 0;
+        const finalTotalHikes = memberInfo ? (memberInfo.count || 0) : 0; 
         const myMultiHikes = memberInfo ? (memberInfo.buddyCount || 0) : 0;
         const adjustedTotalHikes = Math.max(finalTotalHikes, myMultiHikes);
         const finalSynergy = adjustedTotalHikes > 0 ? Math.min(100, Math.round((myMultiHikes / adjustedTotalHikes) * 100)) : 0;
@@ -10662,34 +10567,30 @@ window.showMilkyWay = async (mId, mName) => {
             }
             const aurora = document.createElement('div');
             aurora.className = 'aurora-layer';
-            board.prepend(aurora);
+            board.prepend(aurora); 
             requestAnimationFrame(() => aurora.classList.add('aurora-active'));
         }
-
-        if (!mId) return;
-
+     
         const snap = await getDocs(collection(db, `sanwoori/${mId}/logs`));
         const logs = snap.docs
             .map(d => d.data())
-            .filter(l => l && l.coords && typeof l.coords.x !== 'undefined' && typeof l.coords.y !== 'undefined')
-            .sort((a, b) => toMillisSafe(a.date) - toMillisSafe(b.date));
+            .filter(l => l.coords)
+            .sort((a, b) => a.date.toDate() - b.date.toDate());
 
         if (logs.length === 0) {
             board.insertAdjacentHTML('beforeend', "<div class='text-white/20 text-xs h-full flex items-center justify-center'>아직 기록된 별이 없습니다.</div>");
             return;
         }
 
-        for (let index = 0; index < logs.length; index++) {
-            const log = logs[index];
+        logs.forEach((log, index) => {
             let starColor = "white", shadowColor = "#FFFFFF", starSize = "w-1.5 h-1.5", customStyle = "", shouldTwinkle = false;
 
             if (log.starType) {
                 shouldTwinkle = true;
-
+                
                 if (log.starType === "super" || log.starType === "special") {
-                    const logMs = toMillisSafe(log.date);
-                    const defaultQuarter = log.quarter || (logMs ? `${Math.floor(new Date(logMs).getMonth() / 3) + 1}Q` : "1Q");
-                    await saveSpecialStarToMember(mId, log.starType, defaultQuarter, memberInfo);
+                    const defaultQuarter = log.quarter || (log.date ? `${Math.floor(log.date.toDate().getMonth() / 3) + 1}Q` : "1Q");
+                    saveSpecialStarToMember(mId, log.starType, defaultQuarter, memberInfo);
                 }
 
                 if (log.starType === "super") {
@@ -10700,7 +10601,7 @@ window.showMilkyWay = async (mId, mName) => {
                     customStyle = `background: radial-gradient(circle, #A020F0 20%, #00FF7F 100%); box-shadow: 0 0 12px 4px rgba(160, 32, 240, 0.6), 0 0 25px 8px rgba(0, 255, 127, 0.4);`;
                 } else if (log.starType.startsWith("regular")) {
                     const colors = ["#00FFFF", "#D35400", "#D32F2F", "#7C4DFF"];
-                    const colorIdx = parseInt(log.starType.split('_')[1], 10) - 1;
+                    const colorIdx = parseInt(log.starType.split('_')[1]) - 1;
                     starColor = colors[colorIdx] || "white";
                     customStyle = `background-color: ${starColor}; box-shadow: 0 0 4px 1px ${starColor}, 0 0 8px 2px ${starColor}dd, 0 0 10px 3px ${starColor}88; filter: brightness(1.8);`;
                 }
@@ -10737,23 +10638,13 @@ window.showMilkyWay = async (mId, mName) => {
                 if (shouldTwinkle) setTimeout(() => star.classList.add('animate-twinkle'), 1000);
                 if (index === logs.length - 1) setTimeout(() => createShootingStar(board, log.coords.x, log.coords.y), 1000);
             }, index * 150);
-        }
-
-        const updatedSuperHolders = getLatestLegendHolders('super');
-        const updatedSpecialHolders = getLatestLegendHolders('special');
-        modal.classList.remove('is-super', 'is-special');
-        if (updatedSuperHolders.includes(mId) || updatedSuperHolders.includes(mName)) {
-            modal.classList.add('is-super');
-            if (quoteLabel) quoteLabel.innerHTML = "타오르는 태양의 궤적이 밤하늘에서 가장 찬란한 전설이 됩니다.";
-        } else if (updatedSpecialHolders.includes(mId) || updatedSpecialHolders.includes(mName)) {
-            modal.classList.add('is-special');
-            if (quoteLabel) quoteLabel.innerHTML = "신비로운 오로라의 빛이 은하수 깊은 곳을 에픽하게 수놓습니다.";
-        }
+        });
 
     } catch (e) {
         console.error("은하수 로딩 에러:", e);
     }
 };
+
 
 // 3. 가이드 모달 토글 함수
 window.toggleStarGuide = async (show) => {
@@ -10775,10 +10666,9 @@ function getLegendStarHistoryFromLocal() {
 
     if (typeof currentData !== 'undefined' && Array.isArray(currentData)) {
         currentData.forEach(member => {
-            if (!member) return;
-            if (Array.isArray(member.specialStars)) {
+            if (member.specialStars && Array.isArray(member.specialStars)) {
                 member.specialStars.forEach(item => {
-                    if (item?.starType === "super" || item?.starType === "special") {
+                    if (item.starType === "super" || item.starType === "special") {
                         legendHistory[item.starType].push({
                             name: member.name || "익명",
                             quarter: item.quarter || "1Q",
@@ -10847,7 +10737,7 @@ function showStarGalleryModal(type, titleText, items) {
 // 7. 전체 획득자 더보기 연동
 window.showAllHolders = (starName, holdersJson) => {
     const list = JSON.parse(decodeURIComponent(holdersJson));
-
+    
     const formattedItems = list.map(h => ({
         quarter: h.quarter || '1Q',
         name: h.name || '무명',
@@ -10861,7 +10751,8 @@ window.showAllHolders = (starName, holdersJson) => {
     showStarGalleryModal(starType, modalTitle, formattedItems);
 };
 
-// 8. 가이드 항목 랜더링 함수
+// 8. 가이드 항목 랜더링 함수 (1번 최신 획득자 태그 강화 반영)
+// 가이드 항목 랜더링 함수 (문구 및 배지 아이콘 변경 반영)
 async function renderStarGuideItems() {
     const grid = document.getElementById('guideGrid');
     if (!grid) return;
@@ -10873,29 +10764,29 @@ async function renderStarGuideItems() {
     const legendHolders = getLegendStarHistoryFromLocal();
 
     const stars = [
-        {
-            id: "super",
-            name: "슈퍼별",
-            badge: "",
-            prob: "3%",
-            desc: "타오르는 태양의 전설",
-            style: "background: radial-gradient(circle, #FF0000 10%, #FFFF00 70%, #fff 100%); box-shadow: 0 0 12px 3px #FF0000, 0 0 20px 6px rgba(255, 255, 0, 0.6);",
-            cardBg: "background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(245, 158, 11, 0.08) 100%); border: 1px solid rgba(239, 68, 68, 0.45);",
-            tagBg: "background: rgba(239, 68, 68, 0.3); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.5);",
+        { 
+            id: "super", 
+            name: "슈퍼별", 
+            badge: "", // 배지 변경
+            prob: "3%", 
+            desc: "타오르는 태양의 전설", 
+            style: "background: radial-gradient(circle, #FF0000 10%, #FFFF00 70%, #fff 100%); box-shadow: 0 0 12px 3px #FF0000, 0 0 20px 6px rgba(255, 255, 0, 0.6);", 
+            cardBg: "background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(245, 158, 11, 0.08) 100%); border: 1px solid rgba(239, 68, 68, 0.45);", 
+            tagBg: "background: rgba(239, 68, 68, 0.3); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.5);", 
             twinkle: true,
-            glowAnimation: "animation: superGlow 1.8s infinite alternate ease-in-out;"
+            glowAnimation: "animation: superGlow 1.8s infinite alternate ease-in-out;" 
         },
-        {
-            id: "special",
-            name: "스페셜별",
-            badge: "",
-            prob: "7%",
-            desc: "신비로운 에픽 오로라",
-            style: "background: radial-gradient(circle, #A020F0 10%, #00FF7F 70%, #fff 100%); box-shadow: 0 0 12px 3px #A020F0, 0 0 20px 6px rgba(0, 255, 127, 0.6);",
-            cardBg: "background: linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(16, 185, 129, 0.08) 100%); border: 1px solid rgba(168, 85, 247, 0.45);",
-            tagBg: "background: rgba(168, 85, 247, 0.3); color: #e9d5ff; border: 1px solid rgba(168, 85, 247, 0.5);",
+        { 
+            id: "special", 
+            name: "스페셜별", 
+            badge: "", // 배지 변경
+            prob: "7%", 
+            desc: "신비로운 에픽 오로라", 
+            style: "background: radial-gradient(circle, #A020F0 10%, #00FF7F 70%, #fff 100%); box-shadow: 0 0 12px 3px #A020F0, 0 0 20px 6px rgba(0, 255, 127, 0.6);", 
+            cardBg: "background: linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(16, 185, 129, 0.08) 100%); border: 1px solid rgba(168, 85, 247, 0.45);", 
+            tagBg: "background: rgba(168, 85, 247, 0.3); color: #e9d5ff; border: 1px solid rgba(168, 85, 247, 0.5);", 
             twinkle: true,
-            glowAnimation: "animation: specialGlow 2s infinite alternate ease-in-out;"
+            glowAnimation: "animation: specialGlow 2s infinite alternate ease-in-out;" 
         },
         { id: "regular_1", name: "정기 1호", prob: "22.5%", desc: "청명한 시안 블루", style: "background: #00FFFF; box-shadow: 0 0 8px #00FFFF;", twinkle: true },
         { id: "regular_2", name: "정기 2호", prob: "22.5%", desc: "정열의 오렌지", style: "background: #D35400; box-shadow: 0 0 8px #D35400;", twinkle: true },
@@ -10924,7 +10815,8 @@ async function renderStarGuideItems() {
             let holdersHTML = "";
 
             if (list.length > 0) {
-                const latest = list[0];
+                const latest = list[0]; 
+                // 획득자 태그 내 배지 아이콘 적용 (s.badge)
                 holdersHTML = `
                     <span class="latest-holder-tag" style="font-size: 8px; font-weight: 800; padding: 2px 7px; border-radius: 6px; display: inline-flex; align-items: center; gap: 3px; white-space: nowrap;">
                         <span style="color: #38bdf8; font-weight: 900; font-size: 7.5px;">[${latest.quarter}]</span> ${latest.name} ${s.badge}
@@ -10932,6 +10824,7 @@ async function renderStarGuideItems() {
                 `;
 
                 if (list.length > 1) {
+                    const extraCount = list.length - 1;
                     const encodedList = encodeURIComponent(JSON.stringify(list));
                     holdersHTML += `
     <button onclick="showAllHolders('${s.name}', '${encodedList}')" style="background: rgba(56, 189, 248, 0.2); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; font-size: 7.5px; font-weight: 800; padding: 2px 6px; border-radius: 6px; cursor: pointer;">
@@ -10943,6 +10836,7 @@ async function renderStarGuideItems() {
                 holdersHTML = `<span style="color: #64748b; font-size: 8px; font-style: italic;">아직 획득자 없음</span>`;
             }
 
+            // '최근 획득' ➔ '획득자'로 변경
             legendHoldersSection = `
                 <div style="display: flex; justify-content: center; align-items: center; gap: 5px; padding-top: 5px; margin-top: 4px; border-top: 1px solid rgba(255, 255, 255, 0.08); width: 100%;">
                     <span style="color: #94a3b8; font-size: 8px; font-weight: 700;">획득자:</span>
@@ -10978,6 +10872,8 @@ async function renderStarGuideItems() {
     grid.innerHTML = cardsHTML;
 }
 
+
+
 // 9. 슈팅스타(유성) 애니메이션 생성 함수
 function createShootingStar(board, tx, ty) {
     const s = document.createElement('div');
@@ -10998,13 +10894,6 @@ function createShootingStar(board, tx, ty) {
         setTimeout(() => s.remove(), 500);
     }, 850);
 }
-
-
-
-
-
-
-
 
 
 window.currentScrollLogs = []; 
