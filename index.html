@@ -9268,8 +9268,6 @@ window.filterAdminMemberList = () => {
   }, 1000);
 };
 
-
-
 // -------------------------------------------------------------
 // 0. 캐시 객체 및 데이터 세팅 (Firestore 호출 최소화)
 // -------------------------------------------------------------
@@ -9280,20 +9278,35 @@ window.historyCache = {
   lastUpdated: null
 };
 
+// 산 이름 안전 추출 헬퍼
+function extractMountainName(rawMountain, fallback = '삼성산') {
+  if (!rawMountain) return fallback;
+  if (typeof rawMountain === 'string') {
+    const trimmed = rawMountain.trim();
+    return trimmed || fallback;
+  }
+  if (typeof rawMountain === 'object') {
+    return (rawMountain.name || rawMountain.mountain || rawMountain.label || rawMountain.title || fallback).trim() || fallback;
+  }
+  return String(rawMountain).trim() || fallback;
+}
+
 /**
  * 💾 1. 별(슈퍼/스페셜) 획득 시 DB 저장 함수
  */
 window.saveSpecialStarToMember = async function(memberId, starType, quarterStr, memberObj, mountainName, activityDate) {
   try {
-    const formattedDate = activityDate ? 
-      `${activityDate.getFullYear()}.${String(activityDate.getMonth() + 1).padStart(2, '0')}.${String(activityDate.getDate()).padStart(2, '0')}` : 
+    const formattedDate = activityDate ?
+      `${activityDate.getFullYear()}.${String(activityDate.getMonth() + 1).padStart(2, '0')}.${String(activityDate.getDate()).padStart(2, '0')}` :
       new Date().toISOString().split('T')[0].replace(/-/g, '.');
 
+    const resolvedMountain = extractMountainName(mountainName, "삼성산");
+
     const starData = {
-      starType: starType,                         
-      mountain: mountainName || "관악산",          
-      date: formattedDate,                        
-      quarter: quarterStr || `${Math.ceil((new Date().getMonth() + 1) / 3)}분기`, 
+      starType: starType,
+      mountain: resolvedMountain,
+      date: formattedDate,
+      quarter: quarterStr || `${Math.ceil((new Date().getMonth() + 1) / 3)}분기`,
       createdAt: new Date()
     };
 
@@ -9319,13 +9332,13 @@ window.checkAndSaveLv100ToMember = async function(memberId, newLevel, mountainNa
   try {
     if (memberObj && memberObj.lv100Achieved) return;
 
-    const formattedDate = activityDate ? 
-      `${activityDate.getFullYear()}.${String(activityDate.getMonth() + 1).padStart(2, '0')}.${String(activityDate.getDate()).padStart(2, '0')}` : 
+    const formattedDate = activityDate ?
+      `${activityDate.getFullYear()}.${String(activityDate.getMonth() + 1).padStart(2, '0')}.${String(activityDate.getDate()).padStart(2, '0')}` :
       new Date().toISOString().split('T')[0].replace(/-/g, '.');
 
     const lv100Data = {
       lv100Achieved: true,
-      lv100Mountain: mountainName || "관악산",
+      lv100Mountain: extractMountainName(mountainName, "삼성산"),
       lv100Date: formattedDate,
       lv100Quarter: quarterStr || `${Math.ceil((new Date().getMonth() + 1) / 3)}분기`,
       lv100CreatedAt: new Date()
@@ -9339,7 +9352,7 @@ window.checkAndSaveLv100ToMember = async function(memberId, newLevel, mountainNa
     }
     window.invalidateHistoryCache();
   } catch (err) {
-    console.error("Lv100 DB Save Error:", err);
+    console.error("Lv.100 DB Save Error:", err);
   }
 };
 
@@ -9400,7 +9413,7 @@ function getLatestLegendHolders(starType) {
 // 📅 안전한 날짜 포맷팅 도우미 함수 (Timestamp, Date, 문자열 모두 대응)
 function formatDate(dateValue) {
   if (!dateValue) return '날짜없음';
-  
+
   try {
     // Firebase Timestamp 객체 (.toDate() 존재)
     if (dateValue && typeof dateValue.toDate === 'function') {
@@ -9410,12 +9423,12 @@ function formatDate(dateValue) {
       const dd = String(d.getDate()).padStart(2, '0');
       return `${yyyy}.${mm}.${dd}`;
     }
-    
+
     // 이미 "YYYY.MM.DD" 문자열인 경우
     if (typeof dateValue === 'string' && dateValue.includes('.')) {
       return dateValue.trim();
     }
-    
+
     // 숫자 타임스탬프 또는 Date 객체/문자열 처리
     const d = new Date(dateValue);
     if (!isNaN(d.getTime())) {
@@ -9427,7 +9440,7 @@ function formatDate(dateValue) {
   } catch (e) {
     console.error("Date Format Error:", e);
   }
-  
+
   return '날짜없음';
 }
 
@@ -9448,9 +9461,14 @@ function getOrBuildHistoryCache() {
       const memberLogs = Array.isArray(m.logs) ? m.logs : [];
       const latestLog = memberLogs.length > 0 ? memberLogs[0] : null;
 
-      // 산 이름 추출
-      let extractedMountain = latestLog ? (latestLog.mountain || latestLog.id || latestLog.docId || '') : '';
-      const fallbackMountain = extractedMountain || m.lastMountain || m.recentMountain || '🍁 청계산';
+      // 산 이름 추출 (로그 > 멤버 최근산 순으로 우선 확인)
+      const logMountain = latestLog
+        ? (latestLog.mountain || latestLog.mountainName || latestLog.name || latestLog.id || latestLog.docId || '')
+        : '';
+      const fallbackMountain = extractMountainName(
+        logMountain || m.lastMountain || m.recentMountain || m.currentMountain,
+        '삼성산'
+      );
       const rawFallbackDate = m.lastDate || (latestLog ? latestLog.date : '') || new Date();
 
       // 🌟 전설의 별 데이터 수집
@@ -9458,20 +9476,25 @@ function getOrBuildHistoryCache() {
         m.specialStars.forEach((s, sIdx) => {
           const formattedDate = formatDate(s.date || s.timestamp || s.createdAt || rawFallbackDate);
           const monthMatch = formattedDate.split('.')[1];
-          const calculatedQuarter = monthMatch ? `${Math.ceil(parseInt(monthMatch, 10) / 3)}Q` : '3Q';
+          const calculatedQuarter = monthMatch ? `${Math.ceil(parseInt(monthMatch, 10) / 3)}Q` : '4Q';
 
           const rawQuarter = s.quarter || calculatedQuarter;
-const normalizedQuarter = String(rawQuarter).replace(/분기$/, 'Q').toUpperCase();
+          const normalizedQuarter = String(rawQuarter).replace(/분기$/, 'Q').toUpperCase();
 
-const item = {
-  name: m.name,
-  mountain: s.mountain || s.mountainName || fallbackMountain,
-  date: formattedDate,
-  quarter: normalizedQuarter, // "1Q", "2Q", "3Q", "4Q"로 통일
-  createdAt: s.createdAt ? (s.createdAt.toDate ? s.createdAt.toDate().getTime() : new Date(s.createdAt).getTime()) : (s.timestamp || Date.now()),
-  rawIndex: mIdx * 100 + sIdx
-};
+          // 별 객체에 기록된 산 이름을 최우선으로 사용하고, 없을 때만 폴백 사용
+          const starMountainRaw = s.mountain || s.mountainName || s.course || '';
+          const resolvedMountain = extractMountainName(starMountainRaw, fallbackMountain);
 
+          const item = {
+            name: m.name,
+            mountain: resolvedMountain,
+            date: formattedDate,
+            quarter: normalizedQuarter,
+            createdAt: s.createdAt
+              ? (s.createdAt.toDate ? s.createdAt.toDate().getTime() : new Date(s.createdAt).getTime())
+              : (s.timestamp || Date.now()),
+            rawIndex: mIdx * 100 + sIdx
+          };
 
           if (s.starType === 'super') superItems.push(item);
           if (s.starType === 'special') specialItems.push(item);
@@ -9482,14 +9505,16 @@ const item = {
       if ((m.level || 0) >= 100 || m.lv100Achieved) {
         const formattedDate = formatDate(m.lv100Date || m.achievedDate || rawFallbackDate);
         const monthMatch = formattedDate.split('.')[1];
-        const calculatedQuarter = monthMatch ? `${Math.ceil(parseInt(monthMatch, 10) / 3)}Q` : '3Q';
+        const calculatedQuarter = monthMatch ? `${Math.ceil(parseInt(monthMatch, 10) / 3)}Q` : '4Q';
 
         lv100Items.push({
           name: m.name,
-          mountain: m.lv100Mountain || fallbackMountain,
+          mountain: extractMountainName(m.lv100Mountain, fallbackMountain),
           date: formattedDate,
           quarter: m.lv100Quarter || calculatedQuarter,
-          createdAt: m.lv100CreatedAt ? (m.lv100CreatedAt.toDate ? m.lv100CreatedAt.toDate().getTime() : new Date(m.lv100CreatedAt).getTime()) : Date.now(),
+          createdAt: m.lv100CreatedAt
+            ? (m.lv100CreatedAt.toDate ? m.lv100CreatedAt.toDate().getTime() : new Date(m.lv100CreatedAt).getTime())
+            : Date.now(),
           rawIndex: mIdx
         });
       }
@@ -9591,8 +9616,8 @@ function renderVibeHallOfFame() {
       `).join('');
 
       html += `
-        <button type="button" id="more-btn-${categoryId}" 
-          onclick="document.getElementById('more-list-${categoryId}').classList.remove('hidden'); document.getElementById('more-list-${categoryId}').classList.add('inline-flex'); this.classList.add('hidden');" 
+        <button type="button" id="more-btn-${categoryId}"
+          onclick="document.getElementById('more-list-${categoryId}').classList.remove('hidden'); document.getElementById('more-list-${categoryId}').classList.add('inline-flex'); this.classList.add('hidden');"
           class="inline-flex items-center bg-slate-100 hover:bg-slate-200 text-slate-500 border border-slate-200 px-2 py-0.5 rounded-lg font-black text-[10px] mr-1 mb-1 cursor-pointer transition-all active:scale-95">
           +${hiddenList.length} more
         </button>
@@ -9625,14 +9650,14 @@ function renderVibeHallOfFame() {
               상세보기
             </button>
           </div>
-          
+
           <div class="space-y-1.5">
             <div class="flex items-center gap-2 bg-white/90 p-1.5 rounded-xl border shadow-2xs is-super-subtle-glow">
               <span class="badge-super-gradient text-[9.5px] font-black px-2.5 py-0.8 rounded-md shrink-0">
                 🔥 슈퍼별
               </span>
               <div class="flex flex-wrap items-center pt-0.5">
-                ${formatBadgeListWithMore(superHolders, 'default', 'super', 3)}
+                ${formatBadgeListWithMore(superHolders, 'default', 'super', 2)}
               </div>
             </div>
 
@@ -9641,7 +9666,7 @@ function renderVibeHallOfFame() {
                 ✨ 스페셜
               </span>
               <div class="flex flex-wrap items-center pt-0.5">
-                ${formatBadgeListWithMore(specialHolders, 'default', 'special', 3)}
+                ${formatBadgeListWithMore(specialHolders, 'default', 'special', 2)}
               </div>
             </div>
           </div>
@@ -9666,7 +9691,7 @@ function renderVibeHallOfFame() {
         <div class="p-3 bg-gradient-to-br from-emerald-50/70 via-teal-50/30 to-emerald-100/20 rounded-2xl is-emerald-subtle-glow relative overflow-hidden">
           <div class="text-[11px] font-black text-emerald-950 mb-1.5 flex items-center justify-between">
             <span class="flex items-center gap-1">
-              <span>🚩</span> 
+              <span>🚩</span>
               <span class="bg-gradient-to-r from-emerald-700 via-teal-600 to-emerald-800 bg-clip-text text-transparent font-black">
                 누적 고도 (Accumulated Altitude)
               </span>
@@ -9732,8 +9757,8 @@ window.openLegendDetailModal = function() {
       return `
         <div class="p-2.5 rounded-xl border ${isFirst ? (isSuper ? 'bg-rose-50/90 border-rose-300 ring-1 ring-rose-200' : 'bg-purple-50/90 border-purple-300 ring-1 ring-purple-200') : 'bg-white border-slate-100'} shadow-2xs flex items-center justify-between text-xs font-bold overflow-x-auto">
           <div class="flex items-center gap-1.5 shrink-0 whitespace-nowrap w-full">
-            ${isFirst 
-              ? `<span class="text-[10px] px-1.5 py-0.5 rounded-md ${isSuper ? 'bg-rose-500' : 'bg-purple-600'} text-white font-black shrink-0">👑 최초</span>` 
+            ${isFirst
+              ? `<span class="text-[10px] px-1.5 py-0.5 rounded-md ${isSuper ? 'bg-rose-500' : 'bg-purple-600'} text-white font-black shrink-0">👑 최초</span>`
               : `<span class="text-[10px] font-black text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-md shrink-0">No.${item.rank}</span>`
             }
             <span class="font-black text-slate-800 ml-0.5">${item.name}</span>
@@ -9797,8 +9822,8 @@ window.openLv100DetailModal = function() {
           return `
             <div class="p-2.5 rounded-xl border ${isFirst ? 'bg-amber-50/90 border-amber-300 ring-1 ring-amber-300/60' : 'bg-white border-amber-100'} shadow-2xs flex items-center justify-between text-xs font-bold overflow-x-auto">
               <div class="flex items-center gap-1.5 shrink-0 whitespace-nowrap w-full">
-                ${isFirst 
-                  ? `<span class="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500 text-white font-black shrink-0">👑 최초</span>` 
+                ${isFirst
+                  ? `<span class="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500 text-white font-black shrink-0">👑 최초</span>`
                   : `<span class="text-[10px] font-black text-amber-800/80 bg-amber-100/60 border border-amber-200/80 px-1.5 py-0.5 rounded-md shrink-0">No.${item.rank}</span>`
                 }
                 <span class="font-black text-slate-800 ml-0.5">${item.name}</span>
@@ -9828,8 +9853,8 @@ window.openHeightDetailModal = function() {
 
   title.innerHTML = `🚩 <span class="bg-gradient-to-r from-emerald-700 via-teal-600 to-emerald-800 bg-clip-text text-transparent font-black">누적 고도 (Accumulated Altitude)</span> 달성 기록`;
 
-  const activeMembers = (typeof currentData !== 'undefined' && Array.isArray(currentData)) 
-    ? currentData.filter(m => !m.isHidden && !m.hidden) 
+  const activeMembers = (typeof currentData !== 'undefined' && Array.isArray(currentData))
+    ? currentData.filter(m => !m.isHidden && !m.hidden)
     : [];
 
   const heightQualifiedMembers = activeMembers
@@ -9844,12 +9869,12 @@ window.openHeightDetailModal = function() {
         ${heightQualifiedMembers.map((item, idx) => {
           const isFirst = idx === 0;
           const heightKm = (item.totalHeight / 1000).toFixed(1);
-          
+
           return `
             <div class="p-2.5 rounded-xl border ${isFirst ? 'bg-emerald-50/90 border-emerald-300 ring-1 ring-emerald-300/60' : 'bg-white border-emerald-100'} shadow-2xs flex items-center justify-between text-xs font-bold overflow-x-auto">
               <div class="flex items-center gap-1.5 shrink-0 whitespace-nowrap w-full">
-                ${isFirst 
-                  ? `<span class="text-[10px] px-1.5 py-0.5 rounded-md bg-emerald-600 text-white font-black shrink-0">👑 No.1</span>` 
+                ${isFirst
+                  ? `<span class="text-[10px] px-1.5 py-0.5 rounded-md bg-emerald-600 text-white font-black shrink-0">👑 No.1</span>`
                   : `<span class="text-[10px] font-black text-emerald-800/80 bg-emerald-100/60 border border-emerald-200/80 px-1.5 py-0.5 rounded-md shrink-0">No.${idx+1}</span>`
                 }
                 <span class="font-black text-slate-800 ml-0.5">${item.name}</span>
@@ -9876,6 +9901,8 @@ window.closeHistoryDetailModal = function() {
     modal.style.display = 'none';
   }
 };
+
+
 
 // 🎯 [전역 캐시 객체 선언] 최초 1회만 Firestore에서 가져오고 이후 재활용합니다.
 window.mountainDataCache = window.mountainDataCache || {};
