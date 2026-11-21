@@ -7984,79 +7984,8 @@ window.toggleDisableCoord = () => {
     }
 };
 
-// 🎯 직전 분기(YYYY_qQ) qCount 조회 헬퍼
-function getPreviousQuarterQCount(member, year, quarter) {
-    if (!member) return 0;
 
-    let prevYear = year;
-    let prevQuarter = quarter - 1;
-    if (prevQuarter < 1) {
-        prevQuarter = 4;
-        prevYear = year - 1;
-    }
-
-    const prevKey = `${prevYear}_q${prevQuarter}`;
-    const qStats = member.quarterlyStats;
-
-    if (qStats && typeof qStats === 'object') {
-        if (qStats[prevKey] && typeof qStats[prevKey].qCount === 'number') {
-            return qStats[prevKey].qCount;
-        }
-        // "2026_1q" 등 표기 차이 대비 키 정규화 탐색
-        const normalizedTarget = `${prevYear}q${prevQuarter}`;
-        for (const [k, v] of Object.entries(qStats)) {
-            if (String(k).toLowerCase().replace(/[^a-z0-9]/g, '') === normalizedTarget && v && typeof v.qCount === 'number') {
-                return v.qCount;
-            }
-        }
-    }
-
-    return typeof member.qCount === 'number' ? member.qCount : 0;
-}
-
-// 🎯 전분기 qCount 기준 슈퍼별/스페셜별 차등 확률 추첨 함수
-function drawRegularHikeStarByPrevQCount(member, year, quarter) {
-    const prevQCount = getPreviousQuarterQCount(member, year, quarter);
-
-    let superProb = 0;
-    let specialProb = 0;
-
-    if (prevQCount >= 30) {
-        superProb = 0.5;
-        specialProb = 3.0;
-    } else if (prevQCount >= 25) {
-        superProb = 0.4;
-        specialProb = 2.5;
-    } else if (prevQCount >= 20) {
-        superProb = 0.4;
-        specialProb = 2.0;
-    } else if (prevQCount >= 15) {
-        superProb = 0.3;
-        specialProb = 1.5;
-    } else if (prevQCount >= 10) {
-        superProb = 0.3;
-        specialProb = 1.0;
-    } else {
-        superProb = 0;
-        specialProb = 1.0;
-    }
-
-    const rand = Math.random() * 100;
-    if (superProb > 0 && rand < superProb) {
-        return "super";
-    }
-    if (rand < superProb + specialProb) {
-        return "special";
-    }
-
-    const regularIdx = Math.floor(Math.random() * 4) + 1;
-    return `regular_${regularIdx}`;
-}
-
-// 전역에서도 접근 가능하도록 노출
-window.drawRegularHikeStarByPrevQCount = drawRegularHikeStarByPrevQCount;
-
-        
+  
 window.addMultiActivity = async () => {
     const dateInput = document.getElementById('activityDate');
     if (!dateInput) return alert("날짜 입력창을 찾을 수 없습니다.");
@@ -8339,9 +8268,16 @@ window.addMultiActivity = async () => {
             for (let i = 0; i < finalLogLoopCount; i++) {
                 let starType = null;
                 
-                // 🎯 정기산행일 경우 전분기 qCount 점수 반영 차등 추첨 실행
+                // 🎯 정기산행일 경우 전분기 점수 반영 추첨 실행
                 if (isRegular) {
-                    starType = drawRegularHikeStarByPrevQCount(member, currentYear, currentQuarter);
+                    if (typeof window.drawRegularHikeStar === 'function') {
+                        starType = window.drawRegularHikeStar(member, currentYear, currentQuarter);
+                    } else {
+                        const rand = Math.random() * 100;
+                        if (rand <= 3) starType = "super";
+                        else if (rand <= 10) starType = "special";
+                        else starType = "regular_" + (Math.floor(Math.random() * 4) + 1);
+                    }
                 }
 
                 // 🎯 별(슈퍼/스페셜) 획득 시 DB 저장
@@ -8478,9 +8414,6 @@ window.addMultiActivity = async () => {
     }
 };
 
-  
-
-                 
           
   // 📌 [신규 회원 등록 함수] - 수정본
 window.addMember = async () => {
@@ -10520,9 +10453,9 @@ window.renderTreeRings = async (mId, memberName, regDate, memberLevel) => {
 };
              
                 
-    
-
-// ======================= [별 가이드 & 은하수 모듈 통합 - 연도 자동 저장 & 모달 최신화] =======================
+                    
+                
+  // ======================= [별 가이드 & 은하수 모듈 통합 - 연도 자동 저장 & 모달 최신화] =======================
 
 // 0. 최신 획득자(최신 왕좌) 판별 보조 함수
 function getLatestLegendHolderId(starType) {
@@ -10598,6 +10531,7 @@ window.showMilkyWay = async (mId, mName) => {
 
     modal.classList.remove('is-super', 'is-special');
 
+    // 가장 최근 분기(연도+분기) 기준으로 해당 별을 획득한 '모든' 인원(2명, 3명 등)의 id/name 수집
     const getLatestQuarterHolders = (starType) => {
         if (typeof currentData === 'undefined' || !Array.isArray(currentData)) return [];
 
@@ -10663,6 +10597,7 @@ window.showMilkyWay = async (mId, mName) => {
     const latestSuperHolderIds = getLatestQuarterHolders('super');
     const latestSpecialHolderIds = getLatestQuarterHolders('special');
 
+    // 같은 분기에 획득한 모든 슈퍼/스페셜 보유자 검증 (2명·3명 이상 전원 적용)
     let isCurrentSuperKing = latestSuperHolderIds.includes(mId) || latestSuperHolderIds.includes(mName);
     let isCurrentSpecialKing = latestSpecialHolderIds.includes(mId) || latestSpecialHolderIds.includes(mName);
 
@@ -10829,6 +10764,7 @@ window.showMilkyWay = async (mId, mName) => {
             }, index * 150);
         }
 
+        // 로그에서 새로 저장된 specialStars까지 반영해 최신 분기 획득자 재검증
         const refreshedSuperHolders = getLatestQuarterHolders('super');
         const refreshedSpecialHolders = getLatestQuarterHolders('special');
         modal.classList.remove('is-super', 'is-special');
@@ -10919,6 +10855,7 @@ function showStarGalleryModal(type, titleText, items) {
         return m ? parseInt(m[1], 10) : new Date().getFullYear();
     };
 
+    // currentData 또는 전달받은 items 기준으로 가장 최근 분기(연도+분기) 획득자 이름 집합 추출
     const latestNames = new Set();
     const candidates = [];
 
@@ -11047,7 +10984,8 @@ window.showAllHolders = (starName, holdersJson) => {
     showStarGalleryModal(starType, modalTitle, formattedItems);
 };
 
-// 8. 가이드 항목 랜더링 함수
+// 8. 가이드 항목 랜더링 함수 (1번 최신 획득자 태그 강화 반영)
+// 가이드 항목 랜더링 함수 (문구 및 배지 아이콘 변경 반영)
 async function renderStarGuideItems() {
     const grid = document.getElementById('guideGrid');
     if (!grid) return;
@@ -11062,8 +11000,8 @@ async function renderStarGuideItems() {
         { 
             id: "super", 
             name: "슈퍼별", 
-            badge: "",
-            prob: "0.5%", 
+            badge: "", // 배지 변경
+            prob: "3%", 
             desc: "타오르는 태양의 전설", 
             style: "background: radial-gradient(circle, #FF0000 10%, #FFFF00 70%, #fff 100%); box-shadow: 0 0 12px 3px #FF0000, 0 0 20px 6px rgba(255, 255, 0, 0.6);", 
             cardBg: "background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(245, 158, 11, 0.08) 100%); border: 1px solid rgba(239, 68, 68, 0.45);", 
@@ -11074,8 +11012,8 @@ async function renderStarGuideItems() {
         { 
             id: "special", 
             name: "스페셜별", 
-            badge: "",
-            prob: "3%", 
+            badge: "", // 배지 변경
+            prob: "7%", 
             desc: "신비로운 에픽 오로라", 
             style: "background: radial-gradient(circle, #A020F0 10%, #00FF7F 70%, #fff 100%); box-shadow: 0 0 12px 3px #A020F0, 0 0 20px 6px rgba(0, 255, 127, 0.6);", 
             cardBg: "background: linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(16, 185, 129, 0.08) 100%); border: 1px solid rgba(168, 85, 247, 0.45);", 
@@ -11111,6 +11049,7 @@ async function renderStarGuideItems() {
 
             if (list.length > 0) {
                 const latest = list[0]; 
+                // 획득자 태그 내 배지 아이콘 적용 (s.badge)
                 holdersHTML = `
                     <span class="latest-holder-tag" style="font-size: 8px; font-weight: 800; padding: 2px 7px; border-radius: 6px; display: inline-flex; align-items: center; gap: 3px; white-space: nowrap;">
                         <span style="color: #38bdf8; font-weight: 900; font-size: 7.5px;">[${latest.quarter}]</span> ${latest.name} ${s.badge}
@@ -11118,6 +11057,7 @@ async function renderStarGuideItems() {
                 `;
 
                 if (list.length > 1) {
+                    const extraCount = list.length - 1;
                     const encodedList = encodeURIComponent(JSON.stringify(list));
                     holdersHTML += `
     <button onclick="showAllHolders('${s.name}', '${encodedList}')" style="background: rgba(56, 189, 248, 0.2); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; font-size: 7.5px; font-weight: 800; padding: 2px 6px; border-radius: 6px; cursor: pointer;">
@@ -11129,6 +11069,7 @@ async function renderStarGuideItems() {
                 holdersHTML = `<span style="color: #64748b; font-size: 8px; font-style: italic;">아직 획득자 없음</span>`;
             }
 
+            // '최근 획득' ➔ '획득자'로 변경
             legendHoldersSection = `
                 <div style="display: flex; justify-content: center; align-items: center; gap: 5px; padding-top: 5px; margin-top: 4px; border-top: 1px solid rgba(255, 255, 255, 0.08); width: 100%;">
                     <span style="color: #94a3b8; font-size: 8px; font-weight: 700;">획득자:</span>
@@ -11165,6 +11106,7 @@ async function renderStarGuideItems() {
 }
 
 
+
 // 9. 슈팅스타(유성) 애니메이션 생성 함수
 function createShootingStar(board, tx, ty) {
     const s = document.createElement('div');
@@ -11185,13 +11127,6 @@ function createShootingStar(board, tx, ty) {
         setTimeout(() => s.remove(), 500);
     }, 850);
 }
-                
-                
-
-        
-            
-                        
-
 
 
 window.currentScrollLogs = []; 
