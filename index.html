@@ -10780,7 +10780,7 @@ window.closeSgModal = function(e) {
     if (modal) modal.remove();
 };
 
-// 6. 스타 갤러리 커스텀 모달 열기
+// 6. 스타 갤러리 커스텀 모달 열기 (최신 분기 획득자 전원 강조 적용)
 function showStarGalleryModal(type, titleText, items) {
     const oldModal = document.getElementById('sgCustomModal');
     if (oldModal) oldModal.remove();
@@ -10789,12 +10789,108 @@ function showStarGalleryModal(type, titleText, items) {
     const icon = isSuper ? "🌟" : "✨";
     const themeClass = isSuper ? "super" : "special";
 
-    const listHtml = items.map(item => `
-        <div class="sg-owner-item" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 4px; border-bottom: 1px solid rgba(255,255,255,0.05);">
-            <span style="font-weight: 600;">[${item.quarter}] ${item.name}</span>
-            <span style="font-size: 0.82rem; color: rgba(255, 255, 255, 0.55); font-weight: 500;">${item.displayYear}</span>
-        </div>
-    `).join('');
+    const parseQNum = (q) => {
+        const match = String(q || '').match(/(\d)/);
+        return match ? parseInt(match[1], 10) : 0;
+    };
+
+    const parseYearNum = (item) => {
+        if (typeof item.year === 'number') return item.year;
+        const m = String(item.displayYear || '').match(/(\d{4})/);
+        return m ? parseInt(m[1], 10) : new Date().getFullYear();
+    };
+
+    // currentData 또는 전달받은 items 기준으로 가장 최근 분기(연도+분기) 획득자 이름 집합 추출
+    const latestNames = new Set();
+    const candidates = [];
+
+    if (typeof currentData !== 'undefined' && Array.isArray(currentData)) {
+        const fallbackYear = new Date().getFullYear();
+        currentData.forEach(member => {
+            if (!member || !member.name) return;
+            if (Array.isArray(member.specialStars)) {
+                member.specialStars.forEach(st => {
+                    if (st?.starType === type) {
+                        candidates.push({
+                            name: member.name,
+                            year: st.year || (st.timestamp ? new Date(st.timestamp).getFullYear() : fallbackYear),
+                            qNum: parseQNum(st.quarter)
+                        });
+                    }
+                });
+            } else if (type === 'super' && member.hasSuperStar) {
+                candidates.push({
+                    name: member.name,
+                    year: member.superStarYear || fallbackYear,
+                    qNum: parseQNum(member.superStarQuarter || '1Q')
+                });
+            } else if (type === 'special' && member.hasSpecialStar) {
+                candidates.push({
+                    name: member.name,
+                    year: member.specialStarYear || fallbackYear,
+                    qNum: parseQNum(member.specialStarQuarter || '1Q')
+                });
+            }
+        });
+    }
+
+    const pool = candidates.length > 0
+        ? candidates
+        : (Array.isArray(items) ? items.map(it => ({
+            name: it.name,
+            year: parseYearNum(it),
+            qNum: parseQNum(it.quarter)
+        })) : []);
+
+    if (pool.length > 0) {
+        let maxYear = -Infinity;
+        let maxQNum = -Infinity;
+        pool.forEach(p => {
+            if (p.year > maxYear) {
+                maxYear = p.year;
+                maxQNum = p.qNum;
+            } else if (p.year === maxYear && p.qNum > maxQNum) {
+                maxQNum = p.qNum;
+            }
+        });
+        pool.forEach(p => {
+            if (p.year === maxYear && p.qNum === maxQNum && p.name) {
+                latestNames.add(p.name);
+            }
+        });
+    }
+
+    const accentBorder = isSuper ? "rgba(251, 191, 36, 0.75)" : "rgba(192, 132, 252, 0.75)";
+    const accentBg = isSuper
+        ? "linear-gradient(90deg, rgba(245, 158, 11, 0.22), rgba(239, 68, 68, 0.12))"
+        : "linear-gradient(90deg, rgba(168, 85, 247, 0.24), rgba(16, 185, 129, 0.14))";
+    const accentShadow = isSuper
+        ? "0 0 12px rgba(251, 191, 36, 0.25)"
+        : "0 0 12px rgba(192, 132, 252, 0.25)";
+    const badgeStyle = isSuper
+        ? "background: rgba(251, 191, 36, 0.25); color: #fde68a; border: 1px solid rgba(251, 191, 36, 0.55);"
+        : "background: rgba(192, 132, 252, 0.25); color: #f3e8ff; border: 1px solid rgba(192, 132, 252, 0.55);";
+
+    const listHtml = (items || []).map(item => {
+        const isLatestHolder = latestNames.has(item.name);
+        const rowClass = isLatestHolder ? "sg-owner-item is-latest-holder" : "sg-owner-item";
+        const rowStyle = isLatestHolder
+            ? `display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; margin-bottom: 6px; border-radius: 10px; background: ${accentBg}; border: 1px solid ${accentBorder}; box-shadow: ${accentShadow};`
+            : `display: flex; justify-content: space-between; align-items: center; padding: 7px 6px; border-bottom: 1px solid rgba(255,255,255,0.05);`;
+
+        const latestBadgeHtml = isLatestHolder
+            ? `<span style="font-size: 0.68rem; font-weight: 800; padding: 1px 6px; border-radius: 999px; margin-left: 6px; ${badgeStyle}">최신</span>`
+            : "";
+
+        return `
+            <div class="${rowClass}" style="${rowStyle}">
+                <span style="font-weight: ${isLatestHolder ? '800' : '600'}; color: ${isLatestHolder ? '#ffffff' : '#e2e8f0'}; display: inline-flex; align-items: center;">
+                    [${item.quarter}] ${item.name}${latestBadgeHtml}
+                </span>
+                <span style="font-size: 0.82rem; color: ${isLatestHolder ? '#f8fafc' : 'rgba(255, 255, 255, 0.55)'}; font-weight: ${isLatestHolder ? '700' : '500'};">${item.displayYear}</span>
+            </div>
+        `;
+    }).join('');
 
     const modalHtml = `
         <div id="sgCustomModal" class="sg-modal-overlay" onclick="window.closeSgModal(event)" style="position: fixed; top:0; left:0; width:100%; height:100%; z-index: 10050; background: rgba(0,0,0,0.7); display:flex; justify-content:center; align-items:center; backdrop-filter: blur(8px);">
@@ -10804,7 +10900,7 @@ function showStarGalleryModal(type, titleText, items) {
                         <span>${icon}</span> ${titleText}
                     </div>
                 </div>
-                <div class="sg-owner-list" style="max-height: 220px; overflow-y: auto; margin-bottom: 16px;">
+                <div class="sg-owner-list" style="max-height: 220px; overflow-y: auto; margin-bottom: 16px; padding-right: 2px;">
                     ${listHtml}
                 </div>
                 <button class="sg-modal-btn" onclick="window.closeSgModal()" style="width:100%; background: linear-gradient(135deg, #1e293b, #0f172a); border: 1px solid rgba(56,189,248,0.4); color:#38bdf8; font-weight:800; padding:10px 0; border-radius: 12px; cursor:pointer;">확인</button>
@@ -10814,6 +10910,7 @@ function showStarGalleryModal(type, titleText, items) {
 
     document.body.insertAdjacentHTML('beforeend', modalHtml);
 }
+
 
 // 7. 전체 획득자 더보기 연동
 window.showAllHolders = (starName, holdersJson) => {
